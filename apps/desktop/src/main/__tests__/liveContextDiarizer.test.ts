@@ -11,9 +11,12 @@ import {
 /**
  * Synthetic voices: each speaker is a direction in 192 dimensions and each
  * embedding that direction plus Gaussian noise. With noise σ the expected
- * similarity of two embeddings of one voice is 1 / (1 + σ²) (0.8 at
- * σ = 0.5, close to CAM++ on clean speech, median 0.83 in our clips), and
- * of two voices ρ / (1 + σ²) for centroids ρ apart.
+ * similarity of two embeddings of one voice is 1 / (1 + σ²), and of two
+ * voices ρ / (1 + σ²) for centroids ρ apart. The defaults match CAM++ on
+ * real recordings (bench/diarization): one voice 0.6 alike (σ = 0.82;
+ * headset meetings and readings, median 0.60–0.70), two voices 0.15
+ * (ρ = 0.25; p90 0.28). Far-field audio is noisier: 0.45 within a voice
+ * (σ = 1.1). `say` voices are far cleaner (0.83) and not used here.
  */
 const DIM = 192;
 
@@ -43,8 +46,8 @@ interface Voice {
 function voices(
   seed: number,
   count: number,
-  correlation = 0.375,
-  noise = 0.5,
+  correlation = 0.25,
+  noise = 0.82,
 ): Voice[] {
   const rng = random(seed);
   const shared = rng.direction();
@@ -370,9 +373,9 @@ describe("Live Context speaker clustering", () => {
   });
 
   it("tells two similar voices apart", () => {
-    // Embeddings across the two voices are 0.6 alike, as similar as the
-    // closest pairs of real voices in our clips.
-    const people = voices(5, 2, 0.75);
+    // Embeddings across the two voices are 0.3 alike, as similar as the
+    // closest pairs of real voices in our clips (p90 0.28).
+    const people = voices(5, 2, 0.5);
     const rng = random(6);
     const simulation = simulate(
       conversation(alternating(people, 8, () => 4 + rng.uniform() * 8)),
@@ -474,10 +477,10 @@ describe("Live Context speaker clustering", () => {
     expect(labels.get("n")?.echo).toBeUndefined();
   });
 
-  it("adapts its thresholds to a far-field room mic", () => {
+  it("separates people on a far-field room mic", () => {
     // A conference room: four people on one mic, noisier embeddings
-    // (0.64 alike within a voice, 0.24 across).
-    const people = voices(14, 4, 0.375, 0.75);
+    // (0.45 alike within a voice, 0.11 across).
+    const people = voices(14, 4, 0.25, 1.1);
     const rng = random(15);
     const simulation = simulate(
       conversation(alternating(people, 10, () => 3 + rng.uniform() * 9)),
@@ -604,19 +607,21 @@ describe("Live Context speaker clustering", () => {
       const rng = random(26);
       return conversation(alternating([a, b], 5, () => 4 + rng.uniform() * 6));
     };
+    const shown = (diarizer: SourceDiarizer) => [
+      ...new Set(diarizer.assignments().map(([, speaker]) => speaker)),
+    ];
     const named = new SourceDiarizer("system");
     simulate(turns(), { diarizer: named });
     expect(named.speakerCount).toBe(2);
-    named.finish({ merges: new Map(), named: new Set([1, 2]) });
+    const [first, second] = shown(named);
+    named.finish({ merges: new Map(), named: new Set([first, second]) });
     expect(named.speakerCount).toBe(2);
-    // The user said 2 is 1: the final pass never splits them again.
+    // The user said the second is the first: never split again.
     const merged = new SourceDiarizer("system");
     simulate(turns(), { diarizer: merged });
-    merged.finish({ merges: new Map([[2, 1]]), named: new Set() });
+    merged.finish({ merges: new Map([[second, first]]), named: new Set() });
     expect(merged.speakerCount).toBe(1);
-    expect(new Set(merged.assignments().map(([, speaker]) => speaker))).toEqual(
-      new Set([1]),
-    );
+    expect(shown(merged)).toEqual([first]);
   });
 
   it("caps speakers by the user's hint", () => {
@@ -631,6 +636,88 @@ describe("Live Context speaker clustering", () => {
       },
     );
     expect(simulation.diarizer.speakerCount).toBeLessThanOrEqual(3);
+  });
+
+  it("keeps a far-field lecture as one speaker, with no split sentences", () => {
+    // A talk across a room: noisy embeddings, the voice drifting as the
+    // speaker turns and moves.
+    const [teacher] = voices(30, 1, 0.25, 1.1);
+    const rng = random(31);
+    const drift = rng.direction().map((x) => x * 0.5);
+    const parts: [Voice, number, number][] = [];
+    for (let total = 0; total < 30 * 60;) {
+      const length = 3 + rng.uniform() * 12;
+      parts.push([teacher, length, 0.3 + rng.uniform() * 1.5]);
+      total += length + 1;
+    }
+    const diarizer = remember(new SourceDiarizer("mic"));
+    const simulation = simulate(conversation(parts), {
+      diarizer,
+      shiftAfter: 15 * 60,
+      shift: drift,
+    });
+    // Every label as it was first shown, not just at the end.
+    const shown = new Set<string>();
+    const drain = diarizer.drain.bind(diarizer);
+    diarizer.drain = () => {
+      const labels = drain();
+      for (const label of labels)
+        for (const turn of label.turns)
+          if (turn.speaker) shown.add(turn.speaker);
+      return labels;
+    };
+    const result = score(simulation);
+    expect(result.speakers).toBe(1);
+    expect(shown.size).toBeLessThanOrEqual(1);
+    for (const turns of lastLabels.get(diarizer)!.values())
+      expect(turns).toHaveLength(1);
+  });
+
+  it("labels words it has not analyzed yet with the voice next to them", () => {
+    const [a] = voices(32, 1);
+    const rng = random(33);
+    const diarizer = new SourceDiarizer("mic");
+    // Nothing analyzed yet: the voice is unknown, not "Me".
+    diarizer.segment({ id: "early", t0: 0, t1: 2, words: [[0, 0, 2]] });
+    expect(diarizer.drain()).toEqual([
+      { id: "early", turns: [{ offset: 0, provisional: true }] },
+    ]);
+    for (let id = 0; id < 8; id += 1) {
+      const t0 = 2 + id * 1.5;
+      diarizer.window({
+        id,
+        t0,
+        t1: t0 + 3,
+        slow: false,
+        turns: [[t0, t0 + 3, 0]],
+        ...(id ? { after: id - 1 } : {}),
+      });
+      diarizer.embedding({
+        window: id,
+        local: 0,
+        t0,
+        t1: t0 + 3,
+        seconds: 3,
+        quality: 1,
+        vector: sample(rng, a),
+      });
+    }
+    // Words past the analyzed audio carry on the last voice, provisionally.
+    diarizer.segment({
+      id: "late",
+      t0: 10,
+      t1: 20,
+      words: [
+        [0, 10, 12],
+        [10, 15.5, 20],
+      ],
+    });
+    const late = diarizer.drain().find((label) => label.id === "late");
+    expect(late?.turns).toEqual([{ offset: 0, speaker: "mic-1" }]);
+    diarizer.segment({ id: "later", t0: 40, t1: 42, words: [[0, 40, 42]] });
+    expect(
+      diarizer.drain().find((label) => label.id === "later")?.turns,
+    ).toEqual([{ offset: 0, speaker: "mic-1", provisional: true }]);
   });
 
   it("round-trips float16 vectors", () => {

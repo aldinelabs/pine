@@ -5,6 +5,13 @@
  * and deterministic logic, so a session can be replayed from its stored
  * embeddings and tested without audio. See docs/live-context.md §3.4.
  *
+ * Who is who is decided again and again over the whole session, not once
+ * per embedding: stretches of one linked voice ("atoms") are clustered by
+ * average linkage every time new evidence arrives, and the clusters are
+ * mapped onto the speaker numbers already on screen. A voice that merges
+ * into another becomes an alias of it, so the transcript never gains a
+ * speaker that is really someone it already shows.
+ *
  * Times are seconds on one clock per source: each capture's analyzer time
  * plus an offset that keeps captures of a session apart.
  */
@@ -12,35 +19,52 @@ import type { LiveContextSource, LiveContextTurn } from "../shared/liveContext";
 import { speakerKey } from "../shared/liveContextSpeakers";
 
 export interface DiarizerOptions {
-  /** A voice this similar to a speaker joins it. */
-  tauHigh: number;
-  /** Below this it is not that speaker; in between is ambiguous. */
-  tauLow: number;
+  /** Average similarity at which two stretches of speech are one voice. */
+  threshold: number;
+  /** A must-link (the same local speaker in overlapping windows) holds only this similar. */
+  linkFloor: number;
+  /** A voice that is not yet a speaker joins the closest one this similar. */
+  absorb: number;
+  /** Beyond the first, a speaker needs this much speech… */
+  minSpeakerSeconds: number;
+  /** …in this many separate stretches, */
+  minSpeakerStretches: number;
+  /** …or in one, if it is less alike than this to every speaker. */
+  distinctBelow: number;
   maxSpeakers: number;
-  /** "About N people": caps speakers at N + 1 and merges more eagerly. */
+  /** "About N people": caps speakers at N + 1. */
   expectedSpeakers?: number;
-  /** A new speaker needs this many similar embeddings… */
-  confirmCount: number;
-  /** …covering this much speech. */
-  confirmSeconds: number;
-  reservoirSize: number;
+  /** One stretch of linked voice spans at most this long. */
+  atomSeconds: number;
+  /** Older stretches of one speaker are combined beyond this many. */
+  maxAtoms: number;
+  /** Re-cluster at most this often (audio seconds). */
+  reclusterSeconds: number;
   /** Labels change live only this far back; older ones only by alias or the final pass. */
   liveSeconds: number;
-  consolidateSeconds: number;
   /** Shorter turns join a neighbor. */
   minTurnSeconds: number;
+  /** Different local speakers of one window are kept apart unless this similar. */
+  cannotLinkBelow: number;
+  /** An embedding moves to another speaker that sounds this much more like it. */
+  reassignMargin: number;
 }
 
 export const DEFAULT_DIARIZER_OPTIONS: DiarizerOptions = {
-  tauHigh: 0.65,
-  tauLow: 0.45,
+  threshold: 0.5,
+  linkFloor: 0.25,
+  absorb: 0.3,
+  minSpeakerSeconds: 6,
+  minSpeakerStretches: 2,
+  distinctBelow: 0.1,
   maxSpeakers: 12,
-  confirmCount: 2,
-  confirmSeconds: 3,
-  reservoirSize: 20,
-  liveSeconds: 60,
-  consolidateSeconds: 90,
-  minTurnSeconds: 0.5,
+  atomSeconds: 20,
+  maxAtoms: 400,
+  reclusterSeconds: 1.5,
+  liveSeconds: 120,
+  minTurnSeconds: 1,
+  cannotLinkBelow: 0.6,
+  reassignMargin: 0,
 };
 
 /** An analysis window: who spoke when, as local speaker numbers. */
@@ -109,8 +133,6 @@ interface Unit {
   embedding?: Embedding;
 }
 
-type EmbeddingState = "accepted" | "ambiguous" | "candidate";
-
 interface Embedding {
   seq: number;
   unit: Unit;
@@ -119,27 +141,35 @@ interface Embedding {
   seconds: number;
   quality: number;
   vector: Float32Array;
+  atom?: Atom;
+  /** The speaker shown for it, before aliases. */
   speaker?: number;
-  state: EmbeddingState;
-  /** Score against `speaker` when decided. */
-  score: number;
+  /** A best guess: its voice is not (yet) clustered with that speaker. */
+  tentative?: boolean;
 }
 
-interface Speaker {
+/** Up to `atomSeconds` of one voice, linked across windows. */
+interface Atom {
   id: number;
-  centroid: Float32Array;
+  members: Embedding[];
+  /** Quality-weighted sum of the members' vectors. */
+  sum: Float32Array;
   weight: number;
-  reservoir: Float32Array[];
-  seconds: number;
+  t0: number;
+  t1: number;
+  /** window id → local speaker, for cannot-links. */
+  locals: Map<number, number>;
+  /** Several atoms combined (long sessions): never split again. */
+  coarse: boolean;
+  /** Bumped when members join; keys the caches below. */
+  version: number;
+  vector?: { version: number; value: Float32Array };
+  /** Similarity to atoms with a higher id: [value, version, theirs]. */
+  similar: Map<number, [number, number, number]>;
 }
 
 interface Segment extends DiarizerSegmentInput {
   emitted?: string;
-}
-
-interface UnitLabel {
-  speaker?: number;
-  provisional: boolean;
 }
 
 export function dot(a: Float32Array, b: Float32Array): number {
@@ -154,6 +184,10 @@ export function normalize(vector: Float32Array): Float32Array {
   norm = Math.sqrt(norm);
   if (norm > 0) for (let i = 0; i < vector.length; i += 1) vector[i] /= norm;
   return vector;
+}
+
+function normalized(vector: Float32Array): Float32Array {
+  return normalize(Float32Array.from(vector));
 }
 
 /** Binary search: the first index whose value is ≥ `target`. */
@@ -189,18 +223,137 @@ function coverage(spans: [number, number][]): number {
   return total;
 }
 
-/** Running mean and spread of intra-speaker scores, for adaptive thresholds. */
-class Calibration {
-  count = 0;
-  mean = 0;
-  variance = 0;
-  add(value: number): void {
-    this.count += 1;
-    const rate = Math.max(0.03, 1 / this.count);
-    const delta = value - this.mean;
-    this.mean += rate * delta;
-    this.variance = (1 - rate) * (this.variance + rate * delta * delta);
+/**
+ * Average-linkage agglomeration (Lance–Williams) with cannot-links as −∞,
+ * groups that start merged, and groups that never merge with each other.
+ * Each row caches its best partner to the right, so a step is O(n).
+ * Returns the clusters (indices into the input) and the final linkage
+ * between any two of them.
+ */
+export function agglomerate(input: {
+  vectors: readonly Float32Array[];
+  weights: readonly number[];
+  threshold: number;
+  conflict(i: number, j: number): boolean;
+  /** Defaults to the vectors' dot product. */
+  similarity?(i: number, j: number): number;
+  /** Same group: start as one cluster. */
+  group?: readonly (number | undefined)[];
+  /** Two groups that must stay apart. */
+  apart?(a: number, b: number): boolean;
+}): { clusters: number[][]; linkage: (i: number, j: number) => number } {
+  const n = input.vectors.length;
+  const similarity = new Float32Array(n * n);
+  for (let i = 0; i < n; i += 1)
+    for (let j = i + 1; j < n; j += 1) {
+      const value = input.conflict(i, j)
+        ? -Infinity
+        : (input.similarity?.(i, j) ?? dot(input.vectors[i], input.vectors[j]));
+      similarity[i * n + j] = value;
+      similarity[j * n + i] = value;
+    }
+  const alive = new Uint8Array(n).fill(1);
+  const size = [...input.weights];
+  const cluster = input.vectors.map((_, index) => [index]);
+  const groupOf = input.group ? [...input.group] : new Array<undefined>(n);
+  const merge = (i: number, j: number) => {
+    for (let k = 0; k < n; k += 1) {
+      if (!alive[k] || k === i || k === j) continue;
+      const a = similarity[i * n + k];
+      const b = similarity[j * n + k];
+      const value =
+        a === -Infinity || b === -Infinity
+          ? -Infinity
+          : (size[i] * a + size[j] * b) / (size[i] + size[j]);
+      similarity[i * n + k] = value;
+      similarity[k * n + i] = value;
+    }
+    size[i] += size[j];
+    cluster[i].push(...cluster[j]);
+    groupOf[i] ??= groupOf[j];
+    alive[j] = 0;
+  };
+  const firstOfGroup = new Map<number, number>();
+  for (let i = 0; i < n; i += 1) {
+    const group = groupOf[i];
+    if (group === undefined) continue;
+    const first = firstOfGroup.get(group);
+    if (first === undefined) firstOfGroup.set(group, i);
+    else merge(first, i);
   }
+  const rowBest = new Float64Array(n).fill(-Infinity);
+  const rowPartner = new Int32Array(n).fill(-1);
+  const refresh = (i: number) => {
+    let best = -Infinity;
+    let partner = -1;
+    if (alive[i])
+      for (let j = i + 1; j < n; j += 1) {
+        if (!alive[j]) continue;
+        const value = similarity[i * n + j];
+        if (partner < 0 || value > best) {
+          best = value;
+          partner = j;
+        }
+      }
+    rowBest[i] = best;
+    rowPartner[i] = partner;
+  };
+  for (let i = 0; i < n; i += 1) refresh(i);
+  for (;;) {
+    let i = -1;
+    for (let k = 0; k < n; k += 1)
+      if (rowPartner[k] >= 0 && (i < 0 || rowBest[k] > rowBest[i])) i = k;
+    if (i < 0 || rowBest[i] < input.threshold) break;
+    const j = rowPartner[i];
+    const gi = groupOf[i];
+    const gj = groupOf[j];
+    if (
+      gi !== undefined &&
+      gj !== undefined &&
+      gi !== gj &&
+      input.apart?.(gi, gj)
+    ) {
+      similarity[i * n + j] = -Infinity;
+      similarity[j * n + i] = -Infinity;
+      refresh(i);
+      continue;
+    }
+    merge(i, j);
+    rowPartner[j] = -1;
+    refresh(i);
+    for (let k = 0; k < n; k += 1) {
+      if (k === i || !alive[k] || rowPartner[k] < 0) continue;
+      if (rowPartner[k] === i || rowPartner[k] === j) refresh(k);
+      else if (k < i) {
+        const value = similarity[k * n + i];
+        if (value > rowBest[k] || (value === rowBest[k] && i < rowPartner[k])) {
+          rowBest[k] = value;
+          rowPartner[k] = i;
+        }
+      }
+    }
+  }
+  const clusters: number[][] = [];
+  for (let i = 0; i < n; i += 1) if (alive[i]) clusters.push(cluster[i]);
+  const root = new Int32Array(n);
+  for (let i = 0; i < n; i += 1)
+    if (alive[i]) for (const member of cluster[i]) root[member] = i;
+  return {
+    clusters,
+    linkage: (a, b) => similarity[root[a] * n + root[b]],
+  };
+}
+
+/** A cluster of atoms after one round of clustering. */
+interface Cluster {
+  atoms: Atom[];
+  /** Index of its first atom, for `linkage`. */
+  head: number;
+  seconds: number;
+  weight: number;
+  vector: Float32Array;
+  promoted: boolean;
+  group?: number;
 }
 
 /**
@@ -219,20 +372,21 @@ export class SourceDiarizer {
   private readonly embeddings: Embedding[] = [];
   /** The same, by start time, to find what covers a moment. */
   private readonly byStart: Embedding[] = [];
-  private readonly speakers = new Map<number, Speaker>();
+  private atoms: Atom[] = [];
+  private nextAtom = 0;
+  /** Speakers shown so far (unaliased), with their voice. */
+  private readonly speakers = new Map<number, Float32Array>();
   private readonly alias = new Map<number, number>();
   private readonly pendingAliases: [number, number][] = [];
-  /** How often two speakers spoke in one window (so are two people). */
-  private readonly apart = new Map<string, number>();
-  private candidates: Embedding[] = [];
-  private readonly calibration = new Calibration();
+  /** The user's merges, kept together in every round. */
+  private readonly userMerges = new Map<number, number>();
   private readonly segments = new Map<string, Segment>();
   private readonly segmentOrder: Segment[] = [];
   private readonly echoes: [number, number][] = [];
   private nextSpeaker = 1;
   private latest = 0;
-  private lastConsolidation = 0;
-  private relaxUntil = -Infinity;
+  private dirty = false;
+  private lastRecluster = -Infinity;
   /** Window ids are per capture; this keeps them apart. */
   private windowBase = 0;
   private maxWindowId = 0;
@@ -242,7 +396,7 @@ export class SourceDiarizer {
     windows: 0,
     slowWindows: 0,
     embeddings: 0,
-    consolidations: 0,
+    reclusters: 0,
   };
 
   constructor(
@@ -263,12 +417,12 @@ export class SourceDiarizer {
   beginCapture(): void {
     this.windowBase = this.maxWindowId + 1;
     this.recent = [];
+    this.finalized = false;
   }
 
-  /** The audio device changed: the same voices sound different for a while. */
+  /** The audio device changed: what follows is not linked to what came before. */
   deviceChanged(): void {
     this.recent = [];
-    this.relaxUntil = this.latest + 30;
   }
 
   echo(t0: number, t1: number): void {
@@ -325,8 +479,6 @@ export class SourceDiarizer {
       seconds: input.seconds,
       quality: Math.min(1, Math.max(0.05, input.quality)),
       vector: normalize(Float32Array.from(input.vector)),
-      state: "candidate",
-      score: 0,
     };
     this.embeddings.push(embedding);
     let at = this.byStart.length;
@@ -334,9 +486,12 @@ export class SourceDiarizer {
     this.byStart.splice(at, 0, embedding);
     unit.embedding = embedding;
     this.stats.embeddings += 1;
-    this.decide(embedding);
-    if (this.latest - this.lastConsolidation >= this.options.consolidateSeconds)
-      this.consolidate();
+    if (this.inEcho(embedding)) return;
+    this.place(embedding);
+    // Until the next round, the closest speaker it sounds like.
+    embedding.speaker = this.closest(embedding.vector);
+    embedding.tentative = true;
+    this.dirty = true;
   }
 
   segment(input: DiarizerSegmentInput): void {
@@ -360,11 +515,13 @@ export class SourceDiarizer {
 
   /** Speaker merges found since the last call: [from, into]. */
   takeAliases(): [number, number][] {
+    this.update();
     return this.pendingAliases.splice(0);
   }
 
   /** Segments of the last `liveSeconds` whose labels changed. */
   drain(): DiarizerLabel[] {
+    this.update();
     const from = this.finalized
       ? -Infinity
       : this.latest - this.options.liveSeconds;
@@ -382,7 +539,7 @@ export class SourceDiarizer {
   resolve(id: number): number {
     let current = id;
     for (let guard = 0; guard < 64; guard += 1) {
-      const next = this.alias.get(current);
+      const next = this.alias.get(current) ?? this.userMerges.get(current);
       if (next === undefined) return current;
       current = next;
     }
@@ -393,11 +550,12 @@ export class SourceDiarizer {
   speakerAtTime(
     time: number,
   ): { speaker?: number; overlap?: number } | undefined {
+    this.update();
     const found = this.speakerAt(time - 0.005, time + 0.005);
     if (!found) return undefined;
     return {
-      ...(found.label.speaker !== undefined
-        ? { speaker: this.resolve(found.label.speaker) }
+      ...(found.speaker !== undefined
+        ? { speaker: this.resolve(found.speaker) }
         : {}),
       ...(found.overlap !== undefined
         ? { overlap: this.resolve(found.overlap) }
@@ -405,246 +563,420 @@ export class SourceDiarizer {
     };
   }
 
+  /** Speakers shown now, after merges. */
   get speakerCount(): number {
-    return this.speakers.size;
+    this.update();
+    return new Set([...this.speakers.keys()].map((id) => this.resolve(id)))
+      .size;
   }
 
   /** Each stored embedding's speaker, for persisting the final pass. */
   assignments(): [seq: number, speaker: number][] {
+    this.update();
     return this.embeddings
-      .filter((each) => each.speaker !== undefined && each.state === "accepted")
+      .filter((each) => each.speaker !== undefined)
       .map((each) => [each.seq, this.resolve(each.speaker!)]);
   }
 
-  // MARK: Online clustering
+  // MARK: Atoms
 
-  private thresholds(): { high: number; low: number } {
-    const { tauHigh, tauLow } = this.options;
-    let high = tauHigh;
-    if (this.calibration.count >= 20) {
-      const spread = Math.sqrt(this.calibration.variance);
-      high = Math.min(
-        tauHigh + 0.1,
-        Math.max(tauHigh - 0.05, this.calibration.mean - 2 * spread),
-      );
-    }
-    const low = high - (tauHigh - tauLow);
-    if (this.latest < this.relaxUntil)
-      return { high: low + 0.05, low: low - 0.05 };
-    return { high, low };
+  private atomVector(atom: Atom): Float32Array {
+    if (atom.vector?.version !== atom.version)
+      atom.vector = { version: atom.version, value: normalized(atom.sum) };
+    return atom.vector.value;
   }
 
-  score(vector: Float32Array, speaker: Speaker): number {
-    const centroid = dot(vector, speaker.centroid);
-    const top = speaker.reservoir
-      .map((each) => dot(vector, each))
-      .sort((a, b) => b - a);
-    const count = Math.min(3, top.length);
-    let mean = 0;
-    for (let i = 0; i < count; i += 1) mean += top[i] / count;
-    return Math.max(centroid, mean);
+  /** Two atoms' similarity, kept until either changes. */
+  private atomSimilarity(a: Atom, b: Atom): number {
+    const [low, high] = a.id < b.id ? [a, b] : [b, a];
+    const cached = low.similar.get(high.id);
+    if (cached && cached[1] === low.version && cached[2] === high.version)
+      return cached[0];
+    const value = dot(this.atomVector(low), this.atomVector(high));
+    low.similar.set(high.id, [value, low.version, high.version]);
+    return value;
   }
 
-  private decide(embedding: Embedding): void {
-    const { high, low } = this.thresholds();
-    const forbidden = this.forbidden(embedding.unit);
-    // Must-link: the same local speaker in an overlapping window is the
-    // same person, unless the voice clearly disagrees.
-    const prior = this.inherited(embedding.unit, true);
-    if (prior !== undefined && !forbidden.has(prior)) {
-      const speaker = this.speakers.get(prior);
-      if (speaker) {
-        const score = this.score(embedding.vector, speaker);
-        // Same-voice scores tune the thresholds; a broken link is no sample.
-        if (score >= low) this.calibration.add(score);
-        // Segmentation sometimes gives two similar voices one number, so
-        // the link needs the voice to roughly agree.
-        if (score >= (high + low) / 2) {
-          this.accept(embedding, speaker, score, score >= high);
-          return;
-        }
-      }
-    }
-    let best: Speaker | undefined;
-    let bestScore = -1;
-    for (const speaker of this.speakers.values()) {
-      if (forbidden.has(speaker.id)) continue;
-      const score = this.score(embedding.vector, speaker);
-      if (score > bestScore) {
-        best = speaker;
-        bestScore = score;
-      }
-    }
-    if (best && bestScore >= high) {
-      this.accept(embedding, best, bestScore, true);
-      return;
-    }
-    if (best && bestScore >= low) {
-      embedding.state = "ambiguous";
-      embedding.speaker = best.id;
-      embedding.score = bestScore;
-    }
-    this.candidates.push(embedding);
-    this.confirm(embedding);
+  /** Joins the atom of a linked unit's embedding, or starts a new one. */
+  private place(embedding: Embedding): void {
+    const atom = this.linkedAtom(embedding.unit);
     if (
-      embedding.state !== "accepted" &&
-      this.speakers.size >= this.options.maxSpeakers &&
-      best
+      atom &&
+      !atom.coarse &&
+      embedding.t1 - atom.t0 <= this.options.atomSeconds &&
+      dot(embedding.vector, this.atomVector(atom)) >= this.options.linkFloor &&
+      atom.locals.get(embedding.unit.window.id) === undefined
     ) {
-      // Full: the closest speaker, provisionally.
-      embedding.state = "ambiguous";
-      embedding.speaker = best.id;
-      embedding.score = bestScore;
-    }
-  }
-
-  private accept(
-    embedding: Embedding,
-    speaker: Speaker,
-    score: number,
-    learn: boolean,
-  ): void {
-    embedding.state = "accepted";
-    embedding.speaker = speaker.id;
-    embedding.score = score;
-    if (learn) this.learn(speaker, embedding);
-    for (const other of embedding.unit.window.units) {
-      if (other === embedding.unit || other.embedding?.state !== "accepted")
-        continue;
-      const id = this.resolve(other.embedding.speaker!);
-      if (id !== speaker.id) this.noteApart(id, speaker.id);
-    }
-  }
-
-  private learn(speaker: Speaker, embedding: Embedding): void {
-    const weight = embedding.quality;
-    speaker.weight += weight;
-    // A running mean at first, then a slow moving average for drift.
-    const rate = Math.max(weight / speaker.weight, 0.02 * weight);
-    for (let i = 0; i < speaker.centroid.length; i += 1)
-      speaker.centroid[i] =
-        (1 - rate) * speaker.centroid[i] + rate * embedding.vector[i];
-    normalize(speaker.centroid);
-    speaker.seconds += embedding.seconds;
-    this.addExemplar(speaker, embedding.vector);
-  }
-
-  /** Keeps the reservoir diverse: a new voice sample replaces the most redundant one. */
-  private addExemplar(speaker: Speaker, vector: Float32Array): void {
-    const reservoir = speaker.reservoir;
-    if (reservoir.length < this.options.reservoirSize) {
-      reservoir.push(vector);
+      this.addToAtom(atom, embedding);
       return;
     }
-    const closest = (index: number, candidate: Float32Array) => {
-      let max = -1;
-      for (let j = 0; j < reservoir.length; j += 1)
-        if (j !== index) max = Math.max(max, dot(candidate, reservoir[j]));
-      return max;
+    const fresh: Atom = {
+      id: this.nextAtom++,
+      members: [],
+      sum: new Float32Array(embedding.vector.length),
+      weight: 0,
+      t0: embedding.t0,
+      t1: embedding.t1,
+      locals: new Map(),
+      coarse: false,
+      version: 0,
+      similar: new Map(),
     };
-    let redundant = 0;
-    let redundancy = -1;
-    for (let i = 0; i < reservoir.length; i += 1) {
-      const value = closest(i, reservoir[i]);
-      if (value > redundancy) {
-        redundancy = value;
-        redundant = i;
-      }
-    }
-    if (closest(redundant, vector) < redundancy) reservoir[redundant] = vector;
+    this.atoms.push(fresh);
+    this.addToAtom(fresh, embedding);
   }
 
-  private newSpeaker(members: Embedding[]): Speaker {
-    const speaker: Speaker = {
-      id: this.nextSpeaker,
-      centroid: new Float32Array(members[0].vector.length),
-      weight: 0,
-      reservoir: [],
-      seconds: 0,
-    };
-    this.nextSpeaker += 1;
-    this.speakers.set(speaker.id, speaker);
-    for (const member of members) {
-      this.learn(speaker, member);
-      member.state = "accepted";
-      member.speaker = speaker.id;
-      member.score = this.score(member.vector, speaker);
+  private addToAtom(atom: Atom, embedding: Embedding): void {
+    atom.members.push(embedding);
+    atom.weight += embedding.quality;
+    for (let i = 0; i < atom.sum.length; i += 1)
+      atom.sum[i] += embedding.quality * embedding.vector[i];
+    atom.t0 = Math.min(atom.t0, embedding.t0);
+    atom.t1 = Math.max(atom.t1, embedding.t1);
+    atom.locals.set(embedding.unit.window.id, embedding.unit.local);
+    atom.version += 1;
+    embedding.atom = atom;
+  }
+
+  /** The atom of the latest embedding reachable over must-links (within 20 s). */
+  private linkedAtom(unit: Unit): Atom | undefined {
+    const seen = new Set<Unit>([unit]);
+    let frontier = [unit];
+    let found: Embedding | undefined;
+    for (let depth = 0; depth < 8 && frontier.length; depth += 1) {
+      const next: Unit[] = [];
+      for (const current of frontier)
+        for (const linked of current.links) {
+          if (seen.has(linked) || Math.abs(linked.t0 - unit.t0) > 20) continue;
+          seen.add(linked);
+          next.push(linked);
+          const embedding = linked.embedding;
+          if (embedding?.atom && (!found || embedding.t1 > found.t1))
+            found = embedding;
+        }
+      frontier = next;
     }
-    return speaker;
+    return found?.atom;
   }
 
   /**
-   * A new speaker only from a few mutually similar embeddings with enough
-   * speech between them, so a cough, a laugh or a burst of music never
-   * becomes a speaker.
+   * Pairs of atoms (i * n + j, i < j) holding different local speakers of
+   * one window: two people, unless their voices are clearly one
+   * (segmentation now and then splits one voice; see `cannotLinkBelow`).
    */
-  private confirm(embedding: Embedding): void {
-    const { high } = this.thresholds();
-    const horizon = this.latest - 300;
-    this.candidates = this.candidates
-      .filter((each) => each.state !== "accepted" && each.t1 >= horizon)
-      .slice(-64);
-    if (this.speakers.size >= this.options.maxSpeakers) return;
-    const group = [embedding];
-    for (const other of this.candidates) {
-      if (other === embedding || dot(other.vector, embedding.vector) < high)
-        continue;
-      if (group.some((member) => this.cannotLink(member.unit, other.unit)))
-        continue;
-      group.push(other);
+  private conflicts(atoms: readonly Atom[]): Set<number> {
+    const byWindow = new Map<number, [number, number][]>();
+    atoms.forEach((atom, index) => {
+      for (const [window, local] of atom.locals) {
+        const list = byWindow.get(window);
+        if (list) list.push([index, local]);
+        else byWindow.set(window, [[index, local]]);
+      }
+    });
+    const pairs = new Set<number>();
+    for (const list of byWindow.values())
+      for (let x = 0; x < list.length; x += 1)
+        for (let y = x + 1; y < list.length; y += 1) {
+          const [i, a] = list[x];
+          const [j, b] = list[y];
+          if (a !== b && i !== j)
+            pairs.add(Math.min(i, j) * atoms.length + Math.max(i, j));
+        }
+    return pairs;
+  }
+
+  /** Long sessions: old atoms of one speaker close in time become one. */
+  private coarsen(): void {
+    if (this.atoms.length <= this.options.maxAtoms) return;
+    const target = Math.floor(this.options.maxAtoms * 0.75);
+    const atoms = [...this.atoms].sort((a, b) => a.t0 - b.t0);
+    const speakerOf = (atom: Atom) => {
+      const counts = new Map<number, number>();
+      for (const member of atom.members)
+        if (member.speaker !== undefined) {
+          const id = this.resolve(member.speaker);
+          counts.set(id, (counts.get(id) ?? 0) + member.quality);
+        }
+      return [...counts].sort((x, y) => y[1] - x[1])[0]?.[0];
+    };
+    // Each old atom joins the last earlier one of its speaker within
+    // `span`; the span doubles until few enough remain.
+    let current = atoms;
+    for (let span = 120; current.length > target && span <= 3600; span *= 2) {
+      const horizon = this.latest - 300;
+      const last = new Map<number, Atom>();
+      const kept: Atom[] = [];
+      let merged = 0;
+      for (const atom of current) {
+        const speaker = atom.t1 < horizon ? speakerOf(atom) : undefined;
+        const into = speaker === undefined ? undefined : last.get(speaker);
+        if (
+          into &&
+          atom.t1 - into.t0 <= span &&
+          current.length - merged > target
+        ) {
+          for (const member of atom.members) this.addToAtom(into, member);
+          into.coarse = true;
+          merged += 1;
+          continue;
+        }
+        if (speaker !== undefined) last.set(speaker, atom);
+        kept.push(atom);
+      }
+      current = kept;
     }
-    if (group.length < this.options.confirmCount) return;
-    const seconds = coverage(group.map((each) => [each.t0, each.t1]));
-    const needed =
-      this.options.confirmSeconds * (this.latest < this.relaxUntil ? 2 : 1);
-    if (seconds < needed) return;
-    const centroid = normalize(new Float32Array(embedding.vector.length));
-    for (const member of group)
-      for (let i = 0; i < centroid.length; i += 1)
-        centroid[i] += member.quality * member.vector[i];
-    normalize(centroid);
-    let coherence = 0;
-    for (const member of group)
-      coherence += dot(member.vector, centroid) / group.length;
-    // Not just a known speaker heard less clearly.
-    for (const speaker of this.speakers.values()) {
-      let mean = 0;
-      for (const member of group)
-        mean += this.score(member.vector, speaker) / group.length;
-      if (mean >= high || mean >= coherence - 0.1) return;
+    const alive = new Set(current.map((atom) => atom.id));
+    for (const atom of current)
+      for (const id of atom.similar.keys())
+        if (!alive.has(id)) atom.similar.delete(id);
+    this.atoms = current;
+  }
+
+  // MARK: Clustering
+
+  /** The shown speaker whose voice is closest, if it is close enough. */
+  private closest(vector: Float32Array): number | undefined {
+    let best: number | undefined;
+    let bestScore = this.options.absorb;
+    for (const [id, voice] of this.speakers) {
+      if (this.resolve(id) !== id) continue;
+      const score = dot(vector, voice);
+      if (score >= bestScore) {
+        best = id;
+        bestScore = score;
+      }
     }
-    this.newSpeaker(group);
-    this.candidates = this.candidates.filter(
-      (each) => each.state !== "accepted",
+    return best;
+  }
+
+  private update(): void {
+    if (!this.dirty) return;
+    // Long sessions re-cluster less often: about 10 s apart at 400 atoms.
+    const every = Math.max(
+      this.options.reclusterSeconds,
+      this.atoms.length / 40,
     );
-    this.consolidate();
+    if (!this.finalized && this.latest - this.lastRecluster < every) return;
+    this.recluster();
   }
 
-  private noteApart(a: number, b: number): void {
-    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-    this.apart.set(key, (this.apart.get(key) ?? 0) + 1);
-  }
+  /**
+   * One round: cluster every atom of the session, decide which clusters
+   * are speakers, and map them onto the numbers already shown.
+   */
+  private recluster(user?: DiarizerUserConstraints): void {
+    this.dirty = false;
+    this.lastRecluster = this.latest;
+    this.stats.reclusters += 1;
+    this.coarsen();
+    const atoms = this.atoms;
+    if (!atoms.length) return;
+    const vectors = atoms.map((atom) => this.atomVector(atom));
+    // The user's merges (and, at the end, names) hold.
+    const userGroup = (atom: Atom): number | undefined => {
+      const counts = new Map<number, number>();
+      for (const member of atom.members)
+        if (member.speaker !== undefined) {
+          const id = this.resolve(member.speaker);
+          counts.set(id, (counts.get(id) ?? 0) + member.quality);
+        }
+      const top = [...counts].sort((x, y) => y[1] - x[1])[0]?.[0];
+      if (top === undefined) return undefined;
+      const merged = [...this.userMerges.values()].map((id) =>
+        this.resolve(id),
+      );
+      const touched =
+        merged.includes(top) ||
+        user?.named.has(top) ||
+        [...(user?.merges.values() ?? [])].includes(top);
+      return touched ? top : undefined;
+    };
+    const group = atoms.map(userGroup);
+    const conflicts = this.conflicts(atoms);
+    const { clusters: indices, linkage } = agglomerate({
+      vectors,
+      weights: atoms.map((atom) => atom.weight),
+      threshold: this.options.threshold,
+      similarity: (i, j) => this.atomSimilarity(atoms[i], atoms[j]),
+      conflict: (i, j) =>
+        conflicts.has(i * atoms.length + j) &&
+        this.atomSimilarity(atoms[i], atoms[j]) < this.options.cannotLinkBelow,
+      group,
+      apart: (a, b) => Boolean(user?.named.has(a) && user.named.has(b)),
+    });
+    const clusters: Cluster[] = indices.map((members) => {
+      const vector = new Float32Array(vectors[0].length);
+      let weight = 0;
+      for (const index of members) {
+        weight += atoms[index].weight;
+        for (let i = 0; i < vector.length; i += 1)
+          vector[i] += atoms[index].sum[i];
+      }
+      const spans = members.flatMap((index) =>
+        atoms[index].members.map((m): [number, number] => [m.t0, m.t1]),
+      );
+      return {
+        atoms: members.map((index) => atoms[index]),
+        head: members[0],
+        seconds: coverage(spans),
+        weight,
+        vector: normalize(vector),
+        promoted: false,
+        group: members
+          .map((index) => group[index])
+          .find((g) => g !== undefined),
+      };
+    });
 
-  private apartCount(a: number, b: number): number {
-    return this.apart.get(a < b ? `${a}:${b}` : `${b}:${a}`) ?? 0;
-  }
-
-  /** Different local speakers of one window are different people. */
-  private cannotLink(a: Unit, b: Unit): boolean {
-    return a.window === b.window && a.local !== b.local;
-  }
-
-  /** Speakers the unit cannot be: those of the other local speakers in its window. */
-  private forbidden(unit: Unit): Set<number> {
-    const result = new Set<number>();
-    for (const other of unit.window.units) {
-      if (other === unit) continue;
-      const label = this.ownLabel(other);
-      if (label?.speaker !== undefined && !label.provisional)
-        result.add(label.speaker);
+    // Which clusters are speakers: the largest always; others once they
+    // have spoken enough, in more than one stretch or in a voice unlike any
+    // speaker's, or the user made them.
+    const previous = (cluster: Cluster) => {
+      const counts = new Map<number, number>();
+      for (const atom of cluster.atoms)
+        for (const member of atom.members)
+          if (member.speaker !== undefined) {
+            const id = this.resolve(member.speaker);
+            counts.set(id, (counts.get(id) ?? 0) + member.quality);
+          }
+      return counts;
+    };
+    const bySize = [...clusters].sort((a, b) => b.seconds - a.seconds);
+    const distinct = (cluster: Cluster) =>
+      bySize.every(
+        (other) =>
+          other === cluster ||
+          !other.promoted ||
+          linkage(cluster.head, other.head) < this.options.distinctBelow,
+      );
+    for (const cluster of bySize)
+      cluster.promoted =
+        cluster === bySize[0] ||
+        cluster.group !== undefined ||
+        (cluster.seconds >= this.options.minSpeakerSeconds &&
+          (cluster.atoms.length >= this.options.minSpeakerStretches ||
+            distinct(cluster)));
+    // At most `maxSpeakers`: the closest speakers merge.
+    for (;;) {
+      const promoted = clusters.filter((each) => each.promoted);
+      if (promoted.length <= this.options.maxSpeakers) break;
+      let best: [Cluster, Cluster, number] | undefined;
+      for (let i = 0; i < promoted.length; i += 1)
+        for (let j = i + 1; j < promoted.length; j += 1) {
+          const value = linkage(promoted[i].head, promoted[j].head);
+          if (!best || value > best[2])
+            best = [promoted[i], promoted[j], value];
+        }
+      if (!best) break;
+      const [keep, drop] =
+        best[0].seconds >= best[1].seconds
+          ? [best[0], best[1]]
+          : [best[1], best[0]];
+      keep.atoms.push(...drop.atoms);
+      keep.seconds += drop.seconds;
+      drop.atoms = [];
+      drop.promoted = false;
+      drop.seconds = 0;
     }
-    return result;
+
+    // Numbers people have seen stay: each speaker cluster takes the shown
+    // speaker it shares most with, one to one.
+    const live = clusters.filter((each) => each.promoted && each.atoms.length);
+    const votes: { cluster: Cluster; speaker: number; weight: number }[] = [];
+    for (const cluster of live)
+      for (const [speaker, weight] of previous(cluster))
+        votes.push({ cluster, speaker, weight });
+    votes.sort((a, b) => b.weight - a.weight || a.speaker - b.speaker);
+    const idOf = new Map<Cluster, number>();
+    const used = new Set<number>();
+    for (const cluster of live)
+      if (cluster.group !== undefined && !used.has(cluster.group)) {
+        idOf.set(cluster, cluster.group);
+        used.add(cluster.group);
+      }
+    for (const vote of votes) {
+      if (idOf.has(vote.cluster) || used.has(vote.speaker)) continue;
+      idOf.set(vote.cluster, vote.speaker);
+      used.add(vote.speaker);
+    }
+    for (const cluster of live)
+      if (!idOf.has(cluster)) idOf.set(cluster, this.nextSpeaker++);
+
+    // A shown speaker whose voice now mostly lives in another speaker's
+    // cluster has turned out to be that speaker: an alias, not a relabel.
+    const homes = new Map<number, Map<number, number>>();
+    for (const cluster of live)
+      for (const [speaker, weight] of previous(cluster)) {
+        const home = homes.get(speaker) ?? new Map<number, number>();
+        const id = idOf.get(cluster)!;
+        home.set(id, (home.get(id) ?? 0) + weight);
+        homes.set(speaker, home);
+      }
+    for (const [speaker, home] of homes) {
+      if (used.has(speaker) || this.resolve(speaker) !== speaker) continue;
+      const into = [...home].sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (into === undefined || into === speaker) continue;
+      this.alias.set(speaker, into);
+      this.pendingAliases.push([speaker, into]);
+    }
+
+    // Voices that are not speakers (yet) take the closest speaker's number
+    // when they are close enough; the rest stay unknown.
+    const assign = (
+      cluster: Cluster,
+      id: number | undefined,
+      tentative: boolean,
+    ) => {
+      for (const atom of cluster.atoms)
+        for (const member of atom.members) {
+          member.speaker = id;
+          member.tentative = tentative;
+        }
+    };
+    for (const cluster of live) assign(cluster, idOf.get(cluster), false);
+    for (const cluster of clusters) {
+      if (cluster.promoted || !cluster.atoms.length) continue;
+      let best: Cluster | undefined;
+      let bestScore = this.options.absorb;
+      for (const other of live) {
+        const value = linkage(cluster.head, other.head);
+        const score = value === -Infinity ? -Infinity : value;
+        if (score >= bestScore) {
+          best = other;
+          bestScore = score;
+        }
+      }
+      assign(cluster, best ? idOf.get(best) : undefined, true);
+    }
+    this.speakers.clear();
+    for (const cluster of live)
+      this.speakers.set(idOf.get(cluster)!, cluster.vector);
+    // Stretches are clustered whole; one embedding of a stretch that
+    // clearly sounds like another speaker goes there. Combined old
+    // stretches have settled and are left alone.
+    if (this.speakers.size > 1)
+      for (const atom of atoms) {
+        if (atom.coarse) continue;
+        for (const member of atom.members) {
+          if (member.speaker === undefined) continue;
+          const own = this.speakers.get(member.speaker);
+          if (!own) continue;
+          const mine = dot(member.vector, own);
+          let best = member.speaker;
+          let bestScore = mine + this.options.reassignMargin;
+          for (const [id, voice] of this.speakers) {
+            const score = dot(member.vector, voice);
+            if (id !== member.speaker && score > bestScore) {
+              best = id;
+              bestScore = score;
+            }
+          }
+          member.speaker = best;
+        }
+      }
   }
+
+  // MARK: Links
 
   /** The helper heard the same voice carry on from `previous`. */
   private continueFrom(window: Window, previous: number): void {
@@ -701,116 +1033,30 @@ export class SourceDiarizer {
     return total;
   }
 
-  private ownLabel(unit: Unit): UnitLabel | undefined {
-    const embedding = unit.embedding;
-    if (!embedding) return undefined;
-    if (embedding.state === "accepted")
-      return { speaker: this.resolve(embedding.speaker!), provisional: false };
-    if (embedding.state === "ambiguous")
-      return { speaker: this.resolve(embedding.speaker!), provisional: true };
-    return { provisional: true };
-  }
-
-  /**
-   * The speaker of the nearest linked unit (within 20 s) that has one: a
-   * short turn without an embedding takes it from the same voice next door.
-   */
-  private inherited(unit: Unit, confidentOnly: boolean): number | undefined {
+  /** The embedding that names the unit's speaker: its own, else the nearest linked one. */
+  private unitEvidence(unit: Unit): Embedding | undefined {
+    if (unit.embedding?.speaker !== undefined) return unit.embedding;
     const seen = new Set<Unit>([unit]);
     let frontier = [unit];
-    let fallback: number | undefined;
     for (let depth = 0; depth < 16 && frontier.length; depth += 1) {
       const next: Unit[] = [];
-      let found: { speaker: number; distance: number } | undefined;
+      let found: { embedding: Embedding; distance: number } | undefined;
       for (const current of frontier)
         for (const linked of current.links) {
           if (seen.has(linked)) continue;
           seen.add(linked);
           if (Math.abs(linked.t0 - unit.t0) > 20) continue;
           next.push(linked);
-          const label = this.ownLabel(linked);
-          if (label?.speaker === undefined) continue;
-          if (label.provisional) {
-            fallback ??= label.speaker;
-            continue;
-          }
+          const embedding = linked.embedding;
+          if (embedding?.speaker === undefined) continue;
           const distance = Math.abs(linked.t0 - unit.t0);
           if (!found || distance < found.distance)
-            found = { speaker: label.speaker, distance };
+            found = { embedding, distance };
         }
-      if (found) return found.speaker;
+      if (found) return found.embedding;
       frontier = next;
     }
-    return confidentOnly ? undefined : fallback;
-  }
-
-  private unitLabel(unit: Unit): UnitLabel {
-    const own = this.ownLabel(unit);
-    if (own && !own.provisional) return own;
-    const inherited = this.inherited(unit, true);
-    if (inherited !== undefined && !this.forbidden(unit).has(inherited))
-      return { speaker: inherited, provisional: false };
-    if (own?.speaker !== undefined) return own;
-    const weak = this.inherited(unit, false);
-    if (weak !== undefined) return { speaker: weak, provisional: true };
-    return own ?? { provisional: true };
-  }
-
-  // MARK: Consolidation
-
-  /**
-   * Merges speakers that turned out to be one voice, over speaker models
-   * only (a few dozen comparisons). History is not rewritten: the merged
-   * speaker becomes an alias.
-   */
-  consolidate(): void {
-    this.lastConsolidation = this.latest;
-    this.stats.consolidations += 1;
-    const { high, low } = this.thresholds();
-    const expected = this.options.expectedSpeakers;
-    for (;;) {
-      const speakers = [...this.speakers.values()];
-      let best: [Speaker, Speaker, number] | undefined;
-      for (let i = 0; i < speakers.length; i += 1)
-        for (let j = i + 1; j < speakers.length; j += 1) {
-          const a = speakers[i];
-          const b = speakers[j];
-          if (this.apartCount(a.id, b.id) >= 2) continue;
-          const link = this.linkage(a, b);
-          if (!best || link > best[2]) best = [a, b, link];
-        }
-      if (!best) return;
-      const needed =
-        expected !== undefined && speakers.length > expected
-          ? low + 0.1
-          : high + 0.05;
-      if (best[2] < needed) return;
-      const [a, b] = best;
-      const [keep, drop] = a.id < b.id ? [a, b] : [b, a];
-      this.mergeModels(keep, drop);
-    }
-  }
-
-  /** Average similarity between two speakers' voice samples. */
-  private linkage(a: Speaker, b: Speaker): number {
-    let sum = 0;
-    for (const x of a.reservoir) for (const y of b.reservoir) sum += dot(x, y);
-    return sum / Math.max(1, a.reservoir.length * b.reservoir.length);
-  }
-
-  private mergeModels(keep: Speaker, drop: Speaker): void {
-    const total = keep.weight + drop.weight;
-    for (let i = 0; i < keep.centroid.length; i += 1)
-      keep.centroid[i] =
-        (keep.weight * keep.centroid[i] + drop.weight * drop.centroid[i]) /
-        total;
-    normalize(keep.centroid);
-    keep.weight = total;
-    keep.seconds += drop.seconds;
-    for (const vector of drop.reservoir) this.addExemplar(keep, vector);
-    this.speakers.delete(drop.id);
-    this.alias.set(drop.id, keep.id);
-    this.pendingAliases.push([drop.id, keep.id]);
+    return undefined;
   }
 
   // MARK: Labels
@@ -837,7 +1083,6 @@ export class SourceDiarizer {
     return undefined;
   }
 
-  /** Who spoke at `time`: the speaker, a second one if they overlap. */
   /**
    * The embedding that speaks most directly for `time`: it covers the time,
    * so does its voice's turn, and the time is near its middle.
@@ -852,7 +1097,7 @@ export class SourceDiarizer {
       index -= 1
     ) {
       const embedding = list[index];
-      if (embedding.state === "candidate" || time > embedding.t1 + 0.2)
+      if (embedding.speaker === undefined || time > embedding.t1 + 0.2)
         continue;
       if (
         !embedding.unit.spans.some(
@@ -863,10 +1108,7 @@ export class SourceDiarizer {
       const half = (embedding.t1 - embedding.t0) / 2;
       const centrality =
         1 - Math.abs(time - (embedding.t0 + half)) / (half + 0.5);
-      const weight =
-        embedding.quality *
-        Math.max(0.05, centrality) *
-        (embedding.state === "accepted" ? 1 : 0.5);
+      const weight = embedding.quality * Math.max(0.05, centrality);
       if (weight > bestWeight) {
         best = embedding;
         bestWeight = weight;
@@ -875,17 +1117,15 @@ export class SourceDiarizer {
     return best;
   }
 
-  /** Who spoke at `time`: the speaker, a second one if they overlap. */
+  /** Who spoke over [start, end]: the speaker, a second one if they overlap. */
   private speakerAt(
     start: number,
     end: number,
-  ): { label: UnitLabel; overlap?: number } | undefined {
+  ): { speaker?: number; tentative?: boolean; overlap?: number } | undefined {
     const middle = (start + end) / 2;
     const window = this.windowAt(middle);
     const evidence = this.evidenceAt(middle);
-    let label: UnitLabel | undefined = evidence
-      ? this.unitLabel(evidence.unit)
-      : undefined;
+    let named = evidence ? this.unitEvidence(evidence.unit) : undefined;
     // Overlap shows in a segmentation window: two voices over one word.
     let speaking: { unit: Unit; covered: number }[] = [];
     if (window) {
@@ -901,27 +1141,45 @@ export class SourceDiarizer {
       speaking = covering
         .filter((each) => each.covered > 0)
         .sort((a, b) => b.covered - a.covered);
-      if (!label?.speaker) {
+      if (!named) {
         const chosen =
           speaking[0] ??
           covering
             .filter((each) => each.gap <= 1)
             .sort((a, b) => a.gap - b.gap)[0];
-        const fallback = chosen ? this.unitLabel(chosen.unit) : undefined;
-        if (fallback && (fallback.speaker !== undefined || !label))
-          label = fallback;
+        if (chosen) named = this.unitEvidence(chosen.unit);
       }
     }
-    if (!label) return undefined;
+    const speaker = named?.speaker;
+    if (speaker === undefined && !window && !evidence) return undefined;
     const second =
       speaking.length > 1
         ? speaking
-            .map((each) => this.unitLabel(each.unit).speaker)
+            .map((each) => this.unitEvidence(each.unit)?.speaker)
             .find(
-              (speaker) => speaker !== undefined && speaker !== label.speaker,
+              (each) =>
+                each !== undefined &&
+                speaker !== undefined &&
+                this.resolve(each) !== this.resolve(speaker),
             )
         : undefined;
-    return { label, ...(second !== undefined ? { overlap: second } : {}) };
+    return {
+      ...(speaker !== undefined ? { speaker } : {}),
+      ...(named?.tentative ? { tentative: true } : {}),
+      ...(second !== undefined ? { overlap: second } : {}),
+    };
+  }
+
+  /** The last speaker heard before `time`. */
+  private speakerBefore(time: number): number | undefined {
+    const list = this.byStart;
+    for (
+      let index = lowerBound(list, time, (each) => each.t0) - 1;
+      index >= 0;
+      index -= 1
+    )
+      if (list[index].speaker !== undefined) return list[index].speaker;
+    return undefined;
   }
 
   private isEcho(segment: Segment): boolean {
@@ -941,59 +1199,107 @@ export class SourceDiarizer {
     const words = segment.words.length
       ? segment.words
       : [[0, segment.t0, segment.t1] as const];
-    type Run = { turn: LiveContextTurn; seconds: number };
+    type Run = {
+      offset: number;
+      speaker?: number;
+      overlap?: number;
+      provisional: boolean;
+      /** Not analyzed yet (else: analyzed, a voice not known yet). */
+      pending: boolean;
+      seconds: number;
+    };
     const runs: Run[] = [];
     for (const [offset, start, end] of words) {
       const found = this.speakerAt(start, end);
-      if (!found) continue;
-      const turn: LiveContextTurn = {
-        offset: runs.length ? offset : 0,
-        ...(found.label.speaker !== undefined
-          ? { speaker: speakerKey(this.source, found.label.speaker) }
-          : {}),
-        ...(found.label.provisional ? { provisional: true } : {}),
-        ...(found.overlap !== undefined
-          ? { overlap: speakerKey(this.source, found.overlap) }
-          : {}),
-      };
+      const speaker =
+        found?.speaker !== undefined ? this.resolve(found.speaker) : undefined;
+      const second =
+        found?.overlap !== undefined ? this.resolve(found.overlap) : undefined;
       const seconds = Math.max(0.05, end - start);
+      const pending = found === undefined;
       const last = runs.at(-1);
       if (
         last &&
-        last.turn.speaker === turn.speaker &&
-        !last.turn.overlap === !turn.overlap
+        last.speaker === speaker &&
+        last.overlap === second &&
+        last.pending === pending
       ) {
         last.seconds += seconds;
-        if (!turn.provisional) delete last.turn.provisional;
-      } else runs.push({ turn, seconds });
+        if (found?.tentative !== true && speaker !== undefined)
+          last.provisional = false;
+      } else
+        runs.push({
+          offset: runs.length ? offset : 0,
+          ...(speaker !== undefined ? { speaker } : {}),
+          ...(second !== undefined ? { overlap: second } : {}),
+          provisional: speaker === undefined || found?.tentative === true,
+          pending,
+          seconds,
+        });
     }
-    if (!runs.length) return undefined;
-    // A blip shorter than half a second is more likely noise than a turn.
-    for (let index = 0; runs.length > 1 && index < runs.length;) {
-      if (
-        runs[index].seconds >= this.options.minTurnSeconds ||
-        runs[index].turn.overlap
-      ) {
-        index += 1;
-        continue;
-      }
-      const into = index === 0 ? 1 : index - 1;
-      runs[into].seconds += runs[index].seconds;
-      if (index === 0) runs[1].turn.offset = 0;
-      runs.splice(index, 1);
+    // Words not analyzed yet carry on the voice next to them, for now.
+    for (let index = 0; index < runs.length; index += 1) {
+      const run = runs[index];
+      if (run.speaker !== undefined || !run.pending) continue;
+      const fill =
+        runs
+          .slice(0, index)
+          .reverse()
+          .find((each) => each.speaker !== undefined)?.speaker ??
+        runs.slice(index + 1).find((each) => each.speaker !== undefined)
+          ?.speaker ??
+        this.speakerBefore(segment.t0);
+      if (fill !== undefined) run.speaker = this.resolve(fill);
+    }
+    const merge = () => {
       for (let i = runs.length - 1; i > 0; i -= 1)
         if (
-          runs[i].turn.speaker === runs[i - 1].turn.speaker &&
-          !runs[i].turn.overlap === !runs[i - 1].turn.overlap
+          runs[i].speaker === runs[i - 1].speaker &&
+          runs[i].overlap === runs[i - 1].overlap
         ) {
           runs[i - 1].seconds += runs[i].seconds;
+          runs[i - 1].provisional &&= runs[i].provisional;
           runs.splice(i, 1);
         }
-      index = 0;
+    };
+    merge();
+    // A turn shorter than `minTurnSeconds` is more likely noise than a turn.
+    for (;;) {
+      if (runs.length < 2) break;
+      let shortest = -1;
+      for (let index = 0; index < runs.length; index += 1)
+        if (
+          runs[index].seconds < this.options.minTurnSeconds &&
+          !runs[index].overlap &&
+          (shortest < 0 || runs[index].seconds < runs[shortest].seconds)
+        )
+          shortest = index;
+      if (shortest < 0) break;
+      const into =
+        shortest === 0
+          ? 1
+          : shortest === runs.length - 1
+            ? shortest - 1
+            : runs[shortest - 1].seconds >= runs[shortest + 1].seconds
+              ? shortest - 1
+              : shortest + 1;
+      runs[into].seconds += runs[shortest].seconds;
+      if (shortest === 0) runs[1].offset = 0;
+      runs.splice(shortest, 1);
+      merge();
     }
     const echo = this.isEcho(segment);
     const result = {
-      turns: runs.map((run) => run.turn),
+      turns: runs.map((run): LiveContextTurn => ({
+        offset: run.offset,
+        ...(run.speaker !== undefined
+          ? { speaker: speakerKey(this.source, run.speaker) }
+          : {}),
+        ...(run.provisional ? { provisional: true } : {}),
+        ...(run.overlap !== undefined
+          ? { overlap: speakerKey(this.source, run.overlap) }
+          : {}),
+      })),
       ...(echo ? { echo: true } : {}),
     };
     const serialized = JSON.stringify(result);
@@ -1005,25 +1311,15 @@ export class SourceDiarizer {
   // MARK: Final pass
 
   /**
-   * At stop: agglomerative clustering (average linkage) over every stored
-   * embedding of the session, grouped first into short stretches of one
-   * linked voice. Window constraints and the user's renames and merges are
-   * hard. Returns the labels that changed, over the whole session.
+   * At stop: one more round over the whole session with the user's renames
+   * and merges as hard constraints. Returns the labels that changed, over
+   * the whole session.
    */
   finish(
     user: DiarizerUserConstraints = { merges: new Map(), named: new Set() },
   ): DiarizerLabel[] {
-    const assignment = finalPass(
-      this.embeddings.filter((each) => !this.inEcho(each)),
-      {
-        resolve: (id) => this.resolve(id),
-        user,
-        component: componentsOf(this.embeddings.map((each) => each.unit)),
-        nextSpeaker: () => this.nextSpeaker++,
-        tauLow: this.thresholds().low,
-      },
-    );
-    this.applyAssignment(assignment);
+    for (const [from, into] of user.merges) this.userMerges.set(from, into);
+    this.recluster(user);
     this.finalized = true;
     return this.drain();
   }
@@ -1033,45 +1329,32 @@ export class SourceDiarizer {
     assignment: ReadonlyMap<number, number> | [number, number][],
   ): void {
     const map = assignment instanceof Map ? assignment : new Map(assignment);
-    const dimension = this.embeddings[0]?.vector.length ?? 0;
     for (const embedding of this.embeddings) {
       const speaker = map.get(embedding.seq);
       if (speaker === undefined) continue;
       embedding.speaker = speaker;
-      embedding.state = "accepted";
+      this.nextSpeaker = Math.max(this.nextSpeaker, speaker + 1);
     }
-    // Models rebuilt from the final labels seed the next capture.
+    this.dirty = false;
     this.speakers.clear();
-    this.alias.clear();
+    const sums = new Map<number, Float32Array>();
     for (const embedding of this.embeddings) {
-      if (embedding.state !== "accepted" || embedding.speaker === undefined)
-        continue;
-      let speaker = this.speakers.get(embedding.speaker);
-      if (!speaker) {
-        speaker = {
-          id: embedding.speaker,
-          centroid: new Float32Array(dimension),
-          weight: 0,
-          reservoir: [],
-          seconds: 0,
-        };
-        this.speakers.set(speaker.id, speaker);
-        this.nextSpeaker = Math.max(this.nextSpeaker, speaker.id + 1);
-      }
-      this.learn(speaker, embedding);
+      if (embedding.speaker === undefined) continue;
+      const id = this.resolve(embedding.speaker);
+      const sum = sums.get(id) ?? new Float32Array(embedding.vector.length);
+      for (let i = 0; i < sum.length; i += 1)
+        sum[i] += embedding.quality * embedding.vector[i];
+      sums.set(id, sum);
     }
+    for (const [id, sum] of sums) this.speakers.set(id, normalize(sum));
   }
 
-  /** User merges within the source also merge the models. */
+  /** The user's merges within the source hold from now on. */
   applyUserMerges(merges: ReadonlyMap<number, number>): void {
-    for (const [from, into] of merges) {
-      const a = this.speakers.get(this.resolve(from));
-      const b = this.speakers.get(this.resolve(into));
-      if (a && b && a !== b) {
-        this.mergeModels(b, a);
-        this.pendingAliases.pop();
-      }
-    }
+    for (const [from, into] of merges)
+      if (this.resolve(from) !== this.resolve(into))
+        this.userMerges.set(this.resolve(from), this.resolve(into));
+    this.dirty = true;
   }
 
   private inEcho(embedding: Embedding): boolean {
@@ -1081,299 +1364,6 @@ export class SourceDiarizer {
         0.5 * (embedding.t1 - embedding.t0),
     );
   }
-}
-
-function componentsOf(units: Unit[]): Map<Unit, number> {
-  const component = new Map<Unit, number>();
-  let next = 0;
-  for (const start of units) {
-    if (component.has(start)) continue;
-    const id = next++;
-    const stack = [start];
-    component.set(start, id);
-    while (stack.length) {
-      const unit = stack.pop()!;
-      for (const linked of unit.links)
-        if (!component.has(linked)) {
-          component.set(linked, id);
-          stack.push(linked);
-        }
-    }
-  }
-  return component;
-}
-
-interface FinalPassContext {
-  resolve(id: number): number;
-  user: DiarizerUserConstraints;
-  component: Map<Unit, number>;
-  nextSpeaker(): number;
-  tauLow: number;
-}
-
-interface Atom {
-  members: Embedding[];
-  vector: Float32Array;
-  weight: number;
-  start: number;
-  /** window id → local speaker */
-  locals: Map<number, number>;
-  group?: number;
-}
-
-const ATOM_SECONDS = 30;
-const MAX_ATOMS = 1500;
-
-/** The final pass's assignment of embeddings (by seq) to speakers. */
-function finalPass(
-  embeddings: Embedding[],
-  context: FinalPassContext,
-): Map<number, number> {
-  const result = new Map<number, number>();
-  const usable = embeddings.filter(
-    (each) => each.state !== "candidate" || each.seconds >= 1,
-  );
-  if (!usable.length) return result;
-  const online = (embedding: Embedding) =>
-    embedding.speaker === undefined
-      ? undefined
-      : context.resolve(embedding.speaker);
-  const userGroup = (speaker: number | undefined) => {
-    if (speaker === undefined) return undefined;
-    let current = speaker;
-    for (let guard = 0; guard < 64; guard += 1) {
-      const next = context.user.merges.get(current);
-      if (next === undefined) break;
-      current = next;
-    }
-    const touched =
-      context.user.named.has(current) ||
-      current !== speaker ||
-      [...context.user.merges.values()].includes(current);
-    return touched ? current : undefined;
-  };
-
-  // Atoms: up to 30 s of one linked voice with one online label.
-  let span = ATOM_SECONDS;
-  let atoms: Atom[] = [];
-  for (;;) {
-    atoms = [];
-    const open = new Map<string, Atom>();
-    for (const embedding of [...usable].sort((a, b) => a.t0 - b.t0)) {
-      const speaker = online(embedding);
-      const group = userGroup(speaker);
-      const key = `${context.component.get(embedding.unit)}:${speaker ?? "?"}`;
-      let atom = open.get(key);
-      if (!atom || embedding.t0 - atom.start > span) {
-        atom = {
-          members: [],
-          vector: new Float32Array(embedding.vector.length),
-          weight: 0,
-          start: embedding.t0,
-          locals: new Map(),
-          ...(group !== undefined ? { group } : {}),
-        };
-        open.set(key, atom);
-        atoms.push(atom);
-      }
-      atom.members.push(embedding);
-      atom.weight += embedding.quality;
-      for (let i = 0; i < atom.vector.length; i += 1)
-        atom.vector[i] += embedding.quality * embedding.vector[i];
-      atom.locals.set(embedding.unit.window.id, embedding.unit.local);
-    }
-    if (atoms.length <= MAX_ATOMS) break;
-    span *= 2;
-  }
-  for (const atom of atoms) normalize(atom.vector);
-
-  // The stopping threshold follows how alike one voice's stretches are here.
-  const intra: number[] = [];
-  const byComponent = new Map<string, Atom>();
-  for (const atom of atoms) {
-    const key = `${context.component.get(atom.members[0].unit)}:${online(atom.members[0]) ?? "?"}`;
-    const previous = byComponent.get(key);
-    if (previous && online(atom.members[0]) !== undefined)
-      intra.push(dot(previous.vector, atom.vector));
-    byComponent.set(key, atom);
-  }
-  intra.sort((a, b) => a - b);
-  const stop =
-    intra.length >= 10
-      ? Math.min(
-          0.85,
-          Math.max(0.5, intra[Math.floor(intra.length * 0.1)] - 0.05),
-        )
-      : 0.6;
-
-  // Average-linkage agglomeration (Lance–Williams), cannot-links as −∞.
-  const n = atoms.length;
-  const conflict = (a: Atom, b: Atom) => {
-    if (a.group !== undefined && b.group !== undefined && a.group !== b.group) {
-      if (context.user.named.has(a.group) && context.user.named.has(b.group))
-        return true;
-    }
-    const [small, large] = a.locals.size < b.locals.size ? [a, b] : [b, a];
-    for (const [window, local] of small.locals) {
-      const other = large.locals.get(window);
-      if (other !== undefined && other !== local) return true;
-    }
-    return false;
-  };
-  const similarity = new Float32Array(n * n);
-  for (let i = 0; i < n; i += 1)
-    for (let j = i + 1; j < n; j += 1) {
-      const value = conflict(atoms[i], atoms[j])
-        ? -Infinity
-        : dot(atoms[i].vector, atoms[j].vector);
-      similarity[i * n + j] = value;
-      similarity[j * n + i] = value;
-    }
-  const alive = new Uint8Array(n).fill(1);
-  const size = atoms.map((atom) => atom.weight);
-  const cluster = atoms.map((_, index) => [index]);
-  const groupOf = atoms.map((atom) => atom.group);
-  const merge = (i: number, j: number) => {
-    for (let k = 0; k < n; k += 1) {
-      if (!alive[k] || k === i || k === j) continue;
-      const a = similarity[i * n + k];
-      const b = similarity[j * n + k];
-      const value =
-        a === -Infinity || b === -Infinity
-          ? -Infinity
-          : (size[i] * a + size[j] * b) / (size[i] + size[j]);
-      similarity[i * n + k] = value;
-      similarity[k * n + i] = value;
-    }
-    size[i] += size[j];
-    cluster[i].push(...cluster[j]);
-    groupOf[i] ??= groupOf[j];
-    alive[j] = 0;
-  };
-  // The user's merges and names hold: their atoms start as one cluster,
-  // even where a window put them apart.
-  const firstOfGroup = new Map<number, number>();
-  for (let i = 0; i < n; i += 1) {
-    const group = groupOf[i];
-    if (group === undefined) continue;
-    const first = firstOfGroup.get(group);
-    if (first === undefined) firstOfGroup.set(group, i);
-    else merge(first, i);
-  }
-  // Each row's best partner to its right, so a step costs O(n) instead of
-  // a scan of every pair. Ties go to the first pair, as a full scan would.
-  const rowBest = new Float64Array(n).fill(-Infinity);
-  const rowPartner = new Int32Array(n).fill(-1);
-  const refresh = (i: number) => {
-    let best = -Infinity;
-    let partner = -1;
-    if (alive[i])
-      for (let j = i + 1; j < n; j += 1) {
-        if (!alive[j]) continue;
-        const value = similarity[i * n + j];
-        if (partner < 0 || value > best) {
-          best = value;
-          partner = j;
-        }
-      }
-    rowBest[i] = best;
-    rowPartner[i] = partner;
-  };
-  for (let i = 0; i < n; i += 1) refresh(i);
-  for (;;) {
-    let i = -1;
-    for (let k = 0; k < n; k += 1)
-      if (rowPartner[k] >= 0 && (i < 0 || rowBest[k] > rowBest[i])) i = k;
-    if (i < 0 || rowBest[i] < stop) break;
-    const j = rowPartner[i];
-    const gi = groupOf[i];
-    const gj = groupOf[j];
-    if (gi !== undefined && gj !== undefined && gi !== gj) {
-      // Two speakers the user kept apart.
-      similarity[i * n + j] = -Infinity;
-      similarity[j * n + i] = -Infinity;
-      refresh(i);
-      continue;
-    }
-    merge(i, j);
-    rowPartner[j] = -1;
-    refresh(i);
-    for (let k = 0; k < n; k += 1) {
-      if (k === i || !alive[k] || rowPartner[k] < 0) continue;
-      if (rowPartner[k] === i || rowPartner[k] === j) refresh(k);
-      else if (k < i) {
-        const value = similarity[k * n + i];
-        if (value > rowBest[k] || (value === rowBest[k] && i < rowPartner[k])) {
-          rowBest[k] = value;
-          rowPartner[k] = i;
-        }
-      }
-    }
-  }
-
-  // Tiny clusters (under 2 s) join their closest neighbor rather than
-  // becoming speakers of their own.
-  const clusters = [...cluster.keys()].filter((index) => alive[index]);
-  const seconds = (index: number) =>
-    coverage(
-      cluster[index].flatMap((atom) =>
-        atoms[atom].members.map((m): [number, number] => [m.t0, m.t1]),
-      ),
-    );
-  for (const index of clusters) {
-    if (!alive[index] || groupOf[index] !== undefined || seconds(index) >= 2)
-      continue;
-    let best = -Infinity;
-    let into = -1;
-    for (const other of clusters)
-      if (
-        other !== index &&
-        alive[other] &&
-        similarity[index * n + other] > best
-      ) {
-        best = similarity[index * n + other];
-        into = other;
-      }
-    if (into >= 0 && best >= context.tauLow) merge(into, index);
-  }
-
-  // Keep the numbers people have seen: each cluster takes the online
-  // speaker it most overlaps, one to one; user groups keep theirs.
-  const final = clusters.filter((index) => alive[index]);
-  const votes: { index: number; speaker: number; weight: number }[] = [];
-  for (const index of final) {
-    const weights = new Map<number, number>();
-    for (const atom of cluster[index])
-      for (const member of atoms[atom].members) {
-        const speaker = online(member);
-        if (speaker !== undefined)
-          weights.set(speaker, (weights.get(speaker) ?? 0) + member.quality);
-      }
-    for (const [speaker, weight] of weights)
-      votes.push({ index, speaker, weight });
-  }
-  votes.sort((a, b) => b.weight - a.weight);
-  const idOf = new Map<number, number>();
-  const used = new Set<number>();
-  for (const index of final) {
-    const group = groupOf[index];
-    if (group !== undefined && !used.has(group)) {
-      idOf.set(index, group);
-      used.add(group);
-    }
-  }
-  for (const vote of votes) {
-    if (idOf.has(vote.index) || used.has(vote.speaker)) continue;
-    idOf.set(vote.index, vote.speaker);
-    used.add(vote.speaker);
-  }
-  for (const index of final) {
-    if (!idOf.has(index)) idOf.set(index, context.nextSpeaker());
-    for (const atom of cluster[index])
-      for (const member of atoms[atom].members)
-        result.set(member.seq, idOf.get(index)!);
-  }
-  return result;
 }
 
 // MARK: Float16

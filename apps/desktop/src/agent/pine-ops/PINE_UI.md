@@ -742,7 +742,11 @@ close the card. The panels are:
   With Identify speakers, labels are colored "Speaker n" pills (a
   microphone or speaker icon shows the source). Labels appear a few seconds
   late, look faded while they may still change, and are revised once more
-  after Stop. "?" means the voice is not known yet; "Speaker 1 + Speaker 2"
+  after Stop. Words that have not been analyzed yet carry the neighboring
+  speaker's label, faded, instead of "Me" or "Others". "?" means the voice
+  is not known yet: a new voice gets its own number once it has spoken for
+  several seconds, usually in two separate stretches. Two labels found to be
+  one voice later show as one name throughout. "Speaker 1 + Speaker 2"
   marks people talking at once; "· Echo of system audio" with dimmed text
   marks other people's audio picked up by the microphone. Clicking a label
   offers Rename and Merge into.

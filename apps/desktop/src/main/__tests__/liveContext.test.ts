@@ -477,10 +477,10 @@ describe("LiveContextService", () => {
     }
 
     const voiceA = Float32Array.from({ length: 16 }, (_, i) =>
-      i === 0 ? 1 : 0.05,
+      i === 0 ? 1 : 0.02,
     );
     const voiceB = Float32Array.from({ length: 16 }, (_, i) =>
-      i === 1 ? 1 : 0.05,
+      i === 1 ? 1 : 0.02,
     );
 
     it("labels segments from the helper's measurements, saves them, and finishes at stop", async () => {
