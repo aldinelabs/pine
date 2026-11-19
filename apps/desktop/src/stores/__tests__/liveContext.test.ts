@@ -1,9 +1,11 @@
 import { createPinia, setActivePinia } from "pinia";
 import { flushPromises } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import type {
   LiveContextEvent,
   LiveContextSegment,
+  LiveContextSource,
   LiveContextStatus,
 } from "@/shared/liveContext";
 import { useLiveContextStore } from "../liveContext";
@@ -102,6 +104,21 @@ describe("useLiveContextStore", () => {
     vi.stubGlobal("pine", {});
     setActivePinia(createPinia());
     expect(useLiveContextStore().available).toBe(false);
+  });
+
+  it("sends reactive sources as a request IPC can clone", async () => {
+    const store = useLiveContextStore();
+    const sources = ref<LiveContextSource[]>(["mic", "system"]);
+
+    await store.start(TARGET, sources.value, "en-US");
+
+    const request: unknown = api.start.mock.lastCall?.[0];
+    // Electron rejects a Proxy in an IPC message ("An object could not be
+    // cloned."), as structuredClone does.
+    expect(() => structuredClone(request)).not.toThrow();
+    expect(request).toEqual(
+      expect.objectContaining({ sources: ["mic", "system"] }),
+    );
   });
 
   it("shows volatile text in the capturing session until its final version", async () => {

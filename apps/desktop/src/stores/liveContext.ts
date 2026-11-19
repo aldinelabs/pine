@@ -230,7 +230,9 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     setStatus(
       await api.start({
         ...target,
-        sources,
+        // A plain copy: the panel's sources are a reactive (Proxy) array,
+        // which Electron cannot clone into an IPC message.
+        sources: [...sources],
         locale,
         speakers: identifySpeakers.value && status.value.speakersAvailable,
       }),
