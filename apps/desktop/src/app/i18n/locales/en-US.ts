@@ -1071,7 +1071,6 @@ export default {
         transcript: "Transcript",
         waiting: "Listening for the first words…",
         waitingPaused: "Paused. Resume to keep transcribing.",
-        jumpToLatest: "Jump to latest",
         delete: {
           action: "Delete live context",
           title: "Delete this live context?",

@@ -1010,7 +1010,6 @@ export default {
         transcript: "转写内容",
         waiting: "等待第一句话…",
         waitingPaused: "已暂停，继续后接着转写。",
-        jumpToLatest: "跳到最新",
         delete: {
           action: "删除实时上下文",
           title: "删除这段实时上下文？",

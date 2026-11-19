@@ -735,8 +735,11 @@ close the card. The panels are:
   one label until someone else speaks or two minutes pass. Without speaker
   labels the label is "Me" (microphone) or "Others" (system audio). Words
   still forming are grey with a blinking caret at the end. The card
-  follows new text while it is scrolled to the bottom; scrolled up, a
-  "Jump to latest" button appears above the controls. The transcript's
+  follows new text while it is scrolled to the bottom. Scrolled well up
+  (a card height, at least 400px), the same round "Scroll to bottom"
+  button as the conversation's (a down arrow) fades in at the bottom right
+  of the transcript, above the controls; it goes away near the bottom and
+  when the transcript is deleted. The transcript's
   top and bottom edges fade wherever more text is hidden past them.
   With Identify speakers, labels are colored "Speaker n" pills (a
   microphone or speaker icon shows the source). Labels appear a few seconds

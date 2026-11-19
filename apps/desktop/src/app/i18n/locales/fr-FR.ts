@@ -1092,7 +1092,6 @@ export default {
         transcript: "Transcription",
         waiting: "En attente des premiers mots…",
         waitingPaused: "En pause. Reprenez pour continuer la transcription.",
-        jumpToLatest: "Aller au plus récent",
         delete: {
           action: "Supprimer le contexte en direct",
           title: "Supprimer ce contexte en direct ?",

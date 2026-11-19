@@ -1064,7 +1064,6 @@ export default {
         transcript: "받아 적은 내용",
         waiting: "첫 마디를 기다리는 중…",
         waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",
-        jumpToLatest: "최신으로 이동",
         delete: {
           action: "실시간 컨텍스트 삭제",
           title: "이 실시간 컨텍스트를 삭제할까요?",

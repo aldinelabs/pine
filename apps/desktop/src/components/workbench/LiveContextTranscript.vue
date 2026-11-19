@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  ArrowDownIcon,
-  AudioLinesIcon,
-  MicIcon,
-  Volume2Icon,
-} from "@lucide/vue";
+import { AudioLinesIcon, MicIcon, Volume2Icon } from "@lucide/vue";
 import {
   computed,
   nextTick,
@@ -15,7 +10,9 @@ import {
 } from "vue";
 import { useResizeObserver } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
-import { Button } from "@/components/ui/button";
+import ScrollToBottomButton, {
+  showsScrollToBottom,
+} from "@/components/project/ScrollToBottomButton.vue";
 import {
   Empty,
   EmptyDescription,
@@ -172,7 +169,8 @@ function fullTime(ms: number): string {
 const scrollerRef = ref<HTMLElement | null>(null);
 const content = ref<HTMLElement | null>(null);
 const following = ref(true);
-const missed = ref(false);
+/** Scrolled far enough up for the scroll-to-bottom button. */
+const far = ref(false);
 let scroller: HTMLElement | null = null;
 /** Which edges hide more text, for the fades: "start", "end", both, none. */
 const scrollable = ref("");
@@ -196,7 +194,13 @@ function onScroll(): void {
   if (!scroller) return;
   measureEdges();
   following.value = atBottom(scroller);
-  if (following.value) missed.value = false;
+  far.value =
+    !following.value &&
+    showsScrollToBottom(
+      scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop,
+      scroller.clientHeight,
+      far.value,
+    );
 }
 
 function scrollToEnd(smooth = false): void {
@@ -206,7 +210,7 @@ function scrollToEnd(smooth = false): void {
     behavior: smooth ? "smooth" : "auto",
   });
   following.value = true;
-  missed.value = false;
+  far.value = false;
 }
 
 onMounted(() => {
@@ -235,7 +239,6 @@ watch(
     const follow = following.value && atBottom(scroller);
     await nextTick();
     if (follow) scrollToEnd();
-    else missed.value = true;
   },
 );
 // A transcript that just loaded opens at its end.
@@ -252,11 +255,11 @@ const isEmpty = computed(
   () => props.segments.length === 0 && props.pending.length === 0,
 );
 // Deleted or emptied: nothing is below any more, so follow again and put
-// Jump to latest away. (Another conversation remounts this component.)
+// the button away. (Another conversation remounts this component.)
 watch(isEmpty, async (empty) => {
   if (!empty) return;
   following.value = true;
-  missed.value = false;
+  far.value = false;
   await nextTick();
   if (scroller) scroller.scrollTop = 0;
   measureEdges();
@@ -416,21 +419,14 @@ watch(isEmpty, async (empty) => {
         </ol>
       </div>
     </div>
-    <div
-      v-if="missed && !following"
-      class="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center"
-    >
-      <Button
-        size="xs"
-        variant="secondary"
-        class="pointer-events-auto shadow-md"
-        data-testid="live-context-jump"
-        @click="scrollToEnd(true)"
-      >
-        <ArrowDownIcon data-icon="inline-start" aria-hidden="true" />
-        {{ t("project.workbench.liveContext.jumpToLatest") }}
-      </Button>
-    </div>
+    <!-- The session transcript's button, at the end of the text column. -->
+    <ScrollToBottomButton
+      :active="far && !following"
+      :label="t('project.transcript.scrollToBottom')"
+      class="absolute end-[calc(var(--workbench-inset)+var(--live-context-text-inset))] bottom-3"
+      data-testid="live-context-jump"
+      @scroll="scrollToEnd(true)"
+    />
   </div>
 </template>
 

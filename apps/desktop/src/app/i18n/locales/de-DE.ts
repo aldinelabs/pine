@@ -1096,7 +1096,6 @@ export default {
         transcript: "Transkript",
         waiting: "Warte auf die ersten Worte…",
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
-        jumpToLatest: "Zum Neuesten",
         delete: {
           action: "Live-Kontext löschen",
           title: "Diesen Live-Kontext löschen?",

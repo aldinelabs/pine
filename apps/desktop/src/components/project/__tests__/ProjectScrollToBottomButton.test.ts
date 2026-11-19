@@ -3,9 +3,8 @@ import { defineComponent, h, nextTick, shallowRef } from "vue";
 import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { MessageScrollerScrollable } from "@/components/ui/message-scroller";
-import ProjectScrollToBottomButton, {
-  showsScrollToBottom,
-} from "../ProjectScrollToBottomButton.vue";
+import ProjectScrollToBottomButton from "../ProjectScrollToBottomButton.vue";
+import { showsScrollToBottom } from "../ScrollToBottomButton.vue";
 
 const followingBottom = shallowRef(false);
 const scrollable = shallowRef<MessageScrollerScrollable>({

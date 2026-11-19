@@ -1081,7 +1081,6 @@ export default {
         transcript: "文字起こし",
         waiting: "最初の言葉を待っています…",
         waitingPaused: "一時停止中です。再開すると文字起こしを続けます。",
-        jumpToLatest: "最新へ移動",
         delete: {
           action: "ライブコンテキストを削除",
           title: "このライブコンテキストを削除しますか？",
