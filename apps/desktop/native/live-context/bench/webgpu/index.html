@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8" />
+<!-- Only the harness's own protocol: no remote model or script loads. The
+     import map is inline, so it needs its hash (update it if you edit it). -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="default-src 'none'; script-src pinebench: 'wasm-unsafe-eval' 'sha256-aTD4m4WoFNnTnImmdWZOlLUbMbs92pC5vij697yY/og='; connect-src pinebench:; worker-src pinebench: blob:"
+/>
+<script type="importmap">
+  {
+    "imports": {
+      "onnxruntime-web/webgpu": "pinebench://n/onnxruntime-web/dist/ort.webgpu.bundle.min.mjs",
+      "onnxruntime-common": "pinebench://n/onnxruntime-common/dist/esm/index.js"
+    }
+  }
+</script>
+<script type="module" src="pinebench://h/run.mjs"></script>
