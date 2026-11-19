@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { useSessionStore } from "@/stores/session";
+import { useSessionUnreadStore } from "@/stores/sessionUnread";
 import SessionHistoryItem from "../SessionHistoryItem.vue";
 
 const session = {
@@ -38,21 +39,53 @@ describe("SessionHistoryItem", () => {
     const wrapper = mountItem();
     const title = () => wrapper.get('[data-slot="session-title"]');
     expect(title().classes()).not.toContain("shimmer");
-    expect(wrapper.find('[data-slot="session-running-dot"]').exists()).toBe(
-      false,
-    );
 
     useSessionStore().stateFor(session.id).isRunning = true;
     await wrapper.vm.$nextTick();
     expect(title().classes()).toContain("shimmer");
     expect(title().attributes("data-running")).toBe("true");
-    expect(wrapper.find('[data-slot="session-running-dot"]').exists()).toBe(
-      true,
-    );
 
     useSessionStore().stateFor(session.id).isRunning = false;
     await wrapper.vm.$nextTick();
     expect(title().classes()).not.toContain("shimmer");
+  });
+
+  it("shows running and unread in the indent column", async () => {
+    const wrapper = mountItem(session, { depth: 1 });
+    const status = () => wrapper.get('[data-slot="session-status"]');
+    const label = () =>
+      wrapper.get('[data-slot="sidebar-menu-sub-button"]').find(".sr-only");
+    expect(status().attributes("data-status")).toBe("idle");
+    expect(status().attributes("aria-hidden")).toBe("true");
+    expect(label().exists()).toBe(false);
+    // Outside the clipping button, so it can sit under the project icon.
+    expect(
+      wrapper
+        .find(
+          '[data-slot="sidebar-menu-sub-button"] [data-slot="session-status"]',
+        )
+        .exists(),
+    ).toBe(false);
+
+    const state = useSessionStore().stateFor(session.id);
+    state.isRunning = true;
+    await wrapper.vm.$nextTick();
+    expect(status().attributes("data-status")).toBe("running");
+    expect(label().text()).toBe("Running");
+
+    // Running wins over an unread mark, then the mark shows once it ends.
+    useSessionUnreadStore().markUnread(session.id);
+    await wrapper.vm.$nextTick();
+    expect(status().attributes("data-status")).toBe("running");
+    state.isRunning = false;
+    await wrapper.vm.$nextTick();
+    expect(status().attributes("data-status")).toBe("unread");
+    expect(label().text()).toBe("Unread");
+
+    useSessionUnreadStore().markRead(session.id);
+    await wrapper.vm.$nextTick();
+    expect(status().attributes("data-status")).toBe("idle");
+    expect(label().exists()).toBe(false);
   });
 
   it("shows when an automation run started", () => {
@@ -120,10 +153,6 @@ describe("SessionHistoryItem", () => {
     expect(marker().attributes("aria-label")).toBe("Waiting for your approval");
     // Wrapped in a span, the icon misses the row's svg sizing; it sets its own.
     expect(marker().get("svg").classes()).toContain("size-3.5");
-    // The approval marker takes the running dot's place.
-    expect(wrapper.find('[data-slot="session-running-dot"]').exists()).toBe(
-      false,
-    );
 
     state.pendingApprovals = [];
     await wrapper.vm.$nextTick();

@@ -859,6 +859,8 @@ export default {
     fromWeChat: "WeChat에서 시작",
     usedFromWeChat: "WeChat에서 사용됨",
     awaitingApproval: "승인 대기 중",
+    statusRunning: "실행 중",
+    statusUnread: "읽지 않음",
     showSubSessions: "하위 세션 펼치기({count})",
     hideSubSessions: "하위 세션 접기({count})",
     deleteSubSessions: "하위 세션 {count}개도 함께 삭제됩니다.",

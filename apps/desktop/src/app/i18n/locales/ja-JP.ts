@@ -874,6 +874,8 @@ export default {
     fromWeChat: "WeChat から",
     usedFromWeChat: "WeChat で使用",
     awaitingApproval: "承認待ち",
+    statusRunning: "実行中",
+    statusUnread: "未読",
     showSubSessions: "サブセッションを表示（{count}）",
     hideSubSessions: "サブセッションを隠す（{count}）",
     deleteSubSessions: "{count} 件のサブセッションも削除されます。",

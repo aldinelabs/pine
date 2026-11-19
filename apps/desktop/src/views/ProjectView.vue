@@ -38,6 +38,7 @@ import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
+import { useSessionUnreadStore } from "@/stores/sessionUnread";
 import { useUpdaterStore } from "@/stores/updater";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
@@ -302,6 +303,10 @@ watch(
 );
 
 onBeforeUnmount(() => backgroundTasks.disconnect());
+// Opening a session, or coming back to its window, reads it.
+useSessionUnreadStore().trackReading(
+  () => sessionStore.activeSession?.id ?? null,
+);
 watch(
   () => sessionStore.activeSession?.id,
   (sessionId) => {

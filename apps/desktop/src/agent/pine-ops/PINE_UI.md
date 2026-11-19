@@ -115,8 +115,14 @@ Session list, one collapsible group per project:
 - Session folder: right-click for Rename folder and Delete folder (its
   conversations move back to the project). Empty folders show "No conversations
   in this folder".
-- Session item: click to open it in a tab. A running session's title shimmers
-  (with a dot when reduced motion is on). A session stopped on an approval
+- Session item: click to open it in a tab. The indent to the left of each
+  title, under the project icon, shows the session's status (sub-sessions
+  too): a small accent-coloured spinner while it runs (a still ring when
+  reduced motion is on), and an accent-coloured dot when a run finished while
+  the user was not looking at that session ("Unread"). Finishing turns the
+  spinner into the dot; opening the session, or returning to its window,
+  clears the dot, and it survives a restart. A running session's title also
+  shimmers. A session stopped on an approval
   shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
   icon and, when idle, the time it started. A session started from WeChat
   shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to

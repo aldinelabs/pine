@@ -46,6 +46,7 @@ import {
 } from "@/lib/transcriptThinking";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
 import { useModelsStore } from "@/stores/models";
+import { useSessionUnreadStore } from "@/stores/sessionUnread";
 import { onSessionEvent } from "@/client/sessionEvents";
 import type { WebSessionSnapshot } from "@/shared/webControl";
 import type {
@@ -1631,6 +1632,7 @@ export const useSessionStore = defineStore("session", () => {
     sessionCache.delete(sessionId);
     sessionProjects.delete(sessionId);
     modelsStore.setSessionSelection(sessionId, undefined);
+    useSessionUnreadStore().markRead(sessionId);
     if (currentSessionId.value === sessionId) startDraft();
   }
 
@@ -1821,7 +1823,13 @@ export const useSessionStore = defineStore("session", () => {
       if (event.state === "running" && !isRunning.value) {
         state.hideCompletedTodos();
       }
+      const wasRunning = isRunning.value;
       isRunning.value = event.state === "running" || event.state === "aborting";
+      if (wasRunning && !isRunning.value)
+        useSessionUnreadStore().noteRunFinished(
+          event.sessionId,
+          currentSessionId.value,
+        );
       if (event.state === "idle" || event.state === "failed") {
         state.hideFinishedTodos();
         pendingApprovals.value = [];

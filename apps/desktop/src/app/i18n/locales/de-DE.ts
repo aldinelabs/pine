@@ -881,6 +881,8 @@ export default {
     fromWeChat: "Aus WeChat",
     usedFromWeChat: "Aus WeChat verwendet",
     awaitingApproval: "Wartet auf deine Freigabe",
+    statusRunning: "Läuft",
+    statusUnread: "Ungelesen",
     showSubSessions: "Untersitzungen anzeigen ({count})",
     hideSubSessions: "Untersitzungen ausblenden ({count})",
     deleteSubSessions: "Mitgelöschte Untersitzungen: {count}.",

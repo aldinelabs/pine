@@ -14,7 +14,9 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import SessionContextMenu from "@/components/sessions/SessionContextMenu.vue";
+import SessionStatusIndicator from "@/components/project/SessionStatusIndicator.vue";
 import { useSessionStore } from "@/stores/session";
+import { useSessionUnreadStore } from "@/stores/sessionUnread";
 import type { PineSessionGroup } from "@/shared/projects";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 
@@ -43,6 +45,14 @@ const sessionStore = useSessionStore();
 const isRunning = computed(() =>
   sessionStore.isSessionRunning(props.session.id),
 );
+
+const unreadStore = useSessionUnreadStore();
+/** Shown in the column under the project icon; running wins over unread. */
+const status = computed(() => {
+  if (isRunning.value) return "running";
+  if (unreadStore.isUnread(props.session.id)) return "unread";
+  return "idle";
+});
 
 const isAwaitingApproval = computed(() =>
   sessionStore.isSessionAwaitingApproval(props.session.id),
@@ -204,6 +214,13 @@ const emit = defineEmits<{
           :class="cn('truncate', isRunning && 'shimmer')"
           >{{ title }}</span
         >
+        <span v-if="status !== 'idle'" class="sr-only">{{
+          t(
+            status === "running"
+              ? "sessions.statusRunning"
+              : "sessions.statusUnread",
+          )
+        }}</span>
         <span
           v-if="runStartedAt && !isRunning"
           data-slot="session-automation-time"
@@ -220,12 +237,6 @@ const emit = defineEmits<{
         >
           <ShieldAlertIcon class="size-3.5" aria-hidden="true" />
         </span>
-        <span
-          v-else-if="isRunning"
-          aria-hidden="true"
-          data-slot="session-running-dot"
-          class="hidden size-1.5 shrink-0 rounded-full bg-primary motion-reduce:inline-block"
-        />
         <!-- A span, not a button: the row is already one; keyboard users
              expand with the arrow keys. A 20px box in the 28px row sits 4px
              from its edge, so its radius is the row's minus 4px. -->
@@ -253,6 +264,9 @@ const emit = defineEmits<{
         </span>
       </SidebarMenuSubButton>
     </SessionContextMenu>
+    <!-- Outside the row's button, which clips: it sits in the indent,
+         centred under the project icon, for sub-sessions too. -->
+    <SessionStatusIndicator :status="status" />
     <!--
       Tree line from the parent down to its last sub-session, centred under
       the parent's first character (12px padding + half a 14px glyph). One

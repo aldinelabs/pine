@@ -864,6 +864,8 @@ export default {
     fromWeChat: "From WeChat",
     usedFromWeChat: "Used from WeChat",
     awaitingApproval: "Waiting for your approval",
+    statusRunning: "Running",
+    statusUnread: "Unread",
     showSubSessions: "Show sub-sessions ({count})",
     hideSubSessions: "Hide sub-sessions ({count})",
     deleteSubSessions: "Sub-sessions deleted with it: {count}.",

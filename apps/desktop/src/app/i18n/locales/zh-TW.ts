@@ -817,6 +817,8 @@ export default {
     fromWeChat: "來自微信",
     usedFromWeChat: "在微信中使用過",
     awaitingApproval: "等待你核准",
+    statusRunning: "執行中",
+    statusUnread: "未讀",
     showSubSessions: "展開子會話（{count}）",
     hideSubSessions: "收合子會話（{count}）",
     deleteSubSessions: "它的 {count} 個子會話也會一併刪除。",
