@@ -1026,7 +1026,7 @@ export default {
         },
         speakers: {
           identify: "화자 구분",
-          note: "이 Mac에서 목소리를 구분합니다(마이크와 시스템 오디오는 따로 구분). 처음 켤 때 약 35MB를 내려받고 CPU를 조금 더 사용합니다. 라벨은 몇 초 늦게 표시되며 틀릴 수 있습니다.",
+          note: "처음에 약 35MB를 내려받습니다. 라벨은 몇 초 늦게 표시됩니다.",
           numbered: "화자 {n}",
           rename: "이름 변경",
           mergeInto: "병합 대상",

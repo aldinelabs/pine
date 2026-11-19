@@ -1050,7 +1050,7 @@ export default {
         },
         speakers: {
           identify: "Identificar hablantes",
-          note: "Distingue las voces en este Mac, dentro de cada fuente. Descarga unos 35 MB una vez y usa algo más de CPU; las etiquetas llegan unos segundos tarde y pueden fallar.",
+          note: "La primera vez descarga unos 35 MB. Las etiquetas llegan unos segundos tarde.",
           numbered: "Hablante {n}",
           rename: "Cambiar nombre",
           mergeInto: "Combinar con",

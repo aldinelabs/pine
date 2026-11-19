@@ -1057,7 +1057,7 @@ export default {
         },
         speakers: {
           identify: "Sprecher erkennen",
-          note: "Unterscheidet Stimmen auf diesem Mac, getrennt nach Quelle. Lädt einmalig etwa 35 MB und braucht etwas mehr CPU; Beschriftungen erscheinen einige Sekunden später und können falsch sein.",
+          note: "Lädt beim ersten Mal etwa 35 MB herunter. Beschriftungen erscheinen einige Sekunden später.",
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",

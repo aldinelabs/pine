@@ -687,14 +687,14 @@ close the card. The panels are:
   the card, like the composer, and stay there while the transcript scrolls.
   Before a capture the row shows two toggle buttons, Microphone and System
   audio (icons; each turns its source on or off on its own, and the last
-  one on stays on), a language button showing the spoken language as a
+  one on stays on), then Identify speakers (a people icon toggle, off by
+  default, pressed when on; shown only when this build can label speakers;
+  its tooltip says the first use downloads about 35 MB and labels arrive a
+  few seconds late), a language button showing the spoken language as a
   short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
   name), and Start ("Continue" when the conversation already has a
-  transcript). The language button opens a menu with Language (the spoken
-  language, each by its full name, such as "Chinese (China)")
-  and Identify speakers (a checkbox item, off by default, shown only when
-  this build can label speakers; when on, a people icon shows on the
-  button).
+  transcript). The language button opens a menu listing the languages by
+  their full names, such as "Chinese (China)".
   On a new session's page, Start first creates an empty conversation in the
   project the composer shows, opens it in that tab and captures into it;
   messages sent later go to that conversation, which stays in the session

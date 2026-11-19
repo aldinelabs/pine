@@ -1052,7 +1052,7 @@ export default {
         },
         speakers: {
           identify: "Identifier les locuteurs",
-          note: "Distingue les voix sur ce Mac, pour chaque source. Télécharge environ 35 Mo une fois et utilise un peu plus de processeur ; les étiquettes arrivent quelques secondes plus tard et peuvent se tromper.",
+          note: "La première fois, télécharge environ 35 Mo. Les étiquettes arrivent avec quelques secondes de retard.",
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",

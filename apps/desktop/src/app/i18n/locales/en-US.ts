@@ -1033,7 +1033,7 @@ export default {
         },
         speakers: {
           identify: "Identify speakers",
-          note: "Tells voices apart on this Mac, within each source. Downloads about 35 MB once and uses a little more CPU; labels appear a few seconds late and can be wrong.",
+          note: "The first time, downloads about 35 MB. Labels arrive a few seconds late.",
           numbered: "Speaker {n}",
           rename: "Rename",
           mergeInto: "Merge into",

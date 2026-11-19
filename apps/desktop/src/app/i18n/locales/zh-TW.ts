@@ -980,7 +980,7 @@ export default {
         },
         speakers: {
           identify: "辨識說話者",
-          note: "在本機區分不同的聲音（麥克風和系統音訊分開辨識）。首次開啟需下載約 35 MB，會多佔用一些 CPU；標籤會晚幾秒出現，也可能出錯。",
+          note: "首次使用會下載約 35 MB，標籤會晚幾秒出現。",
           numbered: "說話者 {n}",
           rename: "重新命名",
           mergeInto: "合併到",

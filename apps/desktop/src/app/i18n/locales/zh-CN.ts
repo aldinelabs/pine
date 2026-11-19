@@ -976,7 +976,7 @@ export default {
         },
         speakers: {
           identify: "识别说话人",
-          note: "在本机区分不同的声音（麦克风和系统音频分开识别）。首次开启需下载约 35 MB，会多占用一些 CPU；标签会晚几秒出现，也可能出错。",
+          note: "首次使用会下载约 35 MB，标签会晚几秒出现。",
           numbered: "说话人 {n}",
           rename: "重命名",
           mergeInto: "合并到",

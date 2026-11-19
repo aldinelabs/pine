@@ -317,21 +317,15 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(api.stop).toHaveBeenCalled();
   });
 
-  it("offers speaker labels off by default and asks for them when turned on", async () => {
+  it("offers speaker labels as a toggle in the row, off by default", async () => {
     const { api } = stubApi({ ...idle, speakersAvailable: true });
     const wrapper = await mountPanel();
-    await wrapper.get("[data-testid=live-context-options]").trigger("click");
-    await flushPromises();
-    const toggle = document.querySelector<HTMLElement>(
-      "[data-testid=live-context-identify-speakers]",
-    );
-    expect(toggle?.getAttribute("aria-checked")).toBe("false");
-    expect(document.body.textContent).toContain("Identify speakers");
-    toggle?.click();
-    await flushPromises();
-    expect(
-      wrapper.find("[data-testid=live-context-speakers-on]").exists(),
-    ).toBe(true);
+    const toggle = wrapper.get("[data-testid=live-context-identify-speakers]");
+    expect(toggle.attributes("aria-pressed")).toBe("false");
+    expect(toggle.attributes("aria-label")).toBe("Identify speakers");
+    expect(toggle.attributes("title")).toContain("35 MB");
+    await toggle.trigger("click");
+    expect(toggle.attributes("aria-pressed")).toBe("true");
     await wrapper.get("[data-testid=live-context-start]").trigger("click");
     await flushPromises();
     expect(api.start).toHaveBeenCalledWith(
@@ -339,15 +333,24 @@ describe("WorkbenchLiveContextPanel", () => {
     );
   });
 
-  it("hides the speaker option when this build cannot label speakers", async () => {
-    stubApi(idle);
+  it("leaves speakers out when this build cannot label them, and out of the language menu", async () => {
+    stubApi({ ...idle, speakersAvailable: true });
     const wrapper = await mountPanel();
     await wrapper.get("[data-testid=live-context-options]").trigger("click");
     await flushPromises();
     expect(document.body.textContent).toContain("Language");
     expect(
-      document.querySelector("[data-testid=live-context-identify-speakers]"),
+      document.querySelector(
+        "[role=menu] [data-testid=live-context-identify-speakers]",
+      ),
     ).toBeNull();
+    wrapper.unmount();
+
+    stubApi(idle);
+    const without = await mountPanel();
+    expect(
+      without.find("[data-testid=live-context-identify-speakers]").exists(),
+    ).toBe(false);
   });
 
   it("splits labeled segments by speaker, with names and merges applied", async () => {
