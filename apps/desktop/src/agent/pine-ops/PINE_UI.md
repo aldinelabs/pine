@@ -701,7 +701,7 @@ close the card. The panels are:
   listening time (paused time not counted), a waveform of the last few
   seconds of sound, a pause button and a stop button (square icon). The
   waveform shows the microphone in the text colour and system audio in
-  blue; silence is a flat line. Hovering the time shows the sources and
+  grey; silence is a flat line. Hovering the time shows the sources and
   the language.
   Paused shows an amber dot, "Paused", a still waveform and a play button
   to resume. "Preparing…", "Downloading speech model…" or "Downloading

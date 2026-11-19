@@ -491,7 +491,7 @@ describe("WorkbenchLiveContextPanel", () => {
     const wrapper = await mountPanel();
     const waveform = wrapper.get("[data-testid=live-context-waveform]");
     expect(waveform.attributes("aria-label")).toBe(
-      "Input level: microphone in the text colour, system audio in blue",
+      "Input level: microphone in the text colour, system audio in grey",
     );
     expect(waveform.attributes("data-paused")).toBeUndefined();
     emit({ kind: "status", status: { ...listeningHere, state: "paused" } });

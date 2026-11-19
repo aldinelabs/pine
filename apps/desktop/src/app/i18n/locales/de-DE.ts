@@ -1085,7 +1085,7 @@ export default {
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
         jumpToLatest: "Zum Neuesten",
         level: "Eingangspegel",
-        levelBoth: "Eingangspegel: Mikrofon in Textfarbe, Systemaudio in Blau",
+        levelBoth: "Eingangspegel: Mikrofon in Textfarbe, Systemaudio in Grau",
         noSession:
           "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
         showElsewhere: "Anzeigen",

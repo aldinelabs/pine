@@ -1070,7 +1070,7 @@ export default {
         waitingPaused: "一時停止中です。再開すると文字起こしを続けます。",
         jumpToLatest: "最新へ移動",
         level: "入力レベル",
-        levelBoth: "入力レベル：マイクは文字色、システムオーディオは青",
+        levelBoth: "入力レベル：マイクは文字色、システムオーディオはグレー",
         noSession: "会話を開くと、その会話にライブコンテキストを記録できます。",
         showElsewhere: "表示",
         openSettings: "システム設定を開く",

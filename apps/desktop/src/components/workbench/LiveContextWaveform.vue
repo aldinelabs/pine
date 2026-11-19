@@ -9,7 +9,7 @@ import type { LiveContextLevelSample } from "@/stores/liveContext";
 /**
  * The last few seconds of input level, scrolling right to left: a classic
  * waveform mirrored around the middle line, one colour per source (the
- * microphone in the text colour, system audio in blue). Where both sound at
+ * microphone in the text colour, system audio in grey). Where both sound at
  * once the louder bar is drawn first and the quieter one over it, so both
  * stay visible. Silence is a flat hairline.
  */
@@ -90,7 +90,7 @@ function draw(now: number): void {
   const progress = reducedMotion.value ? 0 : (now - newest) / slice;
   const offset = width - BAR_WIDTH - (count - 1 + progress) * BAR_PITCH;
   const half = height / 2 - 1;
-  const alpha: Record<LiveContextSource, number> = { mic: 0.7, system: 0.85 };
+  const alpha: Record<LiveContextSource, number> = { mic: 0.8, system: 0.55 };
   const bar = (source: LiveContextSource, x: number, value: number): void => {
     const extent = Math.max(1, value * half);
     context.globalAlpha = alpha[source];
@@ -147,7 +147,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     :aria-label="label"
     :title="label"
     :data-paused="paused || undefined"
-    class="[--wave-mic:var(--foreground)] [--wave-system:var(--color-sky-500)] dark:[--wave-system:var(--color-sky-400)]"
+    class="[--wave-mic:var(--foreground)] [--wave-system:var(--muted-foreground)]"
     data-testid="live-context-waveform"
   />
 </template>

@@ -1080,7 +1080,7 @@ export default {
         jumpToLatest: "Ir a lo último",
         level: "Nivel de entrada",
         levelBoth:
-          "Nivel de entrada: micrófono en el color del texto, audio del sistema en azul",
+          "Nivel de entrada: micrófono en el color del texto, audio del sistema en gris",
         noSession:
           "Abre una conversación para capturar contexto en directo en ella.",
         showElsewhere: "Ver",

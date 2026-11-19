@@ -1061,7 +1061,7 @@ export default {
         jumpToLatest: "Jump to latest",
         level: "Input level",
         levelBoth:
-          "Input level: microphone in the text colour, system audio in blue",
+          "Input level: microphone in the text colour, system audio in grey",
         noSession: "Open a conversation to capture live context into it.",
         showElsewhere: "Show",
         openSettings: "Open System Settings",

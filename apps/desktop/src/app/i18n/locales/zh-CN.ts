@@ -1001,7 +1001,7 @@ export default {
         waitingPaused: "已暂停，继续后接着转写。",
         jumpToLatest: "跳到最新",
         level: "输入音量",
-        levelBoth: "输入音量：麦克风为文字颜色，系统音频为蓝色",
+        levelBoth: "输入音量：麦克风为文字颜色，系统音频为灰色",
         noSession: "打开一个对话，即可为它记录实时上下文。",
         showElsewhere: "查看",
         openSettings: "打开系统设置",

@@ -1053,7 +1053,7 @@ export default {
         waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",
         jumpToLatest: "최신으로 이동",
         level: "입력 레벨",
-        levelBoth: "입력 레벨: 마이크는 글자 색, 시스템 오디오는 파란색",
+        levelBoth: "입력 레벨: 마이크는 글자 색, 시스템 오디오는 회색",
         noSession:
           "대화를 열면 그 대화에 실시간 컨텍스트를 기록할 수 있습니다.",
         showElsewhere: "보기",
