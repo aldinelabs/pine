@@ -759,6 +759,11 @@ async function rewritePrompt(): Promise<void> {
  * while the text box is empty and nothing is being typed, and Tab fills it
  * in and uses it up. Typing hides it without using it up, so emptying the
  * box shows it again until the next run.
+ *
+ * Only a suggestion that arrives over a visible placeholder fades: the
+ * placeholder fades out, then the suggestion fades in. When it comes back
+ * after typing, the placeholder was hidden by the text, so the suggestion
+ * returns at once and the placeholder never shows in between.
  */
 const replySuggestion = ref("");
 let suggestionRun = 0;
@@ -776,6 +781,14 @@ const showsReplySuggestion = computed(
     !committingProject.value,
 );
 const replySuggestionId = `${messageId}-suggestion`;
+const replySuggestionFades = ref(false);
+watch(replySuggestion, (suggestion) => {
+  replySuggestionFades.value =
+    suggestion.length > 0 && message.value === "" && !isComposingText.value;
+});
+watch(showsReplySuggestion, (shows) => {
+  if (!shows) replySuggestionFades.value = false;
+});
 
 async function requestReplySuggestion(): Promise<void> {
   const run = ++suggestionRun;
@@ -1276,9 +1289,11 @@ function handleRootSubmit(event: Event): void {
                   v-bind="chooserInputAttrs"
                   :disabled="isRewriting"
                   :aria-busy="isRewriting || undefined"
-                  :class="
-                    showsReplySuggestion && 'session-composer-input--suggesting'
-                  "
+                  :class="{
+                    'session-composer-input--suggesting': showsReplySuggestion,
+                    'session-composer-input--suggestion-fades':
+                      showsReplySuggestion && replySuggestionFades,
+                  }"
                   :aria-describedby="
                     showsReplySuggestion ? replySuggestionId : undefined
                   "
@@ -1301,9 +1316,13 @@ function handleRootSubmit(event: Event): void {
                   @compositionstart="isComposingText = true"
                   @compositionend="isComposingText = false"
                 />
-                <!-- Once the placeholder has faded out, the suggestion fades
-                     in at its place, in the same colour. -->
-                <Transition name="session-composer-suggestion">
+                <!-- Arriving over the placeholder, it fades in once the
+                     placeholder has faded out; coming back after typing, it
+                     shows at once. Same place, same colour. -->
+                <Transition
+                  name="session-composer-suggestion"
+                  :css="replySuggestionFades"
+                >
                   <div
                     v-if="showsReplySuggestion"
                     data-slot="reply-suggestion"
@@ -1761,7 +1780,7 @@ function handleRootSubmit(event: Event): void {
   padding-inline-end: var(--session-input-padding-inline, 1rem);
 }
 
-.session-composer-input::placeholder {
+.session-composer-input--suggestion-fades::placeholder {
   transition: color 300ms ease-out;
 }
 
@@ -1782,6 +1801,13 @@ function handleRootSubmit(event: Event): void {
 
 .session-composer-suggestion-enter-from {
   opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-composer-input--suggestion-fades::placeholder,
+  .session-composer-suggestion-enter-active {
+    transition: none;
+  }
 }
 
 /* At phone width the message takes the whole first row; its actions move to

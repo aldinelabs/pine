@@ -1499,6 +1499,69 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
+  it("fades the suggestion in only over a visible placeholder", async () => {
+    let resolveSuggestion: (value: { suggestion: string }) => void = () => {};
+    const suggestReply = vi.fn(
+      () =>
+        new Promise<{ suggestion: string }>((resolve) => {
+          resolveSuggestion = resolve;
+        }),
+    );
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true },
+      "high",
+      "zh-CN",
+      { suggestReply },
+    );
+    useSessionStore().stateFor("session-1").messages = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user",
+        status: "complete",
+        blocks: [{ type: "text", text: "开始" }],
+      },
+    ];
+    const textarea = wrapper.get("textarea");
+    const suggestion = () => wrapper.find('[data-slot="reply-suggestion"]');
+    const fades = "session-composer-input--suggestion-fades";
+
+    // Arriving over the placeholder: the placeholder fades out first.
+    await wrapper.setProps({ isRunning: false });
+    resolveSuggestion({ suggestion: "继续" });
+    await flushPromises();
+    expect(suggestion().exists()).toBe(true);
+    expect(textarea.classes()).toContain(fades);
+
+    // Typing, then emptying the box (delete, cut, undo): it comes back at
+    // once, with the placeholder already transparent.
+    await textarea.setValue("自");
+    expect(suggestion().exists()).toBe(false);
+    expect(textarea.classes()).not.toContain(fades);
+    await textarea.setValue("");
+    expect(suggestion().exists()).toBe(true);
+    expect(textarea.classes()).toContain("session-composer-input--suggesting");
+    expect(textarea.classes()).not.toContain(fades);
+
+    // An input method composing and then cancelling behaves the same.
+    await textarea.trigger("compositionstart");
+    expect(suggestion().exists()).toBe(false);
+    await textarea.trigger("compositionend");
+    expect(suggestion().exists()).toBe(true);
+    expect(textarea.classes()).not.toContain(fades);
+
+    // Arriving while the user is typing: no placeholder to fade from.
+    await wrapper.setProps({ isRunning: true });
+    await wrapper.setProps({ isRunning: false });
+    await textarea.setValue("草稿");
+    resolveSuggestion({ suggestion: "再来" });
+    await flushPromises();
+    await textarea.setValue("");
+    expect(suggestion().text()).toContain("再来");
+    expect(textarea.classes()).not.toContain(fades);
+    wrapper.unmount();
+  });
+
   it("does not ask for a suggestion while reply suggestions are off", async () => {
     const suggestReply = vi.fn().mockResolvedValue({ suggestion: "继续" });
     const wrapper = mountComposer(
