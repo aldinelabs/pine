@@ -192,6 +192,48 @@ describe("LiveContextService", () => {
     expect(file).not.toMatch(/大家"/);
   });
 
+  it("gives the agent its own session's transcript and capture", async () => {
+    await startListening();
+    helper.write({
+      type: "segment",
+      id: "system-0",
+      source: "system",
+      t0: 0,
+      t1: 900,
+      text: "First point.",
+      final: true,
+    });
+    await tick();
+
+    const here = await service.agentSource({
+      projectId: PROJECT_ID,
+      sessionId: "session-1",
+    });
+    expect(here.transcript.segments.map((segment) => segment.text)).toEqual([
+      "First point.",
+    ]);
+    expect(here.capture).toEqual({
+      state: "listening",
+      sources: ["mic", "system"],
+    });
+
+    // Another session sees neither this capture nor its words.
+    const elsewhere = await service.agentSource({
+      projectId: PROJECT_ID,
+      sessionId: "session-2",
+    });
+    expect(elsewhere.capture).toBeUndefined();
+    expect(elsewhere.transcript.segments).toEqual([]);
+
+    await service.stop();
+    const stopped = await service.agentSource({
+      projectId: PROJECT_ID,
+      sessionId: "session-1",
+    });
+    expect(stopped.capture).toBeUndefined();
+    expect(stopped.transcript.segments).toHaveLength(1);
+  });
+
   it("throttles volatile text to the latest per source", async () => {
     await startListening();
     for (const text of ["We", "We are", "We are live"])

@@ -756,6 +756,14 @@ close the card. The panels are:
   are permanently deleted and it can't be undone; while this conversation
   is capturing, the dialog adds "The capture stops first." and Delete stops
   it before deleting. The card then shows its setup row again.
+  The conversation's agent sees the transcript: each message the user
+  sends carries the lines finalized since the previous message (only the
+  most recent part when there is a lot), with the speaker names the card
+  shows and the capture's state, and the agent can read earlier or complete ranges
+  itself, which shows in the transcript as a tool call. Nothing shows in the conversation
+  when lines are attached. Other conversations, side chats and
+  sub-sessions do not see it; after the transcript is deleted the agent is
+  told to disregard it.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.

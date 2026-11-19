@@ -1,6 +1,11 @@
 import type { PineAgentEvent } from "../../shared/agent";
 import type { PineLibraryChange } from "../../shared/projects";
 import type { RemoteStatus } from "../../shared/remoteControl";
+import type { LiveContextTarget } from "../../shared/liveContext";
+import type {
+  LiveContextHostOperation,
+  LiveContextHostResult,
+} from "../../shared/liveContextAgent";
 import type { AutomationsChangedEvent } from "../../shared/automation";
 import type {
   WeChatNotification,
@@ -72,6 +77,14 @@ export interface PineHost {
   wechatChanged?(status: WeChatStatus): void;
   /** Shows something WeChat remote did or needs at the OS level. */
   notifyWeChat?(notification: WeChatNotification): void;
+  /**
+   * The session's Live Context, sliced for its agent. Desktop only: without
+   * it no session has live context.
+   */
+  liveContext?(
+    target: LiveContextTarget,
+    operation: LiveContextHostOperation,
+  ): Promise<LiveContextHostResult>;
   /** A person here can see and answer automation approvals (not on the headless server). */
   localAutomationApprovals?: boolean;
 }

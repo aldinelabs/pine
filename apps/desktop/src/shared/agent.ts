@@ -9,6 +9,7 @@ import type {
 } from "./sessions";
 import type { PineSessionMutator } from "./sessionMutators";
 import type { McpHostOperation, PineMcpChangeSummary } from "./mcp";
+import type { LiveContextHostOperation } from "./liveContextAgent";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type {
   FilePresentationDisplay,
@@ -449,6 +450,7 @@ export type PineHostRequest =
   | { kind: "project"; operation: ProjectHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
+  | { kind: "live-context"; operation: LiveContextHostOperation }
   | { kind: "automation"; operation: AutomationHostOperation }
   | { kind: "mcp"; operation: McpHostOperation };
 

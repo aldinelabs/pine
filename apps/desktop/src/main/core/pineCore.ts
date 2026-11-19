@@ -822,6 +822,8 @@ export class PineCore {
       if (
         agentEvent.request.kind === "teleport" ||
         agentEvent.request.kind === "project" ||
+        // A side chat does not inherit its conversation's live transcript.
+        agentEvent.request.kind === "live-context" ||
         (agentEvent.request.kind === "session" &&
           !SIDE_CHAT_SESSION_OPS.has(agentEvent.request.operation.op)) ||
         parentOwner === undefined
@@ -947,6 +949,23 @@ export class PineCore {
     }
     const reply = await (async (): Promise<AgentHostReply> => {
       try {
+        if (event.request.kind === "live-context") {
+          const projectId = this.runtimes.projectOfLiveSession(
+            event.sessionId,
+          )?.id;
+          const { operation } = event.request;
+          // No Live Context here (the headless server): nothing to read.
+          const result =
+            projectId && this.host.liveContext
+              ? await this.host.liveContext(
+                  { projectId, sessionId: event.sessionId },
+                  operation,
+                )
+              : operation.op === "increment"
+                ? { op: "increment" as const, increment: null }
+                : { op: "read" as const, read: null };
+          return { ok: true, response: { kind: "live-context", result } };
+        }
         if (event.request.kind === "workbench-state") {
           const state = await this.workbenchStateRequests.request(
             ownerId,

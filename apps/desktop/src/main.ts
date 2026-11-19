@@ -99,6 +99,7 @@ import {
   registerRemoteKeepAwakeIpc,
 } from "./main/desktop/remoteKeepAwake";
 import { createLiveContext } from "./main/desktop/liveContext";
+import { answerLiveContextOperation } from "./shared/liveContextAgent";
 import {
   createRemoteKeepAwakeSetting,
   isRemoteAccessOn,
@@ -393,6 +394,11 @@ function desktopHost(): PineHost {
           window.webContents.send(SESSIONS_DELETED_CHANNEL, sessionIds);
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
+    liveContext: async (target, operation) =>
+      answerLiveContextOperation(
+        await liveContext.agentSource(target),
+        operation,
+      ),
     approveRemotePairing: confirmRemotePairing,
     remoteControlChanged: (status) => {
       broadcastRemoteStatus(status);

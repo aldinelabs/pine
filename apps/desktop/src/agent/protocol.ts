@@ -66,6 +66,10 @@ import type {
   AutomationMcpGrant,
 } from "../shared/automation";
 import type { ApproximateLocation } from "../shared/approximateLocation";
+import type {
+  LiveContextHostOperation,
+  LiveContextHostResult,
+} from "../shared/liveContextAgent";
 import type { McpHostOperation } from "../shared/mcp";
 import type { PiProvidersStatus } from "../shared/piProviders";
 import type { PineSessionMutator } from "../shared/sessionMutators";
@@ -154,6 +158,8 @@ export type AgentHostRequest =
   | { kind: "project"; operation: ProjectHostOperation }
   | { kind: "workbench-state" }
   | { kind: "approximate-location" }
+  /** The session's own Live Context transcript; see docs/live-context.md §7. */
+  | { kind: "live-context"; operation: LiveContextHostOperation }
   | { kind: "automation"; operation: AutomationHostOperation }
   | { kind: "mcp"; operation: McpHostOperation };
 
@@ -161,6 +167,7 @@ export type AgentHostResponse =
   | { kind: "list-projects"; projects: AgentHostProject[] }
   | { kind: "workbench-state"; state: WorkbenchState }
   | { kind: "approximate-location"; location: ApproximateLocation | null }
+  | { kind: "live-context"; result: LiveContextHostResult }
   | { kind: "teleport"; projectName: string; cwd: string }
   | { kind: "session"; result: SessionHostResult }
   | { kind: "project"; result: ProjectHostResult }

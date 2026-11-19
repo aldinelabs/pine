@@ -27,6 +27,7 @@ import {
   parseTurns,
   renameSpeaker,
 } from "../shared/liveContextSpeakers";
+import type { LiveContextAgentSource } from "../shared/liveContextAgent";
 import {
   SpeakerSession,
   type SourcedLabel,
@@ -412,6 +413,29 @@ export class LiveContextService {
         target.sessionId,
       ),
     );
+  }
+
+  /**
+   * What the session's agent may see: the transcript, and the capture's
+   * state while this session captures. Another session's capture shows
+   * nothing here.
+   */
+  async agentSource(
+    target: LiveContextTarget,
+  ): Promise<LiveContextAgentSource> {
+    const transcript = await this.transcript(target);
+    const status = this.status();
+    const here =
+      status.sessionId === target.sessionId &&
+      status.projectId === target.projectId &&
+      status.state !== "idle";
+    return {
+      transcript,
+      ...(here
+        ? { capture: { state: status.state, sources: [...status.sources] } }
+        : {}),
+      now: this.now(),
+    };
   }
 
   /**

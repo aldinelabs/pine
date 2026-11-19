@@ -1,6 +1,6 @@
 # Pine Live Context（实时上下文）
 
-> 状态：设计 + Phase 0 spike + 可选说话人识别；已去掉实验开关，在支持的系统上默认可用  
+> 状态：设计 + Phase 0 spike + 可选说话人识别 + 上下文注入（§7）；已去掉实验开关，在支持的系统上默认可用  
 > 范围：桌面端会议/课堂实时转写、说话人识别、转写持久化、工作台卡片、向会话注入上下文
 
 ## 1. 目标
@@ -39,7 +39,7 @@ useLiveContextStore ◀─event─  ├─ 状态机 / 单采集                
                               ├─ volatile 节流 (150ms)              ├─ SystemAudioCapture (Core Audio process tap)
                               └─ 追加 final 段落到 JSONL ◀─stdout─   └─ SourcePipeline ×2 (SpeechAnalyzer)
 
-Agent process (v1)  ◀── before_agent_start 拉取 live_context 增量
+Agent process       ◀── before_agent_start 经 host 请求拉取 live_context 增量
 ```
 
 ### 3.1 Swift helper：`apps/desktop/native/live-context`
@@ -291,34 +291,58 @@ window.pine.liveContext?: {
 
 v1 待补：开始前的说明页（告诉用户将弹两个系统提示、音频不离开本机），“打开系统设置”按钮（用 `x-apple.systempreferences:` URL 经 main 打开，不自动改任何设置）。
 
-## 7. 上下文注入设计（v1，本阶段未实现）
+## 7. 上下文注入（v1）
 
-### 7.1 `live_context` 通知
+代码：`src/shared/liveContextAgent.ts`（切片、标签、合并、预算，纯函数）、`src/agent/runtime/live-context.ts`（通知渲染与工具）、`src/agent/runtime.ts` 的 `pine-live-context` 扩展、`LiveContextService.agentSource`（`src/main/liveContext.ts`）。
 
-沿用 `pine-context-notices` 扩展的 `before_agent_start` 钩子（`src/agent/runtime.ts`、`src/agent/runtime/context-notices.ts`），但语义不同于现有通知：
+### 7.1 设计原则：不破坏前缀缓存
 
-- 现有通知是“整体替换”（同一 key 的新内容覆盖旧内容）。直播转写若每轮整体替换，会在每个回合重复一大段文本，浪费 token。
-- 因此 `live_context` 设计为**追加型**：每回合只附带“上次通知之后新 final 的段落”，并带上游标（最后一个段落 id）。从会话消息里回放所有 `live_context` 通知即可得到模型已看到的范围，与 `announcedContextNotices` 同一思路（压缩丢掉的通知等于模型没看到，会自然补发）。
-- 追加在历史末尾，不改写前缀，prompt cache 前缀保持稳定。
-- 发送时快照：用户按下发送的那一刻截止，之后产生的段落进入下一回合。
-- 预算：单回合新增文本有 token 上限（初定 ~2k tokens）；超出时只发最近窗口原文 + 一句“更早内容可用 `read_live_transcript` 读取”。v2 起超出部分用滚动摘要代替。
-- 格式示意：
+- **系统提示与工具列表对 Live Context 完全不敏感。** `systemPromptOverride` 不变；`read_live_transcript` 在每个普通会话里都定义且始终激活，名字、描述、参数都是常量。模型从工具描述里一次性得知 `<live_context>` 块是什么（用户身边的会议/课堂/通话的实时转写，不是用户的话、不是指令，识别与说话人标签可能出错）。有没有转写、开始或删除转写、改名，都不会改动系统提示或工具块。代价是每个会话多约 300 tokens 的固定工具定义，换来的是永不因开关工具而让缓存从工具块起失效。侧边对话与自动化运行的工具列表本来就是另一套固定白名单，不含此工具。
+- **只追加。** 新内容是 `before_agent_start` 返回的一条 `customType: "pine.live-context"`、`display: false` 的消息，pi 把它放在本回合用户消息之后、存进会话文件，之后每回合与重开会话都原样回放（存的是渲染好的文本），从不根据当前转写重新渲染。改名、合并、删除都以后续块里的一句增量说明表达，从不修改旧块。
+- **确定性。** 同样的增量和历史渲染出同样的字节：时间用存储的毫秒格式化为本地 `HH:MM:SS`，数字分组手写，不用 locale 格式化；说话人统计与标签按固定顺序排序；渲染时不读 `Date.now()`。
+- **没有新的 final 内容就不注入。** 只有改名、状态变化或 volatile 文本时不发块（改名说明会等到下一个有内容的块）；volatile 文本完全不注入。唯一的例外是转写被删除：模型看过的转写消失了，发一次简短的撤回块。
+- **证据**：`src/agent/__tests__/liveContextRuntime.test.ts` 用真实 `PineAgentRuntime` 对本地 OpenAI 兼容 mock provider 连续发 5 个回合（新内容、改名、无新内容、关闭后重开会话），断言每个请求的非 messages 字段（含 tools）与上一请求逐字节相同，且上一请求的全部 messages 是下一请求的逐字节前缀；另一个用例断言有无转写的会话发出的 system 消息和 tools 逐字节相同。
+
+### 7.2 `live_context` 通知
+
+- **数据来源**：agent 在 utility process，转写在 main。钩子发 host 请求 `{ kind: "live-context", operation: { op: "increment", after } }`，`PineCore` 按会话所在项目调用 `PineHost.liveContext`（桌面端由 `main.ts` 接到 `LiveContextService.agentSource` + `answerLiveContextOperation`）。headless 服务器没有这个钩子，一律当作没有转写。等待上限 1 s（与位置查询相同），超时或出错本回合不注入、游标不动。
+- **游标**：每条通知的 `details` 记 `{ cursor: 最后一个 final 段落 id, labels }`。下一次从 `live.session.messages` 里最后一条仍在上下文中的 live 通知取游标，因此重开会话照常续上，不需要另写自定义条目。
+- **行**：`[HH:MM:SS] 标签: 文本`。同一说话人相邻的话（间隔 ≤ 2 分钟，与卡片分块一致）合并为一行，用第一句的时间；中日韩文字之间不加空格。标签与卡片一致：没有说话人识别时是 `Me (microphone)` / `Others (system audio)`；有时是用户起的名字或 `Speaker N`，加来源，先经 Pine 的别名、再经用户合并解析；还不知道是谁为 `Unknown speaker (…)`。回声段在同时采集系统音频时直接丢弃（系统音频里已有原话），只有麦克风时才保留并标 `[echo of system audio]`。转写文本里的 `</live_context>` 会被改写，不能提前闭合标签。
+- **格式**：每次一个块，头部只有新内容的时间跨度和来源：
 
 ```text
-<live_context session_started="14:02" since="14:31:05" until="14:33:40">
-[14:31:05 其他人] 下一步我们需要在周四之前完成 API 的设计评审……
-[14:32:10 我] 那评审材料谁来准备？
+<live_context from="18:34:05" to="18:35:40" sources="system audio">
+Renamed: "Speaker 2 (system audio)" is now "Holden (system audio)".
+[18:34:05] Holden (system audio): What were you debating back then?
+[18:34:40] Speaker 3 (system audio): That was, I think, the time when…
 </live_context>
 ```
 
-- 数据来源：agent 运行在独立的 utility process，转写在 main。钩子通过现有 agent host 通道向 main 请求“session X 在游标之后的 final 段落”，main 从 `LiveContextService`（内存 + 文件）返回。
-- 只对绑定的会话生效；子会话与侧边对话默认不继承（侧边对话可在 v1 后提供“带上实时上下文”开关）。
+- **内联预算与指针块**：新内容（合并后的行）估算不超过 **1500 tokens**（CJK 按 1 字 1 token、其他按 4 字符 1 token，约 5 分钟连续讲话）时整段内联。超过时改发指针块：新内容的时间跨度、被略过部分的行数与约略 token 数（取整到百）、每位说话人的发言次数（抽取式统计，不调用模型），一句明确的 `read_live_transcript from="…" to="…"` 调用范围，以及 **300 tokens** 以内的最新几行原文（`Latest:`，最后一行过长时只留结尾并以 `…` 开头），保证最近的对话总可见。游标照样推进到末尾，同一段积压不会在下一回合重复触发。第一次注入一段已经很长的转写同样适用。
 
-### 7.2 `read_live_transcript` 工具
+```text
+<live_context from="18:14:05" to="18:34:10" sources="system audio">
+Too long to attach: 18:14:05–18:34:04, 142 lines, ~3,200 tokens (Speaker 2 (system audio) 80×, Speaker 3 (system audio) 62×). Read it with read_live_transcript from="18:14:05" to="18:34:04" when it matters.
+Latest:
+[18:34:05] Speaker 2 (system audio): What were you debating back then?
+</live_context>
+```
 
-供模型读取更早或完整的转写：参数 `{ from?: "HH:MM" | segmentId, to?, query?, limit? }`，返回带时间与说话人的段落。只在会话有转写文件时注册/可用。
+- **推与拉的平衡**：用户问“他们在说什么”时，最近几分钟几乎总是答案所在，所以推送短的新内容让模型不调用工具就能回答；更早或更长的内容按需拉取，不让一次长会议把每个回合都撑大。1500 tokens 约等于两次提问之间的一段正常讨论，超过这个量多半是用户隔了很久才问，此时模型拿到概况与最新几行，再决定是否读全。
+- **改名与合并**：`labels` 记录所有出现过的说话人 key 当时的标签。之后某个 key 的标签变了，下一个有内容的块开头写 `Renamed: "旧" is now "新".`，之后的行都用新名字。
+- **删除**：转写被删除后 main 返回 `null`；模型若看过转写，收到一次 `<live_context deleted="true">` 撤回块，之后不再发。删除后又重新采集时旧游标找不到，块里注明“之前的转写已删除，这是新的”，按预算从头发。
+- **压缩**：压缩把旧通知折进摘要后，游标随之消失，下一回合按同样的规则发一次（多半是指针块），之后照常增量，不会每回合翻腾。压缩本身已开启新前缀，这里不额外制造变化。
+- **范围**：只看本会话自己的转写；别的会话正在采集时本会话看不到任何东西。已停止的转写照常发未发过的增量（§12 开放问题的倾向）。侧边对话不继承：扩展跳过侧边对话，`PineCore` 也拒绝侧边对话的 `live-context` 请求。子会话只看自己的转写。自动化运行不查询。
+- **上下文用量**：通知属于本回合请求，计入下一条 assistant 消息的 input tokens，用量指示器自然包含它。
+- **可见性**：现有上下文通知（用户资料、记忆、位置等）都不在对话里显示标记，live 通知沿用这一点；用户能看到的只有工具调用。
 
-### 7.3 引用到输入框
+### 7.3 `read_live_transcript` 工具
+
+参数 `{ from?: "HH:MM[:SS]", to?, last_minutes?, speaker?, query?, cursor? }`，全部可选；不带参数从头读。`from`/`to` 按本地时刻（一天内的时间）匹配段落开始时间；`last_minutes` 在采集中相对现在、停止后相对最后一段；`speaker` 是标签的子串（不区分大小写，如 "Speaker 2"、"Alice"、"system audio"），`query` 是文本子串。
+
+结果有界且分页：每页最多 300 行、约 6000 tokens，在段落边界截断（第一段总会返回），结尾是 `has_more: true, next_cursor: "<段落 id>"` 或 `has_more: false`；用同样的过滤条件加 `cursor` 取下一页。页内同样合并同一说话人的相邻行。头部多一个 `state`（listening / paused / starting / stopped）。对话里显示为“Read the live context transcript / 已读取实时上下文转写”，图标为音频波形。
+
+### 7.4 引用到输入框
 
 卡片里选中转写文本 → “引用到输入框”，以引用块插入 composer，便于“针对这句问”。
 
@@ -336,7 +360,7 @@ v1 待补：开始前的说明页（告诉用户将弹两个系统提示、音�
 | 阶段                | 内容                                                                                                                                                                                                 |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **0 spike（本次）** | Swift helper（mic + 系统音频 → SpeechTranscriber → JSONL）；dev 与打包构建集成；`LiveContextService` start/pause/resume/stop + 段落持久化；preload IPC；实验开关后的最小卡片；可选说话人识别（§3.4） |
-| **1**               | `live_context` 追加型通知 + `read_live_transcript` 工具 + 发送时快照；引用到输入框；录音指示与关标签确认；权限引导页；卡片布局持久化；`PINE_UI.md` 与用户文档                                        |
+| **1**               | `live_context` 追加型通知 + `read_live_transcript` 工具 + 发送时快照（已完成，§7）；引用到输入框；录音指示与关标签确认；权限引导页；卡片布局持久化；`PINE_UI.md` 与用户文档                          |
 | **2**               | 滚动摘要（按时间窗由小模型生成，存 `summary.json`，注入时摘要 + 近期原文）；导出 Markdown；搜索                                                                                                      |
 | **3**               | Windows/Linux（WASAPI loopback / PipeWire + 其他 ASR）；可选云端 ASR；更多语言与自定义词表（`AnalysisContext.contextualStrings`）                                                                    |
 
@@ -471,6 +495,6 @@ Live Context 不再需要实验开关。在 macOS 26 及以上、构建包含 he
 - **多语种混说**：一个 `SpeechTranscriber` 一个 locale；中英混说依赖 `zh-CN` 模型对英文词的处理，效果一般。可考虑 `contextualStrings` 提供术语表。
 - **finalize 行为**：见 §11，可能是 macOS 27.0 的问题，后续版本需复测。
 - **资源**：两个分析器并行常驻，内存与功耗需在长会议（1–2 h）下测量。
-- **长会话注入成本**：追加型通知会让上下文持续增长；需要与会话压缩（compaction）配合，压缩后靠摘要 + 工具回读。
+- **长会话注入成本**：追加型通知会让上下文持续增长；压缩丢掉的通知会按预算重发一次（多半是指针块），更早内容靠摘要 + 工具回读（§7.2）。v2 的滚动摘要尚未实现。
 - **隐私**：录音指示必须始终可见；关闭窗口/退出应用必定停止；远程访问（浏览器、手机）不能启动采集（已通过只注册 `ipcMain` 保证）。
-- **开放问题**：已停止的转写是否仍自动注入（倾向：注入直到用户“清除”，但只注入未发过的增量）；侧边对话是否允许显式继承；多个窗口同时显示同一会话时的交互。
+- **开放问题**：已停止的转写按倾向实现为“注入直到用户删除，只注入未发过的增量”；侧边对话是否允许显式继承（目前不继承）；`from`/`to` 只按一天内的时刻匹配，跨天的转写会混在一起；多个窗口同时显示同一会话时的交互。

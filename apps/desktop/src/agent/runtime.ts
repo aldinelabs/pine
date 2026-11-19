@@ -229,6 +229,15 @@ import {
   type PineContextNoticeState,
 } from "./runtime/context-notices";
 import {
+  createReadLiveTranscriptToolDefinition,
+  liveContextCursor,
+  liveContextNoticeMessage,
+} from "./runtime/live-context";
+import type {
+  LiveContextHostOperation,
+  LiveContextHostResult,
+} from "../shared/liveContextAgent";
+import {
   DEFAULT_APPROXIMATE_LOCATION_ENABLED,
   type ApproximateLocation,
 } from "../shared/approximateLocation";
@@ -439,6 +448,10 @@ const SHELL_TOOL_NAMES = new Set([
 ]);
 /** Main answers from its cache; this only guards against a stuck reply. */
 const APPROXIMATE_LOCATION_TIMEOUT_MS = 1_000;
+/** A run start waits at most this long for the live transcript. */
+const LIVE_CONTEXT_NOTICE_TIMEOUT_MS = 1_000;
+/** `read_live_transcript` waits at most this long. */
+const LIVE_CONTEXT_READ_TIMEOUT_MS = 10_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
   private readonly pendingApprovals = new Map<string, PendingUserApproval>();
@@ -1715,6 +1728,31 @@ export class PineAgentRuntime {
             });
           },
         },
+        {
+          name: "pine-live-context",
+          factory: (pi) => {
+            pi.on("before_agent_start", async () => {
+              // A side chat does not inherit its conversation's transcript;
+              // an automation run belongs to no conversation.
+              if (live.sideChat || live.automation) return undefined;
+              const result = await this.liveContextHostCall(
+                live,
+                {
+                  op: "increment",
+                  after: liveContextCursor(live.session.messages),
+                },
+                LIVE_CONTEXT_NOTICE_TIMEOUT_MS,
+              ).catch(() => undefined);
+              // Pine could not answer: leave the model where it was.
+              if (!result || result.op !== "increment") return undefined;
+              const message = liveContextNoticeMessage(
+                live.session.messages,
+                result.increment,
+              );
+              return message ? { message } : undefined;
+            });
+          },
+        },
         computerUse.extension,
         skillTools.extension,
         ...(location.automation
@@ -1928,6 +1966,15 @@ export class PineAgentRuntime {
             }),
             // Always listed so a compaction request never changes the tools.
             createSubmitSessionSummaryToolDefinition(),
+            // Listed in every session, whether or not it has a transcript,
+            // so live context never changes the tool list.
+            createReadLiveTranscriptToolDefinition((operation) =>
+              this.liveContextHostCall(
+                live,
+                operation,
+                LIVE_CONTEXT_READ_TIMEOUT_MS,
+              ),
+            ),
             ...createMemoryToolDefinitions({
               repository: memoryRepository,
               getApprovalMode: () => live.approvalMode,
@@ -2082,6 +2129,36 @@ export class PineAgentRuntime {
   }
 
   /** Preferences › Agent › Memory, read at each run start. */
+  /**
+   * The session's live transcript, sliced by main. Bounded in time: a run
+   * start waits on it no longer than on the location lookup.
+   */
+  private async liveContextHostCall(
+    live: LiveAgentSession,
+    operation: LiveContextHostOperation,
+    timeoutMs: number,
+  ): Promise<LiveContextHostResult> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(new Error("Pine did not return the live transcript in time.")),
+        timeoutMs,
+      );
+    });
+    try {
+      const response = await Promise.race([
+        this.requestHost(live, { kind: "live-context", operation }),
+        timeout,
+      ]);
+      if (response.kind !== "live-context")
+        throw new Error("Pine returned an unexpected live transcript.");
+      return response.result;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   private applyMemorySetting(live: LiveAgentSession, enabled: boolean): void {
     if (live.memoryEnabled === enabled) return;
     live.memoryEnabled = enabled;
