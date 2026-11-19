@@ -32,8 +32,8 @@ export interface DiarizerOptions {
 }
 
 export const DEFAULT_DIARIZER_OPTIONS: DiarizerOptions = {
-  tauHigh: 0.6,
-  tauLow: 0.4,
+  tauHigh: 0.65,
+  tauLow: 0.45,
   maxSpeakers: 12,
   confirmCount: 2,
   confirmSeconds: 3,
