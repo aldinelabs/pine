@@ -117,6 +117,27 @@ describe("Live Context speakers", () => {
     ).toEqual([{ speaker: "mic-1", text: "abc" }]);
   });
 
+  it("keeps the space before a turn with the turn before it", () => {
+    expect(
+      segmentTurns({
+        text: "how do we actually participate in that process?",
+        turns: [
+          { offset: 0, speaker: "mic-3" },
+          { offset: 18, speaker: "mic-1" },
+        ],
+      }),
+    ).toEqual([
+      { speaker: "mic-3", text: "how do we actually " },
+      { speaker: "mic-1", text: "participate in that process?" },
+    ]);
+    expect(
+      segmentTurns({
+        text: " leading",
+        turns: [{ offset: 0, speaker: "mic-1" }],
+      }),
+    ).toEqual([{ speaker: "mic-1", text: "leading" }]);
+  });
+
   it("lists speakers in order of appearance after merges", () => {
     expect(
       speakersOf(

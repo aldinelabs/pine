@@ -163,6 +163,13 @@ export function segmentTurns(
   turns.forEach((turn, index) =>
     push(turn, segment.text.slice(turn.offset, turns[index + 1]?.offset)),
   );
+  // A turn starts at a word: the space before it belongs to the turn before.
+  for (const [index, piece] of pieces.entries()) {
+    const space = /^\s+/.exec(piece.text)?.[0];
+    if (!space) continue;
+    if (index > 0) pieces[index - 1].text += space;
+    piece.text = piece.text.slice(space.length);
+  }
   return pieces.filter(({ text }) => text.trim());
 }
 
