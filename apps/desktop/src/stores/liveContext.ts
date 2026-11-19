@@ -34,6 +34,36 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   const available = computed(() => Boolean(api) && status.value.available);
   const isCapturing = computed(() => status.value.state !== "idle");
 
+  /** Time spent paused in this capture, and when the current pause began. */
+  let pausedMs = 0;
+  let pausedSince: number | undefined;
+
+  function setStatus(next: LiveContextStatus): void {
+    const now = Date.now();
+    if (next.state === "idle" || next.startedAt !== status.value.startedAt) {
+      pausedMs = 0;
+      pausedSince = undefined;
+    }
+    if (next.state === "paused") pausedSince ??= now;
+    else if (pausedSince !== undefined) {
+      pausedMs += now - pausedSince;
+      pausedSince = undefined;
+    }
+    status.value = next;
+  }
+
+  /**
+   * How long this capture has listened, paused time left out; undefined
+   * before listening begins.
+   */
+  function elapsedAt(now: number): number | undefined {
+    const startedAt = status.value.startedAt;
+    if (startedAt === undefined || status.value.state === "idle")
+      return undefined;
+    const end = pausedSince ?? now;
+    return Math.max(0, end - startedAt - pausedMs);
+  }
+
   function applyTurns(
     sessionId: string,
     segmentId: string,
@@ -55,7 +85,7 @@ export const useLiveContextStore = defineStore("liveContext", () => {
 
   function apply(event: LiveContextEvent): void {
     if (event.kind === "status") {
-      status.value = event.status;
+      setStatus(event.status);
       if (event.status.state === "idle") volatile.clear();
       return;
     }
@@ -95,7 +125,7 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     api.subscribe(apply);
     void api
       .status()
-      .then((next) => (status.value = next))
+      .then(setStatus)
       .catch(() => undefined);
   }
 
@@ -158,24 +188,30 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     if (!api) return;
     if (!transcripts.has(target.sessionId))
       transcripts.set(target.sessionId, []);
-    status.value = await api.start({
-      ...target,
-      sources,
-      locale,
-      speakers: identifySpeakers.value && status.value.speakersAvailable,
-    });
+    setStatus(
+      await api.start({
+        ...target,
+        sources,
+        locale,
+        speakers: identifySpeakers.value && status.value.speakersAvailable,
+      }),
+    );
   }
 
   async function pause(): Promise<void> {
-    if (api) status.value = await api.pause();
+    if (api) setStatus(await api.pause());
   }
 
   async function resume(): Promise<void> {
-    if (api) status.value = await api.resume();
+    if (api) setStatus(await api.resume());
   }
 
   async function stop(): Promise<void> {
-    if (api) status.value = await api.stop();
+    if (api) setStatus(await api.stop());
+  }
+
+  async function openPrivacySettings(source: LiveContextSource): Promise<void> {
+    await api?.openPrivacySettings(source);
   }
 
   return {
@@ -193,6 +229,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     pause,
     resume,
     stop,
+    elapsedAt,
+    openPrivacySettings,
     apply,
   };
 });

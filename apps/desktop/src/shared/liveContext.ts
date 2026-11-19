@@ -21,6 +21,8 @@ export const LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL =
   "live-context:merge-speakers" as const;
 export const LIVE_CONTEXT_CREATE_SESSION_CHANNEL =
   "live-context:create-session" as const;
+export const LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL =
+  "live-context:open-privacy-settings" as const;
 
 /** Desktop IPC only; never on the shared router, so browsers and phones cannot listen. */
 export const LIVE_CONTEXT_REQUEST_CHANNELS = [
@@ -33,6 +35,7 @@ export const LIVE_CONTEXT_REQUEST_CHANNELS = [
   LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL,
   LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
+  LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
 ] as const;
 
 /**
@@ -216,6 +219,11 @@ export interface PineLiveContextApi {
     request: LiveContextMergeSpeakersRequest,
   ): Promise<LiveContextSpeakers>;
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
+  /**
+   * Opens the System Settings privacy pane that lets Pine hear this source:
+   * Microphone, or Screen & System Audio Recording.
+   */
+  openPrivacySettings(source: LiveContextSource): Promise<void>;
   /**
    * Starts an empty session in the project to capture into, as a first
    * message would, saved and kept although no one has written in it. It

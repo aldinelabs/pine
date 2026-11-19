@@ -3,11 +3,12 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { app, BrowserWindow, ipcMain, net } from "electron";
+import { app, BrowserWindow, ipcMain, net, shell } from "electron";
 import { z } from "zod";
 import {
   LIVE_CONTEXT_EVENT_CHANNEL,
   LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
+  LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
   LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL,
   LIVE_CONTEXT_PAUSE_CHANNEL,
   LIVE_CONTEXT_RESUME_CHANNEL,
@@ -183,6 +184,17 @@ export function createLiveContext(options: {
     LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL,
     (_event, request: unknown) =>
       service.mergeSpeakers(mergeSchema.parse(request)),
+  );
+  ipcMain.handle(
+    LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
+    async (_event, request: unknown): Promise<void> => {
+      const source = z.enum(LIVE_CONTEXT_SOURCES).parse(request);
+      await shell.openExternal(
+        `x-apple.systempreferences:com.apple.preference.security?${
+          source === "mic" ? "Privacy_Microphone" : "Privacy_ScreenCapture"
+        }`,
+      );
+    },
   );
   return service;
 }

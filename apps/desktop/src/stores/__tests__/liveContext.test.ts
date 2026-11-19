@@ -70,6 +70,34 @@ describe("useLiveContextStore", () => {
     vi.unstubAllGlobals();
   });
 
+  it("counts listening time without the pauses", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(10_000);
+      const store = useLiveContextStore();
+      await flushPromises();
+      const started = { ...listening, startedAt: 10_000 };
+      emit({ kind: "status", status: started });
+      vi.setSystemTime(40_000);
+      emit({ kind: "status", status: { ...started, state: "paused" } });
+      vi.setSystemTime(100_000);
+      // Paused: the clock stands still.
+      expect(store.elapsedAt(Date.now())).toBe(30_000);
+      emit({ kind: "status", status: started });
+      expect(store.elapsedAt(105_000)).toBe(35_000);
+      emit({ kind: "status", status: { ...started, state: "idle" } });
+      expect(store.elapsedAt(105_000)).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens the privacy settings for a source", async () => {
+    api.openPrivacySettings = vi.fn().mockResolvedValue(undefined);
+    await useLiveContextStore().openPrivacySettings("system");
+    expect(api.openPrivacySettings).toHaveBeenCalledWith("system");
+  });
+
   it("is unavailable without the desktop API", () => {
     vi.stubGlobal("pine", {});
     setActivePinia(createPinia());

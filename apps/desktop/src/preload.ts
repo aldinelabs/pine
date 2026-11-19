@@ -25,6 +25,7 @@ import {
   LIVE_CONTEXT_RESUME_CHANNEL,
   LIVE_CONTEXT_START_CHANNEL,
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
+  LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
@@ -162,6 +163,8 @@ const pineApi: PineDesktopApi = {
       ipcRenderer.invoke(LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL, request),
     createSession: (request) =>
       ipcRenderer.invoke(LIVE_CONTEXT_CREATE_SESSION_CHANNEL, request),
+    openPrivacySettings: (source) =>
+      ipcRenderer.invoke(LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL, source),
     subscribe: (listener) => {
       const handler = (_event: unknown, event: LiveContextEvent) =>
         listener(event);
