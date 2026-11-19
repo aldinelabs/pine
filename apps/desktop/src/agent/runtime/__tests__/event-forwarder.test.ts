@@ -269,6 +269,8 @@ describe("PineAgentEventForwarder session summaries", () => {
       sessionManager: {
         getHeader: () => ({ timestamp: "2026-01-01T00:00:00.000Z" }),
         getEntries: () => entries,
+        // A linear session: the branch is every entry.
+        getBranch: () => entries,
       },
     };
     const live = { session } as unknown as LiveAgentSession;
