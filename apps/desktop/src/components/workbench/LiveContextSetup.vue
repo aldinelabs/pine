@@ -7,7 +7,8 @@ import {
   Volume2Icon,
   VolumeOffIcon,
 } from "@lucide/vue";
-import { computed } from "vue";
+import { useResizeObserver } from "@vueuse/core";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +31,9 @@ import {
 /**
  * Before a capture, one row like the composer's footer: the sources as two
  * independent toggles (at least one stays on), speaker labels as a third,
- * the spoken language in a menu, and Start.
+ * the spoken language in a menu, and Start. The language code never
+ * truncates: when Start's label does not fit beside the rest, Start gives
+ * way to its microphone icon (the label stays its name and tooltip).
  */
 const sources = defineModel<LiveContextSource[]>("sources", {
   required: true,
@@ -39,7 +42,7 @@ const locale = defineModel<string>("locale", { required: true });
 const identifySpeakers = defineModel<boolean>("identifySpeakers", {
   default: false,
 });
-defineProps<{
+const props = defineProps<{
   /** This build can label speakers. */
   speakersAvailable?: boolean;
   /** There is a transcript already, so Start continues it. */
@@ -48,6 +51,40 @@ defineProps<{
 }>();
 const emit = defineEmits<{ start: [] }>();
 const { t, locale: uiLocale } = useI18n();
+const startLabel = computed(() =>
+  t(
+    props.continues
+      ? "project.workbench.liveContext.continue"
+      : "project.workbench.liveContext.start",
+  ),
+);
+
+const row = useTemplateRef<HTMLElement>("row");
+const measure = useTemplateRef<HTMLElement>("measure");
+/** Start shows only its icon: the label would not fit. */
+const compact = ref(false);
+/** Start with its label, as the sm button draws it: icon, gap, padding. */
+const START_CHROME = 16 + 4 + 8 + 12;
+function fit(): void {
+  const container = row.value;
+  const label = measure.value;
+  // Not laid out (hidden, or no layout engine): keep the label.
+  if (!container || !label || container.clientWidth === 0) return;
+  const gap = Number.parseFloat(getComputedStyle(container).columnGap) || 0;
+  let rest = 0;
+  for (const child of container.children)
+    if (
+      child instanceof HTMLElement &&
+      child !== label &&
+      child.dataset.testid !== "live-context-start"
+    )
+      rest += child.getBoundingClientRect().width + gap;
+  compact.value =
+    rest + label.getBoundingClientRect().width + START_CHROME >
+    container.clientWidth;
+}
+useResizeObserver(row, fit);
+watch([startLabel, locale, () => props.speakersAvailable], () => nextTick(fit));
 
 const ICONS = {
   mic: { on: MicIcon, off: MicOffIcon },
@@ -79,7 +116,18 @@ function updateLocale(value: unknown): void {
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-1" data-testid="live-context-setup">
+  <div
+    ref="row"
+    class="relative flex min-w-0 items-center gap-1"
+    data-testid="live-context-setup"
+  >
+    <!-- Start's label at its natural width, to know whether it fits. -->
+    <span
+      ref="measure"
+      class="invisible absolute text-sm font-medium whitespace-nowrap"
+      aria-hidden="true"
+      >{{ startLabel }}</span
+    >
     <ToggleGroup
       type="multiple"
       size="sm"
@@ -126,13 +174,13 @@ function updateLocale(value: unknown): void {
         <Button
           variant="ghost"
           size="sm"
-          class="min-w-0 shrink"
+          class="shrink-0"
           :disabled="disabled"
           :aria-label="`${t('project.workbench.liveContext.options')}: ${languageName(locale)}`"
           :title="languageName(locale)"
           data-testid="live-context-options"
         >
-          <span class="min-w-0 truncate" data-testid="live-context-language">{{
+          <span class="whitespace-nowrap" data-testid="live-context-language">{{
             localeShortLabel(locale)
           }}</span>
           <ChevronDownIcon data-icon="inline-end" aria-hidden="true" />
@@ -163,16 +211,15 @@ function updateLocale(value: unknown): void {
     <Button
       size="sm"
       class="ml-auto shrink-0"
+      :class="compact && 'size-7 p-0'"
       data-testid="live-context-start"
+      :data-compact="compact || undefined"
+      :title="startLabel"
       :disabled="disabled || sources.length === 0"
       @click="emit('start')"
     >
       <MicIcon data-icon="inline-start" aria-hidden="true" />
-      {{
-        continues
-          ? t("project.workbench.liveContext.continue")
-          : t("project.workbench.liveContext.start")
-      }}
+      <span :class="compact && 'sr-only'">{{ startLabel }}</span>
     </Button>
   </div>
 </template>

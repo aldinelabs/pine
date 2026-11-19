@@ -693,7 +693,9 @@ close the card. The panels are:
   few seconds late), a language button showing the spoken language as a
   short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
   name), and Start ("Continue" when the conversation already has a
-  transcript). The language button opens a menu listing the languages by
+  transcript). When the card is too narrow for its label, Start shows
+  only its microphone icon (hover for "Start" or "Continue"); the
+  language code is always shown in full. The language button opens a menu listing the languages by
   their full names, such as "Chinese (China)".
   On a new session's page, Start first creates an empty conversation in the
   project the composer shows, opens it in that tab and captures into it;
