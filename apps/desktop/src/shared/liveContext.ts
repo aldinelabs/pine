@@ -12,8 +12,6 @@ export const LIVE_CONTEXT_START_CHANNEL = "live-context:start" as const;
 export const LIVE_CONTEXT_PAUSE_CHANNEL = "live-context:pause" as const;
 export const LIVE_CONTEXT_RESUME_CHANNEL = "live-context:resume" as const;
 export const LIVE_CONTEXT_STOP_CHANNEL = "live-context:stop" as const;
-export const LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL =
-  "live-context:skip-speakers" as const;
 export const LIVE_CONTEXT_TRANSCRIPT_CHANNEL =
   "live-context:transcript" as const;
 export const LIVE_CONTEXT_EVENT_CHANNEL = "live-context:event" as const;
@@ -80,15 +78,9 @@ export type LiveContextState =
 
 export interface LiveContextError {
   code: string;
-  /** Technical detail, for logs; the interface words it from the code. */
+  /** Technical detail; some notices word it from the code instead. */
   message: string;
   source?: LiveContextSource;
-  /**
-   * Why the speaker models could not be had (`speaker_models_failed`):
-   * no connection, or a download that is too big, fails its checksum, or
-   * cannot be saved.
-   */
-  reason?: "network" | "size" | "checksum" | "disk";
 }
 
 export interface LiveContextStatus {
@@ -104,11 +96,9 @@ export interface LiveContextStatus {
   startedAt?: number;
   /** 0–1 while downloading. */
   downloadProgress?: number;
-  /** Bytes so far while the speaker models download. */
-  downloadBytes?: { received: number; total: number };
-  /** What is downloading: the speech model or the speaker models. */
-  download?: "speech" | "speakers";
-  /** This build can label speakers (the library ships with it). */
+  /** What is downloading: the on-device speech model. */
+  download?: "speech";
+  /** This build can label speakers (the library and models ship with it). */
   speakersAvailable?: boolean;
   /** The current capture labels speakers. */
   speakers?: boolean;
@@ -237,8 +227,6 @@ export interface PineLiveContextApi {
   pause(): Promise<LiveContextStatus>;
   resume(): Promise<LiveContextStatus>;
   stop(): Promise<LiveContextStatus>;
-  /** Starts the capture without the speaker models still downloading. */
-  skipSpeakers(): Promise<LiveContextStatus>;
   /** The session's final segments, oldest first, and its speakers. */
   transcript(target: LiveContextTarget): Promise<LiveContextTranscript>;
   renameSpeaker(

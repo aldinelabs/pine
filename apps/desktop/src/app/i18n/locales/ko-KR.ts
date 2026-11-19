@@ -1020,31 +1020,18 @@ export default {
         state: {
           preparing: "준비 중…",
           downloading: "음성 모델 다운로드 중…",
-          speakerModels: "화자 모델",
-          downloadSize: "{received} / {total}MB",
           listening: "듣는 중",
           paused: "일시정지됨",
           stopping: "중지하는 중…",
         },
         speakers: {
           identify: "화자 구분",
-          note: "처음에 약 30MB를 내려받습니다. 라벨은 몇 초 늦게 표시됩니다.",
+          note: "이 Mac에서 실행됩니다. 라벨은 몇 초 늦게 표시되며 틀릴 수 있습니다.",
           numbered: "화자 {n}",
           rename: "이름 변경",
           mergeInto: "병합 대상",
-          skip: "건너뛰기",
-          skipHint: "화자 구분 없이 바로 기록합니다",
-          retry: "다시 시도",
-          failed: {
-            network:
-              "다운로드 서버에 연결할 수 없습니다. 네트워크나 프록시를 확인한 뒤 다시 시도하세요.",
-            size: "내려받은 파일의 크기가 예상과 달라 사용하지 않았습니다. 잠시 후 다시 시도하세요.",
-            checksum:
-              "내려받은 파일이 무결성 검사를 통과하지 못해 사용하지 않았습니다. 잠시 후 다시 시도하세요.",
-            disk: "모델을 저장할 수 없습니다. Mac에 여유 디스크 공간이 있는지 확인하세요.",
-            generic: "화자 모델을 준비하지 못했습니다.",
-          },
           failedTitle: "이번 기록에서는 화자 구분이 꺼져 있습니다",
+          failedDescription: "기록은 라벨 없이 계속됩니다.",
           unknown: "아직 누구인지 알 수 없음",
           echo: "시스템 오디오의 에코",
           degraded: {

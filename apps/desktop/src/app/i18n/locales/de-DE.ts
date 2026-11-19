@@ -1051,31 +1051,18 @@ export default {
         state: {
           preparing: "Wird vorbereitet …",
           downloading: "Sprachmodell wird geladen …",
-          speakerModels: "Sprechermodelle",
-          downloadSize: "{received} / {total} MB",
           listening: "Hört zu",
           paused: "Pausiert",
           stopping: "Wird beendet …",
         },
         speakers: {
           identify: "Sprecher erkennen",
-          note: "Lädt beim ersten Mal etwa 30 MB herunter. Beschriftungen erscheinen einige Sekunden später.",
+          note: "Läuft auf diesem Mac. Beschriftungen erscheinen einige Sekunden später und können falsch sein.",
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",
-          skip: "Überspringen",
-          skipHint: "Jetzt ohne Sprecherbeschriftungen aufnehmen",
-          retry: "Erneut versuchen",
-          failed: {
-            network:
-              "Der Download-Server ist nicht erreichbar. Prüfe Verbindung oder Proxy und versuche es erneut.",
-            size: "Die heruntergeladene Datei hat nicht die erwartete Größe und wird nicht verwendet. Versuche es später erneut.",
-            checksum:
-              "Die heruntergeladene Datei hat die Integritätsprüfung nicht bestanden und wird nicht verwendet. Versuche es später erneut.",
-            disk: "Die Modelle konnten nicht gespeichert werden. Prüfe, ob auf deinem Mac genug Speicherplatz frei ist.",
-            generic: "Die Sprechermodelle konnten nicht vorbereitet werden.",
-          },
           failedTitle: "Sprecherbeschriftungen sind für diese Aufnahme aus",
+          failedDescription: "Die Transkription läuft ohne sie weiter.",
 
           unknown: "Noch unklar, wer spricht",
           echo: "Echo des Systemtons",

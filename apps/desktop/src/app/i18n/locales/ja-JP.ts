@@ -1037,31 +1037,18 @@ export default {
         state: {
           preparing: "準備中…",
           downloading: "音声モデルをダウンロード中…",
-          speakerModels: "話者モデル",
-          downloadSize: "{received} / {total} MB",
           listening: "聞き取り中",
           paused: "一時停止中",
           stopping: "停止中…",
         },
         speakers: {
           identify: "話者を識別",
-          note: "初回は約 30 MB をダウンロードします。ラベルは数秒遅れて表示されます。",
+          note: "この Mac 上で動作します。ラベルは数秒遅れて表示され、誤ることもあります。",
           numbered: "話者 {n}",
           rename: "名前を変更",
           mergeInto: "統合先",
-          skip: "スキップ",
-          skipHint: "話者識別なしで今すぐ記録します",
-          retry: "再試行",
-          failed: {
-            network:
-              "ダウンロードサーバーに接続できません。ネットワークまたはプロキシを確認して、もう一度お試しください。",
-            size: "ダウンロードしたファイルのサイズが想定と異なるため、使用しませんでした。しばらくしてからもう一度お試しください。",
-            checksum:
-              "ダウンロードしたファイルが整合性チェックに通らなかったため、使用しませんでした。しばらくしてからもう一度お試しください。",
-            disk: "モデルを保存できません。Mac の空き容量を確認してください。",
-            generic: "話者モデルを準備できませんでした。",
-          },
           failedTitle: "今回の記録では話者識別がオフです",
+          failedDescription: "文字起こしはラベルなしで続きます。",
           unknown: "まだ誰か分かりません",
           echo: "システム音声のエコー",
           degraded: {

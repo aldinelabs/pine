@@ -1046,32 +1046,19 @@ export default {
         state: {
           preparing: "Préparation…",
           downloading: "Téléchargement du modèle vocal…",
-          speakerModels: "Modèles de locuteurs",
-          downloadSize: "{received} / {total} Mo",
           listening: "Écoute en cours",
           paused: "En pause",
           stopping: "Arrêt…",
         },
         speakers: {
           identify: "Identifier les locuteurs",
-          note: "La première fois, télécharge environ 30 Mo. Les étiquettes arrivent avec quelques secondes de retard.",
+          note: "Fonctionne sur ce Mac. Les étiquettes arrivent avec quelques secondes de retard et peuvent se tromper.",
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",
-          skip: "Ignorer",
-          skipHint: "Enregistrer maintenant, sans étiquettes de locuteurs",
-          retry: "Réessayer",
-          failed: {
-            network:
-              "Impossible de joindre le serveur de téléchargement. Vérifiez la connexion ou le proxy, puis réessayez.",
-            size: "Le fichier téléchargé n'a pas la taille attendue ; Pine ne l'a pas utilisé. Réessayez plus tard.",
-            checksum:
-              "Le fichier téléchargé n'a pas passé le contrôle d'intégrité ; Pine ne l'a pas utilisé. Réessayez plus tard.",
-            disk: "Impossible d'enregistrer les modèles. Vérifiez qu'il reste de l'espace disque sur votre Mac.",
-            generic: "Les modèles de locuteurs n'ont pas pu être préparés.",
-          },
           failedTitle:
             "Les étiquettes de locuteurs sont désactivées pour cette capture",
+          failedDescription: "La transcription continue sans elles.",
 
           unknown: "Locuteur pas encore identifié",
           echo: "Écho du son système",

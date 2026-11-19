@@ -1,71 +1,26 @@
-import { createHash } from "node:crypto";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import pins from "../../../native/live-context/speaker-models.json";
 import {
-  ensureSpeakerModels,
-  readySpeakerModels,
+  bundledSpeakerModels,
+  removeDownloadedSpeakerModels,
   SPEAKER_MODELS,
-  SpeakerModelError,
   type SpeakerModel,
 } from "../liveContextSpeakerModels";
 
-const sha256 = (data: Buffer) =>
-  createHash("sha256").update(data).digest("hex");
-
-const segmentation = Buffer.from("segmentation weights");
-const embedding = Buffer.from("embedding weights, a little longer");
-
 const MODELS: Record<keyof typeof SPEAKER_MODELS, SpeakerModel> = {
-  segmentation: {
-    file: "segmentation.onnx",
-    urls: ["https://example.test/segmentation.onnx"],
-    sha256: sha256(segmentation),
-    bytes: segmentation.length,
-  },
-  embedding: {
-    file: "embedding.onnx",
-    urls: [
-      "https://example.test/embedding.onnx",
-      "https://mirror.example.test/embedding.onnx",
-    ],
-    sha256: sha256(embedding),
-    bytes: embedding.length,
-  },
+  segmentation: { file: "segmentation.onnx", bytes: 4 },
+  embedding: { file: "embedding.onnx", bytes: 6 },
 };
-const [EMBEDDING, MIRROR] = MODELS.embedding.urls as [string, string];
-
-async function failure(promise: Promise<unknown>): Promise<SpeakerModelError> {
-  const error: unknown = await promise.then(
-    () => undefined,
-    (reason: unknown) => reason,
-  );
-  expect(error).toBeInstanceOf(SpeakerModelError);
-  return error as SpeakerModelError;
-}
 
 describe("speaker models", () => {
   let directory: string;
-  let bodies: Record<string, Buffer | Error>;
-  const fetch = vi.fn((url: string) => {
-    const body = bodies[url];
-    if (body instanceof Error) return Promise.reject(body);
-    return Promise.resolve(
-      body
-        ? new Response(new Uint8Array(body))
-        : new Response(null, { status: 404 }),
-    );
-  });
 
   beforeEach(async () => {
     directory = await mkdtemp(path.join(os.tmpdir(), "pine-speaker-models-"));
-    bodies = {
-      [MODELS.segmentation.urls[0]]: segmentation,
-      [EMBEDDING]: embedding,
-      [MIRROR]: embedding,
-    };
-    fetch.mockClear();
   });
 
   afterEach(async () => {
@@ -73,7 +28,7 @@ describe("speaker models", () => {
   });
 
   it("pins every model by size, SHA-256 and URLs that cannot change", () => {
-    for (const model of Object.values(SPEAKER_MODELS) as SpeakerModel[]) {
+    for (const model of [pins.segmentation, pins.embedding]) {
       expect(model.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(model.bytes).toBeGreaterThan(0);
       expect(model.urls.length).toBeGreaterThan(0);
@@ -84,118 +39,47 @@ describe("speaker models", () => {
           /^https:\/\/[^/]+\/[^/]+\/[^/]+\/resolve\/[0-9a-f]{40}\//,
         );
     }
+    expect(SPEAKER_MODELS.embedding.file).toBe(pins.embedding.file);
   });
 
-  it("downloads, checks and installs both models, reporting progress", async () => {
-    const progress: number[] = [];
-    const paths = await ensureSpeakerModels({
-      directory,
-      fetch,
-      models: MODELS,
-      onProgress: (received, total) => progress.push(received / total),
+  it("finds the bundled models when both are there at their pinned size", async () => {
+    await writeFile(path.join(directory, "segmentation.onnx"), "abcd");
+    await writeFile(path.join(directory, "embedding.onnx"), "abcdef");
+    expect(bundledSpeakerModels(directory, MODELS)).toEqual({
+      segmentation: path.join(directory, "segmentation.onnx"),
+      embedding: path.join(directory, "embedding.onnx"),
     });
-    expect(await readFile(paths.segmentation)).toEqual(segmentation);
-    expect(await readFile(paths.embedding)).toEqual(embedding);
-    expect(progress[0]).toBe(0);
-    expect(progress.at(-1)).toBe(1);
-    // No staging leftovers.
-    expect((await readdir(directory)).sort()).toEqual([
-      "embedding.onnx",
-      "segmentation.onnx",
-    ]);
-
-    // Already there: nothing is fetched again.
-    fetch.mockClear();
-    await ensureSpeakerModels({ directory, fetch, models: MODELS });
-    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("refuses a source whose file was replaced, and says so", async () => {
-    // What happened upstream: the same URL, one byte more.
-    const replaced = Buffer.concat([embedding, Buffer.from("!")]);
-    bodies[EMBEDDING] = replaced;
-    bodies[MIRROR] = replaced;
-    const error = await failure(
-      ensureSpeakerModels({ directory, fetch, models: MODELS }),
-    );
-    expect(error.reason).toBe("size");
-    expect(await readySpeakerModels(directory, MODELS)).toBeUndefined();
-    expect(await readdir(directory)).not.toContain("embedding.onnx");
+  it("has none when one is missing or cut short", async () => {
+    await writeFile(path.join(directory, "segmentation.onnx"), "abcd");
+    expect(bundledSpeakerModels(directory, MODELS)).toBeUndefined();
+    await writeFile(path.join(directory, "embedding.onnx"), "abc");
+    expect(bundledSpeakerModels(directory, MODELS)).toBeUndefined();
+    expect(
+      bundledSpeakerModels(path.join(directory, "absent"), MODELS),
+    ).toBeUndefined();
   });
 
-  it("refuses a download of the right size with the wrong bytes", async () => {
-    const tampered = Buffer.from("embedding weights, a little LONGER");
-    bodies[EMBEDDING] = tampered;
-    bodies[MIRROR] = tampered;
-    const error = await failure(
-      ensureSpeakerModels({ directory, fetch, models: MODELS }),
-    );
-    expect(error.reason).toBe("checksum");
-    expect(await readdir(directory)).not.toContain("embedding.onnx");
-  });
+  it("removes models an earlier version downloaded, and nothing else", async () => {
+    const old = path.join(directory, "models", "live-context-speakers");
+    await mkdir(old, { recursive: true });
+    await writeFile(path.join(old, "embedding.onnx"), "old");
+    await removeDownloadedSpeakerModels(directory);
+    expect(existsSync(path.join(directory, "models"))).toBe(false);
 
-  it("falls back to the mirror, with progress that does not overcount", async () => {
-    bodies[EMBEDDING] = Buffer.concat([embedding, embedding]);
-    const progress: number[] = [];
-    const paths = await ensureSpeakerModels({
-      directory,
-      fetch,
-      models: MODELS,
-      onProgress: (received, total) => progress.push(received / total),
-    });
-    expect(await readFile(paths.embedding)).toEqual(embedding);
-    expect(fetch).toHaveBeenCalledWith(MIRROR, expect.anything());
-    expect(progress.at(-1)).toBe(1);
-    // The refused attempt's bytes were taken back before the mirror's.
-    const total = segmentation.length + embedding.length;
-    expect(progress).toContain(segmentation.length / total);
-  });
+    // Other models stay, and so does their folder.
+    const other = path.join(directory, "models", "other");
+    await mkdir(old, { recursive: true });
+    await mkdir(other, { recursive: true });
+    await writeFile(path.join(other, "keep.bin"), "keep");
+    await removeDownloadedSpeakerModels(directory);
+    expect(existsSync(old)).toBe(false);
+    expect(await readFile(path.join(other, "keep.bin"), "utf8")).toBe("keep");
 
-  it("reports a network failure when no source can be reached", async () => {
-    bodies[EMBEDDING] = new TypeError("net::ERR_CONNECTION_RESET");
-    delete bodies[MIRROR];
-    const error = await failure(
-      ensureSpeakerModels({ directory, fetch, models: MODELS }),
-    );
-    expect(error.reason).toBe("network");
-    expect(error.message).toMatch(/HTTP 404/);
-  });
-
-  it("reports a disk failure without trying the other sources", async () => {
-    // A file where the folder should be.
-    const blocked = path.join(directory, "blocked");
-    await writeFile(blocked, "");
-    const error = await failure(
-      ensureSpeakerModels({ directory: blocked, fetch, models: MODELS }),
-    );
-    expect(error.reason).toBe("disk");
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("gives up when aborted, without trying the other sources", async () => {
-    const controller = new AbortController();
-    fetch.mockImplementationOnce((url) => {
-      controller.abort();
-      return Promise.reject(new DOMException(`${url} aborted`, "AbortError"));
-    });
+    // Nothing to remove is fine.
     await expect(
-      ensureSpeakerModels({
-        directory,
-        fetch,
-        models: MODELS,
-        signal: controller.signal,
-      }),
-    ).rejects.toThrow();
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(await readySpeakerModels(directory, MODELS)).toBeUndefined();
-  });
-
-  it("replaces a damaged model", async () => {
-    await ensureSpeakerModels({ directory, fetch, models: MODELS });
-    await writeFile(path.join(directory, "embedding.onnx"), "tampered");
-    fetch.mockClear();
-    await ensureSpeakerModels({ directory, fetch, models: MODELS });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith(EMBEDDING, expect.anything());
+      removeDownloadedSpeakerModels(path.join(directory, "absent")),
+    ).resolves.toBeUndefined();
   });
 });

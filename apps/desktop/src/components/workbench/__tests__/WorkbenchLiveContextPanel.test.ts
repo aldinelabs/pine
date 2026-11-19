@@ -83,7 +83,6 @@ function stubApi(
     pause: vi.fn().mockResolvedValue({ ...listeningHere, state: "paused" }),
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
-    skipSpeakers: vi.fn().mockResolvedValue(listeningHere),
     deleteTranscript: vi.fn().mockResolvedValue(idle),
     openPrivacySettings: vi.fn().mockResolvedValue(undefined),
     transcript: vi.fn().mockResolvedValue(
@@ -350,7 +349,8 @@ describe("WorkbenchLiveContextPanel", () => {
     const toggle = wrapper.get("[data-testid=live-context-identify-speakers]");
     expect(toggle.attributes("aria-pressed")).toBe("false");
     expect(toggle.attributes("aria-label")).toBe("Identify speakers");
-    expect(toggle.attributes("title")).toContain("30 MB");
+    expect(toggle.attributes("title")).toContain("a few seconds late");
+    expect(toggle.attributes("title")).not.toContain("MB");
     await toggle.trigger("click");
     expect(toggle.attributes("aria-pressed")).toBe("true");
     await wrapper.get("[data-testid=live-context-start]").trigger("click");
@@ -702,68 +702,6 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(api.resume).toHaveBeenCalled();
   });
 
-  it("shows how much of the speaker models has come, in the row, and can skip them", async () => {
-    const { api } = stubApi({
-      ...listeningHere,
-      state: "downloading",
-      download: "speakers",
-      downloadProgress: 0.42,
-      downloadBytes: { received: 12_600_000, total: 29_821_670 },
-    });
-    const wrapper = await mountPanel();
-    const bar = wrapper.get("[data-testid=live-context-status]");
-    expect(bar.text()).toContain("Speaker models");
-    expect(wrapper.get("[data-testid=live-context-download]").text()).toBe(
-      "12 / 30 MB",
-    );
-    expect(
-      wrapper
-        .get("[data-testid=live-context-progress-ring]")
-        .attributes("aria-valuenow"),
-    ).toBe("42");
-    // No waveform and no separate bar: one row, like when listening.
-    expect(bar.find("[role=progressbar]:not(svg)").exists()).toBe(false);
-    await wrapper
-      .get("[data-testid=live-context-skip-speakers]")
-      .trigger("click");
-    await flushPromises();
-    expect(api.skipSpeakers).toHaveBeenCalled();
-  });
-
-  it("can skip or stop while Start waits for the speaker models", async () => {
-    const { api, emit } = stubApi(idle);
-    // Start resolves only once the models are in (or given up).
-    api.start.mockReturnValue(new Promise(() => undefined));
-    const wrapper = await mountPanel();
-    await wrapper.get("[data-testid=live-context-start]").trigger("click");
-    const downloading = async () => {
-      emit({
-        kind: "status",
-        status: {
-          ...listeningHere,
-          state: "downloading",
-          download: "speakers",
-          downloadProgress: 0.1,
-          downloadBytes: { received: 3_000_000, total: 30_000_000 },
-        },
-      });
-      await flushPromises();
-    };
-    await downloading();
-    const skip = wrapper.get("[data-testid=live-context-skip-speakers]");
-    expect(skip.attributes("disabled")).toBeUndefined();
-    await skip.trigger("click");
-    await flushPromises();
-    expect(api.skipSpeakers).toHaveBeenCalled();
-
-    await downloading();
-    const stop = wrapper.get("[data-testid=live-context-stop]");
-    expect(stop.attributes("disabled")).toBeUndefined();
-    await stop.trigger("click");
-    await flushPromises();
-    expect(api.stop).toHaveBeenCalled();
-  });
-
   it("shows the speech model download as a percent", async () => {
     stubApi({
       ...listeningHere,
@@ -776,39 +714,8 @@ describe("WorkbenchLiveContextPanel", () => {
       "42%",
     );
     expect(
-      wrapper.find("[data-testid=live-context-skip-speakers]").exists(),
-    ).toBe(false);
-  });
-
-  it("retries speaker labels by restarting this capture with them", async () => {
-    const { api } = stubApi({
-      ...listeningHere,
-      locale: "zh-CN",
-      lastError: {
-        code: "speaker_models_failed",
-        message: "offline",
-        reason: "network",
-      },
-    });
-    const wrapper = await mountPanel();
-    expect(
-      wrapper.get("[data-testid=live-context-error]").attributes("data-tone"),
-    ).toBe("neutral");
-    await wrapper
-      .get("[data-testid=live-context-retry-speakers]")
-      .trigger("click");
-    await flushPromises();
-    expect(api.stop).toHaveBeenCalled();
-    expect(api.start).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionId: "session-1",
-        sources: ["mic", "system"],
-        locale: "zh-CN",
-      }),
-    );
-    expect(wrapper.find("[data-testid=live-context-error]").exists()).toBe(
-      false,
-    );
+      wrapper.find("[data-testid=live-context-progress-ring]").exists(),
+    ).toBe(true);
   });
 
   it("asks for microphone access, opens its settings and can be dismissed", async () => {
@@ -840,17 +747,22 @@ describe("WorkbenchLiveContextPanel", () => {
     stubApi({
       ...listeningHere,
       lastError: {
-        code: "speaker_models_failed",
-        message:
-          "https://huggingface.co/…: more than the pinned 28281164 bytes",
-        reason: "size",
+        code: "speakers_unavailable",
+        message: "Missing 3dspeaker-campplus-zh-en-16k-advanced.onnx.",
       },
     });
     const wrapper = await mountPanel();
     const notice = wrapper.get("[data-testid=live-context-error]");
+    expect(notice.attributes("data-tone")).toBe("neutral");
     expect(notice.text()).toContain("Speaker labels are off for this capture");
-    expect(notice.text()).toContain("wasn't the expected size");
-    expect(notice.text()).not.toContain("pinned");
+    expect(notice.text()).toContain("The transcript goes on without them.");
+    expect(notice.text()).not.toContain("onnx");
+    // Nothing to download or retry: the models ship with the app.
+    expect(
+      notice
+        .find("button:not([data-testid=live-context-dismiss-error])")
+        .exists(),
+    ).toBe(false);
   });
 
   it("explains other errors with the helper's message", async () => {

@@ -1027,31 +1027,18 @@ export default {
         state: {
           preparing: "Preparing…",
           downloading: "Downloading speech model…",
-          speakerModels: "Speaker models",
-          downloadSize: "{received} / {total} MB",
           listening: "Listening",
           paused: "Paused",
           stopping: "Stopping…",
         },
         speakers: {
           identify: "Identify speakers",
-          note: "The first time, downloads about 30 MB. Labels arrive a few seconds late.",
+          note: "Runs on this Mac. Labels arrive a few seconds late and can be wrong.",
           numbered: "Speaker {n}",
           rename: "Rename",
           mergeInto: "Merge into",
-          skip: "Skip",
-          skipHint: "Record now, without speaker labels",
-          retry: "Retry",
-          failed: {
-            network:
-              "Couldn't reach the download server. Check your connection or proxy, then try again.",
-            size: "The downloaded file wasn't the expected size, so Pine didn't use it. Try again later.",
-            checksum:
-              "The downloaded file failed its integrity check, so Pine didn't use it. Try again later.",
-            disk: "Couldn't save the models. Check that your Mac has free disk space.",
-            generic: "The speaker models couldn't be prepared.",
-          },
           failedTitle: "Speaker labels are off for this capture",
+          failedDescription: "The transcript goes on without them.",
           unknown: "Not sure who this is yet",
           echo: "Echo of system audio",
           degraded: {

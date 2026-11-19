@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, ipcMain, net, shell } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { z } from "zod";
 import {
   LIVE_CONTEXT_DELETE_CHANNEL,
@@ -16,7 +16,6 @@ import {
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
-  LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
   type LiveContextEvent,
   type LiveContextUnavailableReason,
@@ -28,7 +27,12 @@ import {
 import type { PineApprovalMode } from "../../shared/agent";
 import type { PineSessionSummary } from "../../shared/sessions";
 import { LiveContextService } from "../liveContext";
-import { ensureSpeakerModels } from "../liveContextSpeakerModels";
+import {
+  bundledSpeakerModels,
+  removeDownloadedSpeakerModels,
+  SPEAKER_MODELS_FOLDER,
+  type SpeakerModelPaths,
+} from "../liveContextSpeakerModels";
 
 /** Packaged apps carry it in Resources; dev runs use the build folder. */
 function helperPath(): string | undefined {
@@ -38,18 +42,21 @@ function helperPath(): string | undefined {
   ].find((candidate) => existsSync(candidate));
 }
 
-/** sherpa-onnx ships beside the helper (see scripts/build-native.mjs). */
-function speakerLibraryExists(): boolean {
+/**
+ * sherpa-onnx and the speaker models ship beside the helper (see
+ * scripts/build-native.mjs); a build without either has no speaker labels.
+ */
+function speakerModels(): SpeakerModelPaths | undefined {
   const helper = helperPath();
-  return Boolean(
-    helper &&
-    existsSync(
-      path.join(
-        path.dirname(helper),
-        "live-context-lib/libsherpa-onnx-c-api.dylib",
-      ),
-    ),
-  );
+  if (!helper) return undefined;
+  const folder = path.dirname(helper);
+  if (
+    !existsSync(
+      path.join(folder, "live-context-lib/libsherpa-onnx-c-api.dylib"),
+    )
+  )
+    return undefined;
+  return bundledSpeakerModels(path.join(folder, SPEAKER_MODELS_FOLDER));
 }
 
 function unavailableReason(): LiveContextUnavailableReason | null {
@@ -121,22 +128,16 @@ export function createLiveContext(options: {
     projectRoot: (projectId) => options.projectRoot(projectId),
     emit: broadcast,
     speakers: {
-      available: speakerLibraryExists,
-      // Downloaded once into Pine's data folder, through the system proxy
-      // like Pine's other requests, and checked against pinned hashes.
-      models: (onProgress, signal) =>
-        ensureSpeakerModels({
-          directory: path.join(
-            app.getPath("userData"),
-            "models",
-            "live-context-speakers",
-          ),
-          fetch: (url, init) => net.fetch(url, init),
-          onProgress,
-          signal,
-        }),
+      available: () => speakerModels() !== undefined,
+      models: () => {
+        const models = speakerModels();
+        if (!models) throw new Error("The speaker models are missing.");
+        return models;
+      },
     },
   });
+  // Earlier versions downloaded the models; the app carries them now.
+  void removeDownloadedSpeakerModels(app.getPath("userData"));
   ipcMain.handle(LIVE_CONTEXT_STATUS_CHANNEL, () => service.status());
   ipcMain.handle(LIVE_CONTEXT_START_CHANNEL, (_event, request: unknown) =>
     service.start(startSchema.parse(request)),
@@ -151,9 +152,6 @@ export function createLiveContext(options: {
   ipcMain.handle(LIVE_CONTEXT_PAUSE_CHANNEL, () => service.pause());
   ipcMain.handle(LIVE_CONTEXT_RESUME_CHANNEL, () => service.resume());
   ipcMain.handle(LIVE_CONTEXT_STOP_CHANNEL, () => service.stop());
-  ipcMain.handle(LIVE_CONTEXT_SKIP_SPEAKERS_CHANNEL, () =>
-    service.skipSpeakers(),
-  );
   ipcMain.handle(LIVE_CONTEXT_TRANSCRIPT_CHANNEL, (_event, request: unknown) =>
     service.transcript(targetSchema.parse(request)),
   );

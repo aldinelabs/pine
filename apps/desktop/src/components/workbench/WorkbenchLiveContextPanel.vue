@@ -5,7 +5,6 @@ import {
   MicOffIcon,
   RadioIcon,
   SquareIcon,
-  RotateCwIcon,
   UsersRoundIcon,
   Volume2Icon,
 } from "@lucide/vue";
@@ -158,20 +157,6 @@ async function run(action: () => Promise<void>): Promise<void> {
   }
 }
 
-/**
- * For Skip and Stop while a model downloads: Start is still under way then
- * (it waits for the download), so these cannot wait their turn.
- */
-function interrupt(action: () => Promise<void>): void {
-  void action().catch((error: unknown) =>
-    handleError(error, {
-      id: "live-context.action",
-      title: t("project.workbench.liveContext.actionFailed"),
-      description: errorReason(error),
-    }),
-  );
-}
-
 function start(): void {
   if (sources.value.length === 0) return;
   dismissedError.value = undefined;
@@ -224,10 +209,6 @@ function openSettings(source: LiveContextSource): void {
 
 // The last error, until the user dismisses it or starts again.
 const dismissedError = ref<LiveContextError>();
-const SPEAKER_ERRORS = new Set([
-  "speaker_models_failed",
-  "speakers_unavailable",
-]);
 const error = computed(() => {
   const last = status.value.lastError;
   if (!last) return undefined;
@@ -255,14 +236,14 @@ const errorNotice = computed(() => {
       title: t(`${key}.permission.${last.source ?? "mic"}.title`),
       description: t(`${key}.permission.${last.source ?? "mic"}.description`),
     };
-  if (SPEAKER_ERRORS.has(last.code))
+  if (last.code === "speakers_unavailable")
     return {
       kind: "speakers" as const,
       icon: UsersRoundIcon,
       title: t("project.workbench.liveContext.speakers.failedTitle"),
       // The message is technical (it is in the log); say what it means.
       description: t(
-        `project.workbench.liveContext.speakers.failed.${last.reason ?? "generic"}`,
+        "project.workbench.liveContext.speakers.failedDescription",
       ),
     };
   const known = ["unsupported_locale", "assets_failed"].includes(last.code)
@@ -279,18 +260,6 @@ const errorNotice = computed(() => {
 
 function dismissError(): void {
   dismissedError.value = status.value.lastError;
-}
-
-/** Speaker labels again: restarts this capture with them, or starts one. */
-function retrySpeakers(): void {
-  dismissError();
-  const next = target.value;
-  if (isHere.value && next) {
-    void run(() => liveContext.retrySpeakers(next));
-    return;
-  }
-  identifySpeakers.value = true;
-  start();
 }
 </script>
 
@@ -349,7 +318,7 @@ function retrySpeakers(): void {
         data-testid="live-context-controls"
       >
         <!-- Speaker labels failing is a side note to a capture that goes
-             on, so it stays calm: no tint, an amber icon, and Retry. -->
+             on, so it stays calm: no tint, an amber icon. -->
         <LiveContextNotice
           v-if="errorNotice"
           :icon="errorNotice.icon"
@@ -363,22 +332,10 @@ function retrySpeakers(): void {
           @dismiss="dismissError"
         >
           <template
-            v-if="errorNotice.kind === 'speakers' || errorNotice.source"
+            v-if="errorNotice.kind !== 'speakers' && errorNotice.source"
             #actions
           >
             <Button
-              v-if="errorNotice.kind === 'speakers'"
-              size="xs"
-              variant="outline"
-              data-testid="live-context-retry-speakers"
-              :disabled="isBusy"
-              @click="retrySpeakers"
-            >
-              <RotateCwIcon data-icon="inline-start" aria-hidden="true" />
-              {{ t("project.workbench.liveContext.speakers.retry") }}
-            </Button>
-            <Button
-              v-else-if="errorNotice.source"
               size="xs"
               variant="outline"
               data-testid="live-context-open-settings"
@@ -459,12 +416,7 @@ function retrySpeakers(): void {
           :busy="isBusy"
           @pause="run(liveContext.pause)"
           @resume="run(liveContext.resume)"
-          @stop="
-            status.state === 'downloading'
-              ? interrupt(liveContext.stop)
-              : run(liveContext.stop)
-          "
-          @skip-speakers="interrupt(liveContext.skipSpeakers)"
+          @stop="run(liveContext.stop)"
         />
         <LiveContextSetup
           v-else

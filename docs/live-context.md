@@ -141,7 +141,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 - volatile 段落按来源节流（150 ms，只保留最新一条）后广播；final 段落立即广播并追加写入转写文件。
 - `stop` 发送 `stop` 并关闭 stdin，最多等 5 秒让 helper 冲刷最后的 final，超时 kill。退出 Pine 时 `dispose` 直接结束 helper。
 - 可用性：macOS ≥ 26（`process.getSystemVersion()`）且 helper 存在，缺一则 `available: false` 并给出 `unavailableReason`（`platform | helper-missing`），卡片菜单里不出现该卡片。`speakersAvailable` 另外要求 helper 旁边有 `live-context-lib/`（构建没取到 sherpa-onnx 时为 false，卡片不显示开关）。
-- 说话人：`start({ speakers: true })` 先确保模型就绪（缺失时下载，状态 `downloading` + `download: "speakers"`），再回放会话的 `<session>.speakers.jsonl`，让编号跨多次采集延续。模型拿不到时照常开始转写，`lastError.code = "speaker_models_failed"`。下载期间 `stop` 直接回到 idle，不启动 helper。
+- 说话人：`start({ speakers: true })` 取随应用打包的模型路径，再回放会话的 `<session>.speakers.jsonl`，让编号跨多次采集延续。准备失败时照常开始转写，`lastError.code = "speakers_unavailable"`（与 helper 加载模型失败时同一个码）。准备期间 `stop` 直接回到 idle，不启动 helper。
 - helper 的 `window`/`embedding`/`echo`/`device` 事件交给 `SpeakerSession`（`src/main/liveContextDiarizer.ts`，纯 TS、确定性、可回放）并追加写入 sidecar。它给出的标签以 `turns` 事件广播：段落还没 final 时只在内存里，final 段落落盘时带上，之后的修正追加 `turns` 记录；Pine 自己合并说话人时追加 `speaker-alias`。helper 退出后跑停止时的重整（§3.4 第 8 步），结果同样以 `turns` 记录追加。
 - `level`：helper 在 `listening` 时每 40 ms（25 Hz）发一次各来源的输入电平（自上次以来的 RMS 与峰值，0–1，隔 16 个采样取一个，保留三位小数；两次之间没有新缓冲时重复上一次的值，暂停时不发）。main 只在 `listening` 时把它夹到 0–1 后以 `{ kind: "levels" }` 广播，不写入转写文件，也不进入 `status`。
 - `speakers-state` 映射为 `status.speakersDegraded`：等级 1–3 为 `reduced`，4 为 `paused`，0 清除。
@@ -209,8 +209,8 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 **模型与库的分发**：
 
 - 库随应用打包：`scripts/build-native.mjs` 下载固定版本的 `sherpa-onnx-v2.0.1-osx-universal2-shared-no-tts-lib.tar.bz2`，先校验 SHA-256 再解出 `libsherpa-onnx-c-api.dylib` 和 `libonnxruntime.dylib` 到 `native/live-context/build/live-context-lib/`；失败时只是没有说话人识别（`PINE_REQUIRE_LIVE_CONTEXT=1` 时报错）。打包时 `forge.config.ts` 把它们 `lipo -thin` 到目标架构并单独签名，再签 helper 和整个 app。代码必须随应用签名，所以库不走运行时下载。
-- 模型首次开启时下载：`src/main/liveContextSpeakerModels.ts` 固定字节数、SHA-256 和指向 Hugging Face 某个提交的 URL（`/resolve/<commit>/`，内容不可变；同一路径在 hf-mirror.com 作为后备，校验相同所以镜像无需信任），经 Electron `net.fetch`（跟随系统代理，与 Pine 其他请求一致）下载到 `<userData>/models/live-context-speakers/`，超出字节数立即中止，校验不过不落地，换下一个来源。不用 sherpa-onnx 的 GitHub release：release 资源可在同一 URL 下被替换——2026-11-19 上游把全部 CAM++ 资源重新上传，各多了 1 字节，固定的哈希全部失效。失败分为网络、大小、校验和、磁盘四类，界面按类给出本地化说明，技术细节只进日志。每次开始前重新校验哈希，损坏的会重下。下载的只是 ONNX 权重，从不执行。
-- 体积：每个架构的应用包增加约 32 MB（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB）；首次开启下载约 30 MB（分割模型 1.5 MB + 声纹模型 28.3 MB）。不随应用捆绑模型，是因为该开关默认关闭，没必要让每个用户多下载 30 MB。
+- 模型随应用打包：固定值在 `native/live-context/speaker-models.json`（文件名、字节数、SHA-256、指向 Hugging Face 某个提交的 URL `/resolve/<commit>/`，内容不可变；同一路径在 hf-mirror.com 作为后备，校验相同所以镜像无需信任）。`scripts/build-native.mjs` 在构建时下载到 `native/live-context/build/live-context-models/`，每次构建都校验大小与哈希，匹配就复用、不匹配就重下（CI 用 `actions/cache` 以该 JSON 的哈希为键缓存这个目录）；失败时只是没有说话人识别（`PINE_REQUIRE_LIVE_CONTEXT=1` 时报错）。`forge.config.ts` 只在 macOS 包里把它连同 `NOTICE.md` 和 `licenses/` 放进 `Resources/live-context-models/`；主进程打包后从 Resources、开发时从构建目录读取，只检查文件存在且大小对得上，缺了就不显示开关。运行时不再联网下载：huggingface.co 在中国大陆经常连不上且没有连接超时，hf-mirror.com 是第三方镜像。旧版本下载到 `<userData>/models/live-context-speakers/` 的副本在启动时尽力删除。不用 sherpa-onnx 的 GitHub release：release 资源可在同一 URL 下被替换——2026-11-19 上游把全部 CAM++ 资源重新上传，各多了 1 字节，固定的哈希全部失效。模型只是 ONNX 权重，从不执行。
+- 体积：每个架构的应用包增加约 32 MB 的库（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB），外加约 30 MB 模型（分割模型 1.5 MB + 声纹模型 28.3 MB，与架构无关）。
 - 许可证（详见 `native/live-context/NOTICE.md`，随库一起打包）：sherpa-onnx Apache-2.0、ONNX Runtime MIT、pyannote segmentation-3.0 MIT、3D-Speaker CAM++ Apache-2.0，均可随 AGPL-3.0 分发。
 
 ## 4. 数据模型
@@ -327,7 +327,7 @@ v1 待补：开始前的说明页（告诉用户将弹两个系统提示、音�
 
 ## 8. 工作台卡片
 
-- 开始：来源（麦克风 / 系统音频，可多选）、语言（默认取系统语言，中文默认 `zh-CN`）、“识别说话人”开关（默认关；本构建没有说话人库时不显示），下面一行说明成本与准确度（首次下载约 30 MB、多占一些 CPU、标签晚几秒且可能出错）。
+- 开始：来源（麦克风 / 系统音频，可多选）、语言（默认取系统语言，中文默认 `zh-CN`）、“识别说话人”开关（默认关；本构建没有说话人库或模型时不显示），下面一行说明成本与准确度（在本机运行、多占一些 CPU、标签晚几秒且可能出错）。
 - 说话人：开启后每段转写按说话人切成多行，每行前是彩色圆点 + 来源图标 + 名字（默认“说话人 N”）。点名字弹出菜单：重命名（行内输入框，回车保存、Esc 取消）、合并到另一位说话人。还可能变化的标签半透明；还不确定是谁时显示“?”；同时说话显示“说话人 1 + 说话人 2”；麦克风里的系统音频回声在时间后标“· 系统音频的回声”，正文变淡。降级时控件下方一行提示（“已降级”或“已暂停”，会自动恢复）。
 - 采集中：红点 + 状态、暂停 / 继续、停止；模型下载进度；系统音频静音提示；错误。
 - 转写：按时间排列，标注“我 / 其他人”与时间；volatile 文本用弱化颜色；用户停在底部时自动跟随。

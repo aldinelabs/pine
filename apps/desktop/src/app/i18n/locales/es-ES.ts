@@ -1044,32 +1044,19 @@ export default {
         state: {
           preparing: "Preparando…",
           downloading: "Descargando el modelo de voz…",
-          speakerModels: "Modelos de hablantes",
-          downloadSize: "{received} / {total} MB",
           listening: "Escuchando",
           paused: "En pausa",
           stopping: "Deteniendo…",
         },
         speakers: {
           identify: "Identificar hablantes",
-          note: "La primera vez descarga unos 30 MB. Las etiquetas llegan unos segundos tarde.",
+          note: "Se ejecuta en este Mac. Las etiquetas llegan unos segundos tarde y pueden equivocarse.",
           numbered: "Hablante {n}",
           rename: "Cambiar nombre",
           mergeInto: "Combinar con",
-          skip: "Omitir",
-          skipHint: "Grabar ahora, sin etiquetas de hablantes",
-          retry: "Reintentar",
-          failed: {
-            network:
-              "No se puede conectar con el servidor de descarga. Revisa la conexión o el proxy e inténtalo de nuevo.",
-            size: "El archivo descargado no tiene el tamaño esperado, así que Pine no lo usó. Inténtalo más tarde.",
-            checksum:
-              "El archivo descargado no superó la comprobación de integridad, así que Pine no lo usó. Inténtalo más tarde.",
-            disk: "No se pudieron guardar los modelos. Comprueba que tu Mac tenga espacio libre en disco.",
-            generic: "No se pudieron preparar los modelos de hablantes.",
-          },
           failedTitle:
             "Las etiquetas de hablantes están desactivadas en esta captura",
+          failedDescription: "La transcripción sigue sin ellas.",
 
           unknown: "Aún no se sabe quién es",
           echo: "Eco del audio del sistema",

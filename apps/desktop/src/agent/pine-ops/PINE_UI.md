@@ -690,9 +690,10 @@ close the card. The panels are:
   Before a capture the row shows two toggle buttons, Microphone and System
   audio (icons; each turns its source on or off on its own, and the last
   one on stays on), then Identify speakers (a people icon toggle, off by
-  default, pressed when on; shown only when this build can label speakers;
-  its tooltip says the first use downloads about 30 MB and labels arrive a
-  few seconds late), a language button showing the spoken language as a
+  default, pressed when on; shown only when this build includes the
+  speaker models, which ship with the macOS app; its tooltip says it runs
+  on this Mac and labels arrive a few seconds late and can be wrong), a
+  language button showing the spoken language as a
   short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
   name), and Start ("Continue" when the conversation already has a
   transcript). When the card is too narrow for its label, Start shows
@@ -710,11 +711,9 @@ close the card. The panels are:
   grey; silence is a flat line. Hovering the time shows the sources and
   the language.
   Paused shows an amber dot, "Paused", a still waveform and a play button
-  to resume. "Preparing…" shows while it gets ready. While a model
-  downloads first, the same row shows a small progress ring with
-  "Downloading speech model…" and the percent, or "Speaker models" and
-  how much has come ("12 / 30 MB") with Skip, which records right away
-  without speaker labels; Stop cancels either.
+  to resume. "Preparing…" shows while it gets ready. While macOS
+  downloads the speech model for the language, the same row shows a small
+  progress ring with "Downloading speech model…" and the percent.
   Only one conversation captures at a time; others show "Another
   conversation is capturing live context." with the capturing
   conversation's name, Show (opens it) and Stop, in place of the row.
@@ -724,11 +723,8 @@ close the card. The panels are:
   System Settings while capturing; other problems ("Live context ran into a
   problem", unsupported language, model download failed) with the details;
   and "Speaker labels are off for this capture" (a plain grey notice with
-  an amber people icon) when the speaker models could not be downloaded,
-  saying why in plain words (no connection, a file of the wrong size or
-  failing its integrity check, or no disk space), with Retry (restarts the
-  capture with speaker labels, the transcript continues; when idle, starts
-  one). Error notices close with the × (Dismiss) at their top right.
+  an amber people icon, "The transcript goes on without them.") when
+  speaker labels could not start. Error notices close with the × (Dismiss) at their top right.
   There is also a note when speaker labels run lighter or pause to save
   power or keep up (they recover on their own).
   Before any text the transcript explains what live context does (or says
