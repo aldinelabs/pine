@@ -503,9 +503,10 @@ From top to bottom:
      appears in the left sidebar without opening a tab or changing the active
      session; open it from there. Its approval mode is the asking session's
      or a stricter one, never a looser one. In Let Me Review, starting it
-     shows an Approval required card with its first message. The agent may
-     pick the model and reasoning effort it runs on from the models the user
-     has set up (otherwise it uses the default model); that session's Model
+     shows an Approval required card with its first message. When the user
+     asks for a lighter or a different model, the agent picks the model and
+     reasoning effort it runs on from the models the user has set up;
+     otherwise it uses the default model. That session's Model
      control shows the choice, the user can change it there like any other,
      and the "Started a session" marker names the model. The agent can also
      search the user's sessions in every project.

@@ -260,6 +260,9 @@ describe("session tools", () => {
     expect(description).toContain("Do the work directly here instead");
     expect(description).toContain(UI_SESSION_READ_TOOL_NAME);
     expect(description).toContain(UI_SESSION_SEND_TOOL_NAME);
+    expect(description).toContain(
+      "Leave model and thinkingLevel out unless the user explicitly asks",
+    );
   });
 
   it("starts a session in the caller's mode without asking outside Let Me Review", async () => {

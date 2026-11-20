@@ -346,7 +346,7 @@ export function createSessionToolDefinitions(
     approvalMode: Type.Optional(approvalModeSchema),
     model: Type.Optional(
       Type.String({
-        description: `The model it runs on, as providerId/modelId from ${UI_LIST_MODELS_TOOL_NAME} (a modelId alone works when only one provider has it). Omit to use the user's default model.`,
+        description: `Only when the user explicitly asks for a lighter or a different model: the model it runs on, as providerId/modelId from ${UI_LIST_MODELS_TOOL_NAME} (a modelId alone works when only one provider has it). Leave it out otherwise, and the user's default model is used.`,
       }),
     ),
     thinkingLevel: Type.Optional(
@@ -354,7 +354,7 @@ export function createSessionToolDefinitions(
         THINKING_LEVELS.map((level) => Type.Literal(level)),
         {
           description:
-            "Its thinking level; must be one the model supports. Defaults to this session's level, or the closest lower one the model has.",
+            "Only when the user explicitly asks for one: its thinking level, which must be one the model supports. Leave it out otherwise; with a model given, it defaults to this session's level, or the closest lower one the model has.",
         },
       ),
     ),
@@ -374,7 +374,7 @@ export function createSessionToolDefinitions(
       "- A sub-session has no memory of this conversation: its first message must include everything it needs and say what to report back.",
       "- Give each a short title naming its task, so the user can tell them apart in the sidebar.",
       `- Pine delivers a notice each time a sub-session finishes a turn or waits for approval; continue with other work or end your turn, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of its messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
-      `- Mechanical, read-only or narrowly scoped work often runs well on a cheaper or faster model (see ${UI_LIST_MODELS_TOOL_NAME}); otherwise leave model out.`,
+      `- Leave model and thinkingLevel out unless the user explicitly asks for a lighter or a different model or thinking level; then pick it from ${UI_LIST_MODELS_TOOL_NAME}.`,
     ].join("\n"),
     parameters: newParams,
     prepareArguments: (args) => args as Static<typeof newParams>,
