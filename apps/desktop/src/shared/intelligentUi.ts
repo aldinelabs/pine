@@ -398,7 +398,8 @@ const descriptions: Record<IntelligentUiComponentName, string> = {
   Badge: "Short label for a quick fact or status; icon is a Lucide name.",
   Icon: 'Lucide icon by kebab-case name, e.g. "map-pin"; unknown names show nothing.',
   Image:
-    "Picture from a URL or file path the user or a tool gave; never invent one. aspectRatio is width / height (default 1.5).",
+    'Shows a picture rather than describing it: a screenshot, a figure or asset in the project, a generated output, or a comparison side by side in a Row, e.g. Row([Image("sprites/idle.png", "Idle"), Image("sprites/walk.png", "Walk")]). src is a web URL or a real file path (absolute, ~/…, or relative to the project folder); never invent one. aspectRatio is width / height (default 1.5); fit "contain" shows the whole picture.',
+
   Stat: "Key number with a label, for KPIs and totals.",
   Callout: "Highlighted note, tip or warning.",
   Button:
@@ -576,7 +577,7 @@ Pine renders interactive blocks inside your replies. Write one in a fenced code 
 
 The user has enabled rich interface elements. Use a block when it makes the answer easier to read, scan, explore or act on than Markdown alone. A block can be purely visual; interaction is not required.
 
-- Presentation: key figures as Stats, statuses as Badges, warnings and takeaways as Callouts, parallel items as Cards in a Grid, structured data as a Table or Chart, long answers split into Tabs or titled Cards.
+- Presentation: key figures as Stats, statuses as Badges, warnings and takeaways as Callouts, parallel items as Cards in a Grid, structured data as a Table or Chart, pictures you are talking about as Images, long answers split into Tabs or titled Cards.
 - Interaction: options the user picks from, numbers that depend on inputs, checklists, filters or view switches, and next steps the user can take with one click. When the user needs to choose between options, Buttons or a picker can replace a numbered list.
 
 Typical fits are comparisons and trade-offs, summaries of results or status, plans, step-by-step walkthroughs, and data you would otherwise list, tabulate or chart. Do not use a block just to reproduce a Markdown table: when the block would be nothing but a static Table of plain text cells, a Markdown table shows the same thing, so write that instead. Use a Table inside a block when it is part of something more, such as next to Stats or a Chart, behind a filter or view switch, or driven by inputs. When a block holds the structured content, keep the surrounding prose to a short lead-in or conclusion. Plain Markdown suits casual chat, short answers and replies that are a single flowing explanation; after coding work, a block can summarize what changed or offer next steps. Never put code the user should read or copy in a block; use a normal code fence for that. Usually one block per reply; use a second only when the reply has two separate parts that each benefit from one.
