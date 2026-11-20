@@ -9,6 +9,48 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-11-20
+
+> **Highlights**: Several people can now have their own Pine on one computer and pick who's using it at launch; Work style and the Aldine methodology (Beta) set how Pine drives a task and how it talks; the agent can choose a sub-session's model and stop other sessions, and asks you first after you stop a sub-session yourself; Monet now only changes the font.
+
+### Added
+
+#### Multiple users
+
+- **Several users on one computer**: Settings › Multiple users adds users, each with their own conversations, projects, memory, Skills, MCP servers, automations, remote control and WeChat bindings, model connections and settings. Users have no passwords; this keeps things apart, not private. "Copy my model connections" is on by default when adding a user, and deleting a user moves their data to the Trash. With a single user nothing changes apart from that Settings section.
+- **Choose the user at launch**: With more than one user, Pine opens on "Who's using Pine?", where arrow keys or `1`–`9` pick a user and Add user adds one. "Remember my choice on this computer" makes Pine open as whoever used it last; turning "Ask who's using Pine when it opens" back on in Settings › Multiple users brings the question back.
+- **Switch users from the sidebar and the tray**: With more than one user, the sidebar footer shows the current user's avatar with a menu to switch or manage users, and the menu bar (notification area on Windows) menu lists every user. Switching restarts Pine as that user, asking first if sessions are running or remote control is on. Only the current user's automations and WeChat remote run.
+
+#### How the agent works
+
+- **Work style**: Settings › User profile gains Work style. Full takeover, the default, has Pine drive the task itself and quote or summarize the parts of a file it discusses, so you don't need the file open beside the chat; Collaborate assumes you have the file open, so Pine points to sections, paragraphs or line numbers, keeps you in the loop and asks before key decisions. Automations always run as Full takeover.
+- **Aldine methodology (Beta)**: A new "Aldine methodology" switch at the top of Settings › User profile, on by default, makes Pine talk like a clear-headed dialogue partner: candid, specific and light on pleasantries, agreeing only when it means it, saying exactly what it is unsure of, and checking what it can check instead of guessing. The communication style still sets the tone and the work style still sets how much Pine drives.
+- **Your wellbeing comes first**: When you show signs of a genuine crisis, Pine says so directly and points you to crisis resources (local ones when it knows your region), setting the task aside until you want to return to it. It also encourages you to turn to professionals, friends and family rather than relying only on it. This is always on, whatever your settings.
+
+#### Sessions
+
+- **Choose a sub-session's model**: When you ask for it, the agent can start a session with a specific model and thinking level; the new session's model menu shows that model and the "Started a session" marker names it. Otherwise sub-sessions use your default model.
+- **The agent can stop a session**: The agent can end another session's current turn the way the Stop button does, leaving the session in the sidebar to be messaged again. Stopping its own sub-sessions needs no approval; stopping any other session asks you first under the approval mode.
+- **Asked first after you stop a sub-session**: When you stop a sub-session, the session that started it no longer picks the work back up on its own; it asks whether to resume, change direction, take over or drop it. The conversation shows "You stopped sub-session …".
+
+### Changed
+
+- **Monet only changes the font**: Monet mode in Settings › General is now the "Monet font family" switch in Settings › Appearance. It only switches to the serif reading font and no longer changes how Pine writes, and the communication style is no longer disabled while it is on. If you had Monet mode on, you keep the serif font.
+- **Name and pronouns in one field**: Pronouns no longer have their own row; they are a dropdown at the right end of the "Name and pronouns" field. Custom still shows a text field below.
+- **Project accent colours as swatches**: New Project and Edit Project show the accent colours as a row of round swatches, named on hover and navigable with the arrow keys; "Pine Default" has a dashed edge because it follows the Appearance setting.
+- **Lists as soft filled cards**: Items in Settings › Projects, the remote control devices and WeChat account, and the Memory, MCP servers and Automations dialogs are now softly filled cards instead of outlined ones.
+- **`→` also accepts a reply suggestion**: With the caret at the end, `→` accepts the reply suggestion just like `Tab` (the hint still shows only `Tab`). `↑` / `↓` stop at the first and last suggestion instead of wrapping around, and the hint shows only the directions you can still go, changing width smoothly.
+- **Opening Pine again brings back its window**: Opening Pine while it is already running brings the existing window forward instead of starting a second Pine.
+- **New sessions start replying sooner**: With models that support prompt caching, new sessions in different projects reuse more of what is already cached, so the first reply comes faster and costs less; adding or removing an MCP server no longer invalidates most of the cache.
+
+### Fixed
+
+- Word documents in the workbench Preview card now show on paper (a dark page in dark mode) instead of being transparent over the card's gray background.
+- After a run is stopped, tool calls that had not finished no longer stay "running" forever; they show a stop icon and "Stopped" instead of the red failure style, and stay that way when the session is reopened.
+- Some dialogs no longer draw a focus ring around their whole content when they open, as if it were selected.
+- The thinking timer keeps one decimal for whole seconds under 10 (such as 3 seconds), so the label no longer shifts.
+- With a single reply suggestion, the key hint no longer shows a count and then takes it back.
+
 ## [0.22.0] - 2026-11-20
 
 > **Highlights**: Live Context (Beta) transcribes a meeting or class on this Mac as context for the conversation, with speaker labels and live translation; Settings › Agent is split into Behavior and Tools, where each family of the agent's tools can be turned off; reply suggestions offer several alternatives at once.
