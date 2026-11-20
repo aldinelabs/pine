@@ -379,7 +379,7 @@ export default {
       sessions: {
         title: "Sesiones",
         description:
-          "Buscar, leer y organizar tus sesiones, e iniciar subsesiones y enviarles mensajes.",
+          "Buscar, leer y organizar tus sesiones, e iniciar subsesiones, enviarles mensajes y detenerlas.",
       },
       projects: {
         title: "Proyectos",
@@ -2407,6 +2407,13 @@ export default {
             running: "Enviando mensaje a la sesión ",
             complete: "Mensaje enviado a la sesión ",
             error: "No se pudo enviar el mensaje a la sesión ",
+          },
+          stop: {
+            running: "Deteniendo la sesión ",
+            complete: "Sesión detenida: ",
+            idle: "Nada que detener en la sesión ",
+            declined: "No se detuvo la sesión ",
+            error: "No se pudo detener la sesión ",
           },
           delete: {
             running: "Eliminando una sesión",

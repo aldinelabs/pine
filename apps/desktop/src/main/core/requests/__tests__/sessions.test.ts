@@ -56,6 +56,7 @@ function fixture({
   relayRefusal = undefined as string | undefined,
   origin = undefined as "wechat" | "wechat-used" | undefined,
   ceilingMode = "YOLO",
+  holdersOfSession = [7] as number[],
 }: {
   callerMode?: string;
   owner?: number;
@@ -69,6 +70,7 @@ function fixture({
   relayRefusal?: string;
   origin?: "wechat" | "wechat-used";
   ceilingMode?: string;
+  holdersOfSession?: number[];
 } = {}) {
   const projects = [
     {
@@ -95,6 +97,7 @@ function fixture({
     session: { id: "new-session" },
   });
   const share = vi.fn().mockResolvedValue(undefined);
+  const abort = vi.fn().mockResolvedValue({ aborted: true });
   const isOpen = vi.fn<(clientId: number) => boolean>(() => open);
   const clientsSharingRuntime = vi.fn().mockReturnValue(sharing);
   const notifyLibraryChanged = vi.fn();
@@ -146,6 +149,8 @@ function fixture({
       deleteSession,
       liveSessionIdsOf: vi.fn().mockReturnValue(live),
       loadMessages,
+      clientsOfSession: vi.fn().mockReturnValue(holdersOfSession),
+      abort,
     },
     sessionActivity: vi.fn().mockReturnValue(activity),
     automations: {
@@ -175,6 +180,7 @@ function fixture({
     notifyLibraryChanged,
     relayRefusalCheck,
     sessionRelayed,
+    abort,
   };
 }
 
@@ -904,6 +910,73 @@ describe("answerSessionOperation", () => {
       streamingBehavior: "steer",
     });
     expect(result).toEqual({ op: "send", delivered: "steer" });
+  });
+});
+
+describe("stopping a session", () => {
+  it("stops a running sub-session the way the user's Stop does", async () => {
+    const { core, abort } = fixture({
+      sessionParents: { [looseSession]: requester.sessionId },
+      activity: "running",
+      holdersOfSession: [3, 7],
+    });
+
+    const result = await answerSessionOperation(core, requester, {
+      op: "stop",
+      sessionId: looseSession,
+    });
+
+    expect(abort).toHaveBeenCalledExactlyOnceWith(7, looseSession);
+    expect(result).toEqual({ op: "stop", stopped: true });
+  });
+
+  it("leaves an idle session alone", async () => {
+    const { core, abort } = fixture({
+      sessionParents: { [looseSession]: requester.sessionId },
+      activity: "idle",
+    });
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "stop",
+        sessionId: looseSession,
+      }),
+    ).resolves.toEqual({ op: "stop", stopped: false });
+    expect(abort).not.toHaveBeenCalled();
+  });
+
+  it("stops any session of a project once the tool passes its project", async () => {
+    const { core, abort } = fixture({
+      activity: "awaiting-approval",
+      holdersOfSession: [3],
+    });
+
+    await answerSessionOperation(core, requester, {
+      op: "stop",
+      sessionId: filedSession,
+      projectId,
+    });
+
+    expect(abort).toHaveBeenCalledExactlyOnceWith(3, filedSession);
+  });
+
+  it("refuses itself and sessions outside the relatives without a project", async () => {
+    const { core, abort } = fixture({ activity: "running" });
+
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "stop",
+        sessionId: requester.sessionId,
+        projectId,
+      }),
+    ).rejects.toThrow("A session cannot stop itself.");
+    await expect(
+      answerSessionOperation(core, requester, {
+        op: "stop",
+        sessionId: filedSession,
+      }),
+    ).rejects.toThrow("Pass its projectId to stop it.");
+    expect(abort).not.toHaveBeenCalled();
   });
 });
 

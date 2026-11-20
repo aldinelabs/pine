@@ -350,7 +350,8 @@ export default {
       },
       sessions: {
         title: "會話",
-        description: "搜尋、讀取和整理你的會話，建立子會話並傳訊息給它們。",
+        description:
+          "搜尋、讀取和整理你的會話，建立子會話、傳訊息給它們或停止它們。",
       },
       projects: {
         title: "專案",
@@ -2276,6 +2277,13 @@ export default {
             running: "正在傳訊息給會話 ",
             complete: "已傳訊息給會話 ",
             error: "無法傳訊息給會話 ",
+          },
+          stop: {
+            running: "正在停止會話 ",
+            complete: "已停止會話 ",
+            idle: "會話未在執行，無需停止：",
+            declined: "未停止會話 ",
+            error: "無法停止會話 ",
           },
           delete: {
             running: "正在刪除會話",

@@ -372,7 +372,7 @@ export default {
       sessions: {
         title: "Sessions",
         description:
-          "Search, read, and organize your sessions, and start sub-sessions and message them.",
+          "Search, read, and organize your sessions, and start, message, and stop sub-sessions.",
       },
       projects: {
         title: "Projects",
@@ -2367,6 +2367,13 @@ export default {
             running: "Messaging session ",
             complete: "Messaged session ",
             error: "Couldn’t message session ",
+          },
+          stop: {
+            running: "Stopping session ",
+            complete: "Stopped session ",
+            idle: "Nothing to stop in session ",
+            declined: "Didn’t stop session ",
+            error: "Couldn’t stop session ",
           },
           delete: {
             running: "Deleting a session",

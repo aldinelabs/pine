@@ -520,7 +520,13 @@ From top to bottom:
      none. It can message those sessions too, reviewed the same way for
      every message ("Message session …"); when a message of yours clearly
      belongs to another session, the agent may forward it there and say
-     where it went. When a
+     where it went. The agent can also stop a session's current turn, as
+     pressing Stop in it would; pending approvals and questions there end
+     unanswered, and the session stays in the sidebar to be messaged again.
+     Its own sub-sessions stop without asking; any other session is
+     reviewed the same way first ("Stop session …"). The marker reads
+     "Stopped session {name}", or "Nothing to stop in session {name}" when
+     it was idle. A session cannot stop itself. When a
      sub-session finishes a turn, fails, or waits for an approval, the
      parent's transcript shows a marker ("Sub-session {name} finished",
      "Sub-session {name} failed", "Sub-session {name} is waiting for your

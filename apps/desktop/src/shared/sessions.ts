@@ -921,7 +921,14 @@ export type SessionHostOperation =
       projectId?: string;
       message: string;
       locale: "en-US" | "zh-CN";
-    };
+    }
+  /**
+   * Stops a session's current turn, as the user's Stop does. Without
+   * `projectId`, a parent, sub-session or sibling of the asking session. The
+   * tool stops anything but its own sub-sessions only after that was
+   * approved.
+   */
+  | { op: "stop"; sessionId: string; projectId?: string };
 
 /** A related session and what it is doing now. */
 export interface AgentHostRelative {
@@ -997,6 +1004,8 @@ export type SessionHostResult =
       open?: true;
       /** Sub-sessions deleted along with it. */
       subSessionCount: number;
+      /** What it is doing now. */
+      state: AgentHostRelative["state"];
     }
   | { op: "delete"; deleted: boolean }
   | {
@@ -1013,7 +1022,9 @@ export type SessionHostResult =
       /** Pass as `before` for older messages; absent at the start. */
       olderCursor?: string;
     }
-  | { op: "send"; delivered: "steer" | "turn" };
+  | { op: "send"; delivered: "steer" | "turn" }
+  /** `stopped` is false when it had no turn running by then. */
+  | { op: "stop"; stopped: boolean };
 
 /** A bare `*` (or nothing) lists sessions instead of searching their text. */
 export function sessionSearchQuery(query: string): string {

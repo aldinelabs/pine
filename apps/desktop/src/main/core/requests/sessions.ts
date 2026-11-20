@@ -304,6 +304,11 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
     message: z.string().trim().min(1).max(100_000),
     locale: z.enum(["en-US", "zh-CN"]),
   }),
+  z.object({
+    op: z.literal("stop"),
+    sessionId: z.uuid(),
+    projectId: z.uuid().optional(),
+  }),
 ]);
 
 /** A folder created earlier in the same call is named `new:1`, `new:2`, … */
@@ -640,6 +645,7 @@ export async function answerSessionOperation(
         },
         ...(open ? { open: true as const } : {}),
         subSessionCount: childrenOf(project, known.id).length,
+        state: core.sessionActivity(known.id),
       };
     if (parsed.sessionId === requester.sessionId)
       throw new Error("A session cannot delete itself.");
@@ -712,6 +718,44 @@ export async function answerSessionOperation(
       : undefined;
     const owner = await holdProject(core, requester, project);
     return relayMessage(core, requester, owner, project.id, parsed, senderName);
+  }
+
+  if (parsed.op === "stop") {
+    if (parsed.sessionId === requester.sessionId)
+      throw new Error("A session cannot stop itself.");
+    const ownProjectId = runtimes.projectOfLiveSession(requester.sessionId)?.id;
+    const project = projects.find(
+      (candidate) => candidate.id === (parsed.projectId ?? ownProjectId),
+    );
+    if (!project) throw new Error("That project does not exist.");
+    // Without a projectId, only this session's parent, sub-sessions and
+    // siblings; the tool reviews all but its sub-sessions first.
+    if (
+      !parsed.projectId &&
+      !isRelative(project, requester.sessionId, parsed.sessionId)
+    )
+      throw new Error(
+        "That session is not this session's parent, sub-session or sibling. Pass its projectId to stop it.",
+      );
+    const known = (
+      await listProjectSessions(project, sessionLibrary(core))
+    ).some((session) => session.id === parsed.sessionId);
+    if (!known)
+      throw new Error(
+        `No session ${parsed.sessionId} in ${projectName(project)}.`,
+      );
+    if (core.sessionActivity(parsed.sessionId) === "idle")
+      return { op: "stop", stopped: false };
+    // A running session is live in some interface; stop it through that
+    // one with the same Stop the user presses, so pending approvals and
+    // questions end the way they do then.
+    const holders = runtimes.clientsOfSession(parsed.sessionId);
+    const owner = holders.includes(requester.ownerId)
+      ? requester.ownerId
+      : holders[0];
+    if (owner === undefined) return { op: "stop", stopped: false };
+    const { aborted } = await runtimes.abort(owner, parsed.sessionId);
+    return { op: "stop", stopped: aborted };
   }
 
   if (

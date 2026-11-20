@@ -13,6 +13,7 @@ import {
   UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_SEND_TOOL_NAME,
+  UI_SESSION_STOP_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
   approvalModeWithin,
@@ -906,6 +907,133 @@ export function createSessionToolDefinitions(
     },
   });
 
+  const stopParams = Type.Object({
+    sessionId: Type.String({
+      description: `The session to stop: a sub-session from ${UI_SESSION_RELATIVES_TOOL_NAME}, or another session from ${UI_SESSION_RELATIVES_TOOL_NAME} or ${UI_SESSION_SEARCH_TOOL_NAME}.`,
+    }),
+    projectId: Type.Optional(
+      Type.String({
+        description: `The session's project, from ${UI_SESSION_SEARCH_TOOL_NAME}. Needed for a session that is not this one's parent, sub-session or sibling.`,
+      }),
+    ),
+  });
+  interface StopDetails {
+    sessionId: string;
+    title: string | undefined;
+    stopped: boolean;
+    idle?: boolean;
+    declined?: boolean;
+  }
+  const stopTool = defineTool({
+    name: UI_SESSION_STOP_TOOL_NAME,
+    label: "Stop Session",
+    description:
+      "Stop another session's current turn, as the user's Stop button does; its pending approvals and questions end unanswered. The session stays in the sidebar with its messages and can be messaged again. This session's own sub-sessions are stopped directly; any other session is reviewed first: depending on the approval mode the user or the approval reviewer decides. " +
+      `Stop a sub-session that is off track, stuck or no longer needed rather than waiting for it; to redirect one without stopping, use ${UI_SESSION_SEND_TOOL_NAME}. This session cannot stop itself.`,
+    parameters: stopParams,
+    prepareArguments: (args) => args as Static<typeof stopParams>,
+    executionMode: "sequential",
+    execute: async (toolCallId, params, signal) => {
+      const sessionId = params.sessionId.trim();
+      const relatives = await callSessionHost(context, { op: "relatives" });
+      const child = relatives.children.find(
+        (relative) => relative.id === sessionId,
+      );
+      const relative =
+        child ??
+        [relatives.parent, ...relatives.siblings].find(
+          (candidate) => candidate?.id === sessionId,
+        );
+      const notRunning = (title: string | undefined) => ({
+        content: [
+          {
+            type: "text" as const,
+            text: `Session ${title ?? sessionId} has no turn running; there was nothing to stop.`,
+          },
+        ],
+        details: {
+          sessionId,
+          title,
+          stopped: false,
+          idle: true,
+        } as StopDetails,
+      });
+      let projectId: string | undefined;
+      let title = relative?.title;
+      let state = relative?.state;
+      let projectName: string | undefined;
+      if (!relative) {
+        projectId = params.projectId?.trim();
+        if (!projectId)
+          throw new Error(
+            `That session is not this session's parent, sub-session or sibling. Pass its projectId from ${UI_SESSION_SEARCH_TOOL_NAME} to stop it.`,
+          );
+        const described = await callSessionHost(context, {
+          op: "describe",
+          projectId,
+          sessionId,
+        });
+        if (described.session.current)
+          throw new Error(
+            "A session cannot stop itself. End this turn instead.",
+          );
+        title = described.session.title;
+        state = described.state;
+        projectName = described.session.projectName;
+      }
+      if (state === "idle") return notRunning(title);
+      // Stopping interrupts work the user may be following elsewhere, so
+      // only this session's own sub-sessions skip the review.
+      if (!child) {
+        const decision = await context.reviewOutOfScope({
+          toolCallId,
+          toolName: UI_SESSION_STOP_TOOL_NAME,
+          subject: `Stop session “${title ?? "Untitled"}”${projectName ? ` in ${projectName}` : ""}`,
+          description: "Stop another session's current turn",
+          evidence: [
+            relative
+              ? "The session is this session's parent or sibling, not a sub-session it started."
+              : "The session is not this session's parent, sub-session or sibling.",
+            ...(projectName ? [`Project: ${projectName}`] : []),
+            `It is ${state === "awaiting-approval" ? "waiting for an approval" : "running"}; stopping ends its current turn, and it can be messaged again later.`,
+          ].join("\n"),
+          signal,
+        });
+        if (decision.kind !== "allow")
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Stopping that session was not approved.${decision.kind === "deny" && decision.reason ? ` ${decision.reason}` : ""}`,
+              },
+            ],
+            details: {
+              sessionId,
+              title,
+              stopped: false,
+              declined: true,
+            },
+          };
+      }
+      if (signal?.aborted) throw new Error("aborted");
+      const { stopped } = await callSessionHost(context, {
+        op: "stop",
+        sessionId,
+        ...(projectId ? { projectId } : {}),
+      });
+      if (!stopped) return notRunning(title);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Stopped the current turn of session ${title ?? sessionId}. It stays in the sidebar; use ${UI_SESSION_SEND_TOOL_NAME} to give it more work.`,
+          },
+        ],
+        details: { sessionId, title, stopped: true },
+      };
+    },
+  });
+
   const deleteParams = Type.Object({
     projectId: Type.String(),
     sessionId: Type.String(),
@@ -977,5 +1105,6 @@ export function createSessionToolDefinitions(
     relativesTool,
     readTool,
     sendTool,
+    stopTool,
   ] as ToolDefinition[];
 }

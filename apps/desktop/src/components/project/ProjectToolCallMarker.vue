@@ -36,6 +36,7 @@ import {
   UI_SESSION_RENAME_TOOL_NAME,
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_SEND_TOOL_NAME,
+  UI_SESSION_STOP_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
@@ -1484,6 +1485,36 @@ const presentation = computed(() => {
             : known?.name ||
               firstString(details, ["title"]) ||
               t("project.transcript.sessionNotice.untitled"),
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
+    if (sessionTool === UI_SESSION_STOP_TOOL_NAME) {
+      // A finished call that stopped nothing found the session idle, or the
+      // review turned it down.
+      const outcome =
+        tense === "complete" && details.stopped !== true
+          ? details.idle === true
+            ? "idle"
+            : "declined"
+          : tense;
+      const sessionId =
+        firstString(details, ["sessionId"]) ??
+        firstString(input, ["sessionId"]) ??
+        "";
+      const known = sessionStore?.allRecentSessions.find(
+        (candidate) => candidate.id === sessionId,
+      );
+      return {
+        before: t(`project.transcript.tools.session.stop.${outcome}`),
+        operation: undefined,
+        separator: "",
+        target:
+          known?.name ||
+          firstString(details, ["title"]) ||
+          t("project.transcript.sessionNotice.untitled"),
         targetMono: false,
         purpose: undefined,
         faviconDataUrl: undefined,

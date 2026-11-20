@@ -369,7 +369,7 @@ export default {
       sessions: {
         title: "세션",
         description:
-          "세션을 검색하고 읽고 정리하며, 하위 세션을 시작하고 메시지를 보냅니다.",
+          "세션을 검색하고 읽고 정리하며, 하위 세션을 시작하고 메시지를 보내거나 중지합니다.",
       },
       projects: {
         title: "프로젝트",
@@ -2354,6 +2354,13 @@ export default {
             running: "세션에 메시지 보내는 중: ",
             complete: "세션에 메시지 보냄: ",
             error: "세션에 메시지를 보낼 수 없음: ",
+          },
+          stop: {
+            running: "세션 중지 중: ",
+            complete: "세션을 중지함: ",
+            idle: "실행 중이 아니어서 중지할 것 없음: ",
+            declined: "세션을 중지하지 않음: ",
+            error: "세션을 중지할 수 없음: ",
           },
           delete: {
             running: "세션 삭제 중",

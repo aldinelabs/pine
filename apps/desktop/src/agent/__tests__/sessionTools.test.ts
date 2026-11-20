@@ -106,6 +106,7 @@ function answer(operation: SessionHostOperation): SessionHostResult {
         op: "describe",
         session: { ...session, id: "s2", current: undefined },
         subSessionCount: 2,
+        state: "running",
       };
     case "delete":
       return { op: "delete", deleted: true };
@@ -129,6 +130,8 @@ function answer(operation: SessionHostOperation): SessionHostResult {
       };
     case "send":
       return { op: "send", delivered: "steer" };
+    case "stop":
+      return { op: "stop", stopped: true };
   }
 }
 
@@ -137,12 +140,18 @@ function setup(
   decision: GateDecision = { kind: "allow" },
   parentSessionId?: string,
   attachedSessions: AttachedSession[] = [],
+  override: (
+    operation: SessionHostOperation,
+  ) => SessionHostResult | undefined = () => undefined,
 ) {
   const requestHost = vi.fn(
     (request: AgentHostRequest): Promise<AgentHostResponse> => {
       if (request.kind !== "session") throw new Error("unexpected request");
       const { operation } = request;
-      return Promise.resolve({ kind: "session", result: answer(operation) });
+      return Promise.resolve({
+        kind: "session",
+        result: override(operation) ?? answer(operation),
+      });
     },
   );
   const requestApproval = vi.fn().mockResolvedValue(decision);
@@ -176,6 +185,7 @@ function setup(
     relatives,
     read,
     send,
+    stop,
   ] = createSessionToolDefinitions(context);
   return {
     search,
@@ -187,6 +197,7 @@ function setup(
     relatives,
     read,
     send,
+    stop,
     renameCurrentSession,
     requestHost,
     requestApproval,
@@ -641,6 +652,196 @@ describe("session tools", () => {
         ),
       }),
     );
+  });
+});
+
+describe("ui_session_stop", () => {
+  const withChild =
+    (state: "running" | "idle" | "awaiting-approval") =>
+    (operation: SessionHostOperation): SessionHostResult | undefined =>
+      operation.op === "relatives"
+        ? {
+            op: "relatives",
+            children: [{ id: "c1", title: "Docs pass", state }],
+            siblings: [],
+          }
+        : undefined;
+  const stopCalls = (requestHost: ReturnType<typeof setup>["requestHost"]) =>
+    requestHost.mock.calls
+      .map(([request]) => request)
+      .filter(
+        (request) =>
+          request.kind === "session" && request.operation.op === "stop",
+      );
+
+  it("stops its own sub-session without review, even in Let Me Review", async () => {
+    const { stop, requestHost, reviewOutOfScope, requestApproval } = setup(
+      "let-me-review",
+      { kind: "deny" },
+      undefined,
+      [],
+      withChild("awaiting-approval"),
+    );
+
+    const result = await run(stop, { sessionId: " c1 " });
+
+    expect(reviewOutOfScope).not.toHaveBeenCalled();
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(stopCalls(requestHost)).toEqual([
+      { kind: "session", operation: { op: "stop", sessionId: "c1" } },
+    ]);
+    expect(text(result)).toBe(
+      "Stopped the current turn of session Docs pass. It stays in the sidebar; use ui_session_send to give it more work.",
+    );
+    expect(result.details).toEqual({
+      sessionId: "c1",
+      title: "Docs pass",
+      stopped: true,
+    });
+  });
+
+  it("does nothing for an idle sub-session and says so", async () => {
+    const { stop, requestHost } = setup(
+      "auto-approve",
+      undefined,
+      undefined,
+      [],
+      withChild("idle"),
+    );
+
+    const result = await run(stop, { sessionId: "c1" });
+
+    expect(stopCalls(requestHost)).toEqual([]);
+    expect(text(result)).toBe(
+      "Session Docs pass has no turn running; there was nothing to stop.",
+    );
+    expect(result.details).toMatchObject({ stopped: false, idle: true });
+  });
+
+  it("reviews stopping a sibling", async () => {
+    const { stop, requestHost, reviewOutOfScope } = setup("auto-approve");
+
+    await run(stop, { sessionId: "s3" });
+
+    expect(reviewOutOfScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: "ui_session_stop",
+        subject: "Stop session “Untitled”",
+        description: "Stop another session's current turn",
+        evidence: expect.stringContaining("waiting for an approval"),
+      }),
+    );
+    expect(stopCalls(requestHost)).toEqual([
+      { kind: "session", operation: { op: "stop", sessionId: "s3" } },
+    ]);
+  });
+
+  it("reviews any other session and stops nothing when denied", async () => {
+    const { stop, requestHost, reviewOutOfScope } = setup("auto-approve", {
+      kind: "deny",
+      reason: "Leave it.",
+    });
+
+    const result = await run(stop, { sessionId: "s2", projectId: "p1" });
+
+    expect(reviewOutOfScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Stop session “Release notes” in Pine",
+        evidence: expect.stringContaining(
+          "not this session's parent, sub-session or sibling",
+        ),
+      }),
+    );
+    expect(stopCalls(requestHost)).toEqual([]);
+    expect(text(result)).toBe(
+      "Stopping that session was not approved. Leave it.",
+    );
+    expect(result.details).toMatchObject({ stopped: false, declined: true });
+  });
+
+  it("stops another session in its project once approved", async () => {
+    const { stop, requestHost } = setup("auto-approve");
+
+    await run(stop, { sessionId: "s2", projectId: " p1 " });
+
+    expect(stopCalls(requestHost)).toEqual([
+      {
+        kind: "session",
+        operation: { op: "stop", sessionId: "s2", projectId: "p1" },
+      },
+    ]);
+  });
+
+  it("skips the review for another session that is idle", async () => {
+    const { stop, reviewOutOfScope } = setup(
+      "let-me-review",
+      undefined,
+      undefined,
+      [],
+      (operation) =>
+        operation.op === "describe"
+          ? {
+              op: "describe",
+              session: { ...session, id: "s2", current: undefined },
+              subSessionCount: 0,
+              state: "idle",
+            }
+          : undefined,
+    );
+
+    const result = await run(stop, { sessionId: "s2", projectId: "p1" });
+
+    expect(reviewOutOfScope).not.toHaveBeenCalled();
+    expect(result.details).toMatchObject({ idle: true });
+  });
+
+  it("refuses to stop the calling session", async () => {
+    const { stop, requestHost, reviewOutOfScope } = setup(
+      "YOLO",
+      undefined,
+      undefined,
+      [],
+      (operation) =>
+        operation.op === "describe"
+          ? {
+              op: "describe",
+              session,
+              subSessionCount: 0,
+              state: "running",
+            }
+          : undefined,
+    );
+
+    await expect(
+      run(stop, { sessionId: session.id, projectId: session.projectId }),
+    ).rejects.toThrow("A session cannot stop itself.");
+    expect(reviewOutOfScope).not.toHaveBeenCalled();
+    expect(stopCalls(requestHost)).toEqual([]);
+  });
+
+  it("needs a project for a session outside the relatives", async () => {
+    const { stop } = setup("auto-approve");
+
+    await expect(run(stop, { sessionId: "s9" })).rejects.toThrow(
+      "Pass its projectId from ui_session_search to stop it.",
+    );
+  });
+
+  it("reports a turn that ended before the stop arrived", async () => {
+    const { stop } = setup(
+      "auto-approve",
+      undefined,
+      undefined,
+      [],
+      (operation) =>
+        operation.op === "stop"
+          ? { op: "stop", stopped: false }
+          : withChild("running")(operation),
+    );
+
+    const result = await run(stop, { sessionId: "c1" });
+
+    expect(text(result)).toContain("there was nothing to stop");
   });
 });
 

@@ -378,7 +378,7 @@ export default {
       sessions: {
         title: "Sessions",
         description:
-          "Rechercher, lire et organiser vos sessions, lancer des sous-sessions et leur écrire.",
+          "Rechercher, lire et organiser vos sessions, lancer des sous-sessions, leur écrire et les arrêter.",
       },
       projects: {
         title: "Projets",
@@ -2409,6 +2409,13 @@ export default {
             running: "Envoi d’un message à la session ",
             complete: "Message envoyé à la session ",
             error: "Impossible d’envoyer un message à la session ",
+          },
+          stop: {
+            running: "Arrêt de la session ",
+            complete: "Session arrêtée : ",
+            idle: "Rien à arrêter dans la session ",
+            declined: "Session non arrêtée : ",
+            error: "Impossible d’arrêter la session ",
           },
           delete: {
             running: "Suppression d’une session",

@@ -347,7 +347,8 @@ export default {
       },
       sessions: {
         title: "会话",
-        description: "搜索、读取和整理你的会话，创建子会话并给它们发消息。",
+        description:
+          "搜索、读取和整理你的会话，创建子会话、给它们发消息或停止它们。",
       },
       projects: {
         title: "项目",
@@ -2272,6 +2273,13 @@ export default {
             running: "正在给会话发消息 ",
             complete: "已给会话发消息 ",
             error: "无法给会话发消息 ",
+          },
+          stop: {
+            running: "正在停止会话 ",
+            complete: "已停止会话 ",
+            idle: "会话未在运行，无需停止：",
+            declined: "未停止会话 ",
+            error: "无法停止会话 ",
           },
           delete: {
             running: "正在删除会话",

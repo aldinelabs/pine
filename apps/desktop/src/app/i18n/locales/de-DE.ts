@@ -382,7 +382,7 @@ export default {
       sessions: {
         title: "Sitzungen",
         description:
-          "Ihre Sitzungen durchsuchen, lesen und ordnen sowie Untersitzungen starten und ihnen schreiben.",
+          "Ihre Sitzungen durchsuchen, lesen und ordnen sowie Untersitzungen starten, ihnen schreiben und sie stoppen.",
       },
       projects: {
         title: "Projekte",
@@ -2414,6 +2414,13 @@ export default {
             running: "Sende Nachricht an Sitzung ",
             complete: "Nachricht gesendet an Sitzung ",
             error: "Nachricht an Sitzung fehlgeschlagen: ",
+          },
+          stop: {
+            running: "Stoppe Sitzung ",
+            complete: "Sitzung gestoppt: ",
+            idle: "Nichts zu stoppen in Sitzung ",
+            declined: "Sitzung nicht gestoppt: ",
+            error: "Sitzung konnte nicht gestoppt werden: ",
           },
           delete: {
             running: "Lösche eine Sitzung",

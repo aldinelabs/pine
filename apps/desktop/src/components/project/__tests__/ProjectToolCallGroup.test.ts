@@ -204,6 +204,58 @@ describe("ProjectToolCallGroup", () => {
     wrapper.unmount();
   });
 
+  it("describes stopping sessions", () => {
+    const wrapper = mountGroup({
+      expanded: true,
+      toolCalls: [
+        {
+          id: "t-stopped",
+          input: { sessionId: "s1" },
+          name: "ui_session_stop",
+          status: "complete",
+          output: {
+            details: { sessionId: "s1", title: "Docs pass", stopped: true },
+          },
+        },
+        {
+          id: "t-idle",
+          input: { sessionId: "s2" },
+          name: "ui_session_stop",
+          status: "complete",
+          output: {
+            details: {
+              sessionId: "s2",
+              title: "Notes",
+              stopped: false,
+              idle: true,
+            },
+          },
+        },
+        {
+          id: "t-declined",
+          input: { sessionId: "s3" },
+          name: "ui_session_stop",
+          status: "complete",
+          output: {
+            details: {
+              sessionId: "s3",
+              title: "Plan",
+              stopped: false,
+              declined: true,
+            },
+          },
+        },
+      ],
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("已停止会话 Docs pass");
+    expect(text).toContain("会话未在运行，无需停止：Notes");
+    expect(text).toContain("未停止会话 Plan");
+    expect(text).not.toContain("ui_session");
+    wrapper.unmount();
+  });
+
   it("describes managing projects and session folders", () => {
     const wrapper = mountGroup({
       expanded: true,

@@ -55,6 +55,8 @@ export const UI_SESSION_RELATIVES_TOOL_NAME = "ui_session_relatives" as const;
 export const UI_SESSION_READ_TOOL_NAME = "ui_session_read" as const;
 /** Sends a message to a related session. */
 export const UI_SESSION_SEND_TOOL_NAME = "ui_session_send" as const;
+/** Stops another session's current turn, like the user pressing Stop. */
+export const UI_SESSION_STOP_TOOL_NAME = "ui_session_stop" as const;
 /** Deletes a session permanently; the user approves every call. */
 export const UI_SESSION_DELETE_TOOL_NAME = "ui_session_delete" as const;
 /** Project management; the user approves every call, in every mode. */
