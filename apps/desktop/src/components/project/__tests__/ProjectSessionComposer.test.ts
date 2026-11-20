@@ -1374,6 +1374,60 @@ describe("ProjectSessionComposer", () => {
     running.unmount();
   });
 
+  it("measures Optimize prompt before easing it, so a new tab's button does not grow in", async () => {
+    // The swap area eases between the measured widths of its keys and label;
+    // a width that starts at nothing would grow the button in on mount.
+    const widths = vi
+      .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("composer-optimize-kbd-track")) return 41;
+        if (this.classList.contains("composer-optimize-label-track")) return 90;
+        return 0;
+      });
+    const properties = vi.spyOn(CSSStyleDeclaration.prototype, "setProperty");
+    const attributes = vi.spyOn(Element.prototype, "setAttribute");
+    const wrapper = mountComposer({ sessionId: "session-1" });
+    await nextTick();
+    const swap = wrapper.get(
+      '[data-slot="optimize-prompt-trigger"] .composer-optimize-swap',
+    ).element as HTMLElement;
+
+    expect(swap.style.getPropertyValue("--composer-optimize-keys-width")).toBe(
+      "41px",
+    );
+    expect(swap.style.getPropertyValue("--composer-optimize-label-width")).toBe(
+      "90px",
+    );
+    // Easing is armed only after the first widths are in place.
+    const calls = (
+      spy: typeof properties | typeof attributes,
+      name: (args: unknown[]) => unknown,
+    ) =>
+      spy.mock.calls.flatMap((args, index) => {
+        const key = name(args);
+        return typeof key === "string" &&
+          (key.startsWith("--composer-optimize") || key === "data-swap-ready")
+          ? [{ key, at: spy.mock.invocationCallOrder[index] ?? 0 }]
+          : [];
+      });
+    const order = [
+      ...calls(properties, (args) => args[0]),
+      ...calls(attributes, (args) => args[0]),
+    ]
+      .sort((a, b) => a.at - b.at)
+      .map((call) => call.key);
+    expect(order.slice(0, 3)).toEqual([
+      "--composer-optimize-label-width",
+      "--composer-optimize-keys-width",
+      "data-swap-ready",
+    ]);
+    expect(swap.hasAttribute("data-swap-ready")).toBe(true);
+    wrapper.unmount();
+    widths.mockRestore();
+    properties.mockRestore();
+    attributes.mockRestore();
+  });
+
   it("keeps the text box's addons from showing an I-beam over their buttons", () => {
     // InputGroupAddon defaults to cursor-text for click-to-focus, which only
     // focuses an <input>; a disabled Send or Optimize prompt lets the pointer

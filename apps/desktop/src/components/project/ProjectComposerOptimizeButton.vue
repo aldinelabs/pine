@@ -66,14 +66,30 @@ const label = computed(() =>
  * "Optimizing…", the compact layout hiding them).
  */
 const swap = ref<HTMLElement | null>(null);
+const SWAP_TRACKS = [
+  [".composer-optimize-label-track", "--composer-optimize-label-width"],
+  [".composer-optimize-kbd-track", "--composer-optimize-keys-width"],
+] as const;
+/**
+ * Only a width that changes while shown eases. The first measurement after
+ * mounting, or after the composer was hidden (a background tab measures
+ * nothing), takes effect at once, so a new tab's button does not grow in.
+ */
 function measureSwap(area: HTMLElement): void {
-  for (const [track, name] of [
-    [".composer-optimize-label-track", "--composer-optimize-label-width"],
-    [".composer-optimize-kbd-track", "--composer-optimize-keys-width"],
-  ] as const) {
+  let jumps = !area.hasAttribute("data-swap-ready");
+  const widths = SWAP_TRACKS.map(([track, name]) => {
     const width = area.querySelector<HTMLElement>(track)?.offsetWidth ?? 0;
+    const previous = Number.parseFloat(area.style.getPropertyValue(name)) || 0;
+    if ((width === 0) !== (previous === 0)) jumps = true;
+    return [name, width] as const;
+  });
+  if (jumps) area.removeAttribute("data-swap-ready");
+  for (const [name, width] of widths)
     area.style.setProperty(name, `${width}px`);
-  }
+  if (!jumps || widths.every(([, width]) => width === 0)) return;
+  // Settle the new width before easing is allowed again.
+  void getComputedStyle(area).width;
+  area.setAttribute("data-swap-ready", "");
 }
 watch(
   swap,
@@ -261,6 +277,10 @@ const labelClass = computed(() =>
   position: relative;
   align-self: stretch;
   width: var(--composer-optimize-keys-width, 0px);
+}
+
+/* Eases only once measured, so a newly mounted button does not grow in. */
+.composer-optimize-swap[data-swap-ready] {
   transition: width 500ms var(--ease-out-expo) 60ms;
 }
 
