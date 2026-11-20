@@ -331,12 +331,63 @@ export default {
       saveFailed: "메모리를 저장할 수 없습니다",
       deleteFailed: "메모리를 삭제할 수 없습니다",
     },
-    computerUse: {
-      title: "컴퓨터 제어",
+    toolGroups: {
       description:
-        "작업에 필요할 때 Pine이 화면을 보고 앱과 브라우저 탭을 조작할 수 있게 합니다. 끄면 Pine은 이 도구를 전혀 받지 않으며, 변경 사항은 다음 응답부터 적용됩니다.",
-      loadFailed: "컴퓨터 제어 설정을 불러올 수 없습니다",
-      saveFailed: "컴퓨터 제어 설정을 저장할 수 없습니다",
+        "Pine이 할 수 있는 일을 고릅니다. 기본값은 모두 켜짐이며, 변경 사항은 다음 메시지부터 적용됩니다.",
+      loadFailed: "도구 설정을 불러올 수 없습니다",
+      saveFailed: "도구 설정을 저장할 수 없습니다",
+      shell: {
+        title: "셸 명령",
+        description:
+          "터미널 명령을 실행합니다. 승인받은 프로젝트 샌드박스 밖의 명령과 오래 실행되는 백그라운드 작업도 포함합니다.",
+      },
+      web: {
+        title: "웹 검색",
+        description:
+          "웹을 검색하고 페이지를 읽습니다. TinyFish API 키가 필요합니다.",
+      },
+      computerUse: {
+        title: "컴퓨터 제어",
+        description:
+          "작업에 필요할 때 화면을 보고 앱과 브라우저 탭을 조작합니다.",
+      },
+      media: {
+        title: "이미지 및 동영상 생성",
+        description: "모델에서 고른 모델로 이미지와 동영상을 만듭니다.",
+      },
+      workbench: {
+        title: "결과물 및 작업대",
+        description:
+          "결과를 결과물로 저장하고, 파일을 미리 보고, 대화 옆 작업대를 정리합니다.",
+      },
+      liveContext: {
+        title: "실시간 컨텍스트",
+        description:
+          "말하는 내용의 실시간 기록을 보고, 요청하면 듣기를 시작합니다.",
+      },
+      sessions: {
+        title: "세션",
+        description:
+          "세션을 검색하고 읽고 정리하며, 하위 세션을 시작하고 메시지를 보냅니다.",
+      },
+      projects: {
+        title: "프로젝트",
+        description:
+          "프로젝트 목록을 보고, 승인을 받아 만들거나 편집하거나 삭제합니다.",
+      },
+      skills: {
+        title: "스킬",
+        description: "스킬을 사용하고 대화에서 만들거나 편집합니다.",
+      },
+      automations: {
+        title: "자동화",
+        description: "대화에서 예약 자동화를 만들고 편집하고 실행합니다.",
+      },
+      mcp: {
+        title: "MCP 서버",
+        description:
+          "연결된 MCP 서버의 도구를 사용하고 대화에서 서버를 설정합니다.",
+      },
     },
     projectManagement: {
       title: "프로젝트",
@@ -381,9 +432,10 @@ export default {
       reading: "읽기",
       modelCatalog: "모델 카탈로그",
       modelRoles: "전용 모델",
+      harness: "하네스 기능",
       permissions: "권한",
       context: "컨텍스트",
-      tools: "도구 및 개인정보 보호",
+      tools: "도구",
     },
     sectionsLabel: "설정 섹션",
     language: "언어",

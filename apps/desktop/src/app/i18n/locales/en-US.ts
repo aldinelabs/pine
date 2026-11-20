@@ -333,12 +333,65 @@ export default {
       saveFailed: "Could not save the memory",
       deleteFailed: "Could not delete the memory",
     },
-    computerUse: {
-      title: "Computer use",
+    toolGroups: {
       description:
-        "Lets Pine see your screen and operate apps and browser tabs when a task needs it. Off, Pine doesn't get these tools at all; the change applies from the next reply.",
-      loadFailed: "Could not load the computer use setting",
-      saveFailed: "Could not save the computer use setting",
+        "Choose what Pine can do. Everything is on by default; a change applies from your next message.",
+      loadFailed: "Could not load the tool settings",
+      saveFailed: "Could not save the tool setting",
+      shell: {
+        title: "Shell commands",
+        description:
+          "Run terminal commands, including approved ones outside the project sandbox and long-running background tasks.",
+      },
+      web: {
+        title: "Web search",
+        description: "Search the web and read pages. Needs a TinyFish API key.",
+      },
+      computerUse: {
+        title: "Computer use",
+        description:
+          "See your screen and operate apps and browser tabs when a task needs it.",
+      },
+      media: {
+        title: "Image and video generation",
+        description:
+          "Create images and videos with the models chosen under Models.",
+      },
+      workbench: {
+        title: "Artifacts and workbench",
+        description:
+          "Save results as artifacts, preview files, and arrange the workbench beside the conversation.",
+      },
+      liveContext: {
+        title: "Live Context",
+        description:
+          "See the live transcript of what is being said, and start listening when you ask.",
+      },
+      sessions: {
+        title: "Sessions",
+        description:
+          "Search, read, and organize your sessions, and start sub-sessions and message them.",
+      },
+      projects: {
+        title: "Projects",
+        description:
+          "List your projects, and create, edit, or delete them with your approval.",
+      },
+      skills: {
+        title: "Skills",
+        description:
+          "Use your skills, and create or edit them in a conversation.",
+      },
+      automations: {
+        title: "Automations",
+        description:
+          "Create, edit, and run scheduled automations in a conversation.",
+      },
+      mcp: {
+        title: "MCP servers",
+        description:
+          "Use tools from connected MCP servers, and set up servers in a conversation.",
+      },
     },
     projectManagement: {
       title: "Projects",
@@ -383,9 +436,10 @@ export default {
       reading: "Reading",
       modelCatalog: "Model catalog",
       modelRoles: "Specialized models",
+      harness: "Harness features",
       permissions: "Permissions",
       context: "Context",
-      tools: "Tools & privacy",
+      tools: "Tools",
     },
     sectionsLabel: "Settings sections",
     language: "Language",

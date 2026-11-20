@@ -111,11 +111,11 @@ import {
   type SetApproximateLocationResult,
 } from "../shared/approximateLocation";
 import {
-  GET_COMPUTER_USE_ENABLED_CHANNEL,
-  SET_COMPUTER_USE_ENABLED_CHANNEL,
-  type SetComputerUseEnabledRequest,
-  type SetComputerUseEnabledResult,
-} from "../shared/computerUse";
+  GET_TOOL_GROUPS_CHANNEL,
+  SET_TOOL_GROUP_ENABLED_CHANNEL,
+  type PineToolGroups,
+  type SetToolGroupEnabledRequest,
+} from "../shared/toolGroups";
 import {
   INSPECT_ATTACHMENTS_CHANNEL,
   OPEN_ATTACHMENT_CHANNEL,
@@ -656,12 +656,12 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SetApproximateLocationRequest,
     ): Promise<SetApproximateLocationResult> =>
       transport.invoke(SET_APPROXIMATE_LOCATION_CHANNEL, request),
-    getComputerUseEnabled: (): Promise<boolean> =>
-      transport.invoke(GET_COMPUTER_USE_ENABLED_CHANNEL),
-    setComputerUseEnabled: (
-      request: SetComputerUseEnabledRequest,
-    ): Promise<SetComputerUseEnabledResult> =>
-      transport.invoke(SET_COMPUTER_USE_ENABLED_CHANNEL, request),
+    getToolGroups: (): Promise<PineToolGroups> =>
+      transport.invoke(GET_TOOL_GROUPS_CHANNEL),
+    setToolGroupEnabled: (
+      request: SetToolGroupEnabledRequest,
+    ): Promise<PineToolGroups> =>
+      transport.invoke(SET_TOOL_GROUP_ENABLED_CHANNEL, request),
     getAttentionNotifications: (): Promise<boolean> =>
       transport.invoke(GET_ATTENTION_NOTIFICATIONS_CHANNEL),
     setAttentionNotifications: (

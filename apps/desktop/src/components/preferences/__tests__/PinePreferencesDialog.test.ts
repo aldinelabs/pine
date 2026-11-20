@@ -99,6 +99,9 @@ function mountDialog(options: { attachTo?: HTMLElement } = {}) {
       plugins: [pinia, i18n],
       stubs: {
         MemoryEnabledSetting: true,
+        ToolGroupSettings: {
+          template: '<div data-testid="tool-groups"><slot name="web" /></div>',
+        },
         Dialog: passthroughStub,
         DialogContent: passthroughStub,
         DialogDescription: passthroughStub,
@@ -465,6 +468,26 @@ describe("PinePreferencesDialog", () => {
     expect(wrapper.find("memory-enabled-setting-stub").exists()).toBe(false);
     await openSection(wrapper, "智能体");
     expect(wrapper.find("memory-enabled-setting-stub").exists()).toBe(true);
+  });
+
+  it("splits the Agent section into harness features and tools", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "智能体");
+    const legends = wrapper.findAll("legend").map((legend) => legend.text());
+    expect(legends).toEqual(["Harness 特性", "权限", "上下文", "工具"]);
+    const sets = wrapper.findAll("fieldset");
+    expect(sets[0].text()).toContain("向 AI 提供大致位置");
+    expect(sets[0].find('[data-testid="tool-groups"]').exists()).toBe(false);
+    const tools = sets[3];
+    expect(tools.text()).toContain("默认全部开启");
+    // The TinyFish key sits with the web search switch inside the tool list.
+    expect(
+      tools
+        .get('[data-testid="tool-groups"]')
+        .find('[data-testid="pine-tinyfish-credential-button"]')
+        .exists(),
+    ).toBe(true);
   });
 
   it("saves a TinyFish key from the harness section", async () => {

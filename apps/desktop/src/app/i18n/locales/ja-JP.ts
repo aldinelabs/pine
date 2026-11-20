@@ -344,12 +344,63 @@ export default {
       saveFailed: "メモリを保存できませんでした",
       deleteFailed: "メモリを削除できませんでした",
     },
-    computerUse: {
-      title: "コンピュータ操作",
+    toolGroups: {
       description:
-        "タスクに必要なとき、Pine が画面を見てアプリやブラウザのタブを操作できるようにします。オフにすると、Pine はこれらのツールを一切使えません。変更は次の返信から適用されます。",
-      loadFailed: "コンピュータ操作の設定を読み込めませんでした",
-      saveFailed: "コンピュータ操作の設定を保存できませんでした",
+        "Pine にできることを選びます。既定ではすべてオンで、変更は次のメッセージから適用されます。",
+      loadFailed: "ツールの設定を読み込めませんでした",
+      saveFailed: "ツールの設定を保存できませんでした",
+      shell: {
+        title: "シェルコマンド",
+        description:
+          "ターミナルコマンドを実行します。承認を得たプロジェクトのサンドボックス外のコマンドや、長時間実行するバックグラウンドタスクも含みます。",
+      },
+      web: {
+        title: "ウェブ検索",
+        description:
+          "ウェブを検索してページを読み取ります。TinyFish の API キーが必要です。",
+      },
+      computerUse: {
+        title: "コンピュータ操作",
+        description:
+          "タスクに必要なとき、画面を見てアプリやブラウザのタブを操作します。",
+      },
+      media: {
+        title: "画像と動画の生成",
+        description: "「モデル」で選んだモデルで画像や動画を生成します。",
+      },
+      workbench: {
+        title: "成果物とワークベンチ",
+        description:
+          "結果を成果物として保存し、ファイルをプレビューし、会話の横のワークベンチを整えます。",
+      },
+      liveContext: {
+        title: "ライブコンテキスト",
+        description:
+          "話されている内容のライブ文字起こしを見て、頼まれたときに聞き取りを始めます。",
+      },
+      sessions: {
+        title: "セッション",
+        description:
+          "セッションを検索・閲覧・整理し、サブセッションを開始してメッセージを送ります。",
+      },
+      projects: {
+        title: "プロジェクト",
+        description: "プロジェクトを一覧し、承認を得て作成・編集・削除します。",
+      },
+      skills: {
+        title: "スキル",
+        description: "スキルを使い、会話の中で作成・編集します。",
+      },
+      automations: {
+        title: "オートメーション",
+        description:
+          "会話の中で定期実行のオートメーションを作成・編集・実行します。",
+      },
+      mcp: {
+        title: "MCP サーバー",
+        description:
+          "接続した MCP サーバーのツールを使い、会話の中でサーバーを設定します。",
+      },
     },
     projectManagement: {
       title: "プロジェクト",
@@ -394,9 +445,10 @@ export default {
       reading: "読みやすさ",
       modelCatalog: "モデルカタログ",
       modelRoles: "専用モデル",
+      harness: "ハーネス機能",
       permissions: "権限",
       context: "コンテキスト",
-      tools: "ツールとプライバシー",
+      tools: "ツール",
     },
     sectionsLabel: "設定のセクション",
     language: "言語",

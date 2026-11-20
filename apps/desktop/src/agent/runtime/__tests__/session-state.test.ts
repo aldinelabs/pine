@@ -10,7 +10,6 @@ import {
   toolNamesForCompactionRoute,
   toolNamesForInterimAnswers,
   toolNamesForMemory,
-  toolNamesForComputerUse,
   toolNamesForSubSession,
 } from "../session-state";
 
@@ -96,23 +95,6 @@ describe("toolNamesForInterimAnswers", () => {
   it("drops only the interim answer tool when the switch is off", () => {
     expect(toolNamesForInterimAnswers(tools, true)).toEqual(tools);
     expect(toolNamesForInterimAnswers(tools, false)).toEqual(["read", "bash"]);
-  });
-});
-
-describe("toolNamesForComputerUse", () => {
-  const tools = [
-    "read",
-    "activate_computer_use",
-    "request_computer_use_permissions",
-    "install_pine_browser_extension",
-    "list_apps",
-    "browser_upload_file",
-    "bash",
-  ];
-
-  it("drops activation and every Computer Use tool when the switch is off", () => {
-    expect(toolNamesForComputerUse(tools, true)).toEqual(tools);
-    expect(toolNamesForComputerUse(tools, false)).toEqual(["read", "bash"]);
   });
 });
 

@@ -313,12 +313,56 @@ export default {
       saveFailed: "无法保存记忆",
       deleteFailed: "无法删除记忆",
     },
-    computerUse: {
-      title: "电脑操作",
+    toolGroups: {
       description:
-        "任务需要时，让 Pine 查看屏幕并操作应用和浏览器标签页。关闭后，Pine 完全拿不到这些工具；更改从下一次回复起生效。",
-      loadFailed: "无法加载电脑操作设置",
-      saveFailed: "无法保存电脑操作设置",
+        "选择 Pine 可以做哪些事。默认全部开启；更改从你的下一条消息起生效。",
+      loadFailed: "无法加载工具设置",
+      saveFailed: "无法保存工具设置",
+      shell: {
+        title: "终端命令",
+        description:
+          "运行终端命令，包括经批准后在项目沙箱外运行的命令和长时间运行的后台任务。",
+      },
+      web: {
+        title: "网页搜索",
+        description: "搜索网页并读取页面内容。需要 TinyFish API 密钥。",
+      },
+      computerUse: {
+        title: "电脑操作",
+        description: "任务需要时，查看屏幕并操作应用和浏览器标签页。",
+      },
+      media: {
+        title: "图片与视频生成",
+        description: "用“模型”中选择的模型生成图片和视频。",
+      },
+      workbench: {
+        title: "产出文件与工作台",
+        description: "把结果保存为产出文件、预览文件，并调整对话旁的工作台。",
+      },
+      liveContext: {
+        title: "实时上下文",
+        description: "查看正在进行的实时转写，并在你要求时开始收听。",
+      },
+      sessions: {
+        title: "会话",
+        description: "搜索、读取和整理你的会话，创建子会话并给它们发消息。",
+      },
+      projects: {
+        title: "项目",
+        description: "列出你的项目，并在你批准后创建、编辑或删除项目。",
+      },
+      skills: {
+        title: "工作技能",
+        description: "使用你的工作技能，并在对话中创建或编辑它们。",
+      },
+      automations: {
+        title: "自动化",
+        description: "在对话中创建、编辑和运行定时自动化。",
+      },
+      mcp: {
+        title: "MCP 服务器",
+        description: "使用已连接 MCP 服务器的工具，并在对话中配置服务器。",
+      },
     },
     projectManagement: {
       title: "项目管理",
@@ -362,9 +406,10 @@ export default {
       reading: "阅读",
       modelCatalog: "模型目录",
       modelRoles: "专用模型",
+      harness: "Harness 特性",
       permissions: "权限",
       context: "上下文",
-      tools: "工具与隐私",
+      tools: "工具",
     },
     sectionsLabel: "设置分类",
     language: "语言",

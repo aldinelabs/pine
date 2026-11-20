@@ -210,7 +210,15 @@ import { PineMemoryRepository } from "./memory/repository";
 import { memoryNotice } from "./memory/prompt";
 import { createMemoryToolDefinitions } from "./memory/tools";
 import { DEFAULT_MEMORY_ENABLED } from "../shared/memory";
-import { DEFAULT_COMPUTER_USE_ENABLED } from "../shared/computerUse";
+import {
+  resolvePineToolGroups,
+  type PineToolGroups,
+} from "../shared/toolGroups";
+import {
+  disabledToolsNotice,
+  inToolOrder,
+  toolNamesForToolGroups,
+} from "./runtime/tool-groups";
 import {
   filterPineManagedSkills,
   piProjectSkillPaths,
@@ -287,7 +295,6 @@ import {
   toolNamesForSkillAuthoringState,
   toolNamesForInterimAnswers,
   toolNamesForMemory,
-  toolNamesForComputerUse,
   toolNamesForSubSession,
   toolNamesForAutomationAuthoringState,
   toolNamesForAutomationRun,
@@ -1620,8 +1627,8 @@ export class PineAgentRuntime {
       interimAnswersEnabled:
         pineSettings.userProfile?.interimAnswersEnabled ?? true,
       memoryEnabled: pineSettings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED,
-      computerUseEnabled:
-        pineSettings.computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
+      toolGroups: resolvePineToolGroups(pineSettings.toolGroups),
+      toolOrder: [],
       computerUseActive: computerUseActiveFromSessionEntries(
         sessionManager.getEntries(),
       ),
@@ -1791,17 +1798,22 @@ export class PineAgentRuntime {
               };
               if (userProfile.interactiveAnswersEnabled)
                 notices.interface_elements = intelligentUiSystemPrompt();
-              const skillList = skillRepository.promptList();
+              const toolGroups = resolvePineToolGroups(settings.toolGroups);
+              this.applyToolGroupsSetting(live, toolGroups);
+              const disabledTools = disabledToolsNotice(
+                toolGroups,
+                live.session.getAllTools().map((tool) => tool.name),
+              );
+              if (disabledTools) notices.disabled_tools = disabledTools;
+              const skillList = toolGroups.skills
+                ? skillRepository.promptList()
+                : undefined;
               if (skillList) notices.skills = skillList;
               // An automation run is unattended and keeps no memory.
               const memoryEnabled =
                 !live.automation &&
                 (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
               this.applyMemorySetting(live, memoryEnabled);
-              this.applyComputerUseSetting(
-                live,
-                settings.computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
-              );
               if (memoryEnabled)
                 notices.memory = memoryNotice(await memoryRepository.list());
               const networkRegion = networkRegionSystemPrompt(
@@ -1836,8 +1848,14 @@ export class PineAgentRuntime {
           factory: (pi) => {
             pi.on("before_agent_start", async () => {
               // A side chat does not inherit its conversation's transcript;
-              // an automation run belongs to no conversation.
-              if (live.sideChat || live.automation) return undefined;
+              // an automation run belongs to no conversation. Switched off
+              // under Tools, the transcript stays out of the model's view.
+              if (
+                live.sideChat ||
+                live.automation ||
+                !live.toolGroups.liveContext
+              )
+                return undefined;
               const result = await this.liveContextHostCall(
                 live,
                 {
@@ -2150,6 +2168,7 @@ export class PineAgentRuntime {
     // that option as a permanent registry allowlist, which would make lazily
     // activated tools impossible to add later. All definitions are registered
     // above, then the initial model-visible set is narrowed before any prompt.
+    live.toolOrder = session.getActiveToolNames();
     this.syncActiveTools(live);
     live.unsubscribe = session.subscribe((event) => {
       if (event.type === "tool_execution_start")
@@ -2294,19 +2313,36 @@ export class PineAgentRuntime {
     this.syncActiveTools(live);
   }
 
-  /** Preferences › Agent › Computer use, read at each run start. */
-  private applyComputerUseSetting(
+  /**
+   * Settings › Agent › Tools, read at each run start: the one boundary where
+   * the tool list may change, so a switch never reshapes a turn in flight.
+   */
+  private applyToolGroupsSetting(
     live: LiveAgentSession,
-    enabled: boolean,
+    toolGroups: PineToolGroups,
   ): void {
-    if (live.computerUseEnabled === enabled) return;
-    live.computerUseEnabled = enabled;
-    // A grant from before the switch was turned off never carries over.
-    if (!enabled) live.computerUseController?.resetTaskAuthorization();
-    this.syncActiveTools(live);
+    const changed = Object.keys(toolGroups).some(
+      (id) =>
+        toolGroups[id as keyof PineToolGroups] !==
+        live.toolGroups[id as keyof PineToolGroups],
+    );
+    if (!changed) return;
+    // A grant from before Computer Use was turned off never carries over.
+    if (live.toolGroups.computerUse && !toolGroups.computerUse)
+      live.computerUseController?.resetTaskAuthorization();
+    live.toolGroups = { ...toolGroups };
+    this.syncActiveTools(live, { canonicalOrder: true });
   }
 
-  private syncActiveTools(live: LiveAgentSession): void {
+  /**
+   * `canonicalOrder` lists the tools in the session's original order instead
+   * of pi's, which appends newly active tools: after switching a tool group
+   * off and on again, the same switches then yield the same tool list.
+   */
+  private syncActiveTools(
+    live: LiveAgentSession,
+    options: { canonicalOrder?: boolean } = {},
+  ): void {
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = live.session
       .getAllTools()
@@ -2352,10 +2388,24 @@ export class PineAgentRuntime {
           ),
           live.tinyFishApiKey !== undefined,
         );
-    const nextToolNames = toolNamesForComputerUse(
+    const filtered = toolNamesForToolGroups(
       toolNamesForState,
-      live.computerUseEnabled,
+      live.toolGroups,
+      mcpToolNames,
     );
+    const nextToolNames = options.canonicalOrder
+      ? inToolOrder(filtered, live.toolOrder)
+      : filtered;
+    if (
+      options.canonicalOrder &&
+      nextToolNames.join() !== activeToolNames.join()
+    ) {
+      // pi keeps the order of tools that stay active; start from none so the
+      // list comes out in exactly this order.
+      live.session.setActiveToolsByName([]);
+      live.session.setActiveToolsByName(nextToolNames);
+      return;
+    }
     if (
       nextToolNames.length === activeToolNames.length &&
       nextToolNames.every((name, index) => name === activeToolNames[index])

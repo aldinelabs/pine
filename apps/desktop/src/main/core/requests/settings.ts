@@ -6,12 +6,12 @@ import {
   writeAttentionNotificationsEnabled,
   writeAutoApprovalSettings,
   writeCompletionSignalMode,
-  writeComputerUseEnabled,
   writeContextCompactionRoute,
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writePiProvidersSetting,
   writePineUserProfile,
+  writeToolGroupEnabled,
 } from "../../../agent/pineSettings";
 import {
   GET_PI_PROVIDERS_CHANNEL,
@@ -19,11 +19,12 @@ import {
   type PiProvidersStatus,
 } from "../../../shared/piProviders";
 import {
-  DEFAULT_COMPUTER_USE_ENABLED,
-  GET_COMPUTER_USE_ENABLED_CHANNEL,
-  SET_COMPUTER_USE_ENABLED_CHANNEL,
-  type SetComputerUseEnabledResult,
-} from "../../../shared/computerUse";
+  GET_TOOL_GROUPS_CHANNEL,
+  PINE_TOOL_GROUP_IDS,
+  SET_TOOL_GROUP_ENABLED_CHANNEL,
+  resolvePineToolGroups,
+  type PineToolGroups,
+} from "../../../shared/toolGroups";
 import {
   DEFAULT_APPROXIMATE_LOCATION_ENABLED,
   GET_APPROXIMATE_LOCATION_CHANNEL,
@@ -257,21 +258,20 @@ export function registerSettingsRequests(core: PineCore): void {
     },
   );
 
-  core.handle(
-    GET_COMPUTER_USE_ENABLED_CHANNEL,
-    async (): Promise<boolean> =>
-      (await settings()).computerUseEnabled ?? DEFAULT_COMPUTER_USE_ENABLED,
+  core.handle(GET_TOOL_GROUPS_CHANNEL, async (): Promise<PineToolGroups> =>
+    resolvePineToolGroups((await settings()).toolGroups),
   );
 
+  // Open sessions pick the change up when their next run starts.
   core.handle(
-    SET_COMPUTER_USE_ENABLED_CHANNEL,
-    async (
-      _context,
-      request: unknown,
-    ): Promise<SetComputerUseEnabledResult> => {
-      const { enabled } = z.object({ enabled: z.boolean() }).parse(request);
-      await writeComputerUseEnabled(core.agentDirectory, enabled);
-      return { enabled };
+    SET_TOOL_GROUP_ENABLED_CHANNEL,
+    async (_context, request: unknown): Promise<PineToolGroups> => {
+      const { id, enabled } = z
+        .object({ id: z.enum(PINE_TOOL_GROUP_IDS), enabled: z.boolean() })
+        .parse(request);
+      return resolvePineToolGroups(
+        await writeToolGroupEnabled(core.agentDirectory, id, enabled),
+      );
     },
   );
 

@@ -26,6 +26,11 @@ import {
 } from "../shared/preferences";
 import type { PiProvidersSetting } from "../shared/piProviders";
 import {
+  isPineToolGroupId,
+  type PineToolGroupId,
+  type PineToolGroups,
+} from "../shared/toolGroups";
+import {
   isPineCommunicationStyle,
   isPinePronouns,
   isPineTechnicalBackground,
@@ -48,8 +53,11 @@ export interface PineAgentSettings {
   approximateLocationEnabled?: boolean;
   /** Long-term memory; absent means on. */
   memoryEnabled?: boolean;
-  /** Computer Use tools for the agent; absent means on. */
-  computerUseEnabled?: boolean;
+  /**
+   * Settings › Agent › Tools; a group absent here is on. Replaces the older
+   * `computerUseEnabled` key, which reading folds into `computerUse`.
+   */
+  toolGroups?: Partial<PineToolGroups>;
   contextCompactionStrategy?: PineContextCompactionStrategy;
   contextCompactionRoute?: PineContextCompactionRoute;
   imageModel?: PineImageModelSelection;
@@ -150,6 +158,26 @@ function migrateUserProfile(value: unknown): unknown {
   };
 }
 
+/**
+ * The stored tool switches, keeping only known groups with boolean values.
+ * Before the Tools group existed, Computer Use had its own key.
+ */
+function readToolGroups(
+  settings: Record<string, unknown>,
+): Partial<PineToolGroups> | undefined {
+  const groups: Partial<PineToolGroups> = {};
+  if (typeof settings.computerUseEnabled === "boolean")
+    groups.computerUse = settings.computerUseEnabled;
+  const stored = settings.toolGroups;
+  if (typeof stored === "object" && stored !== null && !Array.isArray(stored)) {
+    for (const [id, enabled] of Object.entries(stored)) {
+      if (isPineToolGroupId(id) && typeof enabled === "boolean")
+        groups[id] = enabled;
+    }
+  }
+  return Object.keys(groups).length > 0 ? groups : undefined;
+}
+
 function settingsPath(agentDir: string): string {
   return path.join(agentDir, PINE_SETTINGS_FILE);
 }
@@ -178,6 +206,7 @@ export async function readPineAgentSettings(
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
+    const toolGroups = readToolGroups(settings);
     const webServer = readWebServerSettings(settings.webServer);
     return {
       ...(webServer ? { webServer } : {}),
@@ -223,9 +252,7 @@ export async function readPineAgentSettings(
       ...(typeof settings.memoryEnabled === "boolean"
         ? { memoryEnabled: settings.memoryEnabled }
         : {}),
-      ...(typeof settings.computerUseEnabled === "boolean"
-        ? { computerUseEnabled: settings.computerUseEnabled }
-        : {}),
+      ...(toolGroups ? { toolGroups } : {}),
       ...(isPineContextCompactionStrategy(contextCompactionStrategy)
         ? { contextCompactionStrategy }
         : {}),
@@ -383,11 +410,22 @@ export async function writeMemoryEnabled(
   await writePineAgentSettings(agentDir, { memoryEnabled });
 }
 
-export async function writeComputerUseEnabled(
+/** Saves one tool switch, keeping the others; returns the stored switches. */
+export async function writeToolGroupEnabled(
   agentDir: string,
-  computerUseEnabled: boolean,
-): Promise<void> {
-  await writePineAgentSettings(agentDir, { computerUseEnabled });
+  id: PineToolGroupId,
+  enabled: boolean,
+): Promise<Partial<PineToolGroups>> {
+  const toolGroups = {
+    ...(await readPineAgentSettings(agentDir)).toolGroups,
+    [id]: enabled,
+  };
+  // The legacy key is folded into `toolGroups` above; drop it once written.
+  await writePineAgentSettings(agentDir, {
+    toolGroups,
+    computerUseEnabled: undefined,
+  } as Partial<PineAgentSettings>);
+  return toolGroups;
 }
 
 export async function writePiProvidersSetting(

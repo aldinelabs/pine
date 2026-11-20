@@ -43,7 +43,7 @@ import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import MemoryEnabledSetting from "./MemoryEnabledSetting.vue";
-import ComputerUseEnabledSetting from "./ComputerUseEnabledSetting.vue";
+import ToolGroupSettings from "./ToolGroupSettings.vue";
 import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
@@ -1841,59 +1841,89 @@ defineExpose({ open });
           </div>
           <div v-else-if="activeSection === 'agent'" class="p-6 max-sm:px-4">
             <FieldGroup>
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-interactive-answers-setting">
-                    {{ t("preferences.interactiveAnswers") }}
-                  </FieldTitle>
-                  <FieldDescription id="pine-interactive-answers-description">
-                    {{ t("preferences.interactiveAnswersDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  v-model="profileDraft.interactiveAnswersEnabled"
-                  data-testid="pine-interactive-answers-toggle"
-                  :disabled="!hasHydratedProfile"
-                  aria-labelledby="pine-interactive-answers-setting"
-                  aria-describedby="pine-interactive-answers-description"
-                />
-              </Field>
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-interim-answers-setting">
-                    {{ t("preferences.interimAnswers") }}
-                  </FieldTitle>
-                  <FieldDescription id="pine-interim-answers-description">
-                    {{ t("preferences.interimAnswersDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  v-model="profileDraft.interimAnswersEnabled"
-                  data-testid="pine-interim-answers-toggle"
-                  :disabled="!hasHydratedProfile"
-                  aria-labelledby="pine-interim-answers-setting"
-                  aria-describedby="pine-interim-answers-description"
-                />
-              </Field>
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-reply-suggestions-setting">
-                    {{ t("preferences.replySuggestions") }}
-                  </FieldTitle>
-                  <FieldDescription id="pine-reply-suggestions-description">
-                    {{ t("preferences.replySuggestionsDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  data-testid="pine-reply-suggestions-toggle"
-                  :model-value="appearanceStore.replySuggestions"
-                  aria-labelledby="pine-reply-suggestions-setting"
-                  aria-describedby="pine-reply-suggestions-description"
-                  @update:model-value="appearanceStore.setReplySuggestions"
-                />
-              </Field>
-              <MemoryEnabledSetting />
-              <ComputerUseEnabledSetting />
+              <FieldSet>
+                <FieldLegend
+                  variant="label"
+                  class="text-xs text-muted-foreground"
+                  >{{ t("preferences.groups.harness") }}</FieldLegend
+                >
+                <FieldGroup>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-interactive-answers-setting">
+                        {{ t("preferences.interactiveAnswers") }}
+                      </FieldTitle>
+                      <FieldDescription
+                        id="pine-interactive-answers-description"
+                      >
+                        {{ t("preferences.interactiveAnswersDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      v-model="profileDraft.interactiveAnswersEnabled"
+                      data-testid="pine-interactive-answers-toggle"
+                      :disabled="!hasHydratedProfile"
+                      aria-labelledby="pine-interactive-answers-setting"
+                      aria-describedby="pine-interactive-answers-description"
+                    />
+                  </Field>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-interim-answers-setting">
+                        {{ t("preferences.interimAnswers") }}
+                      </FieldTitle>
+                      <FieldDescription id="pine-interim-answers-description">
+                        {{ t("preferences.interimAnswersDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      v-model="profileDraft.interimAnswersEnabled"
+                      data-testid="pine-interim-answers-toggle"
+                      :disabled="!hasHydratedProfile"
+                      aria-labelledby="pine-interim-answers-setting"
+                      aria-describedby="pine-interim-answers-description"
+                    />
+                  </Field>
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-reply-suggestions-setting">
+                        {{ t("preferences.replySuggestions") }}
+                      </FieldTitle>
+                      <FieldDescription id="pine-reply-suggestions-description">
+                        {{ t("preferences.replySuggestionsDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-reply-suggestions-toggle"
+                      :model-value="appearanceStore.replySuggestions"
+                      aria-labelledby="pine-reply-suggestions-setting"
+                      aria-describedby="pine-reply-suggestions-description"
+                      @update:model-value="appearanceStore.setReplySuggestions"
+                    />
+                  </Field>
+                  <MemoryEnabledSetting />
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-approximate-location-setting">
+                        {{ t("preferences.approximateLocation") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.approximateLocationDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-approximate-location-toggle"
+                      :model-value="approximateLocationEnabled"
+                      :disabled="
+                        isLoadingApproximateLocation ||
+                        isSavingApproximateLocation
+                      "
+                      aria-labelledby="pine-approximate-location-setting"
+                      @update:model-value="updateApproximateLocation"
+                    />
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
 
               <FieldSeparator />
               <FieldSet>
@@ -1986,76 +2016,65 @@ defineExpose({ open });
                   class="text-xs text-muted-foreground"
                   >{{ t("preferences.groups.tools") }}</FieldLegend
                 >
+                <FieldDescription>
+                  {{ t("preferences.toolGroups.description") }}
+                </FieldDescription>
                 <FieldGroup>
-                  <Field orientation="responsive">
-                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <div class="flex items-center gap-2">
-                        <FieldTitle id="pine-tinyfish-credential-setting">
-                          {{ t("preferences.tinyFish") }}
-                        </FieldTitle>
-                        <Badge
-                          v-if="isTinyFishCredentialConfigured"
-                          data-testid="pine-tinyfish-credential-status"
-                          variant="secondary"
-                          class="text-emerald-700 dark:text-emerald-400"
+                  <ToolGroupSettings>
+                    <template #web>
+                      <!-- Indented under the Web search row it configures. -->
+                      <Field orientation="responsive" class="pl-11">
+                        <div class="flex min-w-0 flex-1 flex-col gap-1">
+                          <div class="flex items-center gap-2">
+                            <FieldTitle id="pine-tinyfish-credential-setting">
+                              {{ t("preferences.tinyFish") }}
+                            </FieldTitle>
+                            <Badge
+                              v-if="isTinyFishCredentialConfigured"
+                              data-testid="pine-tinyfish-credential-status"
+                              variant="secondary"
+                              class="text-emerald-700 dark:text-emerald-400"
+                            >
+                              <CheckIcon aria-hidden="true" />
+                              {{ t("preferences.tinyFishConfigured") }}
+                            </Badge>
+                            <Badge
+                              v-else
+                              data-testid="pine-tinyfish-credential-status"
+                              variant="outline"
+                              class="text-muted-foreground"
+                            >
+                              {{ t("preferences.tinyFishNotConfigured") }}
+                            </Badge>
+                          </div>
+                          <FieldDescription>
+                            {{
+                              isTinyFishCredentialConfigured
+                                ? t("preferences.tinyFishConfiguredDescription")
+                                : t("preferences.tinyFishDescription")
+                            }}
+                          </FieldDescription>
+                        </div>
+                        <Button
+                          data-testid="pine-tinyfish-credential-button"
+                          :variant="
+                            isTinyFishCredentialConfigured
+                              ? 'outline'
+                              : 'default'
+                          "
+                          size="sm"
+                          aria-labelledby="pine-tinyfish-credential-setting"
+                          @click="openTinyFishCredentialDialog"
                         >
-                          <CheckIcon aria-hidden="true" />
-                          {{ t("preferences.tinyFishConfigured") }}
-                        </Badge>
-                        <Badge
-                          v-else
-                          data-testid="pine-tinyfish-credential-status"
-                          variant="outline"
-                          class="text-muted-foreground"
-                        >
-                          {{ t("preferences.tinyFishNotConfigured") }}
-                        </Badge>
-                      </div>
-                      <FieldDescription>
-                        {{
-                          isTinyFishCredentialConfigured
-                            ? t("preferences.tinyFishConfiguredDescription")
-                            : t("preferences.tinyFishDescription")
-                        }}
-                      </FieldDescription>
-                    </div>
-                    <Button
-                      data-testid="pine-tinyfish-credential-button"
-                      :variant="
-                        isTinyFishCredentialConfigured ? 'outline' : 'default'
-                      "
-                      size="sm"
-                      aria-labelledby="pine-tinyfish-credential-setting"
-                      @click="openTinyFishCredentialDialog"
-                    >
-                      {{
-                        isTinyFishCredentialConfigured
-                          ? t("preferences.changeTinyFishApiKey")
-                          : t("preferences.addTinyFishApiKey")
-                      }}
-                    </Button>
-                  </Field>
-
-                  <Field orientation="horizontal">
-                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <FieldTitle id="pine-approximate-location-setting">
-                        {{ t("preferences.approximateLocation") }}
-                      </FieldTitle>
-                      <FieldDescription>
-                        {{ t("preferences.approximateLocationDescription") }}
-                      </FieldDescription>
-                    </div>
-                    <Switch
-                      data-testid="pine-approximate-location-toggle"
-                      :model-value="approximateLocationEnabled"
-                      :disabled="
-                        isLoadingApproximateLocation ||
-                        isSavingApproximateLocation
-                      "
-                      aria-labelledby="pine-approximate-location-setting"
-                      @update:model-value="updateApproximateLocation"
-                    />
-                  </Field>
+                          {{
+                            isTinyFishCredentialConfigured
+                              ? t("preferences.changeTinyFishApiKey")
+                              : t("preferences.addTinyFishApiKey")
+                          }}
+                        </Button>
+                      </Field>
+                    </template>
+                  </ToolGroupSettings>
                 </FieldGroup>
               </FieldSet>
             </FieldGroup>

@@ -340,12 +340,66 @@ export default {
       saveFailed: "No se pudo guardar el recuerdo",
       deleteFailed: "No se pudo eliminar el recuerdo",
     },
-    computerUse: {
-      title: "Uso del ordenador",
+    toolGroups: {
       description:
-        "Permite a Pine ver tu pantalla y manejar aplicaciones y pestañas del navegador cuando una tarea lo necesita. Desactivado, Pine no recibe estas herramientas; el cambio se aplica desde la siguiente respuesta.",
-      loadFailed: "No se pudo cargar el ajuste de uso del ordenador",
-      saveFailed: "No se pudo guardar el ajuste de uso del ordenador",
+        "Elige qué puede hacer Pine. Todo está activado de forma predeterminada; un cambio se aplica desde tu siguiente mensaje.",
+      loadFailed: "No se pudieron cargar los ajustes de herramientas",
+      saveFailed: "No se pudo guardar el ajuste de la herramienta",
+      shell: {
+        title: "Comandos de terminal",
+        description:
+          "Ejecutar comandos de terminal, incluidos los aprobados fuera del entorno aislado del proyecto y las tareas largas en segundo plano.",
+      },
+      web: {
+        title: "Búsqueda web",
+        description:
+          "Buscar en la web y leer páginas. Requiere una clave de API de TinyFish.",
+      },
+      computerUse: {
+        title: "Uso del ordenador",
+        description:
+          "Ver tu pantalla y manejar aplicaciones y pestañas del navegador cuando una tarea lo necesita.",
+      },
+      media: {
+        title: "Generación de imágenes y vídeos",
+        description:
+          "Crear imágenes y vídeos con los modelos elegidos en Modelos.",
+      },
+      workbench: {
+        title: "Artefactos y panel de trabajo",
+        description:
+          "Guardar resultados como artefactos, previsualizar archivos y organizar el panel de trabajo junto a la conversación.",
+      },
+      liveContext: {
+        title: "Contexto en directo",
+        description:
+          "Ver la transcripción en directo de lo que se dice y empezar a escuchar cuando lo pidas.",
+      },
+      sessions: {
+        title: "Sesiones",
+        description:
+          "Buscar, leer y organizar tus sesiones, e iniciar subsesiones y enviarles mensajes.",
+      },
+      projects: {
+        title: "Proyectos",
+        description:
+          "Listar tus proyectos y crearlos, editarlos o eliminarlos con tu aprobación.",
+      },
+      skills: {
+        title: "Skills",
+        description:
+          "Usar tus skills y crearlas o editarlas en una conversación.",
+      },
+      automations: {
+        title: "Automatizaciones",
+        description:
+          "Crear, editar y ejecutar automatizaciones programadas en una conversación.",
+      },
+      mcp: {
+        title: "Servidores MCP",
+        description:
+          "Usar herramientas de los servidores MCP conectados y configurar servidores en una conversación.",
+      },
     },
     projectManagement: {
       title: "Proyectos",
@@ -390,9 +444,10 @@ export default {
       reading: "Lectura",
       modelCatalog: "Catálogo de modelos",
       modelRoles: "Modelos especializados",
+      harness: "Funciones del arnés",
       permissions: "Permisos",
       context: "Contexto",
-      tools: "Herramientas y privacidad",
+      tools: "Herramientas",
     },
     sectionsLabel: "Secciones de ajustes",
     language: "Idioma",

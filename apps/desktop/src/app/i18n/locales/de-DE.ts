@@ -343,14 +343,66 @@ export default {
       saveFailed: "Die Erinnerung konnte nicht gespeichert werden",
       deleteFailed: "Die Erinnerung konnte nicht gelöscht werden",
     },
-    computerUse: {
-      title: "Computersteuerung",
+    toolGroups: {
       description:
-        "Pine kann Ihren Bildschirm sehen und Apps sowie Browser-Tabs bedienen, wenn eine Aufgabe es erfordert. Ausgeschaltet erhält Pine diese Werkzeuge gar nicht; die Änderung gilt ab der nächsten Antwort.",
-      loadFailed:
-        "Die Einstellung zur Computersteuerung konnte nicht geladen werden",
-      saveFailed:
-        "Die Einstellung zur Computersteuerung konnte nicht gespeichert werden",
+        "Legen Sie fest, was Pine tun kann. Standardmäßig ist alles eingeschaltet; eine Änderung gilt ab Ihrer nächsten Nachricht.",
+      loadFailed: "Die Werkzeugeinstellungen konnten nicht geladen werden",
+      saveFailed: "Die Werkzeugeinstellung konnte nicht gespeichert werden",
+      shell: {
+        title: "Shell-Befehle",
+        description:
+          "Terminalbefehle ausführen, auch genehmigte außerhalb der Projekt-Sandbox und lang laufende Hintergrundaufgaben.",
+      },
+      web: {
+        title: "Websuche",
+        description:
+          "Im Web suchen und Seiten lesen. Erfordert einen TinyFish-API-Schlüssel.",
+      },
+      computerUse: {
+        title: "Computersteuerung",
+        description:
+          "Ihren Bildschirm sehen und Apps sowie Browser-Tabs bedienen, wenn eine Aufgabe es erfordert.",
+      },
+      media: {
+        title: "Bild- und Videoerzeugung",
+        description:
+          "Bilder und Videos mit den unter Modelle gewählten Modellen erstellen.",
+      },
+      workbench: {
+        title: "Artefakte und Arbeitsbereich",
+        description:
+          "Ergebnisse als Artefakte speichern, Dateien in der Vorschau zeigen und den Arbeitsbereich neben der Unterhaltung anordnen.",
+      },
+      liveContext: {
+        title: "Live-Kontext",
+        description:
+          "Das Live-Transkript des Gesagten sehen und auf Ihre Bitte mit dem Zuhören beginnen.",
+      },
+      sessions: {
+        title: "Sitzungen",
+        description:
+          "Ihre Sitzungen durchsuchen, lesen und ordnen sowie Untersitzungen starten und ihnen schreiben.",
+      },
+      projects: {
+        title: "Projekte",
+        description:
+          "Ihre Projekte auflisten und sie mit Ihrer Genehmigung erstellen, bearbeiten oder löschen.",
+      },
+      skills: {
+        title: "Skills",
+        description:
+          "Ihre Skills verwenden und sie in einer Unterhaltung erstellen oder bearbeiten.",
+      },
+      automations: {
+        title: "Automationen",
+        description:
+          "Geplante Automationen in einer Unterhaltung erstellen, bearbeiten und ausführen.",
+      },
+      mcp: {
+        title: "MCP-Server",
+        description:
+          "Werkzeuge verbundener MCP-Server verwenden und Server in einer Unterhaltung einrichten.",
+      },
     },
     projectManagement: {
       title: "Projekte",
@@ -395,9 +447,10 @@ export default {
       reading: "Lesen",
       modelCatalog: "Modellkatalog",
       modelRoles: "Spezialisierte Modelle",
+      harness: "Harness-Funktionen",
       permissions: "Berechtigungen",
       context: "Kontext",
-      tools: "Werkzeuge und Datenschutz",
+      tools: "Werkzeuge",
     },
     sectionsLabel: "Einstellungsbereiche",
     language: "Sprache",

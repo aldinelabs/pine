@@ -9,7 +9,7 @@ import {
   writeContextCompactionStrategy,
   writeDiagnosticLoggingEnabled,
   writeMemoryEnabled,
-  writeComputerUseEnabled,
+  writeToolGroupEnabled,
   writePineUserProfile,
   writeRemoteKeepAwake,
   writeApprovalModelSelection,
@@ -224,24 +224,47 @@ describe("Pine agent settings", () => {
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
   });
 
-  it("persists the Computer Use switch and ignores a malformed value", async () => {
+  it("persists tool switches, keeps the others, and drops unknown groups", async () => {
     const agentDir = await mkdtemp(
-      path.join(os.tmpdir(), "pine-computer-use-settings-"),
+      path.join(os.tmpdir(), "pine-tool-group-settings-"),
     );
     temporaryDirectories.push(agentDir);
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
-    await writeComputerUseEnabled(agentDir, false);
+    await expect(
+      writeToolGroupEnabled(agentDir, "shell", false),
+    ).resolves.toEqual({ shell: false });
+    await writeToolGroupEnabled(agentDir, "web", false);
+    await writeToolGroupEnabled(agentDir, "shell", true);
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
-      computerUseEnabled: false,
-    });
-    await writeComputerUseEnabled(agentDir, true);
-    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
-      computerUseEnabled: true,
+      toolGroups: { shell: true, web: false },
     });
     await writeFile(
       path.join(agentDir, "pine-settings.json"),
-      JSON.stringify({ computerUseEnabled: "off" }),
+      JSON.stringify({
+        toolGroups: { shell: "off", retired: false, mcp: false },
+      }),
     );
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      toolGroups: { mcp: false },
+    });
+  });
+
+  it("migrates the earlier Computer Use switch into the tool switches", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-tool-group-migration-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const file = path.join(agentDir, "pine-settings.json");
+    await writeFile(file, JSON.stringify({ computerUseEnabled: false }));
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      toolGroups: { computerUse: false },
+    });
+    // The first write moves the value under toolGroups and drops the old key.
+    await writeToolGroupEnabled(agentDir, "media", false);
+    expect(JSON.parse(await readFile(file, "utf8"))).toEqual({
+      toolGroups: { computerUse: false, media: false },
+    });
+    await writeFile(file, JSON.stringify({ computerUseEnabled: "off" }));
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
   });
 

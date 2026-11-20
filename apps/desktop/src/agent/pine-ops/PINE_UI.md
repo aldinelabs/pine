@@ -545,7 +545,7 @@ From top to bottom:
      change applies at once, even alongside a rename (the icon in the sidebar
      and project pickers, the accent color across the window while that
      project is active), and restarts nothing.
-   - Computer Use (only while Settings › Agent › Computer use is on): the
+   - Computer Use (only while Settings › Agent › Tools › Computer use is on): the
      first control action requests permission to control
      desktop apps and browser tabs for the current task. Let Me Review shows
      one Approval required card; Auto Approve and Autonomous Work review the
@@ -929,22 +929,33 @@ the user opens themselves do not pulse.
     generation model), live translation model (translates live context when
     its translation is on; without one it uses the title generation model),
     image generation model, video generation model, Decisions model.
-  - Agent: Interactive answers switch (enabled by default;
-    in WeChat an interactive answer arrives as text, lists and tables; its
-    buttons, or the options of a block's only picker, are numbered and the
-    user answers by replying with the number; other controls work only in
-    Pine), Interim answers switch (enabled by default; applies
-    from the next message), Reply suggestions switch (suggest the next
-    message in the composer after the agent answers; on by default),
-    Remember across sessions switch (enabled by default, applies from the
-    next message; off, Pine neither reads nor saves memory notes, which stay
-    and can still be managed in the Memory manager), Computer use switch
-    (enabled by default; applies from the next message, including in open
-    conversations; off, the agent gets no desktop or browser control tools
-    at all, cannot activate Computer Use and does not see it offered),
-    automatic approval
-    path, context compaction strategy and method, TinyFish web tools key
-    (shows Configured or Not configured), approximate location.
+  - Agent, in four titled groups:
+    - Harness features: Interactive answers switch (enabled by default;
+      in WeChat an interactive answer arrives as text, lists and tables; its
+      buttons, or the options of a block's only picker, are numbered and the
+      user answers by replying with the number; other controls work only in
+      Pine), Interim answers switch (enabled by default; applies
+      from the next message), Reply suggestions switch (suggest the next
+      message in the composer after the agent answers; on by default),
+      Remember across sessions switch (enabled by default, applies from the
+      next message; off, Pine neither reads nor saves memory notes, which stay
+      and can still be managed in the Memory manager), Share approximate
+      location with AI switch.
+    - Permissions: automatic approval path.
+    - Context: context compaction strategy and method.
+    - Tools: "Choose what Pine can do. Everything is on by default; a change
+      applies from your next message." One row per tool family, each with an
+      icon, a one-line description and a switch, all on by default: Shell
+      commands, Web search (the TinyFish web tools key row sits right below
+      it and shows Configured or Not configured; the tools also need the
+      key), Computer use, Image and video generation, Artifacts and
+      workbench, Live Context (off, Pine also stops seeing the live
+      transcript), Sessions, Projects, Skills, Automations, MCP servers.
+      Off, the agent gets none of that family's tools; open conversations
+      pick the change up when their next message starts, never mid-reply,
+      and the agent is told which families are off so it can point the user
+      back here. Reading and editing files, the to-do list, the clock,
+      questions to the user and Pine's own UI reference have no switch.
   - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
     she/her, they/them or Custom; Custom shows a short text field for your own
     wording; Not specified by default; Pine uses them when it refers to you in

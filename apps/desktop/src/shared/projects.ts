@@ -131,10 +131,7 @@ import type {
   SetApproximateLocationRequest,
   SetApproximateLocationResult,
 } from "./approximateLocation";
-import type {
-  SetComputerUseEnabledRequest,
-  SetComputerUseEnabledResult,
-} from "./computerUse";
+import type { PineToolGroups, SetToolGroupEnabledRequest } from "./toolGroups";
 import type { PineUserProfile, SetUserProfileResult } from "./userProfile";
 import type {
   ListSkillsResult,
@@ -596,10 +593,11 @@ export interface PineDesktopApi
   setApproximateLocation: (
     request: SetApproximateLocationRequest,
   ) => Promise<SetApproximateLocationResult>;
-  getComputerUseEnabled: () => Promise<boolean>;
-  setComputerUseEnabled: (
-    request: SetComputerUseEnabledRequest,
-  ) => Promise<SetComputerUseEnabledResult>;
+  /** Settings › Agent › Tools; every group, on by default. */
+  getToolGroups: () => Promise<PineToolGroups>;
+  setToolGroupEnabled: (
+    request: SetToolGroupEnabledRequest,
+  ) => Promise<PineToolGroups>;
   getAttentionNotifications: () => Promise<boolean>;
   setAttentionNotifications: (
     request: SetAttentionNotificationsRequest,

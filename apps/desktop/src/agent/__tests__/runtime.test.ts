@@ -58,7 +58,11 @@ import {
 } from "../computer-use/tools";
 import { UI_WORKBENCH_STATE_TOOL_NAME } from "../../shared/workbench";
 import { TODO_REMINDER_HEADING } from "../runtime/progress-reminders";
-import { writeComputerUseEnabled, writePineUserProfile } from "../pineSettings";
+import { writePineUserProfile, writeToolGroupEnabled } from "../pineSettings";
+import {
+  defaultPineToolGroups,
+  type PineToolGroups,
+} from "../../shared/toolGroups";
 
 const temporaryDirectories: string[] = [];
 
@@ -2091,13 +2095,16 @@ describe("PineAgentRuntime", () => {
       sessionsRoot: path.join(root, "sessions"),
     };
     await mkdir(location.cwd, { recursive: true });
-    await writeComputerUseEnabled(location.agentDir, false);
+    await writeToolGroupEnabled(location.agentDir, "computerUse", false);
     const runtime = new PineAgentRuntime({ emit: () => undefined });
 
     try {
       const internals = runtime as unknown as {
         liveSessions: Map<string, LiveAgentSession>;
-        applyComputerUseSetting(live: LiveAgentSession, enabled: boolean): void;
+        applyToolGroupsSetting(
+          live: LiveAgentSession,
+          toolGroups: PineToolGroups,
+        ): void;
       };
       const created = await runtime.createSession(location);
       const live = internals.liveSessions.get(created.session.id)!;
@@ -2118,7 +2125,7 @@ describe("PineAgentRuntime", () => {
       expect(live.session.getActiveToolNames()).toContain("datetime");
 
       // Run start applies the saved value for the next turn of open sessions.
-      internals.applyComputerUseSetting(live, true);
+      internals.applyToolGroupsSetting(live, defaultPineToolGroups());
       expect(visibleComputerUse()).toEqual([ACTIVATE_COMPUTER_USE_TOOL_NAME]);
 
       // Turning it off also hides tools a session had already activated.
@@ -2127,9 +2134,121 @@ describe("PineAgentRuntime", () => {
         live.computerUseController!,
         "resetTaskAuthorization",
       );
-      internals.applyComputerUseSetting(live, false);
+      internals.applyToolGroupsSetting(live, {
+        ...defaultPineToolGroups(),
+        computerUse: false,
+      });
       expect(visibleComputerUse()).toEqual([]);
       expect(reset).toHaveBeenCalledOnce();
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("applies tool switches at the next run start, in a stable order", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        { access: "read-write" as const, path: path.join(root, "source") },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    await mkdir(location.agentDir, { recursive: true });
+    await writeFile(
+      path.join(location.agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [{ id: "tools", input: ["text"] }],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(location.agentDir, "settings.json"),
+      JSON.stringify({ defaultProvider: "verify", defaultModel: "tools" }),
+    );
+    let liveContextRequests = 0;
+    const runtime = new PineAgentRuntime({
+      emit: (event) => {
+        if (event.type !== "host-request") return;
+        if (event.request.kind === "live-context") liveContextRequests += 1;
+        runtime.resolveHostRequest(event.requestId, {
+          ok: false,
+          error: "Not available in this test.",
+        });
+      },
+    });
+    try {
+      const created = await runtime.createSession(location);
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      const requests: { tools: string[]; context: string }[] = [];
+      session.agent.streamFunction = (model, context) => {
+        requests.push({
+          // What this request declares; pi sends the active tools.
+          tools: session.getActiveToolNames(),
+          context: JSON.stringify(context.messages),
+        });
+        const response: AssistantMessage = {
+          ...assistantMessage(100, 0, 0),
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          stopReason: "stop",
+          content: [{ type: "text", text: "Done." }],
+        };
+        const stream = createAssistantMessageEventStream();
+        stream.push({ type: "start", partial: response });
+        stream.push({ type: "done", reason: "stop", message: response });
+        stream.end();
+        return stream;
+      };
+
+      await session.prompt("First.");
+      const allOn = requests[0].tools;
+      expect(allOn).toEqual(expect.arrayContaining(["bash", "bg_run"]));
+      expect(allOn).toContain("read_live_transcript");
+      expect(liveContextRequests).toBe(1);
+
+      // Saving a switch leaves the open session's tools alone until a run starts.
+      await writeToolGroupEnabled(location.agentDir, "shell", false);
+      await writeToolGroupEnabled(location.agentDir, "liveContext", false);
+      expect(session.getActiveToolNames()).toContain("bash");
+
+      await session.prompt("Second.");
+      const shellOff = requests[1].tools;
+      const hidden = new Set([
+        "bash",
+        "privileged_bash",
+        "bg_run",
+        "bg_status",
+        "bg_logs",
+        "bg_kill",
+        "read_live_transcript",
+        "live_context_capture",
+      ]);
+      expect(shellOff).toEqual(allOn.filter((name) => !hidden.has(name)));
+      expect(requests[1].context).toContain("<disabled_tools>");
+      expect(requests[1].context).toMatch(/Shell commands: bash/);
+      expect(liveContextRequests).toBe(1);
+      expect(session.systemPrompt).not.toContain("<disabled_tools>");
+
+      // The same switch set always yields the same tool list.
+      await writeToolGroupEnabled(location.agentDir, "shell", true);
+      await writeToolGroupEnabled(location.agentDir, "liveContext", true);
+      await session.prompt("Third.");
+      expect(requests[2].tools).toEqual(allOn);
     } finally {
       await runtime.dispose();
     }
