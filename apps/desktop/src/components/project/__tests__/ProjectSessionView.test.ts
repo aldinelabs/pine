@@ -276,6 +276,35 @@ describe("ProjectSessionView file drop", () => {
     wrapper.unmount();
   });
 
+  it("leaves an empty session Live Context started blank", async () => {
+    const { wrapper } = mountView();
+    await wrapper.setProps({ sessionId: "live-session" });
+    await flushPromises();
+    // Before its summary arrives, the welcome must not flash.
+    expect(wrapper.text()).not.toContain("不妨大胆想象");
+    const summary = {
+      id: "live-session",
+      createdAt: "",
+      updatedAt: "",
+      messageCount: 0,
+    };
+    useSessionStore().stateFor("live-session").summary = {
+      ...summary,
+      liveContext: true,
+    };
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("不妨大胆想象");
+    expect(wrapper.text()).not.toContain(
+      "从一个问题、一项任务，或一个大胆的想法开始。",
+    );
+    expect(wrapper.find('[data-slot="composer-stub"]').exists()).toBe(true);
+    // An ordinary empty session keeps the welcome.
+    useSessionStore().stateFor("live-session").summary = summary;
+    await flushPromises();
+    expect(wrapper.text()).toContain("不妨大胆想象");
+    wrapper.unmount();
+  });
+
   it("removes the parallax background as soon as a new prompt is submitted", async () => {
     const { wrapper } = mountView();
     const sessionStore = useSessionStore();

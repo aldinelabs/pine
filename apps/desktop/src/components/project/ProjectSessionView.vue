@@ -197,6 +197,17 @@ const hasEarlierMessages = computed(
 const isLoadingMessages = computed(
   () => tabState.value?.isLoadingMessages ?? false,
 );
+/**
+ * The new-session welcome, for a draft or an empty session. A session Live
+ * Context started stays blank instead, and a session whose summary has not
+ * arrived yet shows nothing, so the welcome never flashes before it does.
+ */
+const showsWelcome = computed(() => {
+  if (renderedMessages.value.length || isLoadingMessages.value) return false;
+  if (!props.sessionId) return true;
+  const summary = tabState.value?.summary;
+  return Boolean(summary) && !summary?.liveContext;
+});
 const isRunning = computed(
   () => isSubmitting.value || (tabState.value?.isRunning ?? false),
 );
@@ -909,7 +920,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 <MessageCircleIcon class="size-3.5" aria-hidden="true" />
                 {{ weChatOriginLabel }}
               </p>
-              <Empty v-if="!renderedMessages.length && !isLoadingMessages">
+              <Empty v-if="showsWelcome">
                 <EmptyHeader>
                   <PineCharacter decorative size="lg" />
                   <EmptyTitle class="font-semibold">

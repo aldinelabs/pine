@@ -1,7 +1,12 @@
-import type { SessionEntry } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  SessionEntry,
+} from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
+import { PINE_LIVE_CONTEXT_ENTRY } from "../../../shared/sessions";
 import {
   rewriteTargetEntryId,
+  sessionSummary,
   toolNamesForCompactionRoute,
   toolNamesForInterimAnswers,
   toolNamesForMemory,
@@ -117,5 +122,30 @@ describe("toolNamesForMemory", () => {
   it("drops the memory tools when the switch is off", () => {
     expect(toolNamesForMemory(tools, true)).toEqual(tools);
     expect(toolNamesForMemory(tools, false)).toEqual(["read", "bash"]);
+  });
+});
+
+describe("sessionSummary", () => {
+  function sessionWith(entries: unknown[]): AgentSession {
+    return {
+      sessionId: "s1",
+      sessionManager: {
+        getHeader: () => ({ timestamp: "2026-11-19T00:00:00.000Z" }),
+        getEntries: () => entries,
+        getBranch: () => entries,
+      },
+    } as unknown as AgentSession;
+  }
+
+  it("marks a session started for Live Context", () => {
+    const entry = {
+      type: "custom",
+      customType: PINE_LIVE_CONTEXT_ENTRY,
+      id: "c1",
+      parentId: null,
+      timestamp: "2026-11-19T00:00:00.000Z",
+    };
+    expect(sessionSummary(sessionWith([entry])).liveContext).toBe(true);
+    expect(sessionSummary(sessionWith([])).liveContext).toBeUndefined();
   });
 });

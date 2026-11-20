@@ -738,7 +738,9 @@ close the card. The panels are:
   On a new session's page, Start first creates an empty conversation in the
   project the composer shows, opens it in that tab and captures into it;
   messages sent later go to that conversation, which stays in the session
-  list even if no message is ever sent.
+  list even if no message is ever sent. Until its first message, that
+  conversation's transcript area is blank: it never shows the new-session
+  welcome heading and description, even after reopening it.
   While capturing, the row becomes a bar: a softly pulsing red dot and the
   listening time (paused time not counted), a waveform of the last few
   seconds of sound, the Translate toggle (turns translation on or off for

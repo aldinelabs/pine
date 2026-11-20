@@ -706,6 +706,11 @@ export interface PineSessionSummary {
   automationRun?: AutomationRunSession;
   /** Started from WeChat, or sent a message from WeChat later. */
   origin?: "wechat" | "wechat-used";
+  /**
+   * Started for Live Context: until someone writes in it, its transcript
+   * stays blank instead of showing the new-session welcome.
+   */
+  liveContext?: boolean;
   createdAt: string;
   id: string;
   messageCount: number;

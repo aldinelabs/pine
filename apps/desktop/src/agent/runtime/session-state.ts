@@ -1,5 +1,6 @@
 import {
   approvalModeFromEntries,
+  isLiveContextSession,
   titleSuggestionField,
   replySuggestionField,
 } from "../../shared/sessions";
@@ -185,6 +186,7 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
     // Same rule as the session list, so opening a session never moves it.
     updatedAt: sessionActivityAt(entries, Date.parse(createdAt), Date.now()),
     messageCount,
+    ...(isLiveContextSession(entries) ? { liveContext: true } : {}),
     ...(session.model
       ? {
           modelSelection: {
