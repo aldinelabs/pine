@@ -1,18 +1,26 @@
 /**
- * Tailwind compiles `group-has-*` and `peer-has-*` variants to an ancestor
+ * Tailwind compiles `group-*` and `peer-*` variants to an ancestor or sibling
  * test nested in `:is()`, e.g.
  *
  *   .x:is(:where(.group\/item):has([data-slot="badge"]) *)
+ *   .y:is(:where(.group)[data-state="collapsed"] *)
  *
- * Chromium cannot scope `:has()` invalidation inside `:is()`, so while such a
- * rule exists, inserting any element anywhere restyles the whole document.
- * In a long transcript every streamed chunk then costs tens of milliseconds.
- * The same test written as a plain combinator,
+ * Chromium cannot scope invalidation inside `:is()`. While a `group-has-*`
+ * rule exists, inserting any element anywhere restyles the whole document;
+ * in a long transcript every streamed chunk then costs tens of milliseconds.
+ * A `group-data-*` or `peer-data-*` rule makes every change of that attribute
+ * restyle the group's whole subtree (or every sibling's), so toggling a
+ * sidebar restyles the session tree and the conversation at the moment its
+ * slide starts. The same test written as a plain combinator,
  *
  *   :where(.group\/item):has([data-slot="badge"]) .x
  *
  * matches the same elements with the same specificity, and Chromium only
- * re-checks the ancestors it concerns.
+ * re-checks the elements it concerns.
+ *
+ * Each selector moves out one test, the `:has()` one when there is one: two
+ * tests on one compound may both be met by the same ancestor, which two
+ * chained combinators would no longer allow.
  */
 
 const COMBINATORS = new Set([" ", ">", "+", "~"]);
@@ -96,55 +104,60 @@ function ancestorTest(
       return false;
     }
   });
-  if (!simple || !compound.includes(":has(")) return undefined;
+  if (!simple) return undefined;
   return { compound, combinator };
 }
 
-function flattenComplex(selector: string): string {
-  let result = selector;
-  for (;;) {
-    let match: { start: number; end: number } | undefined;
-    let test: ReturnType<typeof ancestorTest>;
-    let compoundStart = 0;
-    topLevel(result, (index) => {
-      const char = result[index];
-      if (COMBINATORS.has(char)) {
-        compoundStart = index + 1;
-        return;
-      }
-      if (!result.startsWith(":is(", index)) return;
-      const end = closingIndex(result, index + 3);
-      if (end < 0) return false;
-      test = ancestorTest(result.slice(index + 4, end - 1));
-      if (!test) return;
-      match = { start: index, end };
+interface AncestorMatch {
+  start: number;
+  end: number;
+  compoundStart: number;
+  test: { compound: string; combinator: string };
+}
+
+function flattenComplex(result: string): string {
+  const matches: AncestorMatch[] = [];
+  let currentCompound = 0;
+  topLevel(result, (index) => {
+    const char = result[index];
+    if (COMBINATORS.has(char)) {
+      currentCompound = index + 1;
+      return;
+    }
+    if (!result.startsWith(":is(", index)) return;
+    const end = closingIndex(result, index + 3);
+    if (end < 0) return false;
+    const test = ancestorTest(result.slice(index + 4, end - 1));
+    if (test)
+      matches.push({ start: index, end, compoundStart: currentCompound, test });
+  });
+  const match =
+    matches.find(({ test }) => test.compound.includes(":has(")) ?? matches[0];
+  if (!match) return result;
+  const { compoundStart, test } = match;
+  const before = result.slice(compoundStart, match.start);
+  const after = result.slice(match.end);
+  let subjectEnd = after.length;
+  topLevel(after, (index) => {
+    if (COMBINATORS.has(after[index])) {
+      subjectEnd = index;
       return false;
-    });
-    if (!match || !test) return result;
-    const before = result.slice(compoundStart, match.start);
-    const after = result.slice(match.end);
-    let subjectEnd = after.length;
-    topLevel(after, (index) => {
-      if (COMBINATORS.has(after[index])) {
-        subjectEnd = index;
-        return false;
-      }
-    });
-    const subject = before + after.slice(0, subjectEnd) || "*";
-    const separator = test.combinator === " " ? " " : ` ${test.combinator} `;
-    result =
-      result.slice(0, compoundStart) +
-      test.compound +
-      separator +
-      subject +
-      after.slice(subjectEnd);
-  }
+    }
+  });
+  const subject = before + after.slice(0, subjectEnd) || "*";
+  const separator = test.combinator === " " ? " " : ` ${test.combinator} `;
+  return (
+    result.slice(0, compoundStart) +
+    test.compound +
+    separator +
+    subject +
+    after.slice(subjectEnd)
+  );
 }
 
 /** Rewrites every complex selector in a selector list; see the module comment. */
-export function flattenHasAncestors(selectorList: string): string {
-  if (!selectorList.includes(":has(") || !selectorList.includes(":is("))
-    return selectorList;
+export function flattenAncestorTests(selectorList: string): string {
+  if (!selectorList.includes(":is(")) return selectorList;
   return splitTopLevel(selectorList, ",")
     .map((selector) => {
       const leading = selector.match(/^\s*/)?.[0] ?? "";
@@ -154,12 +167,12 @@ export function flattenHasAncestors(selectorList: string): string {
     .join(",");
 }
 
-/** PostCSS plugin applying {@link flattenHasAncestors} to every rule. */
-export function flattenHasAncestorsPlugin() {
+/** PostCSS plugin applying {@link flattenAncestorTests} to every rule. */
+export function flattenAncestorTestsPlugin() {
   return {
-    postcssPlugin: "pine-flatten-has-ancestors",
+    postcssPlugin: "pine-flatten-ancestor-tests",
     Rule(rule: { selector: string }) {
-      const next = flattenHasAncestors(rule.selector);
+      const next = flattenAncestorTests(rule.selector);
       if (next !== rule.selector) rule.selector = next;
     },
   };

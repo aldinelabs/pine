@@ -9,7 +9,7 @@ import {
   fileViewerWorkers,
 } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
-import { flattenHasAncestorsPlugin } from "./src/build/flattenHasAncestors";
+import { flattenAncestorTestsPlugin } from "./src/build/flattenAncestorTests";
 import {
   PINE_LOGO_PATH,
   PINE_LOGO_VIEW_BOX,
@@ -58,9 +58,9 @@ export default defineConfig({
   ],
   css: {
     postcss: {
-      // Tailwind's group-has variants otherwise make every DOM insertion
-      // restyle the whole window; see flattenHasAncestors.
-      plugins: [flattenHasAncestorsPlugin()],
+      // Tailwind's group and peer variants otherwise restyle whole subtrees
+      // on every DOM insertion or state change; see flattenAncestorTests.
+      plugins: [flattenAncestorTestsPlugin()],
     },
   },
   resolve: {
