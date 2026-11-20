@@ -96,9 +96,14 @@ describe("context notices", () => {
     });
   });
 
-  it("names the scratch directory in the workspace notice", () => {
-    expect(workspaceNotice({ scratchDirectory: "/data/tmp/abc" })).toBe(
-      'The scratch directory is "/data/tmp/abc".',
+  it("names the project and scratch directory in the workspace notice", () => {
+    expect(
+      workspaceNotice({
+        place: 'the Pine project "Thesis"',
+        scratchDirectory: "/data/tmp/abc",
+      }),
+    ).toBe(
+      'This session runs in the Pine project "Thesis". The scratch directory is "/data/tmp/abc".',
     );
   });
 });

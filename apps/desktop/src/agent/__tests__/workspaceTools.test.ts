@@ -111,6 +111,17 @@ describe("project workspace tools", () => {
     );
   });
 
+  it("keeps the project out of the descriptions every project shares", () => {
+    const inProject = setup(
+      { answers: [], cancelled: true },
+      { name: "Courses", temporaryWorkspace: false },
+    );
+    const noProject = setup({ answers: [], cancelled: true });
+    expect(inProject.list.description).toBe(noProject.list.description);
+    expect(inProject.teleport.description).toBe(noProject.teleport.description);
+    expect(inProject.teleport.description).toContain("workspace notice");
+  });
+
   it("offers to keep a project session in its project", async () => {
     const { teleport, requestQuestionnaire } = setup(
       { answers: [], cancelled: true },

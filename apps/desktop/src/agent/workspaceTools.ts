@@ -33,7 +33,8 @@ export interface PineWorkspaceToolContext {
 
 type CurrentProject = PineWorkspaceToolContext["currentProject"];
 
-function currentPlace(current: CurrentProject): string {
+/** Where the session runs, as the workspace notice names it. */
+export function currentPlace(current: CurrentProject): string {
   return current.temporaryWorkspace || !current.name
     ? "No Project, Pine's temporary workspace that belongs to no project"
     : `the Pine project "${current.name}"`;
@@ -120,7 +121,7 @@ export function createWorkspaceToolDefinitions(
   const listTool = defineTool({
     name: UI_PROJECT_LIST_TOOL_NAME,
     label: "List Projects",
-    description: `List the user's Pine projects with their names, ids, icons, accent colors, and folder paths; the project this session runs in is marked as current. This session runs in ${here}.`,
+    description: `List the user's Pine projects with their names, ids, icons, accent colors, and folder paths; the project this session runs in is marked as current.`,
     promptSnippet: `This session runs in ${here}. Use ${UI_PROJECT_LIST_TOOL_NAME} to see the user's Pine projects and their folders, for example to check whether a request belongs to another project`,
     parameters: Type.Object({}),
     execute: async () => {
@@ -147,7 +148,7 @@ export function createWorkspaceToolDefinitions(
   const teleportTool = defineTool({
     name: UI_SESSION_TELEPORT_TOOL_NAME,
     label: "Move Session to Project",
-    description: `Move this session from ${here} into another of the user's Pine projects. Pine asks the user to confirm first. When confirmed, the move happens after the current reply ends; later turns run in that project's working directory with its folder access.`,
+    description: `Move this session from the project it runs in, as Pine's workspace notice names it, into another of the user's Pine projects. Pine asks the user to confirm first. When confirmed, the move happens after the current reply ends; later turns run in that project's working directory with its folder access.`,
     promptSnippet: `Use ${UI_SESSION_TELEPORT_TOOL_NAME} to offer moving this session into the project the user's request belongs to`,
     promptGuidelines: [
       `Before starting work on a request, check whether it fits ${here}. If it clearly belongs to another project, because it names that project or refers to code, files, or folders that live in another project's folders rather than this session's, call ${UI_PROJECT_LIST_TOOL_NAME} and then ${UI_SESSION_TELEPORT_TOOL_NAME} with that project's id to offer the move right away. Do not ask about it in plain text first and do not work around the wrong folders: the tool itself asks the user to confirm.`,

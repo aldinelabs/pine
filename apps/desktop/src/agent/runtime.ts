@@ -129,6 +129,7 @@ import {
   type ToolGate,
   type UserApprovalRequest,
 } from "./gate";
+import { currentPlace } from "./workspaceTools";
 import {
   createPineToolDefinitions,
   PineAttachedPathAccess,
@@ -1709,6 +1710,10 @@ export class PineAgentRuntime {
     // Fixed for the session's life; differs per project, so it stays out of
     // the tool descriptions and system prompt that sessions share.
     const workspace = workspaceNotice({
+      place: currentPlace({
+        name: location.projectName,
+        temporaryWorkspace: location.temporaryWorkspace === true,
+      }),
       scratchDirectory: await projectTemporaryDirectory(location),
     });
     const resourceLoader = new DefaultResourceLoader({

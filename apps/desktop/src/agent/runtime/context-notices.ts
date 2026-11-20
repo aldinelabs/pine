@@ -124,11 +124,13 @@ export function contextNoticeMessage(
 }
 
 export interface PineWorkspaceNoticeInput {
+  /** The session's project, e.g. `the Pine project "Thesis"`. */
+  place: string;
   /** The project's scratch directory, the shell's TMPDIR. */
   scratchDirectory: string;
 }
 
 /** Where this session works; fixed for the session's life. */
 export function workspaceNotice(input: PineWorkspaceNoticeInput): string {
-  return `The scratch directory is ${JSON.stringify(input.scratchDirectory)}.`;
+  return `This session runs in ${input.place}. The scratch directory is ${JSON.stringify(input.scratchDirectory)}.`;
 }
