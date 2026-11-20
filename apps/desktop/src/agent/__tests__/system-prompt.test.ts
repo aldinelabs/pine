@@ -4,7 +4,6 @@ import {
   PINE_SYSTEM_PROMPT,
   systemPromptWithUserProfile,
   approvalModeNotice,
-  approvalModeSystemPrompt,
   systemPromptForPlatform,
   userPronounsPrompt,
   workStyleSystemPrompt,
@@ -192,12 +191,16 @@ describe("user pronouns in the profile block", () => {
   });
 });
 
-describe("approvalModeSystemPrompt", () => {
-  it("does not depend on the active mode", () => {
-    const prompt = approvalModeSystemPrompt("darwin");
-    expect(prompt).toContain(PINE_YOLO_SYSTEM_PROMPT);
-    expect(prompt).not.toContain("Current mode");
-    expect(approvalModeSystemPrompt("win32")).toContain(
+describe("permission modes", () => {
+  it("are part of the fixed prompt, whatever the active mode", () => {
+    expect(PINE_SYSTEM_PROMPT).toContain("## Permission modes");
+    expect(PINE_SYSTEM_PROMPT).toContain(PINE_YOLO_SYSTEM_PROMPT);
+    expect(PINE_SYSTEM_PROMPT).not.toContain("Current mode");
+    // The YOLO rule points back at the shell rules, so it follows them.
+    expect(PINE_SYSTEM_PROMPT.indexOf("## Permission modes")).toBeGreaterThan(
+      PINE_SYSTEM_PROMPT.indexOf("## Local tools"),
+    );
+    expect(systemPromptForPlatform(PINE_SYSTEM_PROMPT, "win32")).toContain(
       "call privileged_powershell directly",
     );
   });

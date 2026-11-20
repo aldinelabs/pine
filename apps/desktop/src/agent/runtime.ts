@@ -111,7 +111,6 @@ import {
   systemPromptForPlatform,
   systemPromptWithUserProfile,
   approvalModeNotice,
-  approvalModeSystemPrompt,
   workStyleSystemPrompt,
 } from "./system-prompt";
 import { ALDINE_METHODOLOGY_SYSTEM_PROMPT } from "./aldine-methodology";
@@ -1727,9 +1726,7 @@ export class PineAgentRuntime {
         {
           name: "pine-approval-mode",
           factory: (pi) => {
-            pi.on("before_agent_start", (event) => {
-              event.systemPromptOptions.sections.pine_approval_mode =
-                approvalModeSystemPrompt();
+            pi.on("before_agent_start", () => {
               // The mode lives in the conversation, not the system prompt or
               // tool list, so a mid-session switch keeps the cached prefix.
               if (

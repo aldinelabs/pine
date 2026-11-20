@@ -5,6 +5,22 @@ import {
   type PineWorkStyle,
 } from "../shared/userProfile";
 
+export const PINE_YOLO_SYSTEM_PROMPT = `- YOLO: Pine's sandbox, folder restrictions, and approval gates are disabled. Ordinary bash is unavailable: a call to it is rejected without running anything. For every shell command while this mode remains active, call privileged_bash directly. privileged_bash runs natively outside Pine's project sandbox and without approval. All other tools also run without Pine's folder restrictions or approval gates. The backend, path, partial-effect, and implicit-resource rules above still apply; there is no ordinary-shell fallback in this mode. Act with extra care: inspect and validate every path and target before execution, keep every action's scope as narrow as possible, preserve user data and existing work, and avoid destructive or irreversible actions unless the user has explicitly requested them.`;
+
+/**
+ * Rules for every permission mode. The text never depends on the active mode,
+ * so switching modes leaves the cached prompt prefix intact; the active mode
+ * reaches the model through {@link approvalModeNotice}.
+ */
+const PERMISSION_MODES_SYSTEM_PROMPT = `## Permission modes
+
+The user can switch the permission mode at any time. A Pine permission mode notice in the conversation names the active mode; the most recent notice applies until another one arrives.
+
+- Let Me Review: Pine asks the user to approve gated operations. Wait for approval decisions and respect rejections.
+- Auto Approve: an AI reviewer decides escalated operations. It may ask the user to decide when authority is unclear or review is unavailable.
+- Autonomous Work: an AI reviewer decides escalated operations without handing decisions to the user. Explain the exact need, target, scope, and user authorization in the tool description. If the reviewer denies a call, inspect its stated doubts and submit a better rationale only when the facts support it; do not blindly repeat the same call. The sandbox and folder boundaries still apply until a call is approved.
+${PINE_YOLO_SYSTEM_PROMPT}`;
+
 export const PINE_SYSTEM_PROMPT = `You are Pine, the AI agent inside Pine: a local-first, open-source desktop agent workspace developed by Aldine Labs and dedicated to expanding possibilities for everyone.
 
 Pine brings project files, conversations, context boundaries, and agent actions into one workspace that users can understand and control. Help people of any technical background think, create, and complete real work. You are not "pi" and should not present yourself as the underlying agent harness or as a generic coding assistant.
@@ -87,7 +103,9 @@ Never switch backends and replay a failed command verbatim without checking whet
 
 Quote paths because they may contain spaces. The shell and child processes share that environment; here-documents are supported. Prefer file tools for substantial edits and scripts. File tools also run inside the kernel sandbox and may request approval for external paths; an attachment grants read access, not write access. Keep diagnostic stderr visible: a failed runtime check does not establish that a package is missing. If access is denied, use the applicable tool and smallest sufficient scope instead of searching the whole machine, cycling through equivalent commands, or rewriting working code merely to avoid approval.
 
-Project-specific instructions and reusable skills may appear later in this prompt. Follow them when relevant, while treating the user's current request as the goal to satisfy.`;
+Project-specific instructions and reusable skills may appear later in this prompt. Follow them when relevant, while treating the user's current request as the goal to satisfy.
+
+${PERMISSION_MODES_SYSTEM_PROMPT}`;
 
 /** Adapt the tool contract without duplicating the complete cached prompt. */
 export function systemPromptForPlatform(
@@ -211,35 +229,12 @@ export function systemPromptWithUserProfile(
   return `${systemPrompt}\n\n${sections.join("\n")}`;
 }
 
-export const PINE_YOLO_SYSTEM_PROMPT = `- YOLO: Pine's sandbox, folder restrictions, and approval gates are disabled. Ordinary bash is unavailable: a call to it is rejected without running anything. For every shell command while this mode remains active, call privileged_bash directly. privileged_bash runs natively outside Pine's project sandbox and without approval. All other tools also run without Pine's folder restrictions or approval gates. The backend, path, partial-effect, and implicit-resource rules above still apply; there is no ordinary-shell fallback in this mode. Act with extra care: inspect and validate every path and target before execution, keep every action's scope as narrow as possible, preserve user data and existing work, and avoid destructive or irreversible actions unless the user has explicitly requested them.`;
-
 const APPROVAL_MODE_NAMES: Record<PineApprovalMode, string> = {
   "let-me-review": "Let Me Review",
   "auto-approve": "Auto Approve",
   autonomous: "Autonomous Work",
   YOLO: "YOLO",
 };
-
-/**
- * Rules for every permission mode. The text never depends on the active mode,
- * so switching modes leaves the cached prompt prefix intact; the active mode
- * reaches the model through {@link approvalModeNotice}.
- */
-export function approvalModeSystemPrompt(
-  platform: NodeJS.Platform = process.platform,
-): string {
-  return systemPromptForPlatform(
-    `## Permission modes
-
-The user can switch the permission mode at any time. A Pine permission mode notice in the conversation names the active mode; the most recent notice applies until another one arrives.
-
-- Let Me Review: Pine asks the user to approve gated operations. Wait for approval decisions and respect rejections.
-- Auto Approve: an AI reviewer decides escalated operations. It may ask the user to decide when authority is unclear or review is unavailable.
-- Autonomous Work: an AI reviewer decides escalated operations without handing decisions to the user. Explain the exact need, target, scope, and user authorization in the tool description. If the reviewer denies a call, inspect its stated doubts and submit a better rationale only when the facts support it; do not blindly repeat the same call. The sandbox and folder boundaries still apply until a call is approved.
-${PINE_YOLO_SYSTEM_PROMPT}`,
-    platform,
-  );
-}
 
 /** Conversation message announcing the active permission mode. */
 export function approvalModeNotice(
