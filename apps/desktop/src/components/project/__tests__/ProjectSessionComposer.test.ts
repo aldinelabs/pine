@@ -1327,6 +1327,22 @@ describe("ProjectSessionComposer", () => {
     running.unmount();
   });
 
+  it("keeps the text box's addons from showing an I-beam over their buttons", () => {
+    // InputGroupAddon defaults to cursor-text for click-to-focus, which only
+    // focuses an <input>; a disabled Send or Optimize prompt lets the pointer
+    // through to it.
+    const wrapper = mountComposer({ sessionId: "session-1" });
+    const addons = wrapper.findAll(
+      '.session-composer-row [data-slot="input-group-addon"]',
+    );
+    expect(addons).toHaveLength(2);
+    for (const addon of addons) {
+      expect(addon.classes()).toContain("cursor-default");
+      expect(addon.classes()).not.toContain("cursor-text");
+    }
+    wrapper.unmount();
+  });
+
   it("rests Optimize prompt as an icon beside Send that opens leftwards", async () => {
     const rewritePrompt = vi.fn(() => new Promise(() => undefined));
     const wrapper = mountComposer({ sessionId: "session-1" }, "high", "zh-CN", {

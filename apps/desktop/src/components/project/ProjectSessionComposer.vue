@@ -1439,8 +1439,11 @@ function handleRootSubmit(event: Event): void {
             </ProjectComposerEasedHeight>
 
             <div class="session-composer-row flex w-full items-center">
+              <!-- Addons default to an I-beam for click-to-focus, but theirs
+                   focuses only an <input>, never this textarea, and a
+                   disabled button lets the pointer through to it. -->
               <InputGroupAddon
-                class="self-end py-1.5 pl-2.5"
+                class="cursor-default self-end py-1.5 pl-2.5"
                 align="inline-start"
               >
                 <span
@@ -1610,7 +1613,7 @@ function handleRootSubmit(event: Event): void {
               </div>
 
               <InputGroupAddon
-                class="max-w-[50%] self-end py-1.5 pr-2.5"
+                class="max-w-[50%] cursor-default self-end py-1.5 pr-2.5"
                 align="inline-end"
               >
                 <!-- In a session, Optimize prompt sits beside Send; a draft
