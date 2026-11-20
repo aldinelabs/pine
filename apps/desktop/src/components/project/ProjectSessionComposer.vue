@@ -835,8 +835,8 @@ const replySuggestionHasNext = computed(
   () => replySuggestionIndex.value < replySuggestions.value.length - 1,
 );
 /*
- * ↑ and ↓ keep their room in the cap and blur in and out in place, so the
- * cap never changes width as they come and go. They swap only once the
+ * Only the reachable ↑ and ↓ take room in the cap: their room eases open or
+ * shut while the glyph blurs in or out. They animate only once the
  * alternatives have mounted, so the first state shows at once.
  */
 const replySuggestionArrows = ref<HTMLElement | null>(null);
@@ -1602,13 +1602,13 @@ function handleRootSubmit(event: Event): void {
                     <span class="min-w-0 truncate" aria-hidden="true">{{
                       replySuggestion
                     }}</span>
-                    <!-- One keycap: "Tab →", then, with several
-                         alternatives, "2/3 ↑↓" ("2 ↑↓" while more stream in)
-                         behind a hairline; ↑ and ↓ show only where there is
-                         an alternative that way. -->
+                    <!-- One keycap: "Tab", then, with several alternatives,
+                         "2/3 ↑↓" ("2 ↑↓" while more stream in) behind a
+                         hairline; ↑ and ↓ show only where there is an
+                         alternative that way. → also takes the suggestion,
+                         without a hint. -->
                     <ComposerKeycap data-slot="reply-suggestion-key">
                       <kbd class="font-sans">Tab</kbd>
-                      <kbd class="font-sans">→</kbd>
                       <Transition
                         :css="false"
                         @enter="replySuggestionCountTransition.onEnter"
@@ -1617,34 +1617,60 @@ function handleRootSubmit(event: Event): void {
                         <span
                           v-if="replySuggestionPosition"
                           data-slot="reply-suggestion-alternatives"
-                          class="inline-flex shrink-0 items-center gap-1.5"
+                          class="inline-flex shrink-0 items-center"
                         >
-                          <span class="h-3 w-px bg-foreground/15" />
+                          <span class="me-1.5 h-3 w-px bg-foreground/15" />
                           <span
                             ref="replySuggestionCount"
                             data-slot="reply-suggestion-position"
                             class="inline-block overflow-hidden text-center whitespace-nowrap tabular-nums"
                             >{{ replySuggestionPosition }}</span
                           >
-                          <kbd
+                          <span
                             ref="replySuggestionArrows"
-                            data-slot="reply-suggestion-arrows"
-                            class="session-composer-suggestion-arrows inline-flex font-sans"
+                            class="session-composer-suggestion-arrows"
+                            :data-hidden="
+                              replySuggestionHasPrevious ||
+                              replySuggestionHasNext
+                                ? undefined
+                                : ''
+                            "
                           >
-                            <span
-                              data-slot="reply-suggestion-previous"
-                              :data-hidden="
-                                replySuggestionHasPrevious ? undefined : ''
-                              "
-                              >↑</span
-                            ><span
-                              data-slot="reply-suggestion-next"
-                              :data-hidden="
-                                replySuggestionHasNext ? undefined : ''
-                              "
-                              >↓</span
-                            >
-                          </kbd>
+                            <span class="session-composer-suggestion-clip">
+                              <kbd
+                                data-slot="reply-suggestion-arrows"
+                                class="inline-flex ps-1.5 font-sans"
+                              >
+                                <span
+                                  data-slot="reply-suggestion-previous"
+                                  class="session-composer-suggestion-arrow"
+                                  :data-hidden="
+                                    replySuggestionHasPrevious ? undefined : ''
+                                  "
+                                  ><span
+                                    class="session-composer-suggestion-clip"
+                                    ><span
+                                      class="session-composer-suggestion-glyph"
+                                      >↑</span
+                                    ></span
+                                  ></span
+                                ><span
+                                  data-slot="reply-suggestion-next"
+                                  class="session-composer-suggestion-arrow"
+                                  :data-hidden="
+                                    replySuggestionHasNext ? undefined : ''
+                                  "
+                                  ><span
+                                    class="session-composer-suggestion-clip"
+                                    ><span
+                                      class="session-composer-suggestion-glyph"
+                                      >↓</span
+                                    ></span
+                                  ></span
+                                >
+                              </kbd>
+                            </span>
+                          </span>
                         </span>
                       </Transition>
                     </ComposerKeycap>
@@ -2155,30 +2181,68 @@ function handleRootSubmit(event: Event): void {
   opacity: 0;
 }
 
-/* ↑ and ↓ keep their room and swap in place like Optimize prompt's keys:
-   the outgoing one blurs, shrinks and fades; the incoming one sharpens and
-   grows back. Only once mounted, so the first state shows at once. */
-.session-composer-suggestion-arrows > span {
+/* Only the reachable ↑ and ↓ take room. Each one's slot eases its width
+   open or shut (0fr ↔ 1fr) on the app's expo curve while its glyph blurs
+   and scales in or out in place, like Optimize prompt's keys; with neither
+   reachable the whole arrow part, its leading space included, folds away.
+   The cap grows and shrinks at its end, so its start never moves. Only
+   once mounted, so the first state shows at once. */
+.session-composer-suggestion-arrows,
+.session-composer-suggestion-arrow {
+  display: inline-grid;
+  grid-template-columns: 1fr;
+}
+
+.session-composer-suggestion-arrows[data-hidden],
+.session-composer-suggestion-arrow[data-hidden] {
+  grid-template-columns: 0fr;
+}
+
+.session-composer-suggestion-clip {
+  display: inline-flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.session-composer-suggestion-glyph {
   display: inline-block;
   opacity: 1;
   filter: none;
   scale: 1;
 }
 
-.session-composer-suggestion-arrows > span[data-hidden] {
+.session-composer-suggestion-arrow[data-hidden]
+  .session-composer-suggestion-glyph {
   opacity: 0;
   filter: blur(3px);
   scale: 0.9;
 }
 
-.session-composer-suggestion-arrows[data-swap-ready] > span {
+/* In: the room opens at once and the glyph sharpens into it. */
+.session-composer-suggestion-arrows[data-swap-ready],
+.session-composer-suggestion-arrows[data-swap-ready]
+  .session-composer-suggestion-arrow {
+  transition: grid-template-columns 500ms var(--ease-out-expo);
+}
+
+.session-composer-suggestion-arrows[data-swap-ready]
+  .session-composer-suggestion-glyph {
   transition:
     opacity 220ms ease-out 100ms,
     filter 300ms ease-out 100ms,
     scale 500ms var(--ease-out-expo) 100ms;
 }
 
-.session-composer-suggestion-arrows[data-swap-ready] > span[data-hidden] {
+/* Out: the glyph fades first, then its room closes. */
+.session-composer-suggestion-arrows[data-swap-ready][data-hidden],
+.session-composer-suggestion-arrows[data-swap-ready]
+  .session-composer-suggestion-arrow[data-hidden] {
+  transition: grid-template-columns 500ms var(--ease-out-expo) 60ms;
+}
+
+.session-composer-suggestion-arrows[data-swap-ready]
+  .session-composer-suggestion-arrow[data-hidden]
+  .session-composer-suggestion-glyph {
   transition:
     opacity 100ms ease-out,
     filter 100ms ease-out,
@@ -2186,8 +2250,17 @@ function handleRootSubmit(event: Event): void {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session-composer-suggestion-arrows[data-swap-ready] > span,
-  .session-composer-suggestion-arrows[data-swap-ready] > span[data-hidden],
+  .session-composer-suggestion-arrows[data-swap-ready],
+  .session-composer-suggestion-arrows[data-swap-ready]
+    .session-composer-suggestion-arrow,
+  .session-composer-suggestion-arrows[data-swap-ready]
+    .session-composer-suggestion-glyph,
+  .session-composer-suggestion-arrows[data-swap-ready][data-hidden],
+  .session-composer-suggestion-arrows[data-swap-ready]
+    .session-composer-suggestion-arrow[data-hidden],
+  .session-composer-suggestion-arrows[data-swap-ready]
+    .session-composer-suggestion-arrow[data-hidden]
+    .session-composer-suggestion-glyph,
   .session-composer-input--suggestion-fades::placeholder,
   .session-composer-suggestion-enter-active {
     transition: none;

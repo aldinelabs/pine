@@ -508,7 +508,7 @@ export default {
       "Affiche une lumière qui parcourt le bord de la zone de saisie pendant que l’agent travaille",
     replySuggestions: "Suggestions de réponse",
     replySuggestionsDescription:
-      "Après la réponse de l'agent, propose un message suivant dans la zone de saisie ; appuyez sur Tab ou → pour l'utiliser. Utilise le modèle d'optimisation des prompts.",
+      "Après la réponse de l'agent, propose un message suivant dans la zone de saisie ; appuyez sur Tab pour l'utiliser. Utilise le modèle d'optimisation des prompts.",
     sidebarVibrancy: "Matériau natif de la barre latérale",
     sidebarVibrancyDescription:
       "Affiche la barre latérale avec le matériau natif de macOS",
@@ -1610,8 +1610,7 @@ export default {
       optimizePromptFailedDescription:
         "Vérifiez le modèle d'optimisation des prompts dans Réglages › Modèles, puis réessayez.",
       undoPromptOptimization: "Annuler l'optimisation",
-      acceptReplySuggestion:
-        "Appuyez sur Tab ou sur la flèche droite pour utiliser la suggestion",
+      acceptReplySuggestion: "Appuyez sur Tab pour utiliser la suggestion",
       replySuggestionAlternative:
         "Suggestion {position} sur {count}, appuyez sur Haut ou Bas pour changer",
       replySuggestionAlternativeStreaming:

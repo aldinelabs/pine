@@ -508,7 +508,7 @@ export default {
       "エージェントの作業中、入力欄の枠に沿って流れる光を表示します",
     replySuggestions: "返信の提案",
     replySuggestionsDescription:
-      "エージェントが回答した後、次のメッセージの候補を入力欄に表示します。Tab キーまたは → キーで採用します。指示最適化モデルを使用します。",
+      "エージェントが回答した後、次のメッセージの候補を入力欄に表示します。Tab キーで採用します。指示最適化モデルを使用します。",
     sidebarVibrancy: "ネイティブのサイドバー素材",
     sidebarVibrancyDescription:
       "macOS ネイティブのサイドバー素材でサイドバーを描画します",
@@ -1591,7 +1591,7 @@ export default {
       optimizePromptFailedDescription:
         "設定 › モデル で指示最適化モデルを確認して、もう一度お試しください。",
       undoPromptOptimization: "最適化を元に戻す",
-      acceptReplySuggestion: "Tab キーまたは右矢印キーで提案を採用",
+      acceptReplySuggestion: "Tab キーで提案を採用",
       replySuggestionAlternative: "候補 {position}/{count}、上下キーで切り替え",
       replySuggestionAlternativeStreaming:
         "候補 {position}、ほかの候補を生成中、上下キーで切り替え",

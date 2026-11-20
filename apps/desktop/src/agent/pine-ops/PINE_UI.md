@@ -474,16 +474,17 @@ From top to bottom:
      the user might send, most likely first. As soon as the first is
      written, it fades in where the placeholder was (after the placeholder
      fades out), in the same grey, followed by a single key cap; the others
-     join as they are written. With one suggestion the cap reads "Tab →".
-     With several, the cap widens to read "Tab → | 1/3 ↑↓", with the shown
-     one's number ("Tab → | 1 ↑↓" while more may still come); the count
+     join as they are written. With one suggestion the cap reads "Tab".
+     With several, the cap widens to read "Tab | 2/3 ↑↓", with the shown
+     one's number ("Tab | 1 ↓" while more may still come); the count
      slides in and grows smoothly as suggestions arrive. In the empty,
      focused text box, ↑ and ↓ switch to the previous and next suggestion,
      stopping at the first and last (no wrapping around). The cap's ↑ shows
      only when there is a previous suggestion and its ↓ only when there is a
-     next one, so the first shows just ↓ and the last just ↑; they fade in
-     and out in place without the cap changing width. Tab or → puts the
-     shown suggestion in the text box and uses them all up. Any typing, including text an input method is still
+     next one, so the first shows just ↓ and the last just ↑; the cap
+     smoothly widens or narrows at its end as an arrow fades in or out. Tab
+     (or →, which has no hint) puts the shown suggestion in the text box and
+     uses them all up. Any typing, including text an input method is still
      composing, replaces it at once and stops further suggestions from
      arriving; if the text box is emptied without using it, the same
      suggestion comes back at once, without the placeholder showing in
