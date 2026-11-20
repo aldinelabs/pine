@@ -507,6 +507,7 @@ export const SetTinyFishApiKeyRequestSchema = z.object({
   apiKey: z.string().trim().min(1).max(4_096),
 });
 export const UserProfileSchema = z.object({
+  aldineMethodologyEnabled: z.boolean().default(true),
   communicationStyle: z.enum(["calm-professional", "neutral", "warm-friendly"]),
   customInstructions: z.string().max(20_000),
   customPronouns: z.string().max(1_000).transform(sanitizeCustomPronouns),

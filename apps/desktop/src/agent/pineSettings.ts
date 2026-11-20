@@ -122,6 +122,7 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.interactiveAnswersEnabled === "boolean" &&
     typeof profile.interimAnswersEnabled === "boolean" &&
     typeof profile.monetMode === "boolean" &&
+    typeof profile.aldineMethodologyEnabled === "boolean" &&
     isPinePronouns(profile.pronouns) &&
     typeof profile.customPronouns === "string" &&
     isPineWorkStyle(profile.workStyle)
@@ -152,6 +153,9 @@ function migrateUserProfile(value: unknown): unknown {
       ? { interimAnswersEnabled: true }
       : {}),
     ...(profile.monetMode === undefined ? { monetMode: false } : {}),
+    ...(typeof profile.aldineMethodologyEnabled === "boolean"
+      ? {}
+      : { aldineMethodologyEnabled: true }),
     // Coerced rather than only back-filled: a missing or invalid value must
     // never make the guard discard the rest of the profile.
     pronouns: isPinePronouns(profile.pronouns)

@@ -51,6 +51,12 @@ describe("work style in the user profile", () => {
   });
 });
 
+describe("Aldine methodology in the user profile", () => {
+  it("is on by default", () => {
+    expect(createDefaultPineUserProfile().aldineMethodologyEnabled).toBe(true);
+  });
+});
+
 describe("sanitizeCustomPronouns", () => {
   it("trims the text", () => {
     expect(sanitizeCustomPronouns("  xe/xem  ")).toBe("xe/xem");

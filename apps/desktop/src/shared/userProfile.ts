@@ -29,6 +29,11 @@ export type PinePronouns = (typeof PINE_PRONOUNS)[number];
 export const PINE_CUSTOM_PRONOUNS_MAX_LENGTH = 40;
 
 export interface PineUserProfile {
+  /**
+   * Aldine methodology (beta): how Pine thinks, asks and stays honest, as a
+   * system prompt section.
+   */
+  aldineMethodologyEnabled: boolean;
   communicationStyle: PineCommunicationStyle;
   customInstructions: string;
   /** The user's own wording; only used while `pronouns` is "custom". */
@@ -57,6 +62,7 @@ export interface SetUserProfileResult {
 
 export function createDefaultPineUserProfile(): PineUserProfile {
   return {
+    aldineMethodologyEnabled: true,
     communicationStyle: "neutral",
     customInstructions: "",
     customPronouns: "",
@@ -75,6 +81,7 @@ export function normalizePineUserProfile(
   profile: PineUserProfile,
 ): PineUserProfile {
   return {
+    aldineMethodologyEnabled: profile.aldineMethodologyEnabled ?? true,
     communicationStyle: profile.communicationStyle,
     customInstructions: profile.customInstructions.trim(),
     customPronouns: sanitizeCustomPronouns(profile.customPronouns),

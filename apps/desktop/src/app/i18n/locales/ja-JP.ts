@@ -589,6 +589,10 @@ export default {
       "Pine は会話の中であなたと一緒に作業を進め、ファイルの内容に触れるときは該当箇所を引用または要約するので、ファイルを横に開いておく必要はありません。判断が必要な場面では確認します。",
     userProfileWorkStyleTakeoverDescription:
       "Pine がタスクを最後まで進め、ファイルやセクションは簡潔に参照し、結果を報告します。",
+    aldineMethodology: "Aldine メソドロジー",
+    aldineMethodologyDescription:
+      "Pine が冷静な対話相手として話します。率直で具体的、社交辞令は控えめです。",
+    beta: "ベータ",
     interactiveAnswers: "インタラクティブな回答",
     interactiveAnswersDescription:
       "必要に応じて、回答に操作可能なチェックリスト、計算機、表、グラフを含めます。",

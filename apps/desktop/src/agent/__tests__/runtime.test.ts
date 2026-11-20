@@ -37,6 +37,7 @@ import {
 import type { JudgeRequest, JudgeRuling, UserApprovalRequest } from "../gate";
 import type { LiveAgentSession } from "../runtime/session-state";
 import type { GateDecision } from "../protocol";
+import { ALDINE_METHODOLOGY_SYSTEM_PROMPT } from "../aldine-methodology";
 import { workStyleSystemPrompt } from "../system-prompt";
 import type { PineAgentEvent } from "../../shared/agent";
 import {
@@ -2255,7 +2256,7 @@ describe("PineAgentRuntime", () => {
     }
   });
 
-  it("sets the work style in the system prompt and switches it at the next run", async () => {
+  it("sets the work style and methodology in the system prompt, switching at the next run", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
     temporaryDirectories.push(root);
     const location = {
@@ -2322,6 +2323,7 @@ describe("PineAgentRuntime", () => {
       };
       // As it appears inside a serialized message.
       const encoded = (text: string) => JSON.stringify(text).slice(1, -1);
+      const methodology = encoded(ALDINE_METHODOLOGY_SYSTEM_PROMPT);
       const collaborate = encoded(workStyleSystemPrompt("collaborate"));
       const takeover = encoded(workStyleSystemPrompt("takeover"));
 
@@ -2329,6 +2331,8 @@ describe("PineAgentRuntime", () => {
       await session.prompt("First.");
       expect(requests[0][0]).toContain('"role":"system"');
       expect(requests[0][0]).toContain(collaborate);
+      // The Aldine methodology is on by default.
+      expect(requests[0][0]).toContain(methodology);
       expect(requests[0].join("")).not.toContain(takeover);
 
       await writePineUserProfile(location.agentDir, {
@@ -2350,6 +2354,30 @@ describe("PineAgentRuntime", () => {
           .slice(requests[1].length)
           .filter((message) => message.includes(takeover)),
       ).toEqual([]);
+
+      // Switching the methodology off removes it with an update at the end;
+      // switching it back on adds the same text again.
+      await writePineUserProfile(location.agentDir, {
+        ...createDefaultPineUserProfile(),
+        workStyle: "takeover",
+        aldineMethodologyEnabled: false,
+      });
+      await session.prompt("Fourth.");
+      expect(requests[3].slice(0, requests[2].length)).toEqual(requests[2]);
+      const removal = requests[3]
+        .slice(requests[2].length)
+        .find((message) => message.includes('"role":"system"'));
+      expect(removal).toContain('"pine_aldine_methodology":null');
+
+      await writePineUserProfile(location.agentDir, {
+        ...createDefaultPineUserProfile(),
+        workStyle: "takeover",
+      });
+      await session.prompt("Fifth.");
+      expect(requests[4].slice(0, requests[3].length)).toEqual(requests[3]);
+      expect(requests[4].slice(requests[3].length).join("")).toContain(
+        methodology,
+      );
     } finally {
       await runtime.dispose();
     }

@@ -576,6 +576,34 @@ describe("PinePreferencesDialog", () => {
     },
   );
 
+  it("edits the Aldine methodology on the user profile page", async () => {
+    installPineApi("linux");
+    getUserProfile.mockResolvedValue({
+      ...createDefaultPineUserProfile(),
+      nickname: "Existing user",
+    });
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "自定义");
+    expect(wrapper.text()).toContain("Aldine 方法论");
+    expect(wrapper.text()).toContain("坦诚、具体、少客套");
+    const toggle = wrapper.get(
+      '[data-testid="pine-aldine-methodology-toggle"]',
+    );
+    await vi.waitFor(() =>
+      expect(toggle.attributes("aria-checked")).toBe("true"),
+    );
+    await toggle.trigger("click");
+    await vi.waitFor(() =>
+      expect(setUserProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          aldineMethodologyEnabled: false,
+          nickname: "Existing user",
+        }),
+      ),
+    );
+    wrapper.unmount();
+  });
+
   it.each([true, false])(
     "edits interim answers as an Agent switch (saved value: %s)",
     async (enabled) => {
@@ -672,6 +700,7 @@ describe("PinePreferencesDialog", () => {
         pronouns: "unspecified",
         technicalBackground: "professional-user",
         workStyle: "takeover",
+        aldineMethodologyEnabled: true,
       }),
     );
 

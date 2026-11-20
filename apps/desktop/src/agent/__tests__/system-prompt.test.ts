@@ -9,6 +9,7 @@ import {
   userPronounsPrompt,
   workStyleSystemPrompt,
 } from "../system-prompt";
+import { ALDINE_METHODOLOGY_SYSTEM_PROMPT } from "../aldine-methodology";
 import {
   createDefaultPineUserProfile,
   type PineUserProfile,
@@ -58,6 +59,7 @@ describe("systemPromptWithUserProfile", () => {
       pronouns: "unspecified",
       technicalBackground: "professional-user",
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
 
     expect(prompt.startsWith("base prompt")).toBe(true);
@@ -79,6 +81,7 @@ describe("systemPromptWithUserProfile", () => {
       pronouns: "unspecified",
       technicalBackground: "general-user",
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
 
     expect(prompt).toContain("balanced tone");
@@ -238,5 +241,28 @@ describe("workStyleSystemPrompt", () => {
     expect(workStyleSystemPrompt("collaborate")).toBe(
       workStyleSystemPrompt("collaborate"),
     );
+  });
+});
+
+describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
+  it("defers tone and pace to the user's other settings", () => {
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toMatch(/^## Aldine methodology/);
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "The communication style in the user profile sets your tone and the work style sets how much you drive",
+    );
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "under full takeover, mention it in a sentence of your report",
+    );
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "Pine's rules for tools, permissions, sandboxing, safety",
+    );
+  });
+
+  it("carries none of Sóber's or Monet's own identity and rules", () => {
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toMatch(
+      /Sóber|Monet|replaces the communication style|Prism|render_mermaid|ask_user_questions|open-source models|crisis/,
+    );
+    // Prose-only wording made replies an unbroken wall of text.
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain("Default to prose");
   });
 });

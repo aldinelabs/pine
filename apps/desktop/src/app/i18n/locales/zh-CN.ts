@@ -547,6 +547,10 @@ export default {
       "Pine 在对话中与你一起推进，讨论文件内容时直接引用或概括相关段落，你无需另开文件对照，并在需要你决定时征求意见。",
     userProfileWorkStyleTakeoverDescription:
       "Pine 端到端地推进任务，简要指称文件和章节，完成后汇报结果。",
+    aldineMethodology: "Aldine 方法论",
+    aldineMethodologyDescription:
+      "让 Pine 像一位清醒的对话伙伴：坦诚、具体、少客套。",
+    beta: "Beta",
     interactiveAnswers: "交互式回答",
     interactiveAnswersDescription:
       "允许 Pine 用可操作的清单、计算器、表格和图表作答。",

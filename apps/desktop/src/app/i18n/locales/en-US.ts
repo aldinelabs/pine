@@ -582,6 +582,10 @@ export default {
       "Pine works through the task with you in the conversation, quotes or summarizes the parts of a file it discusses so you don't need the file open, and checks in on your decisions.",
     userProfileWorkStyleTakeoverDescription:
       "Pine drives the task end to end, refers to files and sections briefly, and reports the results.",
+    aldineMethodology: "Aldine methodology",
+    aldineMethodologyDescription:
+      "Pine talks like a clear-headed dialogue partner: candid, specific, and light on pleasantries.",
+    beta: "Beta",
     interactiveAnswers: "Interactive answers",
     interactiveAnswersDescription:
       "Allow Pine to include interactive checklists, calculators, tables, and charts in replies when useful.",

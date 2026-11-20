@@ -592,6 +592,10 @@ export default {
       "Pine arbeitet die Aufgabe mit dir im Gespräch durch, zitiert oder fasst die besprochenen Stellen einer Datei zusammen, damit du sie nicht daneben öffnen musst, und fragt bei deinen Entscheidungen nach.",
     userProfileWorkStyleTakeoverDescription:
       "Pine erledigt die Aufgabe von Anfang bis Ende, verweist knapp auf Dateien und Abschnitte und berichtet die Ergebnisse.",
+    aldineMethodology: "Aldine-Methodik",
+    aldineMethodologyDescription:
+      "Pine spricht wie ein nüchterner Gesprächspartner: offen, konkret und ohne Floskeln.",
+    beta: "Beta",
     interactiveAnswers: "Interaktive Antworten",
     interactiveAnswersDescription:
       "Pine darf bei Bedarf interaktive Checklisten, Rechner, Tabellen und Diagramme in Antworten einfügen.",

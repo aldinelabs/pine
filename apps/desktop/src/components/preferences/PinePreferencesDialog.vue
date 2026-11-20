@@ -69,6 +69,7 @@ import {
   FieldSet,
   FieldTitle,
 } from "@/components/ui/field";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Item,
@@ -415,7 +416,8 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.technicalBackground === b.technicalBackground &&
     a.interactiveAnswersEnabled === b.interactiveAnswersEnabled &&
     a.interimAnswersEnabled === b.interimAnswersEnabled &&
-    a.workStyle === b.workStyle
+    a.workStyle === b.workStyle &&
+    a.aldineMethodologyEnabled === b.aldineMethodologyEnabled
   );
 }
 
@@ -1244,6 +1246,30 @@ defineExpose({ open });
                 <FieldDescription>
                   {{ workStyleDescription }}
                 </FieldDescription>
+              </Field>
+
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-aldine-methodology-setting">
+                    {{ t("preferences.aldineMethodology") }}
+                    <Badge
+                      variant="outline"
+                      class="text-muted-foreground px-1.5 tracking-wide uppercase"
+                    >
+                      {{ t("preferences.beta") }}
+                    </Badge>
+                  </FieldTitle>
+                  <FieldDescription id="pine-aldine-methodology-description">
+                    {{ t("preferences.aldineMethodologyDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  v-model="profileDraft.aldineMethodologyEnabled"
+                  data-testid="pine-aldine-methodology-toggle"
+                  :disabled="!hasHydratedProfile"
+                  aria-labelledby="pine-aldine-methodology-setting"
+                  aria-describedby="pine-aldine-methodology-description"
+                />
               </Field>
 
               <Field>

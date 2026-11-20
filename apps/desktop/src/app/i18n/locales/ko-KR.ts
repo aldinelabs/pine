@@ -576,6 +576,10 @@ export default {
       "Pine이 대화 안에서 함께 작업을 진행하며, 파일 내용을 다룰 때는 해당 부분을 인용하거나 요약하므로 파일을 옆에 열어 둘 필요가 없습니다. 결정이 필요할 때는 확인을 요청합니다.",
     userProfileWorkStyleTakeoverDescription:
       "Pine이 작업을 처음부터 끝까지 진행하고, 파일과 섹션은 간단히 언급하며, 결과를 보고합니다.",
+    aldineMethodology: "Aldine 방법론",
+    aldineMethodologyDescription:
+      "Pine이 맑은 정신의 대화 상대처럼 말합니다. 솔직하고 구체적이며 인사치레는 줄입니다.",
+    beta: "베타",
     interactiveAnswers: "인터랙티브 답변",
     interactiveAnswersDescription:
       "필요할 때 답변에 직접 조작할 수 있는 체크리스트, 계산기, 표, 차트를 포함합니다.",

@@ -1032,7 +1032,11 @@ the user opens themselves do not pulse.
     discusses so you don't need the file open beside the chat, and checks in
     on your decisions; Full takeover: Pine drives the task end to end, refers
     to files and sections briefly and reports the results; automations always
-    run as Full takeover), personal details, custom instructions. Changes
+    run as Full takeover), Aldine methodology (a switch with a Beta badge,
+    on by default: Pine talks like a clear-headed dialogue partner, candid,
+    specific and light on pleasantries; it shapes how Pine thinks, asks and
+    disagrees, while the communication style sets the tone and the work style
+    sets how much Pine drives), personal details, custom instructions. Changes
     save automatically and apply from the next message in every
     conversation.
   - Multiple users (desktop app only): "Add user" opens the Add a user

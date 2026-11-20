@@ -16,7 +16,10 @@ import {
   writeLiveTranslationModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
-import { createDefaultPineUserProfile } from "../../shared/userProfile";
+import {
+  createDefaultPineUserProfile,
+  type PineUserProfile,
+} from "../../shared/userProfile";
 
 vi.mock("../runtime/decisions-models", () => ({
   decisionsModelDescriptors: vi.fn(() =>
@@ -418,6 +421,7 @@ describe("Pine agent settings", () => {
       pronouns: "custom",
       technicalBackground: "general-user",
       workStyle: "takeover",
+      aldineMethodologyEnabled: true,
     });
 
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
@@ -437,6 +441,7 @@ describe("Pine agent settings", () => {
         pronouns: "custom",
         technicalBackground: "general-user",
         workStyle: "takeover",
+        aldineMethodologyEnabled: true,
       },
     });
   });
@@ -502,6 +507,7 @@ describe("Pine agent settings", () => {
       pronouns: "unspecified",
       technicalBackground: "general-user",
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
   });
 
@@ -530,6 +536,7 @@ describe("Pine agent settings", () => {
       interimAnswersEnabled: true,
       pronouns: "unspecified",
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
   });
 
@@ -560,6 +567,7 @@ describe("Pine agent settings", () => {
       interimAnswersEnabled: true,
       pronouns: "unspecified",
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
   });
 
@@ -588,6 +596,7 @@ describe("Pine agent settings", () => {
       ...userProfile,
       interimAnswersEnabled: true,
       workStyle: "collaborate",
+      aldineMethodologyEnabled: true,
     });
   });
 
@@ -624,6 +633,33 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile?.workStyle).toBe(
       "takeover",
     );
+  });
+
+  it("turns the Aldine methodology on unless the user switched it off", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-methodology-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const settingsPath = path.join(agentDir, "pine-settings.json");
+    const legacy: Partial<PineUserProfile> = createDefaultPineUserProfile();
+    delete legacy.aldineMethodologyEnabled;
+
+    await writeFile(settingsPath, JSON.stringify({ userProfile: legacy }));
+    expect(
+      (await readPineAgentSettings(agentDir)).userProfile
+        ?.aldineMethodologyEnabled,
+    ).toBe(true);
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({
+        userProfile: { ...legacy, aldineMethodologyEnabled: false },
+      }),
+    );
+    expect(
+      (await readPineAgentSettings(agentDir)).userProfile
+        ?.aldineMethodologyEnabled,
+    ).toBe(false);
   });
 
   it("sanitises hand-edited custom pronouns on read", async () => {

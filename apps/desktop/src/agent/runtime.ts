@@ -114,6 +114,7 @@ import {
   approvalModeSystemPrompt,
   workStyleSystemPrompt,
 } from "./system-prompt";
+import { ALDINE_METHODOLOGY_SYSTEM_PROMPT } from "./aldine-methodology";
 import {
   AutoReviewGate,
   RULING_TOOL,
@@ -1799,6 +1800,10 @@ export class PineAgentRuntime {
                 workStyleSystemPrompt(
                   live.automation ? "takeover" : userProfile.workStyle,
                 );
+              // Present or absent, never edited.
+              if (userProfile.aldineMethodologyEnabled)
+                event.systemPromptOptions.sections.pine_aldine_methodology =
+                  ALDINE_METHODOLOGY_SYSTEM_PROMPT;
               // Applied for this run: pi keeps a tool list set here.
               this.applyInterimAnswersSetting(
                 live,

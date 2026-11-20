@@ -590,6 +590,10 @@ export default {
       "Pine avance avec vous dans la conversation, cite ou résume les passages du fichier dont il parle pour que vous n'ayez pas besoin de l'ouvrir à côté, et vous consulte sur les décisions qui vous reviennent.",
     userProfileWorkStyleTakeoverDescription:
       "Pine mène la tâche de bout en bout, mentionne brièvement les fichiers et sections, et rend compte des résultats.",
+    aldineMethodology: "Méthodologie Aldine",
+    aldineMethodologyDescription:
+      "Pine dialogue en interlocuteur lucide : franc, précis et sans formules creuses.",
+    beta: "Bêta",
     interactiveAnswers: "Réponses interactives",
     interactiveAnswersDescription:
       "Autoriser Pine à inclure des listes à cocher, calculatrices, tableaux et graphiques interactifs dans ses réponses lorsque cela est utile.",
