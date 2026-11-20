@@ -397,12 +397,10 @@ From top to bottom:
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
      action button (also while the agent works, for a steering message), as
-     its sparkles icon and
-     a "⌘↵" (Windows and Linux: "Ctrl ↵") keycap styled like the reply
-     suggestion's "Tab" key, in muted grey like a new session's project
-     picker, with no button outline until it opens; the key sits as far
-     from the action button as the action button is from the composer's
-     edge. Hovering it or reaching it with Tab blurs the key away in place
+     an outlined pill holding its sparkles icon and a "⌘↵" (Windows and
+     Linux: "Ctrl ↵") key, in muted grey like a new session's project
+     picker; the pill sits as far from the action button as the action
+     button is from the composer's edge. Hovering it or reaching it with Tab blurs the key away in place
      and brings in the label "Optimize prompt" in the gradient as the button
      widens to the left, over the end of the text box without moving
      anything; it

@@ -133,12 +133,12 @@ const labelClass = computed(() =>
     :data-expanded="props.isRewriting || undefined"
   >
     <span
-      class="composer-optimize-sizer invisible flex h-8 items-center border border-e-0 border-transparent pl-2.5"
+      class="composer-optimize-sizer invisible flex h-8 items-center border border-transparent pr-1.5 pl-2.5"
       aria-hidden="true"
     >
       <span class="size-4" />
       <span v-if="!showsUndo" class="composer-optimize-rest-kbd pl-1.5">
-        <ComposerKeycap
+        <ComposerKeycap class="composer-optimize-keycap"
           ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
         >
       </span>
@@ -150,7 +150,7 @@ const labelClass = computed(() =>
           data-slot="undo-prompt-optimization"
           :class="buttonClass"
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           :aria-label="t('project.composer.undoPromptOptimization')"
           @click="emit('undo')"
@@ -169,7 +169,7 @@ const labelClass = computed(() =>
           data-slot="optimize-prompt-trigger"
           :class="buttonClass"
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           :disabled="!props.canRewrite"
           :aria-busy="props.isRewriting || undefined"
@@ -193,7 +193,7 @@ const labelClass = computed(() =>
               aria-hidden="true"
             >
               <span class="composer-optimize-rest-kbd pl-1.5">
-                <ComposerKeycap
+                <ComposerKeycap class="composer-optimize-keycap"
                   ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
                 >
               </span>
@@ -304,13 +304,13 @@ const labelClass = computed(() =>
   align-items: center;
 }
 
-/* The label carries the open pill's end padding as a margin, so the keys
-   can rest right against the button's end. */
+/* Outlined, the button keeps a small end padding that insets the resting
+   keys from its border; the label adds the rest of the open pill's. */
 .composer-optimize-label-track > .composer-optimize-label {
   display: block;
   width: max-content;
-  margin-inline: 0.375rem 0.75rem;
-  transform-origin: calc(100% + 0.75rem) 50%;
+  margin-inline: 0.375rem;
+  transform-origin: calc(100% + 0.375rem) 50%;
 }
 
 .composer-optimize-kbd-track > .composer-optimize-rest-kbd {
@@ -350,15 +350,19 @@ const labelClass = computed(() =>
 }
 
 /* Open, the button covers the end of the text box rather than pushing it,
-   so it takes the composer's surface (the input tint over the page). It has
-   no end padding or border of its own (the label carries the padding), so
-   the resting keys sit exactly at its end. */
+   so it takes the composer's surface (the input tint over the page). */
 .composer-optimize-inline {
-  padding-inline-end: 0;
-  border-inline-end-width: 0;
+  padding-inline-end: 0.375rem;
   transition:
     background-color 200ms ease,
     color 200ms ease;
+}
+
+/* Inside the outlined button the keycap drops its own ring, so the two
+   edges do not double up; a muted fill keeps it reading as a key. */
+.composer-optimize-keycap {
+  box-shadow: none;
+  background-color: var(--muted);
 }
 
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
