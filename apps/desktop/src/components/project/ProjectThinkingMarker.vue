@@ -250,7 +250,11 @@ const hasResponseAfterThinking = computed(
 const FRACTIONAL_SECONDS_UNTIL_MS = 10_000;
 const ELAPSED_TICK_MS = 250;
 const secondsFormat = computed(
-  () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1 }),
+  () =>
+    new Intl.NumberFormat(locale.value, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }),
 );
 const integerFormat = computed(() => new Intl.NumberFormat(locale.value));
 
@@ -262,11 +266,10 @@ function formatDuration(durationMs?: number): string | undefined {
   const totalSeconds = Math.max(1, Math.round(durationMs / 1_000));
   if (totalSeconds < 60) {
     return t("project.transcript.thinkingDuration.seconds", {
-      value: secondsFormat.value.format(
+      value:
         durationMs < FRACTIONAL_SECONDS_UNTIL_MS
-          ? durationMs / 1_000
-          : totalSeconds,
-      ),
+          ? secondsFormat.value.format(durationMs / 1_000)
+          : integerFormat.value.format(totalSeconds),
     });
   }
   return t("project.transcript.thinkingDuration.minutes", {

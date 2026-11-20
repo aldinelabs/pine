@@ -111,7 +111,7 @@ describe("project transcript markers", () => {
     });
 
     const trigger = wrapper.get('button[data-slot="marker"]');
-    expect(trigger.text()).toContain("Thinking (1s)");
+    expect(trigger.text()).toContain("Thinking (1.0s)");
     expect(trigger.attributes("aria-expanded")).toBe("true");
     expect(wrapper.find(".shimmer").exists()).toBe(false);
 
