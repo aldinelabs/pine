@@ -189,6 +189,7 @@ import {
   type PineSessionMutator,
 } from "../shared/sessionMutators";
 import { createProgressRemindersExtension } from "./runtime/progress-reminders";
+import { createArtifactRemindersExtension } from "./runtime/artifact-reminders";
 import {
   AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
   automationAuthoringInstructions,
@@ -1929,6 +1930,7 @@ export class PineAgentRuntime {
               },
             ] satisfies InlineExtension[])),
         createProgressRemindersExtension(),
+        createArtifactRemindersExtension({ cwd: location.cwd }),
         ...(sideChat
           ? [
               createSideChatExtension({
