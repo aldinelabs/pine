@@ -262,7 +262,7 @@ function statusFor(name: string): string {
               <Item
                 v-for="server in servers"
                 :key="server.name"
-                variant="outline"
+                variant="muted"
               >
                 <ItemContent>
                   <ItemTitle

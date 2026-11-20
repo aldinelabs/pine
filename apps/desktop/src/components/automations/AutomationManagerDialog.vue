@@ -304,9 +304,9 @@ const pendingApprovals = computed(() =>
               <Item
                 v-for="entry in runs"
                 :key="entry.id"
-                variant="outline"
+                variant="muted"
                 as="button"
-                class="text-left"
+                class="text-left hover:bg-muted"
                 @click="openRun(entry)"
               >
                 <ItemContent>
@@ -366,7 +366,7 @@ const pendingApprovals = computed(() =>
               <Item
                 v-for="automation in automations"
                 :key="`${automation.projectId}/${automation.id}`"
-                variant="outline"
+                variant="muted"
               >
                 <ItemContent
                   class="cursor-pointer"
@@ -432,7 +432,7 @@ const pendingApprovals = computed(() =>
               <Item
                 v-for="secret in secrets"
                 :key="secret.name"
-                variant="outline"
+                variant="muted"
               >
                 <ItemContent>
                   <ItemTitle>

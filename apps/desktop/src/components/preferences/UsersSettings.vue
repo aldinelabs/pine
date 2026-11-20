@@ -163,7 +163,7 @@ onMounted(() => {
         :key="user.id"
         data-slot="users-settings-row"
         :data-user-id="user.id"
-        variant="outline"
+        variant="muted"
         size="sm"
       >
         <ItemMedia>

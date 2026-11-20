@@ -239,10 +239,10 @@ function pauseText(reason: AutomationPauseReason): string {
             <Item
               v-for="entry in runs"
               :key="entry.id"
-              variant="outline"
+              variant="muted"
               size="sm"
               as="button"
-              class="text-left"
+              class="text-left enabled:hover:bg-muted"
               :disabled="!entry.sessionId"
               @click="emit('openRun', entry)"
             >

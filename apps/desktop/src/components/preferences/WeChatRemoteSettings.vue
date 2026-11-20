@@ -462,7 +462,7 @@ function openServerGuide(): void {
     </p>
 
     <template v-if="status.bound">
-      <Item variant="outline" size="sm" data-testid="pine-wechat-account">
+      <Item variant="muted" size="sm" data-testid="pine-wechat-account">
         <ItemMedia variant="icon">
           <MessageCircleIcon />
         </ItemMedia>

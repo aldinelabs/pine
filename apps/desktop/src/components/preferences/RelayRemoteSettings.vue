@@ -318,7 +318,7 @@ function confirmRemove(): void {
         <Item
           v-for="device in status.devices"
           :key="device.id"
-          variant="outline"
+          variant="muted"
           size="sm"
           :data-testid="`pine-relay-remote-device-${device.id}`"
         >

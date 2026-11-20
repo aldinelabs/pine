@@ -183,7 +183,7 @@ onMounted(() => {
         v-for="project in projects"
         :key="project.id"
         data-slot="project-management-row"
-        variant="outline"
+        variant="muted"
         size="sm"
       >
         <ItemMedia variant="icon">

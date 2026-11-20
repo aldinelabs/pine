@@ -250,7 +250,7 @@ async function confirmDelete(): Promise<void> {
                 v-for="memory in memoriesByScope[tab]"
                 :key="memoryKey(memory)"
                 data-slot="memory-row"
-                variant="outline"
+                variant="muted"
               >
                 <ItemContent class="min-w-0">
                   <ItemTitle class="w-full">
