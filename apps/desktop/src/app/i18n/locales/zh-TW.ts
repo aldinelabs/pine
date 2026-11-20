@@ -328,7 +328,9 @@ export default {
       },
       web: {
         title: "網頁搜尋",
-        description: "搜尋網頁並讀取頁面內容。需要 TinyFish API 金鑰。",
+        description: "透過 TinyFish 搜尋網頁並讀取頁面內容。",
+        keyAdded: "已新增金鑰。",
+        keyMissing: "需新增 API 金鑰才能使用。",
       },
       computerUse: {
         title: "電腦操作",
@@ -410,8 +412,6 @@ export default {
       modelCatalog: "模型目錄",
       modelRoles: "專用模型",
       harness: "Harness 特性",
-      permissions: "許可權",
-      context: "上下文",
       tools: "工具",
     },
     sectionsLabel: "設定分類",
@@ -503,11 +503,6 @@ export default {
     noVideoModelSelected: "未選擇模型",
     videoModelUnconfigured:
       "尚未配置 OpenRouter。可在“管理服務或模型”中新增它的 API 金鑰。",
-    tinyFish: "TinyFish 網路工具",
-    tinyFishDescription: "配置 API 金鑰後，AI 才能使用網路搜尋和網頁抓取。",
-    tinyFishConfigured: "已設定",
-    tinyFishNotConfigured: "未設定",
-    tinyFishConfiguredDescription: "AI 可以使用網路搜尋和網頁抓取。",
     addTinyFishApiKey: "新增金鑰",
     changeTinyFishApiKey: "更改金鑰",
     tinyFishDialogTitle: "設定 TinyFish API 金鑰",

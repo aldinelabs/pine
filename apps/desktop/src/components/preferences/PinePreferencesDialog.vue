@@ -5,7 +5,6 @@ import { useDialogPages } from "@/composables/useDialogPages";
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { handleError } from "@/app/errors/errorHandler";
 import {
-  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   BotIcon,
@@ -48,7 +47,6 @@ import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import HelpHint from "./HelpHint.vue";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1922,30 +1920,8 @@ defineExpose({ open });
                       @update:model-value="updateApproximateLocation"
                     />
                   </Field>
-                </FieldGroup>
-              </FieldSet>
-
-              <FieldSeparator />
-              <FieldSet>
-                <FieldLegend
-                  variant="label"
-                  class="text-xs text-muted-foreground"
-                  >{{ t("preferences.groups.permissions") }}</FieldLegend
-                >
-                <FieldGroup>
                   <AutoApprovalSettings />
-                </FieldGroup>
-              </FieldSet>
 
-              <FieldSeparator />
-
-              <FieldSet>
-                <FieldLegend
-                  variant="label"
-                  class="text-xs text-muted-foreground"
-                  >{{ t("preferences.groups.context") }}</FieldLegend
-                >
-                <FieldGroup>
                   <Field orientation="responsive">
                     <div class="flex min-w-0 flex-1 items-baseline gap-2">
                       <FieldTitle id="pine-context-compaction-strategy-setting">
@@ -2021,58 +1997,32 @@ defineExpose({ open });
                 </FieldDescription>
                 <FieldGroup>
                   <ToolGroupSettings>
-                    <template #web>
-                      <!-- Indented under the Web search row it configures. -->
-                      <Field orientation="responsive" class="pl-11">
-                        <div class="flex min-w-0 flex-1 flex-col gap-1">
-                          <div class="flex items-center gap-2">
-                            <FieldTitle id="pine-tinyfish-credential-setting">
-                              {{ t("preferences.tinyFish") }}
-                            </FieldTitle>
-                            <Badge
-                              v-if="isTinyFishCredentialConfigured"
-                              data-testid="pine-tinyfish-credential-status"
-                              variant="secondary"
-                              class="text-emerald-700 dark:text-emerald-400"
-                            >
-                              <CheckIcon aria-hidden="true" />
-                              {{ t("preferences.tinyFishConfigured") }}
-                            </Badge>
-                            <Badge
-                              v-else
-                              data-testid="pine-tinyfish-credential-status"
-                              variant="outline"
-                              class="text-muted-foreground"
-                            >
-                              {{ t("preferences.tinyFishNotConfigured") }}
-                            </Badge>
-                          </div>
-                          <FieldDescription>
-                            {{
-                              isTinyFishCredentialConfigured
-                                ? t("preferences.tinyFishConfiguredDescription")
-                                : t("preferences.tinyFishDescription")
-                            }}
-                          </FieldDescription>
-                        </div>
-                        <Button
-                          data-testid="pine-tinyfish-credential-button"
-                          :variant="
-                            isTinyFishCredentialConfigured
-                              ? 'outline'
-                              : 'default'
-                          "
-                          size="sm"
-                          aria-labelledby="pine-tinyfish-credential-setting"
-                          @click="openTinyFishCredentialDialog"
-                        >
-                          {{
-                            isTinyFishCredentialConfigured
-                              ? t("preferences.changeTinyFishApiKey")
-                              : t("preferences.addTinyFishApiKey")
-                          }}
-                        </Button>
-                      </Field>
+                    <template #web-status>
+                      <span data-testid="pine-tinyfish-credential-status">
+                        {{
+                          isTinyFishCredentialConfigured
+                            ? t("preferences.toolGroups.web.keyAdded")
+                            : t("preferences.toolGroups.web.keyMissing")
+                        }}
+                      </span>
+                    </template>
+                    <template #web-action>
+                      <Button
+                        data-testid="pine-tinyfish-credential-button"
+                        :variant="
+                          isTinyFishCredentialConfigured ? 'ghost' : 'outline'
+                        "
+                        size="sm"
+                        class="shrink-0"
+                        aria-describedby="pine-tool-group-web-title"
+                        @click="openTinyFishCredentialDialog"
+                      >
+                        {{
+                          isTinyFishCredentialConfigured
+                            ? t("preferences.changeTinyFishApiKey")
+                            : t("preferences.addTinyFishApiKey")
+                        }}
+                      </Button>
                     </template>
                   </ToolGroupSettings>
                 </FieldGroup>

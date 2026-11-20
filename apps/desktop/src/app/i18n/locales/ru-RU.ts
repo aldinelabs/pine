@@ -346,8 +346,9 @@ export default {
       },
       web: {
         title: "Веб-поиск",
-        description:
-          "Искать в интернете и читать страницы. Нужен API-ключ TinyFish.",
+        description: "Искать в интернете и читать страницы через TinyFish.",
+        keyAdded: "Ключ добавлен.",
+        keyMissing: "Добавьте API-ключ, чтобы пользоваться.",
       },
       computerUse: {
         title: "Управление компьютером",
@@ -439,8 +440,6 @@ export default {
       modelCatalog: "Каталог моделей",
       modelRoles: "Специализированные модели",
       harness: "Функции оболочки",
-      permissions: "Разрешения",
-      context: "Контекст",
       tools: "Инструменты",
     },
     sectionsLabel: "Разделы настроек",
@@ -537,13 +536,6 @@ export default {
     noVideoModelSelected: "Модель не выбрана",
     videoModelUnconfigured:
       "OpenRouter ещё не настроен. Добавьте его API-ключ через «Управление провайдерами и моделями».",
-    tinyFish: "Веб-инструменты TinyFish",
-    tinyFishDescription:
-      "Добавьте API-ключ, чтобы ИИ мог искать в интернете и загружать страницы.",
-    tinyFishConfigured: "Настроено",
-    tinyFishNotConfigured: "Не настроено",
-    tinyFishConfiguredDescription:
-      "ИИ может искать в интернете и загружать страницы.",
     addTinyFishApiKey: "Добавить ключ",
     changeTinyFishApiKey: "Изменить ключ",
     tinyFishDialogTitle: "Задать API-ключ TinyFish",

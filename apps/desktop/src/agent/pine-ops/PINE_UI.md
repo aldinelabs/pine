@@ -932,7 +932,7 @@ the user opens themselves do not pulse.
     generation model), live translation model (translates live context when
     its translation is on; without one it uses the title generation model),
     image generation model, video generation model, Decisions model.
-  - Agent, in four titled groups:
+  - Agent, in two titled groups:
     - Harness features: Interactive answers switch (enabled by default;
       in WeChat an interactive answer arrives as text, lists and tables; its
       buttons, or the options of a block's only picker, are numbered and the
@@ -943,15 +943,16 @@ the user opens themselves do not pulse.
       Remember across sessions switch (enabled by default, applies from the
       next message; off, Pine neither reads nor saves memory notes, which stay
       and can still be managed in the Memory manager), Share approximate
-      location with AI switch.
-    - Permissions: automatic approval path.
-    - Context: context compaction strategy and method.
+      location with AI switch, automatic approval path, context compaction
+      strategy and method.
     - Tools: "Choose what Pine can do. Everything is on by default; a change
       applies from your next message." One row per tool family, each with an
       icon, a one-line description and a switch, all on by default: Shell
-      commands, Web search (the TinyFish web tools key row sits right below
-      it and shows Configured or Not configured; the tools also need the
-      key), Computer use, Image and video generation, Artifacts and
+      commands, Web search (runs through TinyFish and needs its API key:
+      the row's description ends with "Key added." or "Add an API key to
+      use it.", and a button before its switch, "Add key" or "Change
+      key", opens the key dialog; without a key the web tools stay
+      unavailable even while the switch is on), Computer use, Image and video generation, Artifacts and
       workbench, Live Context (off, Pine also stops seeing the live
       transcript), Sessions, Projects, Skills, Automations, MCP servers.
       Off, the agent gets none of that family's tools; open conversations

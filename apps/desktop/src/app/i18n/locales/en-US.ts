@@ -345,7 +345,9 @@ export default {
       },
       web: {
         title: "Web search",
-        description: "Search the web and read pages. Needs a TinyFish API key.",
+        description: "Search the web and read pages through TinyFish.",
+        keyAdded: "Key added.",
+        keyMissing: "Add an API key to use it.",
       },
       computerUse: {
         title: "Computer use",
@@ -437,8 +439,6 @@ export default {
       modelCatalog: "Model catalog",
       modelRoles: "Specialized models",
       harness: "Harness features",
-      permissions: "Permissions",
-      context: "Context",
       tools: "Tools",
     },
     sectionsLabel: "Settings sections",
@@ -535,12 +535,6 @@ export default {
     noVideoModelSelected: "No model selected",
     videoModelUnconfigured:
       "OpenRouter is not configured yet. Use “Manage providers and models” to add its API key.",
-    tinyFish: "TinyFish web tools",
-    tinyFishDescription:
-      "Add an API key to let AI use web search and page fetching.",
-    tinyFishConfigured: "Configured",
-    tinyFishNotConfigured: "Not configured",
-    tinyFishConfiguredDescription: "AI can use web search and page fetching.",
     addTinyFishApiKey: "Add key",
     changeTinyFishApiKey: "Change key",
     tinyFishDialogTitle: "Set TinyFish API key",

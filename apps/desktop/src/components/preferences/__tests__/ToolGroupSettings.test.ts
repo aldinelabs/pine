@@ -14,7 +14,10 @@ function mountWith(api: Record<string, unknown>) {
   Object.defineProperty(window, "pine", { configurable: true, value: api });
   return mount(ToolGroupSettings, {
     global: { plugins: [createAppI18n("en-US")] },
-    slots: { web: '<div data-testid="web-extra">TinyFish key</div>' },
+    slots: {
+      "web-status": '<span data-testid="web-status">Key added.</span>',
+      "web-action": '<button data-testid="web-action">Change key</button>',
+    },
   });
 }
 
@@ -41,13 +44,16 @@ it("lists every tool group with an icon, a description and its switch", async ()
     ).toBe(id === "mcp" ? "false" : "true");
   }
   expect(wrapper.text()).toContain("Shell commands");
-  // The web row carries the TinyFish key setting right below it.
-  const html = wrapper.html();
-  expect(html.indexOf("web-extra")).toBeGreaterThan(
-    html.indexOf("pine-tool-group-web"),
+  // The web row keeps the list uniform: its key state reads as part of the
+  // description and its key button sits before the switch, inside the row.
+  const web = wrapper.get('[data-testid="pine-tool-group-web"]');
+  expect(web.get('[id="pine-tool-group-web-description"]').text()).toContain(
+    "Key added.",
   );
-  expect(html.indexOf("web-extra")).toBeLessThan(
-    html.indexOf("pine-tool-group-computerUse"),
+  const html = web.html();
+  expect(html.indexOf("web-action")).toBeGreaterThan(-1);
+  expect(html.indexOf("web-action")).toBeLessThan(
+    html.indexOf("pine-tool-group-web-toggle"),
   );
   wrapper.unmount();
 });

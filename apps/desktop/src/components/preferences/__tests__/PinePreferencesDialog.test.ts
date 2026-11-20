@@ -100,7 +100,8 @@ function mountDialog(options: { attachTo?: HTMLElement } = {}) {
       stubs: {
         MemoryEnabledSetting: true,
         ToolGroupSettings: {
-          template: '<div data-testid="tool-groups"><slot name="web" /></div>',
+          template:
+            '<div data-testid="tool-groups"><slot name="web-status" /><slot name="web-action" /></div>',
         },
         Dialog: passthroughStub,
         DialogContent: passthroughStub,
@@ -475,22 +476,30 @@ describe("PinePreferencesDialog", () => {
     const { wrapper } = mountDialog();
     await openSection(wrapper, "智能体");
     const legends = wrapper.findAll("legend").map((legend) => legend.text());
-    expect(legends).toEqual(["Harness 特性", "权限", "上下文", "工具"]);
+    expect(legends).toEqual(["Harness 特性", "工具"]);
     const sets = wrapper.findAll("fieldset");
+    // Approval and compaction sit directly under harness features.
     expect(sets[0].text()).toContain("向 AI 提供大致位置");
-    expect(sets[0].find('[data-testid="tool-groups"]').exists()).toBe(false);
-    const tools = sets[3];
-    expect(tools.text()).toContain("默认全部开启");
-    // The TinyFish key sits with the web search switch inside the tool list.
+    expect(sets[0].text()).toContain("上下文压缩策略");
     expect(
-      tools
-        .get('[data-testid="tool-groups"]')
-        .find('[data-testid="pine-tinyfish-credential-button"]')
-        .exists(),
+      sets[0].find('[data-testid="pine-auto-approval-settings"]').exists(),
     ).toBe(true);
+    expect(sets[0].find('[data-testid="tool-groups"]').exists()).toBe(false);
+    const tools = sets[1];
+    expect(tools.text()).toContain("默认全部开启");
+    // The TinyFish key lives in the web search row, as a plain status
+    // sentence and a key button, with no separate row or badge.
+    const toolList = tools.get('[data-testid="tool-groups"]');
+    expect(
+      toolList.get('[data-testid="pine-tinyfish-credential-status"]').text(),
+    ).toBe("需添加 API 密钥才能使用。");
+    expect(
+      toolList.find('[data-testid="pine-tinyfish-credential-button"]').exists(),
+    ).toBe(true);
+    expect(tools.text()).not.toContain("未配置");
   });
 
-  it("saves a TinyFish key from the harness section", async () => {
+  it("saves a TinyFish key from the web search row", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
     await openSection(wrapper, "智能体");
@@ -507,6 +516,7 @@ describe("PinePreferencesDialog", () => {
       }),
     );
     expect(wrapper.text()).toContain("更改密钥");
+    expect(wrapper.text()).toContain("已添加密钥。");
   });
 
   it("opens the shared model picker in utility mode", async () => {

@@ -29,7 +29,9 @@ import {
  * agent gets none of that family's tools; open sessions pick the change up
  * when their next message starts, never in the middle of a reply.
  *
- * The icons match the ones tool calls show in the transcript.
+ * The icons match the ones tool calls show in the transcript. A row can add
+ * a status sentence to its description (`<id>-status`) and a small control
+ * before its switch (`<id>-action`), such as the web search key.
  */
 const ICONS: Record<PineToolGroupId, Component> = {
   shell: SquareTerminal,
@@ -101,8 +103,10 @@ async function update(id: PineToolGroupId, next: boolean): Promise<void> {
         </FieldTitle>
         <FieldDescription :id="`pine-tool-group-${id}-description`">
           {{ t(`preferences.toolGroups.${id}.description`) }}
+          <slot :name="`${id}-status`" />
         </FieldDescription>
       </div>
+      <slot :name="`${id}-action`" />
       <Switch
         :data-testid="`pine-tool-group-${id}-toggle`"
         :model-value="groups[id]"
@@ -112,6 +116,5 @@ async function update(id: PineToolGroupId, next: boolean): Promise<void> {
         @update:model-value="(value: boolean) => void update(id, value)"
       />
     </Field>
-    <slot :name="id" />
   </template>
 </template>

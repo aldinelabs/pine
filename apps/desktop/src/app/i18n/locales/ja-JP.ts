@@ -356,8 +356,9 @@ export default {
       },
       web: {
         title: "ウェブ検索",
-        description:
-          "ウェブを検索してページを読み取ります。TinyFish の API キーが必要です。",
+        description: "TinyFish を使ってウェブを検索し、ページを読み取ります。",
+        keyAdded: "キーを追加済みです。",
+        keyMissing: "使うには API キーを追加してください。",
       },
       computerUse: {
         title: "コンピュータ操作",
@@ -446,8 +447,6 @@ export default {
       modelCatalog: "モデルカタログ",
       modelRoles: "専用モデル",
       harness: "ハーネス機能",
-      permissions: "権限",
-      context: "コンテキスト",
       tools: "ツール",
     },
     sectionsLabel: "設定のセクション",
@@ -544,12 +543,6 @@ export default {
     noVideoModelSelected: "モデルが選択されていません",
     videoModelUnconfigured:
       "OpenRouter はまだ設定されていません。「プロバイダとモデルを管理」から API キーを追加してください。",
-    tinyFish: "TinyFish ウェブツール",
-    tinyFishDescription:
-      "API キーを追加すると、AI がウェブ検索とページ取得を使えるようになります。",
-    tinyFishConfigured: "設定済み",
-    tinyFishNotConfigured: "未設定",
-    tinyFishConfiguredDescription: "AI がウェブ検索とページ取得を使えます。",
     addTinyFishApiKey: "キーを追加",
     changeTinyFishApiKey: "キーを変更",
     tinyFishDialogTitle: "TinyFish API キーを設定",

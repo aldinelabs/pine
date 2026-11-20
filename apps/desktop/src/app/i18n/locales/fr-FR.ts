@@ -351,8 +351,9 @@ export default {
       },
       web: {
         title: "Recherche web",
-        description:
-          "Chercher sur le web et lire des pages. Nécessite une clé API TinyFish.",
+        description: "Chercher sur le web et lire des pages via TinyFish.",
+        keyAdded: "Clé ajoutée.",
+        keyMissing: "Ajoutez une clé API pour l’utiliser.",
       },
       computerUse: {
         title: "Contrôle de l’ordinateur",
@@ -444,8 +445,6 @@ export default {
       modelCatalog: "Catalogue de modèles",
       modelRoles: "Modèles spécialisés",
       harness: "Fonctions du harnais",
-      permissions: "Autorisations",
-      context: "Contexte",
       tools: "Outils",
     },
     sectionsLabel: "Sections des réglages",
@@ -544,13 +543,6 @@ export default {
     noVideoModelSelected: "Aucun modèle sélectionné",
     videoModelUnconfigured:
       "OpenRouter n'est pas encore configuré. Utilisez « Gérer les fournisseurs et les modèles » pour ajouter sa clé d'API.",
-    tinyFish: "Outils web TinyFish",
-    tinyFishDescription:
-      "Ajoutez une clé d'API pour permettre à l'IA d'utiliser la recherche web et la récupération de pages.",
-    tinyFishConfigured: "Configurée",
-    tinyFishNotConfigured: "Non configurée",
-    tinyFishConfiguredDescription:
-      "L'IA peut utiliser la recherche web et la récupération de pages.",
     addTinyFishApiKey: "Ajouter la clé",
     changeTinyFishApiKey: "Changer la clé",
     tinyFishDialogTitle: "Définir la clé d'API TinyFish",

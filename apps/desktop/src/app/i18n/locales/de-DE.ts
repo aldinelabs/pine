@@ -355,8 +355,9 @@ export default {
       },
       web: {
         title: "Websuche",
-        description:
-          "Im Web suchen und Seiten lesen. Erfordert einen TinyFish-API-Schlüssel.",
+        description: "Über TinyFish im Web suchen und Seiten lesen.",
+        keyAdded: "Schlüssel hinzugefügt.",
+        keyMissing: "Fügen Sie einen API-Schlüssel hinzu, um sie zu nutzen.",
       },
       computerUse: {
         title: "Computersteuerung",
@@ -448,8 +449,6 @@ export default {
       modelCatalog: "Modellkatalog",
       modelRoles: "Spezialisierte Modelle",
       harness: "Harness-Funktionen",
-      permissions: "Berechtigungen",
-      context: "Kontext",
       tools: "Werkzeuge",
     },
     sectionsLabel: "Einstellungsbereiche",
@@ -546,13 +545,6 @@ export default {
     noVideoModelSelected: "Kein Modell ausgewählt",
     videoModelUnconfigured:
       "OpenRouter ist noch nicht eingerichtet. Fügen Sie über „Anbieter und Modelle verwalten“ den API-Schlüssel hinzu.",
-    tinyFish: "TinyFish-Webwerkzeuge",
-    tinyFishDescription:
-      "Fügen Sie einen API-Schlüssel hinzu, damit die KI Websuche und Seitenabruf nutzen kann.",
-    tinyFishConfigured: "Konfiguriert",
-    tinyFishNotConfigured: "Nicht konfiguriert",
-    tinyFishConfiguredDescription:
-      "Die KI kann Websuche und Seitenabruf nutzen.",
     addTinyFishApiKey: "Schlüssel hinzufügen",
     changeTinyFishApiKey: "Schlüssel ändern",
     tinyFishDialogTitle: "TinyFish-API-Schlüssel festlegen",

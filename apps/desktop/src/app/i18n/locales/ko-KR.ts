@@ -343,8 +343,9 @@ export default {
       },
       web: {
         title: "웹 검색",
-        description:
-          "웹을 검색하고 페이지를 읽습니다. TinyFish API 키가 필요합니다.",
+        description: "TinyFish로 웹을 검색하고 페이지를 읽습니다.",
+        keyAdded: "키가 추가되었습니다.",
+        keyMissing: "사용하려면 API 키를 추가하세요.",
       },
       computerUse: {
         title: "컴퓨터 제어",
@@ -433,8 +434,6 @@ export default {
       modelCatalog: "모델 카탈로그",
       modelRoles: "전용 모델",
       harness: "하네스 기능",
-      permissions: "권한",
-      context: "컨텍스트",
       tools: "도구",
     },
     sectionsLabel: "설정 섹션",
@@ -531,13 +530,6 @@ export default {
     noVideoModelSelected: "선택된 모델 없음",
     videoModelUnconfigured:
       "OpenRouter가 아직 구성되지 않았습니다. '제공자 및 모델 관리'에서 API 키를 추가하세요.",
-    tinyFish: "TinyFish 웹 도구",
-    tinyFishDescription:
-      "API 키를 추가하면 AI가 웹 검색과 페이지 가져오기를 사용할 수 있습니다.",
-    tinyFishConfigured: "설정됨",
-    tinyFishNotConfigured: "설정 안 됨",
-    tinyFishConfiguredDescription:
-      "AI가 웹 검색과 페이지 가져오기를 사용할 수 있습니다.",
     addTinyFishApiKey: "키 추가",
     changeTinyFishApiKey: "키 변경",
     tinyFishDialogTitle: "TinyFish API 키 설정",
