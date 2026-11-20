@@ -155,9 +155,15 @@ More menu:
 
 Tab bar ("Open content"):
 
-- Each tab is a session or a file; each has a close button ("Close {name}").
-  Tabs can be dragged to reorder. When the tabs overflow, the bar scrolls
-  sideways with faded edges; opening or closing a sidebar keeps the selected
+- Each tab is a session or a file; each has a close button ("Close {name}")
+  that appears over the end of the title on hover or keyboard focus, without
+  changing the tab's size. Tabs are as wide as their titles within a minimum
+  and maximum; the selected tab may be wider than the others. A title that
+  does not fit fades out at its end instead of ending in "…".
+  Tabs can be dragged to reorder. When space runs short, the other tabs shrink
+  to their minimum width first; only then does the bar scroll sideways with
+  faded edges, keeping the selected tab in view. Opening or closing a
+  sidebar keeps the selected
   tab in its place in the visible strip, fully shown.
 - Add session tab: always opens and selects a fresh session tab, keeping
   existing drafts and preview tabs open. Each click adds another tab. Its

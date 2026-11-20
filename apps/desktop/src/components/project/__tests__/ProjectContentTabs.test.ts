@@ -296,6 +296,48 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
+  it("sizes tabs to their titles and lets only inactive tabs shrink", async () => {
+    const { wrapper } = await mountTabs(true);
+    const tabs = wrapper.findAll('[data-slot="project-content-tab"]');
+    expect(tabs).toHaveLength(2);
+    const active = tabs.find((tab) =>
+      tab.find('[aria-selected="true"]').exists(),
+    );
+    const inactive = tabs.find((tab) => tab !== active);
+    for (const tab of tabs) {
+      expect(tab.classes()).toContain("min-w-28");
+      expect(tab.classes()).not.toContain("w-40");
+    }
+    expect(active?.classes()).toEqual(
+      expect.arrayContaining(["max-w-80", "shrink-0"]),
+    );
+    expect(inactive?.classes()).toEqual(
+      expect.arrayContaining(["max-w-60", "shrink"]),
+    );
+    // The inactive title may shrink to nothing; the active one keeps its width.
+    expect(
+      active?.get('[data-slot="project-content-tab-title"]').classes(),
+    ).toContain("grid-cols-[auto]");
+    expect(
+      inactive?.get('[data-slot="project-content-tab-title"]').classes(),
+    ).toContain("grid-cols-[minmax(0,auto)]");
+    // The item row shrinks with the list instead of forcing it to scroll.
+    expect(
+      wrapper.get('[data-slot="project-content-tab-items"]').classes(),
+    ).not.toContain("min-w-max");
+    wrapper.unmount();
+  });
+
+  it("fades a long title instead of truncating it and keeps hover from reflowing it", async () => {
+    const { wrapper } = await mountTabs();
+    const tab = wrapper.get('[data-slot="project-content-tab"]');
+    const title = tab.get('[data-slot="session-title"]');
+    expect(title.classes()).not.toContain("truncate");
+    expect(title.element.parentElement?.classList).toContain("scroll-fade-x");
+    expect(tab.get('[role="tab"]').classes().join(" ")).not.toMatch(/pr-10/);
+    wrapper.unmount();
+  });
+
   it("shows a sub-session tab with its own icon", async () => {
     const { wrapper } = await mountTabs();
     const tabs = useContentTabsStore();

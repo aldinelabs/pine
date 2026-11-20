@@ -462,28 +462,37 @@ function revealTab(tabId: string): void {
   });
 }
 
+/**
+ * Tabs are sized to their titles, so opening, closing or selecting one moves
+ * its neighbours. Sample before Vue patches the list so every path, native
+ * window shortcuts such as Cmd+W included, slides them to their new places.
+ */
+function scheduleTabShift(): void {
+  pendingTabPositions ??= captureTabPositions();
+  if (tabShiftAnimationScheduled) return;
+
+  tabShiftAnimationScheduled = true;
+  void nextTick(() => {
+    tabShiftAnimationScheduled = false;
+    const positions = pendingTabPositions;
+    pendingTabPositions = null;
+    if (positions) animateTabShifts(positions);
+    closingTab = false;
+  });
+}
+
 watch(
   () => tabs.value.map((tab) => tab.id),
   (tabIds, previousTabIds) => {
-    if (!previousTabIds.some((tabId) => !tabIds.includes(tabId))) return;
-
-    // Sample before Vue patches the list so every tab-removal path gets the
-    // same FLIP animation, including native window shortcuts such as Cmd+W.
-    pendingTabPositions = captureTabPositions();
-    closingTab = true;
-    if (tabShiftAnimationScheduled) return;
-
-    tabShiftAnimationScheduled = true;
-    void nextTick(() => {
-      tabShiftAnimationScheduled = false;
-      const positions = pendingTabPositions;
-      pendingTabPositions = null;
-      if (positions) animateTabShifts(positions);
-      closingTab = false;
-    });
+    if (previousTabIds.some((tabId) => !tabIds.includes(tabId)))
+      closingTab = true;
+    else if (!tabIds.some((tabId) => !previousTabIds.includes(tabId))) return;
+    scheduleTabShift();
   },
   { flush: "sync" },
 );
+// The selected tab takes a wider cap, so selecting one resizes two tabs.
+watch(activeTabId, scheduleTabShift, { flush: "sync" });
 
 watch(
   [activeTabId, tabList, tabs],
@@ -856,7 +865,7 @@ watch(activeSession, (session) => {
           <div
             ref="tabItems"
             data-slot="project-content-tab-items"
-            class="window-no-drag flex min-w-max shrink-0 items-center gap-1 px-1 py-1"
+            class="window-no-drag flex flex-initial items-center gap-1 px-1 py-1"
           >
             <template v-for="(tab, index) in tabs" :key="tab.id">
               <Separator
@@ -875,7 +884,13 @@ watch(activeSession, (session) => {
                 data-slot="project-content-tab"
                 :class="
                   cn(
-                    'window-no-drag group/tab relative flex h-8 w-40 min-w-40 items-center rounded-2xl',
+                    // Tabs size to their titles. Inactive tabs give up width
+                    // first, down to min-w-28, before the list scrolls; the
+                    // active tab keeps its whole width and a wider cap.
+                    'window-no-drag group/tab relative flex h-8 min-w-28 items-center rounded-2xl',
+                    activeTabId === tab.id
+                      ? 'max-w-80 shrink-0'
+                      : 'max-w-60 shrink',
                     // Presented tabs keep a warning pulse until acknowledged;
                     // file changes use a one-shot info pulse.
                     attentionFlash.isFlashing(tab.id) && 'attention-flash',
@@ -918,7 +933,7 @@ watch(activeSession, (session) => {
                   size="sm"
                   :class="
                     cn(
-                      'h-8 w-full min-w-0 justify-start group-hover/tab:pr-10 group-has-[:focus-visible]/tab:pr-10',
+                      'h-8 w-full min-w-0 justify-start',
                       attachmentDropTabId === tab.id &&
                         'ring-2 ring-primary ring-inset',
                     )
@@ -930,12 +945,34 @@ watch(activeSession, (session) => {
                   @keydown="moveTabFocus(index, $event)"
                 >
                   <component :is="tabIcon(tab)" data-icon="inline-start" />
+                  <!-- The grid track lets an inactive title shrink to
+                       nothing while still sizing the tab to the whole title.
+                       Its mask clears room for the close button on hover;
+                       the inner box fades a title that does not fit, and the
+                       shimmer sits inside both so their masks and animations
+                       stay apart. -->
                   <span
-                    data-slot="session-title"
-                    :data-running="isTabRunning(tab) || undefined"
-                    :class="cn('truncate', isTabRunning(tab) && 'shimmer')"
-                    >{{ getTabLabel(tab) }}</span
+                    data-slot="project-content-tab-title"
+                    :class="
+                      cn(
+                        'project-content-tab-title grid min-w-0 flex-auto group-hover/tab:[--project-tab-close-cover:--spacing(5.5)] group-has-[:focus-visible]/tab:[--project-tab-close-cover:--spacing(5.5)]',
+                        activeTabId === tab.id
+                          ? 'grid-cols-[auto]'
+                          : 'grid-cols-[minmax(0,auto)]',
+                      )
+                    "
                   >
+                    <span
+                      class="scroll-fade-x block overflow-hidden text-left whitespace-nowrap [--scroll-fade-size:--spacing(6)]"
+                    >
+                      <span
+                        data-slot="session-title"
+                        :data-running="isTabRunning(tab) || undefined"
+                        :class="cn(isTabRunning(tab) && 'shimmer')"
+                        >{{ getTabLabel(tab) }}</span
+                      >
+                    </span>
+                  </span>
                   <span
                     v-if="isTabRunning(tab)"
                     aria-hidden="true"
@@ -945,7 +982,7 @@ watch(activeSession, (session) => {
                 </Button>
 
                 <Button
-                  class="pointer-events-none absolute inset-y-0 right-2 my-auto opacity-0 transition-opacity group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-has-[:focus-visible]/tab:pointer-events-auto group-has-[:focus-visible]/tab:opacity-100"
+                  class="pointer-events-none absolute inset-y-0 right-2 my-auto opacity-0 transition-opacity duration-200 ease-out-expo group-hover/tab:pointer-events-auto group-hover/tab:opacity-100 group-has-[:focus-visible]/tab:pointer-events-auto group-has-[:focus-visible]/tab:opacity-100"
                   variant="ghost"
                   size="icon-xs"
                   :aria-label="
@@ -1078,6 +1115,33 @@ watch(activeSession, (session) => {
 </template>
 
 <style scoped>
+/* Room the close button takes over the end of a hovered tab's title. */
+@property --project-tab-close-cover {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.project-content-tab-title {
+  -webkit-mask-image: linear-gradient(
+    to left,
+    transparent var(--project-tab-close-cover),
+    #000 calc(var(--project-tab-close-cover) * 1.6)
+  );
+  mask-image: linear-gradient(
+    to left,
+    transparent var(--project-tab-close-cover),
+    #000 calc(var(--project-tab-close-cover) * 1.6)
+  );
+  transition: --project-tab-close-cover 200ms var(--ease-out-expo);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-content-tab-title {
+    transition: none;
+  }
+}
+
 .project-content-tab-separator {
   -webkit-mask-image: linear-gradient(
     to bottom,
