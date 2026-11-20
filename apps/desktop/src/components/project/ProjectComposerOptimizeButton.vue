@@ -267,13 +267,18 @@ const labelClass = computed(() =>
   transform-origin: 100% 50%;
 }
 
-.composer-optimize-kbd-track > * {
+.composer-optimize-kbd-track > .composer-optimize-rest-kbd {
   display: block;
   flex-shrink: 0;
   width: max-content;
   transform-origin: 100% 50%;
 }
 
+/* Every rule below the `:has()` names its target by class, never `*`:
+   Chromium shares one invalidation set for all `:has()` rules, and a
+   universal target makes any DOM insertion under a `:has()` element (the
+   whole window sits under the sidebar wrapper's) restyle its entire
+   subtree, which stutters every animation while a reply streams. */
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
   .composer-optimize-label-track {
   width: auto;
@@ -291,7 +296,7 @@ const labelClass = computed(() =>
 .composer-optimize-label-track > .composer-optimize-label,
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
   .composer-optimize-kbd-track
-  > * {
+  > .composer-optimize-rest-kbd {
   opacity: 0;
   filter: blur(3px);
   scale: 0.9;
@@ -303,7 +308,7 @@ const labelClass = computed(() =>
 }
 
 /* In: the keys at rest, the label while open. */
-.composer-optimize-kbd-track > *,
+.composer-optimize-kbd-track > .composer-optimize-rest-kbd,
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
   .composer-optimize-label-track
   > .composer-optimize-label {
@@ -345,7 +350,7 @@ const labelClass = computed(() =>
   .composer-optimize-label-track,
   .composer-optimize-kbd-track,
   .composer-optimize-slot .composer-optimize-label,
-  .composer-optimize-kbd-track > * {
+  .composer-optimize-kbd-track > .composer-optimize-rest-kbd {
     transition: none !important;
   }
 }
