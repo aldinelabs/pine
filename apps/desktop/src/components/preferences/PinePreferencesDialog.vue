@@ -15,6 +15,7 @@ import {
   SlidersHorizontalIcon,
   SparklesIcon,
   UserRoundIcon,
+  UsersRoundIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import type { Component } from "vue";
@@ -45,6 +46,7 @@ import MemoryEnabledSetting from "./MemoryEnabledSetting.vue";
 import ToolGroupSettings from "./ToolGroupSettings.vue";
 import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
+import UsersSettings from "./UsersSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
 import HelpHint from "./HelpHint.vue";
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,7 @@ type PreferenceSection =
   | "models"
   | "agent"
   | "personalization"
+  | "users"
   | "projects"
   | "remote";
 
@@ -150,6 +153,8 @@ const hasRelayRemote =
   isDesktop && typeof window.pine?.getRemoteControl === "function";
 const hasWeChatRemote =
   isDesktop && typeof window.pine?.getWeChatRemote === "function";
+// Users share one computer, so only the desktop app manages them.
+const hasUsers = isDesktop && window.pine?.users !== undefined;
 const appearanceStore = useAppearanceStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
@@ -309,6 +314,15 @@ const sections = computed<
     id: "personalization",
     label: t("preferences.sections.personalization"),
   },
+  ...(hasUsers
+    ? [
+        {
+          icon: UsersRoundIcon,
+          id: "users" as const,
+          label: t("preferences.sections.users"),
+        },
+      ]
+    : []),
   {
     icon: FolderKanbanIcon,
     id: "projects",
@@ -2070,6 +2084,9 @@ defineExpose({ open });
                 </FieldGroup>
               </FieldSet>
             </FieldGroup>
+          </div>
+          <div v-else-if="activeSection === 'users'" class="p-6 max-sm:px-4">
+            <UsersSettings />
           </div>
           <div v-else-if="activeSection === 'projects'" class="p-6 max-sm:px-4">
             <ProjectManagementSettings />

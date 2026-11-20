@@ -1026,6 +1026,20 @@ the user opens themselves do not pulse.
     run as Full takeover), personal details, custom instructions. Changes
     save automatically and apply from the next message in every
     conversation.
+  - Multiple users (desktop app only): "Add user" opens the Add a user
+    dialog (name, avatar from a grid of emoji or the name's initial, colour,
+    and "Copy my model connections", on by default, which copies the API
+    keys, sign-ins and model choices and nothing else). Each user is a row
+    with their avatar and name; the user Pine runs as is marked "Current".
+    The pencil button edits a user's name, avatar and colour; the "…" menu
+    of every other user has "Switch to this user" and, except for the first
+    user Pine ever had, "Delete user" (confirms, then moves that user's
+    conversations, projects, memory and model connections to the Trash).
+    With more than one user the section also shows "Ask who's using Pine
+    when it opens" (on by default; off, Pine opens as whoever used it last)
+    and a note that only the current user's automations and WeChat remote
+    run. Switching restarts Pine as that user, asking first if sessions are
+    running or remote control is on.
   - Projects: every project with its data usage; New Project, Edit, clear
     temporary files, clear attachments.
   - Remote control (desktop app only): at the top, "Keep the computer awake
