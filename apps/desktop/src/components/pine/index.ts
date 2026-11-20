@@ -9,3 +9,5 @@ export {
   type PineCharacterExpressionName,
   type PineCharacterFrame,
 } from "./pineCharacterExpressions";
+export { default as PineColorSwatches } from "./PineColorSwatches.vue";
+export type { PineColorSwatch } from "./PineColorSwatches.vue";

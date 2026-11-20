@@ -52,7 +52,12 @@ describe("ProjectEditor", () => {
     expect(wrapper.get('[data-testid="default-folder-row"]').text()).toContain(
       project.folders[0].path,
     );
-    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false);
+    expect(
+      wrapper
+        .get('[data-testid="default-folder-row"]')
+        .find('[role="radiogroup"]')
+        .exists(),
+    ).toBe(false);
     expect(
       wrapper
         .get('[data-testid="default-folder-row"]')
@@ -111,6 +116,39 @@ describe("ProjectEditor", () => {
       projectIcon: "rocket",
     });
     wrapper.unmount();
+  });
+
+  it("submits the accent colour chosen from the swatches", async () => {
+    const wrapper = mountEditor({ ...project, projectColorTheme: "blue" });
+    const swatches = wrapper.findAll(
+      '[data-slot="project-color-theme-option"]',
+    );
+    expect(swatches.map((swatch) => swatch.attributes("data-value"))).toEqual([
+      "default",
+      "neutral",
+      "olive",
+      "red",
+      "rose",
+      "orange",
+      "green",
+      "blue",
+      "yellow",
+      "violet",
+    ]);
+    const blue = wrapper.get('[data-value="blue"]');
+    expect(blue.attributes("aria-checked")).toBe("true");
+    expect(blue.attributes("aria-label")).toBe("蓝色");
+    expect(blue.attributes("tabindex")).toBe("0");
+
+    const rose = wrapper.get('[data-value="rose"]');
+    await rose.trigger("click");
+    expect(rose.attributes("aria-checked")).toBe("true");
+    // Arrow keys move the choice, as in any radio group.
+    await rose.trigger("keydown", { key: "ArrowRight" });
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("submit")?.[0]?.[0]).toMatchObject({
+      projectColorTheme: "orange",
+    });
   });
 
   it("removes an additional context folder without removing the default", async () => {

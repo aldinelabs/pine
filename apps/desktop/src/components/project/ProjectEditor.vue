@@ -2,6 +2,7 @@
 import { FolderOpen, FolderPlus, Trash2 } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { PineColorSwatches } from "@/components/pine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -92,12 +93,16 @@ const defaultFolder = computed(() =>
   folders.value.find((folder) => folder.id === defaultFolderId.value),
 );
 const colorThemeOptions = computed(() =>
-  projectColorThemeSettingOptions(props.defaultColorTheme),
-);
-const selectedColorThemeOption = computed(() =>
-  colorThemeOptions.value.find(
-    (option) => option.value === projectColorTheme.value,
-  ),
+  projectColorThemeSettingOptions(props.defaultColorTheme).map((option) => ({
+    value: option.value,
+    label: t(`projects.editor.colorThemes.${option.value}`),
+    color: option.swatch,
+    // Dashed: it follows the Appearance setting rather than being a colour.
+    class:
+      option.value === "default"
+        ? "border-2 border-dashed border-foreground/60"
+        : undefined,
+  })),
 );
 const contextFolders = computed(() =>
   folders.value.filter((folder) => folder.id !== defaultFolderId.value),
@@ -288,45 +293,16 @@ watch(() => props.project, reset, { immediate: true });
         </Field>
 
         <Field>
-          <FieldLabel id="project-color-theme-label">
+          <FieldTitle id="project-color-theme-label">
             {{ t("projects.editor.colorThemeLabel") }}
-          </FieldLabel>
-          <Select
+          </FieldTitle>
+          <PineColorSwatches
             :model-value="projectColorTheme"
+            :options="colorThemeOptions"
+            labelledby="project-color-theme-label"
+            item-slot="project-color-theme-option"
             @update:model-value="updateProjectColorTheme"
-          >
-            <SelectTrigger
-              class="w-full justify-start [&>*:last-child]:ml-auto"
-              aria-labelledby="project-color-theme-label"
-            >
-              <span
-                aria-hidden="true"
-                class="size-3 shrink-0 rounded-full ring-1 ring-border"
-                :style="{
-                  backgroundColor: selectedColorThemeOption?.swatch,
-                }"
-              />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem
-                  v-for="option in colorThemeOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  <span class="flex items-center gap-2">
-                    <span
-                      aria-hidden="true"
-                      class="size-3 rounded-full ring-1 ring-border"
-                      :style="{ backgroundColor: option.swatch }"
-                    />
-                    {{ t(`projects.editor.colorThemes.${option.value}`) }}
-                  </span>
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          />
         </Field>
 
         <Field orientation="horizontal">

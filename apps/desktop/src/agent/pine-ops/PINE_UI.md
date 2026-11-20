@@ -1110,8 +1110,11 @@ the user opens themselves do not pulse.
     scan, WeChat remote is paused, or its settings were reset. Clicking one
     brings Pine's window forward. The tray menu has a "WeChat remote" switch
     (see Tray and menu bar).
-- New Project / Edit Project: name, icon, accent color ("Pine Default", which
-  follows the Appearance setting, or a palette of its own), default folder,
+- New Project / Edit Project: name, icon, accent color (a row of round
+  swatches, each named on hover: "Pine Default" first, with a dashed edge,
+  which follows the Appearance setting, then Neutral, Olive, Red, Rose,
+  Orange, Green, Blue, Yellow and Violet; the chosen one has a ring), default
+  folder,
   additional context folders with access (Read only, Read and write). Saving
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
