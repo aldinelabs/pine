@@ -693,6 +693,35 @@ describe("project transcript markers", () => {
     expect(models.text()).toContain("已查看可用模型");
   });
 
+  it("shows the full key combo for key press markers", () => {
+    const desktop = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "press-1",
+          input: { key: "f", modifiers: ["cmd"] },
+          name: "press_key",
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(desktop.text()).toContain("Pressed a key");
+    expect(desktop.get("code").text()).toBe("⌘ + F");
+
+    const browser = mount(ProjectToolCallMarker, {
+      props: {
+        toolCall: {
+          id: "press-2",
+          input: { tab_id: 3, key: "cmd+shift+t" },
+          name: "browser_press_key",
+          status: "complete",
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    expect(browser.get("code").text()).toBe("⇧ + ⌘ + T");
+  });
+
   it("formats Computer Use calls without exposing typed text", () => {
     const desktop = mount(ProjectToolCallMarker, {
       props: {

@@ -231,6 +231,9 @@ From top to bottom:
    - file search calls ("Found files for …", "Searched code for …"), which
      show the searched name or text and how many files or lines matched; their
      details list each file, line number and matching line;
+   - Computer Use and webpage key presses ("Pressed a key ⌘ + F"), which
+     show the whole key combination with its modifiers: ⌃ ⌥ ⇧ ⌘ in that
+     order on macOS, Ctrl / Alt / Shift / Win elsewhere;
    - markers for automation actions, model lookups and MCP configuration
      calls (for example "Ran 3 automation actions");
    - memory calls ("Saved memory release-flow", "Read memory …",

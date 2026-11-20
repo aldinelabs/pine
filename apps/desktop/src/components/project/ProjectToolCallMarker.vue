@@ -43,6 +43,7 @@ import {
 import { LIVE_CONTEXT_CAPTURE_TOOL_NAME } from "@/shared/liveContextAgent";
 import { sessionSearchQuery } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
+import { formatKeyCombo } from "@/lib/keyComboLabel";
 import { useSessionStore } from "@/stores/session";
 import type { PineToolCall } from "@/shared/sessions";
 import {
@@ -786,6 +787,19 @@ function computerUseTarget(
 ): string {
   const parts: string[] = [];
   const normalized = normalizedToolName(name);
+  // A key press shows the whole combo the agent asked for ("⌘ + F"), not
+  // just the key or the tab it went to.
+  if (
+    (normalized === "press_key" || normalized === "browser_press_key") &&
+    typeof input.key === "string" &&
+    input.key.trim()
+  ) {
+    return formatKeyCombo(
+      input.key,
+      Array.isArray(input.modifiers) ? input.modifiers : [],
+      window.pine?.platform ?? "darwin",
+    );
+  }
   const app = appDisplayName(input);
   const url = firstString(input, ["url"]);
   const element = firstString(input, [
