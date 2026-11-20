@@ -843,6 +843,15 @@ html.sidebar-vibrancy
   cursor: default;
 }
 
+/* A dialog that opens with focus on its scroll area outlined the whole
+   content as if it were selected. The scroll area is not a control, so its
+   viewport draws no focus ring. Unlayered to beat the generated
+   focus-visible utilities. */
+[data-slot="scroll-area-viewport"]:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /*
  * Project accent colours rotate the hue of the interface tokens; status and
  * chart colours keep Pine's defaults. Switching only changes the root's
