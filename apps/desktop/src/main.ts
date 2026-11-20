@@ -20,6 +20,7 @@ import path from "node:path";
 import { z } from "zod";
 import { SYSTEM_LANGUAGES_ENV } from "./agent/network-region";
 import {
+  readPineAgentSettings,
   writeRemoteKeepAwake,
   writeRunInBackground,
 } from "./agent/pineSettings";
@@ -32,6 +33,7 @@ import {
 } from "./shared/background";
 import {
   CURRENCY_PREFERENCE_KEY,
+  PREFERENCES_ADOPT_WEB_STORAGE_CHANNEL,
   PREFERENCES_REMOVE_CHANNEL,
   PREFERENCES_SET_CHANNEL,
   PREFERENCES_SNAPSHOT_CHANNEL,
@@ -130,8 +132,33 @@ import { serveProjectMediaRequest } from "./main/projectFilePreview";
 import {
   hasQuitBlockers,
   quitConfirmationText,
+  switchUserConfirmationText,
   type QuitBlockers,
 } from "./main/quitGuard";
+import {
+  launchUser,
+  relaunchArguments,
+  UserRegistry,
+  UserRegistryError,
+} from "./main/users";
+import {
+  CHOOSE_USER_CHANNEL,
+  CREATE_USER_CHANNEL,
+  DELETE_USER_CHANNEL,
+  GET_USERS_CHANNEL,
+  isUserAvatar,
+  isUserColor,
+  MAX_USER_NAME_LENGTH,
+  PRIMARY_USER_ID,
+  SET_ASK_AT_LAUNCH_CHANNEL,
+  SWITCH_USER_CHANNEL,
+  UPDATE_USER_CHANNEL,
+  USER_ARGUMENT_PREFIX,
+  USER_PICKER_ROUTE_HASH,
+  USERS_CHANGED_CHANNEL,
+  type PineUsersState,
+  type SwitchPineUserResult,
+} from "./shared/users";
 import {
   ensureWindowsSandboxReady,
   releaseWindowsSandboxRuntimeAccess,
@@ -149,6 +176,32 @@ if (process.platform === "win32") {
 }
 
 const isSmokeTest = process.argv.includes("--smoke-test");
+
+/**
+ * One Pine per data folder: a second launch brings the running one forward
+ * instead of opening the same users' data twice. Development builds share
+ * the installed app's folder and keep running beside it, as before.
+ */
+const instanceLock: Promise<boolean> =
+  app.isPackaged && !isSmokeTest
+    ? acquireInstanceLock()
+    : Promise.resolve(true);
+
+app.on("second-instance", () => openPine());
+
+async function acquireInstanceLock(): Promise<boolean> {
+  if (app.requestSingleInstanceLock()) return true;
+  // A switch of user relaunches while the old process may still be exiting.
+  if (
+    !process.argv.some((argument) => argument.startsWith(USER_ARGUMENT_PREFIX))
+  )
+    return false;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    if (app.requestSingleInstanceLock()) return true;
+  }
+  return false;
+}
 
 // Must run before app ready. The attachment image protocol lets the renderer
 // display local images without granting it general filesystem access.
@@ -182,6 +235,19 @@ nativeTheme.themeSource = "system";
 
 /** Set once the app is ready; everything shared with the server lives here. */
 let core: PineCore | null = null;
+
+const users = new UserRegistry({
+  userData: app.getPath("userData"),
+  trash: (folder) => shell.trashItem(folder),
+  primaryName: async () =>
+    (await readPineAgentSettings(path.join(app.getPath("userData"), "agent")))
+      .userProfile?.nickname ?? "",
+});
+/** The user Pine runs as; null while "Who's using Pine?" is showing. */
+let currentUserId: string | null = null;
+/** Settles with the user chosen in "Who's using Pine?". */
+let pendingUserChoice: ((userId: string) => void) | null = null;
+let userPickerWindow: BrowserWindow | null = null;
 let appUpdater: AppUpdater | null = null;
 let windowsSandboxReady = process.platform !== "win32";
 let windowsSandboxSetupPromise: Promise<boolean> | null = null;
@@ -221,6 +287,7 @@ const attention = new DesktopAttention(requireCore, ownerWindow);
 const windows = new DesktopWindows({
   iconPath: appIconPath,
   ...(isSmokeTest && { smokeTestReady: () => app.exit(0) }),
+  canOpenWorkspace: () => core !== null,
   record: (event, details) => core?.diagnostics.record(event, details),
   focused: () => attention.clearApprovalAttention(),
   destroyed: (webContentsId) => core?.releaseClient(webContentsId),
@@ -276,7 +343,11 @@ function createWindow(): BrowserWindow {
  * the tray hid, else a window that is open, else a new one.
  */
 function openPine(): void {
-  if (!core) return;
+  if (!core) {
+    // Until someone is chosen, the only window is "Who's using Pine?".
+    if (pendingUserChoice) showUserPicker();
+    return;
+  }
   if (background.showHiddenWindows()) return;
   const [existing] = appWindows();
   if (existing) {
@@ -346,9 +417,9 @@ function wechatNotificationWindow(
 }
 
 /** What the shared application needs from Electron. */
-function desktopHost(): PineHost {
+function desktopHost(dataDirectory: string): PineHost {
   return {
-    dataDirectory: app.getPath("userData"),
+    dataDirectory,
     logsDirectory: app.getPath("logs"),
     geoipDatabasePath: app.isPackaged
       ? path.join(process.resourcesPath, "dbip-city-lite.mmdb.gz")
@@ -437,7 +508,7 @@ function desktopHost(): PineHost {
           window.webContents.send(AUTOMATIONS_CHANGED_CHANNEL, event);
     },
     locale: automationLocale,
-    currencyPreference: () => preferenceStore.get(CURRENCY_PREFERENCE_KEY),
+    currencyPreference: () => preferences().get(CURRENCY_PREFERENCE_KEY),
     wechatChanged: (status) => {
       broadcastWeChatStatus(status);
       remoteKeepAwake.refresh();
@@ -558,16 +629,29 @@ ipcMain.handle(
   },
 );
 
-const preferenceStore = new PreferenceStore(
-  path.join(app.getPath("userData"), "ui-preferences.json"),
-);
+/**
+ * The current user's UI preferences. While "Who's using Pine?" shows, the
+ * last user's, so the picker opens in their theme and language.
+ */
+let preferenceStore: PreferenceStore | null = null;
+function preferences(): PreferenceStore {
+  preferenceStore ??= new PreferenceStore(
+    path.join(users.dataRoot(PRIMARY_USER_ID), "ui-preferences.json"),
+  );
+  return preferenceStore;
+}
 ipcMain.on(PREFERENCES_SNAPSHOT_CHANNEL, (event) => {
-  event.returnValue = preferenceStore.snapshot();
+  event.returnValue = preferences().snapshot();
+});
+ipcMain.on(PREFERENCES_ADOPT_WEB_STORAGE_CHANNEL, (event) => {
+  // Web storage is shared by every user; only the primary user's old
+  // preferences were ever kept there.
+  event.returnValue = currentUserId === PRIMARY_USER_ID;
 });
 const preferenceTargets = () =>
   BrowserWindow.getAllWindows().map((window) => window.webContents);
 ipcMain.on(PREFERENCES_SET_CHANNEL, (event, key: unknown, value: unknown) => {
-  if (preferenceStore.set(key, value))
+  if (preferences().set(key, value))
     notifyPreferenceChange(
       preferenceTargets(),
       event.sender.id,
@@ -576,7 +660,7 @@ ipcMain.on(PREFERENCES_SET_CHANNEL, (event, key: unknown, value: unknown) => {
     );
 });
 ipcMain.on(PREFERENCES_REMOVE_CHANNEL, (event, key: unknown) => {
-  if (preferenceStore.remove(key))
+  if (preferences().remove(key))
     notifyPreferenceChange(
       preferenceTargets(),
       event.sender.id,
@@ -584,6 +668,133 @@ ipcMain.on(PREFERENCES_REMOVE_CHANNEL, (event, key: unknown) => {
       null,
     );
 });
+
+async function usersState(): Promise<PineUsersState> {
+  const loaded = await users.load();
+  return {
+    users: loaded.users,
+    currentUserId,
+    lastUserId: loaded.lastUserId,
+    askAtLaunch: loaded.askAtLaunch,
+    damaged: loaded.damaged,
+  };
+}
+
+/** Every window shows the users (sidebar, settings, picker). */
+async function broadcastUsers(): Promise<PineUsersState> {
+  const state = await usersState();
+  for (const window of BrowserWindow.getAllWindows())
+    if (!window.isDestroyed())
+      window.webContents.send(USERS_CHANGED_CHANNEL, state);
+  return state;
+}
+
+const UserInputSchema = z.object({
+  name: z.string().max(MAX_USER_NAME_LENGTH * 4),
+  avatar: z.custom<Parameters<typeof isUserAvatar>[0]>(
+    (value) => value === null || isUserAvatar(value),
+  ),
+  color: z.custom<string>(isUserColor),
+});
+
+function userInput(request: z.infer<typeof UserInputSchema>) {
+  return {
+    name: request.name,
+    avatar: isUserAvatar(request.avatar) ? request.avatar : null,
+    color: isUserColor(request.color) ? request.color : "green",
+  };
+}
+
+/** Registry refusals reach the renderer with a code it can explain. */
+async function userChange(
+  run: () => Promise<unknown>,
+): Promise<PineUsersState> {
+  try {
+    await run();
+  } catch (error) {
+    if (error instanceof UserRegistryError)
+      throw new Error(`${error.code}: ${error.message}`);
+    throw error;
+  }
+  return broadcastUsers();
+}
+
+ipcMain.handle(GET_USERS_CHANNEL, () => usersState());
+ipcMain.handle(CREATE_USER_CHANNEL, (_event, request: unknown) => {
+  const parsed = UserInputSchema.extend({
+    copyModelConnections: z.boolean(),
+  }).parse(request);
+  return userChange(() =>
+    users.create(
+      userInput(parsed),
+      // Only a running user has connections to copy; the picker never does.
+      parsed.copyModelConnections && currentUserId ? currentUserId : undefined,
+    ),
+  );
+});
+ipcMain.handle(UPDATE_USER_CHANNEL, (_event, request: unknown) => {
+  const parsed = UserInputSchema.extend({
+    id: z.string().min(1).max(64),
+  }).parse(request);
+  return userChange(() => users.update(parsed.id, userInput(parsed)));
+});
+ipcMain.handle(DELETE_USER_CHANNEL, (_event, request: unknown) => {
+  const id = z.string().min(1).max(64).parse(request);
+  // Nobody is deleted from the picker: their data is not open to check.
+  if (!currentUserId) throw new Error("protected: Choose a user first.");
+  return userChange(() => users.remove(id, currentUserId));
+});
+ipcMain.handle(SET_ASK_AT_LAUNCH_CHANNEL, (_event, request: unknown) => {
+  const ask = z.boolean().parse(request);
+  return userChange(() => users.setAskAtLaunch(ask));
+});
+ipcMain.handle(CHOOSE_USER_CHANNEL, async (_event, request: unknown) => {
+  const { id, remember } = z
+    .object({ id: z.string().min(1).max(64), remember: z.boolean() })
+    .parse(request);
+  const choose = pendingUserChoice;
+  if (!choose) throw new Error("Pine is already running as a user.");
+  const loaded = await users.load();
+  if (!loaded.users.some((user) => user.id === id))
+    throw new Error("not-found: Unknown user.");
+  if (remember && !loaded.damaged) await users.setAskAtLaunch(false);
+  choose(id);
+});
+ipcMain.handle(
+  SWITCH_USER_CHANNEL,
+  async (_event, request: unknown): Promise<SwitchPineUserResult> => {
+    const id = z.string().min(1).max(64).parse(request);
+    if (!core || id === currentUserId) return "cancelled";
+    const target = (await users.load()).users.find((user) => user.id === id);
+    if (!target) throw new Error("not-found: Unknown user.");
+    const blockers = currentQuitBlockers();
+    if (hasQuitBlockers(blockers)) {
+      const text = switchUserConfirmationText(
+        blockers,
+        isChineseLocale(),
+        target.name || (isChineseLocale() ? "我" : "Me"),
+      );
+      const options = {
+        type: "warning" as const,
+        ...text,
+        cancelId: 1,
+        defaultId: 0,
+        noLink: true,
+      };
+      const parent = BrowserWindow.getFocusedWindow();
+      const { response } = parent
+        ? await dialog.showMessageBox(parent, options)
+        : await dialog.showMessageBox(options);
+      if (response !== 0) return "cancelled";
+    }
+    quitConfirmed = true;
+    background.markQuitting();
+    app.relaunch({ args: relaunchArguments(process.argv.slice(1), id) });
+    await core.stop();
+    app.quit();
+    return "restarting";
+  },
+);
 
 ipcMain.handle(
   GET_RUN_IN_BACKGROUND_CHANNEL,
@@ -956,8 +1167,26 @@ async function initializeApp(): Promise<void> {
     windowsSandboxReady = true;
   }
 
-  const pine = await PineCore.create(desktopHost());
+  if (!(await instanceLock)) {
+    app.quit();
+    return;
+  }
+  const userId = await chooseLaunchUser();
+  if (!userId) return;
+  currentUserId = userId;
+  preferenceStore = new PreferenceStore(
+    path.join(users.dataRoot(userId), "ui-preferences.json"),
+  );
+  void users
+    .markUsed(userId)
+    .catch((error: unknown) =>
+      console.error("Could not remember the last user.", error),
+    );
+  const pine = await PineCore.create(desktopHost(users.dataRoot(userId)));
   core = pine;
+  pine.diagnostics.record("user:start", {
+    primary: userId === PRIMARY_USER_ID,
+  });
   recordSystemEvents(pine);
   quickComposer.registerRequests(pine);
   exposeRequestsOverIpc(pine);
@@ -993,7 +1222,37 @@ async function initializeApp(): Promise<void> {
       remoteKeepAwake.refresh();
     }
   }
-  createWindow();
+  // The picker's window becomes the first workspace window.
+  const picker = userPickerWindow;
+  userPickerWindow = null;
+  if (picker && !picker.isDestroyed()) windows.showWorkspace(picker);
+  else createWindow();
+}
+
+/** Who Pine starts as: decided without asking when it can be. */
+async function chooseLaunchUser(): Promise<string | undefined> {
+  const loaded = await users.load();
+  const decided = launchUser(loaded, process.argv);
+  if (decided) return decided;
+  // The picker shows in the last user's theme and language.
+  preferenceStore = new PreferenceStore(
+    path.join(users.dataRoot(loaded.lastUserId), "ui-preferences.json"),
+  );
+  const choice = new Promise<string>((resolve) => {
+    pendingUserChoice = resolve;
+  });
+  showUserPicker();
+  const userId = await choice;
+  pendingUserChoice = null;
+  return userId;
+}
+
+function showUserPicker(): void {
+  if (userPickerWindow && !userPickerWindow.isDestroyed()) {
+    focusWindow(userPickerWindow);
+    return;
+  }
+  userPickerWindow = windows.create({ hash: USER_PICKER_ROUTE_HASH });
 }
 
 app.on("ready", () => {

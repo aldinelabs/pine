@@ -6,6 +6,7 @@ import {
   SET_RUN_IN_BACKGROUND_CHANNEL,
 } from "./shared/background";
 import {
+  PREFERENCES_ADOPT_WEB_STORAGE_CHANNEL,
   PREFERENCES_CHANGED_CHANNEL,
   PREFERENCES_REMOVE_CHANNEL,
   PREFERENCES_SET_CHANNEL,
@@ -34,6 +35,17 @@ import {
   type LiveContextEvent,
 } from "./shared/liveContext";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
+import {
+  CHOOSE_USER_CHANNEL,
+  CREATE_USER_CHANNEL,
+  DELETE_USER_CHANNEL,
+  GET_USERS_CHANNEL,
+  SET_ASK_AT_LAUNCH_CHANNEL,
+  SWITCH_USER_CHANNEL,
+  UPDATE_USER_CHANNEL,
+  USERS_CHANGED_CHANNEL,
+  type PineUsersState,
+} from "./shared/users";
 import {
   GET_REMOTE_KEEP_AWAKE_CHANNEL,
   REMOTE_KEEP_AWAKE_CHANGED_CHANNEL,
@@ -96,6 +108,9 @@ const pineApi: PineDesktopApi = {
     >,
     set: (key, value) => ipcRenderer.send(PREFERENCES_SET_CHANNEL, key, value),
     remove: (key) => ipcRenderer.send(PREFERENCES_REMOVE_CHANNEL, key),
+    adoptWebStorage: ipcRenderer.sendSync(
+      PREFERENCES_ADOPT_WEB_STORAGE_CHANNEL,
+    ) as boolean,
     onChange: (listener) => {
       const handler = (_event: unknown, key: string, value: string | null) =>
         listener(key, value);
@@ -177,6 +192,21 @@ const pineApi: PineDesktopApi = {
       ipcRenderer.on(LIVE_CONTEXT_EVENT_CHANNEL, handler);
       return () =>
         ipcRenderer.removeListener(LIVE_CONTEXT_EVENT_CHANNEL, handler);
+    },
+  },
+  users: {
+    get: () => ipcRenderer.invoke(GET_USERS_CHANNEL),
+    create: (request) => ipcRenderer.invoke(CREATE_USER_CHANNEL, request),
+    update: (request) => ipcRenderer.invoke(UPDATE_USER_CHANNEL, request),
+    remove: (id) => ipcRenderer.invoke(DELETE_USER_CHANNEL, id),
+    setAskAtLaunch: (ask) => ipcRenderer.invoke(SET_ASK_AT_LAUNCH_CHANNEL, ask),
+    choose: (request) => ipcRenderer.invoke(CHOOSE_USER_CHANNEL, request),
+    switchTo: (id) => ipcRenderer.invoke(SWITCH_USER_CHANNEL, id),
+    onChanged: (listener) => {
+      const handler = (_event: unknown, state: PineUsersState) =>
+        listener(state);
+      ipcRenderer.on(USERS_CHANGED_CHANNEL, handler);
+      return () => ipcRenderer.removeListener(USERS_CHANGED_CHANNEL, handler);
     },
   },
   getRemoteKeepAwake: () => ipcRenderer.invoke(GET_REMOTE_KEEP_AWAKE_CHANNEL),

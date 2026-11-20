@@ -58,6 +58,25 @@ describe("preferenceStorage", () => {
     expect(preferences.set).toHaveBeenCalledWith("pine.old", "kept");
     expect(preferenceStorage.getItem("pine.both")).toBe("main");
   });
+
+  it("leaves web storage alone for users other than the primary one", () => {
+    window.localStorage.setItem("pine.old", "kept");
+    const preferences = Object.freeze({
+      snapshot: Object.freeze({}),
+      set: vi.fn(),
+      remove: vi.fn(),
+      adoptWebStorage: false,
+    });
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { preferences },
+    });
+
+    adoptWebStoragePreferences();
+
+    expect(preferences.set).not.toHaveBeenCalled();
+    window.localStorage.removeItem("pine.old");
+  });
 });
 
 describe("subscribePreference", () => {

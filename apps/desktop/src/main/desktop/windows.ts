@@ -70,12 +70,16 @@ export interface CreateWindowOptions {
   bounds?: Rectangle;
   /** Stays hidden until the quick composer presents it. */
   quickComposerHandoff?: boolean;
+  /** A route other than the workspace, such as "Who's using Pine?". */
+  hash?: string;
 }
 
 interface DesktopWindowsOptions {
   iconPath: string;
   /** Replaces showing a ready window, for launch-only smoke tests. */
   smokeTestReady?: () => void;
+  /** False while no user is chosen yet, so no workspace window may open. */
+  canOpenWorkspace?: () => boolean;
   record(event: string, details: DiagnosticDetails): void;
   focused(): void;
   destroyed(webContentsId: number): void;
@@ -200,7 +204,9 @@ export class DesktopWindows {
         record("preload:error", { webContentsId, error: error.message });
       },
     );
-    installWindowShortcuts(mainWindow.webContents, () => this.create());
+    installWindowShortcuts(mainWindow.webContents, () => {
+      if (this.options.canOpenWorkspace?.() ?? true) this.create();
+    });
 
     // Focus stops the approval attention request (Windows flashes until the
     // window is focused; macOS bounces until the app activates).
@@ -221,11 +227,16 @@ export class DesktopWindows {
       event.preventDefault();
     });
 
-    loadRenderer(mainWindow);
+    loadRenderer(mainWindow, options.hash);
     if (MAIN_WINDOW_VITE_DEV_SERVER_URL && !options.quickComposerHandoff) {
       mainWindow.webContents.openDevTools();
     }
     return mainWindow;
+  }
+
+  /** Loads the workspace into a window that showed another route. */
+  showWorkspace(window: BrowserWindow): void {
+    if (!window.isDestroyed()) loadRenderer(window);
   }
 
   /**

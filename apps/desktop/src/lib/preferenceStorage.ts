@@ -94,7 +94,7 @@ export function subscribePreference(
  */
 export function adoptWebStoragePreferences(): void {
   const preferences = mainProcessPreferences();
-  if (!preferences) return;
+  if (!preferences || preferences.api.adoptWebStorage === false) return;
   try {
     const stored = window.localStorage;
     for (let index = 0; index < stored.length; index += 1) {

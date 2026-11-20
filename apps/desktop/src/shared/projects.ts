@@ -419,6 +419,8 @@ export interface PineDesktopApi
   runtime?: "desktop" | "web";
   /** Desktop only; see docs/live-context.md. */
   liveContext?: import("./liveContext").PineLiveContextApi;
+  /** Desktop only; see docs/multi-profile.md. */
+  users?: import("./users").PineUsersApi;
   getWebServer?: () => Promise<import("./webControl").WebServerStatus>;
   setWebServer?: (
     request: import("./webControl").WebServerSettings,

@@ -35,6 +35,39 @@ export function quitConfirmationText(
   blockers: QuitBlockers,
   chinese: boolean,
 ): QuitConfirmationText {
+  return {
+    title: chinese ? "退出 Pine" : "Quit Pine",
+    message: chinese ? "确定要退出 Pine 吗？" : "Quit Pine?",
+    detail: blockerLines(blockers, chinese).join("\n"),
+    buttons: chinese ? ["退出", "取消"] : ["Quit", "Cancel"],
+  };
+}
+
+/** Switching users restarts Pine, which cuts off the same work as quitting. */
+export function switchUserConfirmationText(
+  blockers: QuitBlockers,
+  chinese: boolean,
+  name: string,
+): QuitConfirmationText {
+  return {
+    title: chinese ? "切换用户" : "Switch User",
+    message: chinese
+      ? `要重新打开 Pine 并切换到“${name}”吗？`
+      : `Restart Pine as ${name}?`,
+    detail: blockerLines(blockers, chinese)
+      .map((line) =>
+        chinese
+          ? line.replaceAll("退出", "切换")
+          : line
+              .replaceAll("Quitting", "Switching")
+              .replace("after you quit", "after you switch"),
+      )
+      .join("\n"),
+    buttons: chinese ? ["切换", "取消"] : ["Switch", "Cancel"],
+  };
+}
+
+function blockerLines(blockers: QuitBlockers, chinese: boolean): string[] {
   const lines: string[] = [];
   const count = blockers.runningSessions;
   if (count > 0)
@@ -57,10 +90,5 @@ export function quitConfirmationText(
         ? "微信远程已开启，退出后将收不到从微信发来的任务。"
         : "WeChat remote is on. Tasks sent from WeChat will not arrive after you quit.",
     );
-  return {
-    title: chinese ? "退出 Pine" : "Quit Pine",
-    message: chinese ? "确定要退出 Pine 吗？" : "Quit Pine?",
-    detail: lines.join("\n"),
-    buttons: chinese ? ["退出", "取消"] : ["Quit", "Cancel"],
-  };
+  return lines;
 }

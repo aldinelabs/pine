@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasQuitBlockers,
   quitConfirmationText,
+  switchUserConfirmationText,
   type QuitBlockers,
 } from "../quitGuard";
 
@@ -30,6 +31,26 @@ describe("quit guard", () => {
     expect(text.buttons).toEqual(["Quit", "Cancel"]);
     expect(text.detail).toContain("2 sessions are still running");
     expect(text.detail).toContain("Remote Control is on");
+  });
+
+  it("words a switch of user as switching, not quitting", () => {
+    const english = switchUserConfirmationText(
+      { ...none, runningSessions: 1, wechat: true },
+      false,
+      "Mom",
+    );
+    expect(english.message).toBe("Restart Pine as Mom?");
+    expect(english.buttons).toEqual(["Switch", "Cancel"]);
+    expect(english.detail).toContain("Switching stops it");
+    expect(english.detail).toContain("after you switch");
+    expect(english.detail).not.toMatch(/quit/i);
+    const chinese = switchUserConfirmationText(
+      { ...none, runningSessions: 1 },
+      true,
+      "妈妈",
+    );
+    expect(chinese.detail).toContain("切换会中止");
+    expect(chinese.buttons).toEqual(["切换", "取消"]);
   });
 
   it("mentions only what applies", () => {
