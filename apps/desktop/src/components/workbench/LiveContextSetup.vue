@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ChevronDownIcon,
+  LanguagesIcon,
   MicIcon,
   MicOffIcon,
   UsersRoundIcon,
@@ -17,6 +18,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Toggle } from "@/components/ui/toggle";
@@ -25,13 +30,16 @@ import { localeShortLabel } from "@/lib/liveContextLocale";
 import {
   LIVE_CONTEXT_LOCALES,
   LIVE_CONTEXT_SOURCES,
+  LIVE_CONTEXT_TRANSLATION_LANGUAGES,
+  sameWrittenLanguage,
   type LiveContextSource,
 } from "@/shared/liveContext";
 
 /**
  * Before a capture, one row like the composer's footer: the sources as two
  * independent toggles (at least one stays on), speaker labels as a third,
- * the spoken language in a menu, and Start. The language code never
+ * translation as a fourth, the spoken language (and the one to translate
+ * into) in a menu, and Start. The language code never
  * truncates: when Start's label does not fit beside the rest, Start gives
  * way to its microphone icon (the label stays its name and tooltip).
  */
@@ -42,6 +50,9 @@ const locale = defineModel<string>("locale", { required: true });
 const identifySpeakers = defineModel<boolean>("identifySpeakers", {
   default: false,
 });
+/** Translate final segments into `translateTo`. */
+const translate = defineModel<boolean>("translate", { default: false });
+const translateTo = defineModel<string>("translateTo", { required: true });
 const props = defineProps<{
   /** This build can label speakers. */
   speakersAvailable?: boolean;
@@ -113,6 +124,25 @@ function updateSources(value: unknown): void {
 function updateLocale(value: unknown): void {
   if (typeof value === "string") locale.value = value;
 }
+
+function updateTranslateTo(value: unknown): void {
+  if (typeof value === "string") translateTo.value = value;
+}
+
+/** Speech already in the language to translate into: nothing to do. */
+const sameLanguage = computed(() =>
+  sameWrittenLanguage(locale.value, translateTo.value),
+);
+const translateLabel = computed(() =>
+  t("project.workbench.liveContext.translation.toggle", {
+    language: languageName(translateTo.value),
+  }),
+);
+const sameLanguageNote = computed(() =>
+  t("project.workbench.liveContext.translation.sameLanguage", {
+    language: languageName(translateTo.value),
+  }),
+);
 </script>
 
 <template>
@@ -169,6 +199,22 @@ function updateLocale(value: unknown): void {
     >
       <UsersRoundIcon aria-hidden="true" />
     </Toggle>
+    <!-- Translation of final segments; the language is in the menu. -->
+    <Toggle
+      v-model="translate"
+      size="sm"
+      class="text-muted-foreground data-[state=on]:bg-muted data-[state=on]:text-foreground size-7 shrink-0 px-0"
+      :disabled="disabled"
+      :aria-label="translateLabel"
+      :aria-description="sameLanguage ? sameLanguageNote : undefined"
+      :title="
+        sameLanguage ? `${translateLabel}\n${sameLanguageNote}` : translateLabel
+      "
+      data-testid="live-context-translate"
+      :data-same-language="sameLanguage || undefined"
+    >
+      <LanguagesIcon aria-hidden="true" />
+    </Toggle>
     <DropdownMenu>
       <DropdownMenuTrigger as-child>
         <Button
@@ -203,6 +249,40 @@ function updateLocale(value: unknown): void {
             {{ languageName(option) }}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-testid="live-context-translate-to">
+            <LanguagesIcon aria-hidden="true" />
+            <span class="flex-1">{{
+              t("project.workbench.liveContext.translation.into")
+            }}</span>
+            <span class="text-muted-foreground text-xs font-normal">{{
+              localeShortLabel(translateTo)
+            }}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent class="w-56">
+            <DropdownMenuRadioGroup
+              :model-value="translateTo"
+              @update:model-value="updateTranslateTo"
+            >
+              <DropdownMenuRadioItem
+                v-for="option in LIVE_CONTEXT_TRANSLATION_LANGUAGES"
+                :key="option"
+                :value="option"
+                :data-translate-to="option"
+              >
+                {{ languageName(option) }}
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <p
+          v-if="sameLanguage"
+          class="text-muted-foreground px-3 pt-1 pb-2 text-xs"
+          data-testid="live-context-translate-same"
+        >
+          {{ sameLanguageNote }}
+        </p>
       </DropdownMenuContent>
     </DropdownMenu>
     <Button

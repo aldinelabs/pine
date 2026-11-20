@@ -1029,6 +1029,23 @@ export default {
         noSession: "打开一个对话，即可为它记录实时上下文。",
         showElsewhere: "查看",
         openSettings: "打开系统设置",
+        translation: {
+          toggle: "翻译成{language}",
+          into: "翻译成",
+          sameLanguage: "语音已经是{language}，不会翻译。",
+          pending: "正在翻译",
+          error: {
+            no_model: {
+              title: "没有可用于翻译的模型",
+              description:
+                "请在「设置 › 模型」中选择实时翻译模型，然后重新打开翻译。转写不受影响。",
+            },
+            failed: {
+              title: "翻译暂时出错",
+              description: "Pine 会继续重试，转写不受影响。",
+            },
+          },
+        },
         dismiss: "关闭",
         error: {
           permission: {

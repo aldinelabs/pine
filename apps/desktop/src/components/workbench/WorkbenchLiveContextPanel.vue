@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   CircleAlertIcon,
+  LanguagesIcon,
   MessageSquareTextIcon,
   MicOffIcon,
   RadioIcon,
@@ -26,6 +27,8 @@ import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useLiveContextTarget } from "@/composables/useLiveContextTarget";
 import {
   LIVE_CONTEXT_LOCALES,
+  LIVE_CONTEXT_TRANSLATION_LANGUAGES,
+  sameWrittenLanguage,
   type LiveContextError,
   type LiveContextSource,
   type LiveContextSpeakerKey,
@@ -112,6 +115,67 @@ const identifySpeakers = computed({
   set: (value: boolean) => (liveContext.identifySpeakers = value),
 });
 
+/** The language to translate into: the user's choice, else Pine's own. */
+const translateTo = computed({
+  get: () =>
+    liveContext.translation.language ??
+    LIVE_CONTEXT_TRANSLATION_LANGUAGES.find(
+      (option) => option === uiLocale.value,
+    ) ??
+    LIVE_CONTEXT_TRANSLATION_LANGUAGES.find((option) =>
+      option.startsWith(uiLocale.value.slice(0, 2)),
+    ) ??
+    "en-US",
+  set: (value: string) => {
+    liveContext.translation = { ...liveContext.translation, language: value };
+  },
+});
+/** The language a capture would translate into, unless it is the one spoken. */
+const translationLanguage = computed(() => {
+  if (!liveContext.translation.enabled) return undefined;
+  const spoken = (isHere.value && status.value.locale) || locale.value;
+  return sameWrittenLanguage(spoken, translateTo.value)
+    ? undefined
+    : translateTo.value;
+});
+const translate = computed({
+  get: () => liveContext.translation.enabled,
+  set: (enabled: boolean) => {
+    liveContext.translation = { ...liveContext.translation, enabled };
+    // A capture here starts or stops translating at once.
+    const next = target.value;
+    if (next && isHere.value)
+      void run(() =>
+        liveContext.setTranslation(next, translationLanguage.value ?? null),
+      );
+  },
+});
+const translateLabel = computed(() => {
+  const language =
+    new Intl.DisplayNames([uiLocale.value], {
+      type: "language",
+      style: "short",
+    }).of(translateTo.value) ?? translateTo.value;
+  const label = t("project.workbench.liveContext.translation.toggle", {
+    language,
+  });
+  // The capture's own language: say why nothing is translated.
+  const spoken = status.value.locale ?? locale.value;
+  return sameWrittenLanguage(spoken, translateTo.value)
+    ? `${label}\n${t("project.workbench.liveContext.translation.sameLanguage", { language })}`
+    : label;
+});
+const translations = computed(() =>
+  target.value && liveContext.translation.enabled
+    ? liveContext.translationsOf(target.value.sessionId, translateTo.value)
+    : undefined,
+);
+const translationPending = computed(() =>
+  target.value && translations.value
+    ? liveContext.pendingTranslationsOf(target.value.sessionId)
+    : undefined,
+);
+
 // The transcript loads once per conversation shown.
 const loadingSessionId = ref<string>();
 watch(
@@ -162,7 +226,14 @@ function start(): void {
   dismissedError.value = undefined;
   const next = target.value;
   if (next) {
-    void run(() => liveContext.start(next, sources.value, locale.value));
+    void run(() =>
+      liveContext.start(
+        next,
+        sources.value,
+        locale.value,
+        translationLanguage.value,
+      ),
+    );
     return;
   }
   const draft = draftTab.value;
@@ -190,6 +261,7 @@ async function startInNewSession(
     { projectId, sessionId: session.id },
     sources.value,
     locale.value,
+    translationLanguage.value,
   );
 }
 
@@ -261,6 +333,19 @@ const errorNotice = computed(() => {
 function dismissError(): void {
   dismissedError.value = status.value.lastError;
 }
+
+// Translation stopping is a side note: transcription goes on.
+const dismissedTranslationError = ref<string>();
+const translationError = computed(() => {
+  const error = isHere.value ? status.value.translation?.error : undefined;
+  return error && error !== dismissedTranslationError.value ? error : undefined;
+});
+watch(
+  () => status.value.translation?.error,
+  (error) => {
+    if (!error) dismissedTranslationError.value = undefined;
+  },
+);
 </script>
 
 <template>
@@ -308,6 +393,8 @@ function dismissError(): void {
         :speakers="speakers"
         :capture="capture"
         :loading="loading"
+        :translations="translations"
+        :translation-pending="translationPending"
         @rename="rename"
         @merge="merge"
       />
@@ -345,6 +432,25 @@ function dismissError(): void {
             </Button>
           </template>
         </LiveContextNotice>
+        <LiveContextNotice
+          v-if="translationError"
+          :icon="LanguagesIcon"
+          icon-tone="warning"
+          :title="
+            t(
+              `project.workbench.liveContext.translation.error.${translationError}.title`,
+            )
+          "
+          :description="
+            t(
+              `project.workbench.liveContext.translation.error.${translationError}.description`,
+            )
+          "
+          :dismiss-label="t('project.workbench.liveContext.dismiss')"
+          data-testid="live-context-translation-error"
+          :data-code="translationError"
+          @dismiss="dismissedTranslationError = translationError"
+        />
         <LiveContextNotice
           v-if="isHere && status.systemSilent"
           :icon="Volume2Icon"
@@ -414,6 +520,8 @@ function dismissError(): void {
           :elapsed-at="liveContext.elapsedAt"
           :levels="liveContext.levelHistory"
           :busy="isBusy"
+          v-model:translate="translate"
+          :translate-label="translateLabel"
           @pause="run(liveContext.pause)"
           @resume="run(liveContext.resume)"
           @stop="run(liveContext.stop)"
@@ -423,6 +531,8 @@ function dismissError(): void {
           v-model:sources="sources"
           v-model:locale="locale"
           v-model:identify-speakers="identifySpeakers"
+          v-model:translate="translate"
+          v-model:translate-to="translateTo"
           :speakers-available="status.speakersAvailable"
           :continues="segments.length > 0"
           :disabled="isBusy"

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { PauseIcon, PlayIcon, SquareIcon } from "@lucide/vue";
+import { LanguagesIcon, PauseIcon, PlayIcon, SquareIcon } from "@lucide/vue";
 import { useIntervalFn } from "@vueuse/core";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Toggle } from "@/components/ui/toggle";
 import LiveContextProgressRing from "@/components/workbench/LiveContextProgressRing.vue";
 import LiveContextWaveform from "@/components/workbench/LiveContextWaveform.vue";
 import type { LiveContextStatus } from "@/shared/liveContext";
@@ -14,7 +15,8 @@ import { formatDuration } from "@/lib/formatDuration";
 /**
  * The capture in this conversation, as a bar at the foot of the card like
  * the composer: whether it is live and for how long, the last few seconds
- * of sound, and Pause/Resume and Stop. While the speech model downloads,
+ * of sound, translation on or off, and Pause/Resume and Stop. While the
+ * speech model downloads,
  * the same row shows a small ring and the percent.
  */
 const props = defineProps<{
@@ -23,7 +25,11 @@ const props = defineProps<{
   elapsedAt: (now: number) => number | undefined;
   levels: () => readonly LiveContextLevelSample[];
   busy?: boolean;
+  /** "Translate into …", for the translation toggle's name. */
+  translateLabel?: string;
 }>();
+/** Translating this capture's final segments. */
+const translate = defineModel<boolean>("translate", { default: false });
 const emit = defineEmits<{ pause: []; resume: []; stop: [] }>();
 const { t, locale: uiLocale } = useI18n();
 const now = ref(Date.now());
@@ -133,6 +139,18 @@ const details = computed(() => {
         :paused="state === 'paused'"
       />
       <div class="ml-auto flex shrink-0 items-center">
+        <Toggle
+          v-if="translateLabel"
+          v-model="translate"
+          size="sm"
+          class="text-muted-foreground data-[state=on]:text-foreground data-[state=on]:bg-background/70 hover:bg-background/50 size-7 px-0"
+          :disabled="busy || state === 'stopping'"
+          :aria-label="translateLabel"
+          :title="translateLabel"
+          data-testid="live-context-status-translate"
+        >
+          <LanguagesIcon aria-hidden="true" />
+        </Toggle>
         <Button
           v-if="state === 'paused'"
           size="icon-sm"

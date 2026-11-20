@@ -1114,6 +1114,25 @@ export default {
           "Öffne eine Unterhaltung, um Live-Kontext dafür aufzunehmen.",
         showElsewhere: "Anzeigen",
         openSettings: "Systemeinstellungen öffnen",
+        translation: {
+          toggle: "Übersetzen in {language}",
+          into: "Übersetzen in",
+          sameLanguage:
+            "Die Sprache ist bereits {language}, daher wird nichts übersetzt.",
+          pending: "Wird übersetzt",
+          error: {
+            no_model: {
+              title: "Kein Modell zum Übersetzen",
+              description:
+                "Wähle unter Einstellungen › Modelle ein Modell für Live-Übersetzung und schalte die Übersetzung erneut ein. Die Transkription läuft weiter.",
+            },
+            failed: {
+              title: "Die Übersetzung funktioniert gerade nicht",
+              description:
+                "Pine versucht es weiter. Die Transkription läuft weiter.",
+            },
+          },
+        },
         dismiss: "Schließen",
         error: {
           permission: {

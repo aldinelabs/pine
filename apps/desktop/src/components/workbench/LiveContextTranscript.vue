@@ -48,6 +48,10 @@ const props = defineProps<{
   /** "listening" or "paused" while this conversation captures. */
   capture?: "listening" | "paused" | "starting";
   loading?: boolean;
+  /** Translations of final segments, by id, when translation is shown. */
+  translations?: Record<string, string>;
+  /** Final segments waiting for their translation. */
+  translationPending?: ReadonlySet<string>;
 }>();
 const emit = defineEmits<{
   rename: [speaker: LiveContextSpeakerKey, name: string];
@@ -86,6 +90,8 @@ interface Line {
   text: string;
   final: boolean;
   provisional: boolean;
+  /** The segment's translation goes under its last piece. */
+  translationOf?: string;
 }
 
 interface Block {
@@ -110,7 +116,8 @@ const blocks = computed<Block[]>(() => {
   let last: { block: Block; identity: string; end: number } | undefined;
   for (const segment of [...props.segments, ...props.pending]) {
     const labeled = Boolean(segment.turns?.length);
-    segmentTurns(segment, merges.value).forEach((piece, index) => {
+    const pieces = segmentTurns(segment, merges.value);
+    pieces.forEach((piece, index) => {
       const unknown = labeled && !piece.speaker;
       const echo = segment.echo === true;
       const identity = [
@@ -123,6 +130,9 @@ const blocks = computed<Block[]>(() => {
         text: piece.text,
         final: segment.final,
         provisional: !segment.final || piece.provisional === true,
+        ...(segment.final && index === pieces.length - 1
+          ? { translationOf: segment.id }
+          : {}),
       };
       if (
         last &&
@@ -395,26 +405,48 @@ watch(isEmpty, async (empty) => {
                 >{{ time(block.start) }}</time
               >
             </div>
-            <p
-              v-for="line in block.lines"
-              :key="line.key"
-              :data-final="line.final || undefined"
-              class="leading-relaxed break-words whitespace-pre-wrap select-text"
-              :class="
-                !line.final
-                  ? 'text-muted-foreground'
-                  : block.echo
-                    ? 'text-muted-foreground/80'
-                    : 'text-foreground'
-              "
-            >
-              {{ line.text
-              }}<span
-                v-if="!line.final"
-                class="live-context-caret bg-muted-foreground/70 ml-0.5 inline-block h-[1em] w-0.5 translate-y-0.5 rounded-full align-baseline"
-                aria-hidden="true"
-              />
-            </p>
+            <template v-for="line in block.lines" :key="line.key">
+              <p
+                :data-final="line.final || undefined"
+                class="leading-relaxed break-words whitespace-pre-wrap select-text"
+                :class="
+                  !line.final
+                    ? 'text-muted-foreground'
+                    : block.echo
+                      ? 'text-muted-foreground/80'
+                      : 'text-foreground'
+                "
+              >
+                {{ line.text
+                }}<span
+                  v-if="!line.final"
+                  class="live-context-caret bg-muted-foreground/70 ml-0.5 inline-block h-[1em] w-0.5 translate-y-0.5 rounded-full align-baseline"
+                  aria-hidden="true"
+                />
+              </p>
+              <template v-if="line.translationOf && translations">
+                <p
+                  v-if="translations[line.translationOf]"
+                  class="text-muted-foreground -mt-0.5 text-xs leading-relaxed break-words whitespace-pre-wrap select-text"
+                  :class="block.echo && 'opacity-80'"
+                  data-testid="live-context-translation"
+                >
+                  {{ translations[line.translationOf] }}
+                </p>
+                <!-- As tall as the line it becomes, so nothing jumps. -->
+                <div
+                  v-else-if="translationPending?.has(line.translationOf)"
+                  class="-mt-0.5 flex h-[1.625em] items-center text-xs"
+                  role="status"
+                  :aria-label="
+                    t('project.workbench.liveContext.translation.pending')
+                  "
+                  data-testid="live-context-translation-pending"
+                >
+                  <Skeleton class="h-2.5 w-1/3 rounded-full" />
+                </div>
+              </template>
+            </template>
           </li>
         </ol>
       </div>

@@ -1089,6 +1089,24 @@ export default {
         noSession: "Open a conversation to capture live context into it.",
         showElsewhere: "Show",
         openSettings: "Open System Settings",
+        translation: {
+          toggle: "Translate into {language}",
+          into: "Translate into",
+          sameLanguage:
+            "The speech is already in {language}, so nothing will be translated.",
+          pending: "Translating",
+          error: {
+            no_model: {
+              title: "No model to translate with",
+              description:
+                "Choose a live translation model in Settings › Models, then turn translation on again. Transcription goes on.",
+            },
+            failed: {
+              title: "Translation isn’t working right now",
+              description: "Pine keeps trying. Transcription goes on.",
+            },
+          },
+        },
         dismiss: "Dismiss",
         error: {
           permission: {

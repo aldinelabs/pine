@@ -25,7 +25,7 @@ function stubLayout(rowWidth: number) {
   );
 }
 
-function mountSetup(continues: boolean) {
+function mountSetup(continues: boolean, translateTo = "en-US") {
   return mount(LiveContextSetup, {
     attachTo: document.body,
     props: {
@@ -33,6 +33,7 @@ function mountSetup(continues: boolean) {
       locale: "zh-CN",
       speakersAvailable: true,
       continues,
+      translateTo,
     },
     global: { plugins: [createAppI18n("en-US")] },
   });
@@ -55,9 +56,9 @@ describe("LiveContextSetup", () => {
   });
 
   it("drops Start to its icon when its label does not fit, keeping its name", async () => {
-    // Sources, speakers and language: 3 × 40 (jsdom has no gap), leaving
-    // 80 for "Start", 5 × 8 + 40 for its icon and padding.
-    stubLayout(200);
+    // Sources, speakers, translation and language: 4 × 40 (jsdom has no
+    // gap), leaving 80 for "Start", 5 × 8 + 40 for its icon and padding.
+    stubLayout(240);
     const wrapper = mountSetup(false);
     await wrapper.setProps({ locale: "en-US" });
     await flushPromises();
@@ -72,5 +73,28 @@ describe("LiveContextSetup", () => {
     expect(start.attributes("title")).toBe("Continue");
     // Still its accessible name, read from the visually hidden label.
     expect(start.get(".sr-only").text()).toBe("Continue");
+  });
+
+  it("turns translation on and names the language it translates into", async () => {
+    const wrapper = mountSetup(false, "fr-FR");
+    const toggle = wrapper.get("[data-testid=live-context-translate]");
+    expect(toggle.attributes("aria-label")).toBe(
+      "Translate into French (France)",
+    );
+    expect(toggle.attributes("data-same-language")).toBeUndefined();
+    await toggle.trigger("click");
+    expect(wrapper.emitted("update:translate")).toEqual([[true]]);
+  });
+
+  it("says nothing is translated when the speech is already in that language", async () => {
+    const wrapper = mountSetup(false, "zh-CN");
+    const toggle = wrapper.get("[data-testid=live-context-translate]");
+    expect(toggle.attributes("data-same-language")).toBe("true");
+    expect(toggle.attributes("title")).toContain(
+      "The speech is already in Chinese (China), so nothing will be translated.",
+    );
+    // Traditional Chinese is a different written language.
+    await wrapper.setProps({ translateTo: "zh-TW" });
+    expect(toggle.attributes("data-same-language")).toBeUndefined();
   });
 });

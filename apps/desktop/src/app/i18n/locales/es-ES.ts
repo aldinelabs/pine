@@ -1109,6 +1109,25 @@ export default {
           "Abre una conversación para capturar contexto en directo en ella.",
         showElsewhere: "Ver",
         openSettings: "Abrir Ajustes del Sistema",
+        translation: {
+          toggle: "Traducir al {language}",
+          into: "Traducir al",
+          sameLanguage:
+            "La voz ya está en {language}, así que no se traducirá nada.",
+          pending: "Traduciendo",
+          error: {
+            no_model: {
+              title: "No hay ningún modelo para traducir",
+              description:
+                "Elige un modelo de traducción en directo en Ajustes › Modelos y vuelve a activar la traducción. La transcripción continúa.",
+            },
+            failed: {
+              title: "La traducción no funciona en este momento",
+              description:
+                "Pine sigue intentándolo. La transcripción continúa.",
+            },
+          },
+        },
         dismiss: "Cerrar",
         error: {
           permission: {

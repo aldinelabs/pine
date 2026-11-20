@@ -1082,6 +1082,24 @@ export default {
           "대화를 열면 그 대화에 실시간 컨텍스트를 기록할 수 있습니다.",
         showElsewhere: "보기",
         openSettings: "시스템 설정 열기",
+        translation: {
+          toggle: "{language}(으)로 번역",
+          into: "번역 언어",
+          sameLanguage: "음성이 이미 {language}이므로 번역하지 않습니다.",
+          pending: "번역 중",
+          error: {
+            no_model: {
+              title: "번역에 사용할 모델이 없습니다",
+              description:
+                "설정 › 모델에서 실시간 번역 모델을 선택한 뒤 번역을 다시 켜세요. 받아쓰기는 계속됩니다.",
+            },
+            failed: {
+              title: "지금은 번역이 되지 않습니다",
+              description:
+                "Pine이 계속 다시 시도합니다. 받아쓰기는 계속됩니다.",
+            },
+          },
+        },
         dismiss: "닫기",
         error: {
           permission: {

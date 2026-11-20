@@ -74,7 +74,11 @@ const listeningHere: LiveContextStatus = {
 
 function stubApi(
   status: LiveContextStatus,
-  transcript?: { segments: unknown[]; speakers: unknown },
+  transcript?: {
+    segments: unknown[];
+    speakers: unknown;
+    translations?: unknown;
+  },
 ) {
   let emit: (event: LiveContextEvent) => void = () => undefined;
   const api = {
@@ -95,6 +99,14 @@ function stubApi(
       Promise.resolve({
         names: {},
         merges: { [request.from]: request.into },
+      }),
+    ),
+    setTranslation: vi.fn((request: { language: string | null }) =>
+      Promise.resolve({
+        ...status,
+        ...(request.language
+          ? { translation: { language: request.language } }
+          : {}),
       }),
     ),
     openPrivacySettings: vi.fn().mockResolvedValue(undefined),
@@ -989,5 +1001,172 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(
       wrapper.find("[data-testid=live-context-transcript-loading]").exists(),
     ).toBe(true);
+  });
+
+  describe("translation", () => {
+    const savedSegment = {
+      id: "a",
+      source: "system",
+      start: 0,
+      end: 1,
+      text: "The exam covers chapter five.",
+      final: true,
+    };
+
+    function prefer(value: { enabled: boolean; language?: string }): void {
+      window.localStorage.setItem(
+        "pine.live-context-translation",
+        JSON.stringify(value),
+      );
+    }
+
+    beforeEach(() => window.localStorage.clear());
+
+    it("is off until turned on, then translates the capture into the chosen language", async () => {
+      const { api } = stubApi(idle);
+      const wrapper = await mountPanel();
+      const toggle = wrapper.get("[data-testid=live-context-translate]");
+      expect(toggle.attributes("data-state")).toBe("off");
+      await wrapper.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+      expect(api.start.mock.calls[0]?.[0]).not.toHaveProperty("translation");
+
+      mounted.splice(0).forEach((mountedWrapper) => mountedWrapper.unmount());
+      prefer({ enabled: true, language: "fr-FR" });
+      const again = stubApi(idle);
+      const next = await mountPanel();
+      expect(
+        next
+          .get("[data-testid=live-context-translate]")
+          .attributes("data-state"),
+      ).toBe("on");
+      await next.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+      expect(again.api.start).toHaveBeenCalledWith(
+        expect.objectContaining({ locale: "en-US", translation: "fr-FR" }),
+      );
+    });
+
+    it("sends nothing to translate when the speech is already in that language", async () => {
+      prefer({ enabled: true, language: "en-US" });
+      const { api } = stubApi(idle);
+      const wrapper = await mountPanel();
+      expect(
+        wrapper
+          .get("[data-testid=live-context-translate]")
+          .attributes("data-same-language"),
+      ).toBe("true");
+      await wrapper.get("[data-testid=live-context-start]").trigger("click");
+      await flushPromises();
+      expect(api.start.mock.calls[0]?.[0]).not.toHaveProperty("translation");
+    });
+
+    it("shows translations under final text, waiting ones as a placeholder, and turns off mid-capture", async () => {
+      prefer({ enabled: true, language: "fr-FR" });
+      const { api, emit } = stubApi(
+        {
+          ...listeningHere,
+          locale: "en-US",
+          translation: { language: "fr-FR" },
+        },
+        {
+          segments: [
+            savedSegment,
+            {
+              ...savedSegment,
+              id: "b",
+              start: 2,
+              end: 3,
+              text: "Any questions?",
+            },
+          ],
+          speakers: { names: {}, merges: {} },
+          translations: {
+            "fr-FR": { a: "L’examen porte sur le chapitre cinq." },
+          },
+        },
+      );
+      const wrapper = await mountPanel();
+      emit({
+        kind: "translation",
+        sessionId: "session-1",
+        language: "fr-FR",
+        translations: {},
+        pending: ["b"],
+      });
+      emit({
+        kind: "segment",
+        sessionId: "session-1",
+        segment: {
+          id: "c",
+          source: "mic",
+          start: 4,
+          end: 5,
+          text: "So",
+          final: false,
+        },
+      });
+      await flushPromises();
+      const translations = wrapper.findAll(
+        "[data-testid=live-context-translation]",
+      );
+      expect(translations.map((line) => line.text())).toEqual([
+        "L’examen porte sur le chapitre cinq.",
+      ]);
+      expect(translations[0]?.classes()).toEqual(
+        expect.arrayContaining(["text-xs", "text-muted-foreground"]),
+      );
+      // One placeholder: for the final segment waiting, not the volatile one.
+      expect(
+        wrapper.findAll("[data-testid=live-context-translation-pending]"),
+      ).toHaveLength(1);
+
+      const toggle = wrapper.get("[data-testid=live-context-status-translate]");
+      expect(toggle.attributes("aria-label")).toBe(
+        "Translate into French (France)",
+      );
+      await toggle.trigger("click");
+      await flushPromises();
+      expect(api.setTranslation).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        sessionId: "session-1",
+        language: null,
+      });
+      expect(
+        wrapper.find("[data-testid=live-context-translation]").exists(),
+      ).toBe(false);
+
+      await toggle.trigger("click");
+      await flushPromises();
+      expect(api.setTranslation).toHaveBeenLastCalledWith({
+        projectId: PROJECT_ID,
+        sessionId: "session-1",
+        language: "fr-FR",
+      });
+    });
+
+    it("explains a missing model calmly and can be dismissed", async () => {
+      prefer({ enabled: true, language: "fr-FR" });
+      stubApi({
+        ...listeningHere,
+        locale: "en-US",
+        translation: { language: "fr-FR", error: "no_model" },
+      });
+      const wrapper = await mountPanel();
+      const notice = wrapper.get(
+        "[data-testid=live-context-translation-error]",
+      );
+      expect(notice.attributes("data-tone")).toBe("neutral");
+      expect(notice.text()).toContain("No model to translate with");
+      expect(notice.text()).toContain("Settings › Models");
+      await notice.get("button").trigger("click");
+      expect(
+        wrapper.find("[data-testid=live-context-translation-error]").exists(),
+      ).toBe(false);
+      // Transcription goes on.
+      expect(wrapper.find("[data-testid=live-context-status]").exists()).toBe(
+        true,
+      );
+    });
   });
 });

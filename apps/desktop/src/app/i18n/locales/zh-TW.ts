@@ -1033,6 +1033,23 @@ export default {
         noSession: "開啟一個對話，即可為它記錄即時上下文。",
         showElsewhere: "查看",
         openSettings: "開啟系統設定",
+        translation: {
+          toggle: "翻譯成{language}",
+          into: "翻譯成",
+          sameLanguage: "語音已經是{language}，不會翻譯。",
+          pending: "正在翻譯",
+          error: {
+            no_model: {
+              title: "沒有可用於翻譯的模型",
+              description:
+                "請在「設定 › 模型」中選擇即時翻譯模型，然後重新開啟翻譯。轉寫不受影響。",
+            },
+            failed: {
+              title: "翻譯暫時出錯",
+              description: "Pine 會繼續重試，轉寫不受影響。",
+            },
+          },
+        },
         dismiss: "關閉",
         error: {
           permission: {

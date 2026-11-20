@@ -697,21 +697,29 @@ close the card. The panels are:
   one on stays on), then Identify speakers (a people icon toggle, off by
   default, pressed when on; shown only when this build includes the
   speaker models, which ship with the macOS app; its tooltip says it runs
-  on this Mac and labels arrive a few seconds late and can be wrong), a
+  on this Mac and labels arrive a few seconds late and can be wrong),
+  Translate (a languages icon toggle, off by default and remembered; its
+  tooltip says "Translate into {language}", and adds that nothing will be
+  translated when the speech is already in that language), a
   language button showing the spoken language as a
   short code such as "EN (US)", "ZH (CN)" or "JA (JP)" (hover for the full
   name), and Start ("Continue" when the conversation already has a
   transcript). When the card is too narrow for its label, Start shows
   only its microphone icon (hover for "Start" or "Continue"); the
   language code is always shown in full. The language button opens a menu listing the languages by
-  their full names, such as "Chinese (China)".
+  their full names, such as "Chinese (China)", then "Translate into" with
+  the target's short code, a submenu of Pine's interface languages
+  (default: the interface language). When the spoken language and the
+  target are the same, the menu says nothing will be translated.
   On a new session's page, Start first creates an empty conversation in the
   project the composer shows, opens it in that tab and captures into it;
   messages sent later go to that conversation, which stays in the session
   list even if no message is ever sent.
   While capturing, the row becomes a bar: a softly pulsing red dot and the
   listening time (paused time not counted), a waveform of the last few
-  seconds of sound, a pause button and a stop button (square icon). The
+  seconds of sound, the Translate toggle (turns translation on or off for
+  the running capture at once), a pause button and a stop button (square
+  icon). The
   waveform shows the microphone in the text colour and system audio in
   grey; silence is a flat line. Hovering the time shows the sources and
   the language.
@@ -731,7 +739,11 @@ close the card. The panels are:
   an amber people icon, "The transcript goes on without them.") when
   speaker labels could not start. Error notices close with the × (Dismiss) at their top right.
   There is also a note when speaker labels run lighter or pause to save
-  power or keep up (they recover on their own).
+  power or keep up (they recover on their own). Translation problems show
+  a plain grey notice with an amber languages icon: "No model to translate
+  with" (choose a live translation model in Settings › Models, then turn
+  translation on again) or "Translation isn't working right now" (Pine
+  keeps trying); transcription goes on either way, and the × dismisses it.
   Before any text the transcript explains what live context does (or says
   "Listening for the first words…" while capturing). Each block starts
   with who spoke and the time; a speaker's consecutive lines stay under
@@ -783,6 +795,14 @@ close the card. The panels are:
   when lines are attached. Other conversations, side chats and
   sub-sessions do not see it; after the transcript is deleted the agent is
   told to disregard it.
+  With Translate on, each finished line gets its translation underneath in
+  smaller grey text a few seconds later (words still forming are never
+  translated); a short grey placeholder bar holds the place while it is
+  translating. Turning it on during a capture also translates the last
+  few lines said; Stop or turning it off drops what was still waiting.
+  Translations are saved with the transcript and show again whenever
+  Translate is on with the same target language; a speaker rename or merge
+  does not translate again.
   Once the conversation has a transcript, a "…" button (Live context
   actions) sits in the card header beside Add card (in a narrow card the
   title shortens first, so the buttons stay visible), with:
@@ -791,9 +811,10 @@ close the card. The panels are:
     shows "Speaker n"; Enter or leaving the field saves, Esc puts it back),
     how many segments it speaks in, and a Merge into button.
   - Delete live context: asks first ("Delete this live context?"): the
-    conversation's transcript and speaker names are permanently deleted and
-    it can't be undone; while this conversation is capturing, the dialog
-    adds "The capture stops first." and Delete stops it before deleting.
+    conversation's transcript, speaker names and translations are permanently
+    deleted and it can't be undone; while this conversation is capturing,
+    the dialog adds "The capture stops first." and Delete stops it before
+    deleting.
     The card then shows its setup row again.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add

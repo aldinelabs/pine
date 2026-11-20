@@ -1098,6 +1098,23 @@ export default {
         noSession: "会話を開くと、その会話にライブコンテキストを記録できます。",
         showElsewhere: "表示",
         openSettings: "システム設定を開く",
+        translation: {
+          toggle: "{language}に翻訳",
+          into: "翻訳先",
+          sameLanguage: "音声はすでに{language}のため、翻訳されません。",
+          pending: "翻訳中",
+          error: {
+            no_model: {
+              title: "翻訳に使えるモデルがありません",
+              description:
+                "「設定 › モデル」でライブ翻訳モデルを選んでから、翻訳をもう一度オンにしてください。文字起こしは続きます。",
+            },
+            failed: {
+              title: "翻訳が一時的にうまくいきません",
+              description: "Pine は再試行を続けます。文字起こしは続きます。",
+            },
+          },
+        },
         dismiss: "閉じる",
         error: {
           permission: {

@@ -211,6 +211,23 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 - 体积：每个架构的应用包增加约 32 MB 的库（arm64 实测：ONNX Runtime 28.8 MB + C API 3.4 MB，未压缩；universal 原件为 68 MB），外加约 30 MB 模型（分割模型 1.5 MB + 声纹模型 28.3 MB，与架构无关）。
 - 许可证（详见 `native/live-context/NOTICE.md`，随库一起打包）：sherpa-onnx Apache-2.0、ONNX Runtime MIT、pyannote segmentation-3.0 MIT、3D-Speaker CAM++ Apache-2.0，均可随 AGPL-3.0 分发。
 
+### 3.5 实时翻译（可选）
+
+目标：把已经稳定（final）的段落翻译成用户选的语言，显示在原文下面。volatile 文本永远不送去翻译。翻译只在界面显示，不进入 agent 的上下文（§7）。
+
+- **开关与目标语言**：卡片控制行里的“翻译”开关（lucide `Languages`），默认关；目标语言在语言菜单的“翻译成”子菜单里选，候选是 Pine 的 9 种界面语言，默认跟随界面语言。两者存在 renderer 偏好 `pine.live-context-translation`（`{ enabled, language? }`）。采集中控制行变成状态条，状态条上也有同一个开关，切换立即生效（`setTranslation`）。
+- **同语种不翻译**：`sameWrittenLanguage` 按书面语比较：中文按字体区分（`zh-CN` 与 `zh-TW` 不同，粤语单独一类），其他语言只看语言子标签（`en-US` 与 `en-GB` 相同）。相同时 renderer 不请求翻译，开关的提示和菜单里说明“不会翻译”；main 也会再判断一次。
+- **模型**：设置 › 模型 › “实时翻译模型”（`pine-settings.json` 的 `liveTranslationModel`），没选时用标题生成模型，与指令优化模型同一套回退。远程推荐 gist 只分 chat / image / video，没有为翻译加类别：翻译只要快且便宜，用户自己挑或沿用标题模型已经够用。
+- **调用路径**：和标题、指令优化、回复建议一样，模型调用在 agent 进程：`LiveContextService` → `ProjectRuntimeRegistry.translateLiveContext` → `AgentProcessHost` → `PineAgentRuntime.translateLiveContext`（`src/agent/runtime/live-translation.ts`）。关闭推理（`judgeStreamOptions`），30 秒超时。没有可用模型时返回 `{ error: "no_model" }` 而不是抛错。
+- **批处理与节流**（`src/main/liveContextTranslation.ts`，`LiveTranslator`，每次采集一个）：final 段落写盘后入队；讲话停顿 1.2 秒、最早一段等满 4 秒或攒满一批（6 段 / 1200 字符）时发出；同一时间只有一个请求，两次请求至少间隔 1 秒。积压超过一批时改发追赶批（最多 24 段 / 4800 字符），超过 200 段时丢弃最旧的（不翻译）。
+- **上下文**：每个请求带上最近 4 段原文和译文，只用来统一人名和术语，不重新翻译。
+- **提示词**：逐段忠实翻译，不加评论、说明或说话人标签，不回答原文里的问题，专有名词、代码、命令、URL、数字保持原样；输入用 `<s n="1">…</s>`，输出要求 `<t n="1">…</t>`，按编号对回段落，缺的那段跳过。
+- **只翻一次**：同一段只按文本翻一次；说话人重新标注（`turns`、改名、合并）不触发重翻，只有文本变化才会再翻。
+- **失败**：请求失败时状态里 `translation.error = "failed"`，卡片显示一条灰色提示（琥珀色图标），按 2 / 8 / 30 秒退避重试同一批，三次后放弃这一批，后面的批次继续尝试，成功一次后提示消失。没有模型时 `error = "no_model"`，提示去 设置 › 模型 选择，停止本次翻译（重新打开开关再试）。转写始终继续。
+- **取消**：Stop、关闭开关、删除转写都会取消：队列清空，正在进行的请求返回后丢弃。
+- **中途打开**：采集中打开翻译时，先补翻最近 20 段还没有该语言译文的 final 段落。
+- **成本**：Pine 目前不统计辅助模型（标题、审批、指令优化、回复建议）的用量和费用，上下文用量指示只算会话本身。翻译同样没有计入，这是已知缺口；长会议大约每分钟一到几次小请求。
+
 ## 4. 数据模型
 
 转写文件：
@@ -254,6 +271,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 
 - 说话人 key 为 `<source>-<n>`：麦克风与系统音频是两个命名空间，只有用户合并时才相连。
 - 说话人识别的原始证据另存 sidecar `live-context/<session-id>.speakers.jsonl`，只追加：`capture`（本次采集的时间基准，避免与上次的分析器时间重叠）、helper 原样的 `window`/`embedding`/`echo`/`device`、`segment`（final 段落的 id、相对时间和逐词时间）、停止时的 `relabel`（每个单元的最终归属）。下次开始或读取时按顺序回放即可重建同样的说话人模型，编号跨采集延续。embedding 是由语音算出的 192 维向量（float16），不是音频；sidecar 与转写文件一起随会话删除。
+- 翻译另存 sidecar `live-context/<session-id>.translations.jsonl`，只追加，每行一段一种语言：`{"v":1,"id":"mi3k2x-system-3","lang":"fr-FR","hash":"1a2b3c4d","text":"…"}`。`hash` 是原文（去掉首尾空白）的 FNV-1a 32 位哈希，读取时只保留与当前段落文本一致的译文，同一段同一语言以最后一条为准。随会话删除，也随“删除实时上下文”删除。
 - v2 的滚动摘要另存 `live-context/<session-id>.summary.json`（见 §7）。
 
 ## 5. IPC API
@@ -271,11 +289,15 @@ window.pine.liveContext?: {
   renameSpeaker({ projectId, sessionId, speaker, name }): Promise<LiveContextSpeakers>;
   mergeSpeakers({ projectId, sessionId, from, into }): Promise<LiveContextSpeakers>;
   deleteTranscript({ projectId, sessionId }): Promise<LiveContextStatus>; // 先停止该会话的采集
+  setTranslation({ projectId, sessionId, language: string | null }): Promise<LiveContextStatus>; // 只影响正在采集的会话
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
 }
-// start 的请求另有可选 speakers: boolean
+// start 的请求另有可选 speakers: boolean 和 translation: string（目标语言）
+// transcript 的结果另有可选 translations: { [language]: { [segmentId]: text } }
+// status 另有可选 translation: { language, error?: "no_model" | "failed" }
 // LiveContextEvent = { kind: "status", status } | { kind: "segment", sessionId, segment }
 //   | { kind: "turns", sessionId, segmentId, turns } | { kind: "speakers", sessionId, speakers }
+//   | { kind: "translation", sessionId, language, translations, pending? }  // pending 为完整的等待列表
 //   | { kind: "deleted", sessionId }
 ```
 

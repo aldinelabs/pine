@@ -1111,6 +1111,25 @@ export default {
           "Ouvrez une conversation pour y capturer le contexte en direct.",
         showElsewhere: "Afficher",
         openSettings: "Ouvrir Réglages Système",
+        translation: {
+          toggle: "Traduire en {language}",
+          into: "Traduire en",
+          sameLanguage:
+            "La parole est déjà en {language} : rien ne sera traduit.",
+          pending: "Traduction en cours",
+          error: {
+            no_model: {
+              title: "Aucun modèle pour traduire",
+              description:
+                "Choisissez un modèle de traduction en direct dans Réglages › Modèles, puis réactivez la traduction. La transcription continue.",
+            },
+            failed: {
+              title: "La traduction ne fonctionne pas pour le moment",
+              description:
+                "Pine continue d’essayer. La transcription continue.",
+            },
+          },
+        },
         dismiss: "Fermer",
         error: {
           permission: {
