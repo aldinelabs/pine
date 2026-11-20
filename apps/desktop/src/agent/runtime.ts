@@ -504,7 +504,15 @@ export class PineAgentRuntime {
     }
   >();
   private readonly titleGenerationAttempts = new Set<string>();
-  private readonly titleGenerationInFlight = new Set<string>();
+  /**
+   * Title generations still running, by session. Closing the session aborts
+   * and awaits its generation, so none of it (the request, the default
+   * utility model it saves, the title it sets) outlives the session.
+   */
+  private readonly titleGenerationsInFlight = new Map<
+    string,
+    { controller: AbortController; done: Promise<void> }
+  >();
   private readonly titleGenerationFailures = new Map<string, number>();
 
   private readonly modelService: PineModelService;
@@ -1206,6 +1214,8 @@ export class PineAgentRuntime {
     if (!live) return { disposed: false };
 
     this.liveSessions.delete(sessionId);
+    const titleGeneration = this.titleGenerationsInFlight.get(sessionId);
+    titleGeneration?.controller.abort();
     this.eventForwarder.clearSession(sessionId);
     this.rejectHostRequests(sessionId, "The session was closed.");
     for (const [requestId, pending] of this.pendingApprovals) {
@@ -1233,6 +1243,8 @@ export class PineAgentRuntime {
     await live.backgroundTasks?.dispose();
     clearTimeout(live.backgroundTaskEmitTimer);
     await live.computerUseController?.dispose();
+    // Title generation is best-effort; it never fails closing the session.
+    await titleGeneration?.done.catch(() => undefined);
     live.unsubscribe();
     await live.session.settingsManager.flush();
     live.session.dispose();
@@ -3382,15 +3394,33 @@ export class PineAgentRuntime {
     return { renamed: true, title: normalized };
   }
 
-  private async generateInitialTitle(live: LiveAgentSession): Promise<void> {
+  private generateInitialTitle(live: LiveAgentSession): Promise<void> {
+    const sessionId = live.session.sessionId;
+    if (
+      this.liveSessions.get(sessionId) !== live ||
+      this.titleGenerationsInFlight.has(sessionId)
+    ) {
+      return Promise.resolve();
+    }
+    const controller = new AbortController();
+    const done = this.runTitleGeneration(live, controller.signal).finally(() =>
+      this.titleGenerationsInFlight.delete(sessionId),
+    );
+    this.titleGenerationsInFlight.set(sessionId, { controller, done });
+    return done;
+  }
+
+  private async runTitleGeneration(
+    live: LiveAgentSession,
+    closed: AbortSignal,
+  ): Promise<void> {
     const session = live.session;
     if (
       live.sideChat ||
       session.sessionName ||
       this.titleGenerationAttempts.has(session.sessionId) ||
       (this.titleGenerationFailures.get(session.sessionId) ?? 0) >=
-        MAX_TITLE_ATTEMPTS ||
-      this.titleGenerationInFlight.has(session.sessionId)
+        MAX_TITLE_ATTEMPTS
     ) {
       return;
     }
@@ -3424,17 +3454,19 @@ export class PineAgentRuntime {
     );
     if (!transcript) return;
 
-    this.titleGenerationInFlight.add(session.sessionId);
     try {
       const modelRuntime = await this.getModelRuntime(live.agentDir);
       const model = await this.modelService.utilityModel(
         live.agentDir,
         modelRuntime,
       );
-      if (!model) return;
+      if (!model || closed.aborted) return;
       const language =
         live.locale === "zh-CN" ? "Simplified Chinese" : "English";
-      const signal = AbortSignal.timeout(TITLE_TIMEOUT_MS);
+      const signal = AbortSignal.any([
+        closed,
+        AbortSignal.timeout(TITLE_TIMEOUT_MS),
+      ]);
       const context: Context = {
         systemPrompt: `Generate a concise, informative conversation title in ${language}. Capture the primary user goal or topic so the conversation is easy to recognize later. Prefer a short, natural phrase that preserves the complete meaning; do not sacrifice clarity or truncate key terms for brevity. Use at most ${MAX_GENERATED_TITLE_LENGTH} characters. Keep model names, product names, filenames, and technical terms when they are central to the topic. Omit incidental details and unnecessary URLs. Do not invent outcomes or use promotional wording. Call submit_title exactly once with { "title": string }; do not answer in plain text.`,
         messages: [
@@ -3452,12 +3484,14 @@ export class PineAgentRuntime {
       };
       let final: AssistantMessage | undefined;
       for await (const event of modelRuntime.stream(model, context, options)) {
+        if (closed.aborted) return;
         if (event.type === "done") final = event.message;
         else if (event.type === "error") {
           this.recordTitleFailure(session.sessionId);
           return;
         }
       }
+      if (closed.aborted) return;
       const title = titleFromAssistantMessage(final);
       if (title) {
         this.titleGenerationAttempts.add(session.sessionId);
@@ -3468,9 +3502,7 @@ export class PineAgentRuntime {
     } catch {
       // Title generation is best-effort and must never fail the user's turn.
       // A failed attempt is retried on a later turn, a few times at most.
-      this.recordTitleFailure(session.sessionId);
-    } finally {
-      this.titleGenerationInFlight.delete(session.sessionId);
+      if (!closed.aborted) this.recordTitleFailure(session.sessionId);
     }
   }
 

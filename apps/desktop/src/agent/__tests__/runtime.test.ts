@@ -1484,6 +1484,12 @@ describe("PineAgentRuntime", () => {
     } finally {
       await runtime.dispose();
     }
+    // The first turn starts a title generation, which saves the default
+    // utility model before calling it. Disposing waits for it, so nothing
+    // writes into the agent directory after this point.
+    await expect(
+      readFile(path.join(location.agentDir, "pine-settings.json"), "utf8"),
+    ).resolves.toContain('"utilityModel"');
   });
 
   it("restores the saved approval mode when a session is reopened", async () => {
