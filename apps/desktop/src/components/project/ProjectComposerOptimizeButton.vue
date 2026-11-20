@@ -66,6 +66,11 @@ const label = computed(() =>
  * "Optimizing…", the compact layout hiding them).
  */
 const swap = ref<HTMLElement | null>(null);
+/**
+ * The open label names the button, so it has no tooltip; only a composer
+ * too narrow for the label (it hides it) keeps one for the bare icon.
+ */
+const labelHidden = ref(false);
 const SWAP_TRACKS = [
   [".composer-optimize-label-track", "--composer-optimize-label-width"],
   [".composer-optimize-kbd-track", "--composer-optimize-keys-width"],
@@ -86,6 +91,7 @@ function measureSwap(area: HTMLElement): void {
   if (jumps) area.removeAttribute("data-swap-ready");
   for (const [name, width] of widths)
     area.style.setProperty(name, `${width}px`);
+  labelHidden.value = widths[0][1] === 0;
   if (!jumps || widths.every(([, width]) => width === 0)) return;
   // Settle the new width before easing is allowed again.
   void getComputedStyle(area).width;
@@ -148,7 +154,7 @@ const labelClass = computed(() =>
         >
       </span>
     </span>
-    <Tooltip>
+    <Tooltip :disabled="!labelHidden">
       <TooltipTrigger as-child>
         <InputGroupButton
           v-if="showsUndo"

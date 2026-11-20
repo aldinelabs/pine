@@ -1596,6 +1596,8 @@ export default {
       send: "메시지 보내기",
       steer: "응답 방향 조정",
       stop: "응답 중지",
+      sendWithoutScrolling: "맨 아래로 이동하지 않고 보내기",
+      steerWithoutScrolling: "맨 아래로 이동하지 않고 방향 조정",
       withdrawSteering: "대기 중인 메시지 철회",
       withdrawSteeringFailed: "대기 중인 메시지를 철회할 수 없습니다",
       withdrawSteeringLabel: "철회",

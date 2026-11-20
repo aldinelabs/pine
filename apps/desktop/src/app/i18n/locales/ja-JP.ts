@@ -1615,6 +1615,8 @@ export default {
       send: "メッセージを送信",
       steer: "応答の方向を調整",
       stop: "応答を停止",
+      sendWithoutScrolling: "最下部に移動せずに送信",
+      steerWithoutScrolling: "最下部に移動せずに方向を調整",
       withdrawSteering: "待機中のメッセージを取り消す",
       withdrawSteeringFailed: "待機中のメッセージを取り消せませんでした",
       withdrawSteeringLabel: "取り消す",

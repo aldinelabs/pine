@@ -409,6 +409,8 @@ const modifierHeld = useModifierHold();
 const menuShortcutTransition = useCollapseTransition("width");
 const modifierLabel =
   (window.pine?.platform ?? "darwin") === "darwin" ? "⌘" : "Ctrl";
+const altKeyLabel =
+  (window.pine?.platform ?? "darwin") === "darwin" ? "⌥" : "Alt";
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
   const menu = menuShortcuts[event.key.toLowerCase()];
   if (
@@ -1659,18 +1661,47 @@ function handleRootSubmit(event: Event): void {
                     </InputGroupButton>
                   </TooltipTrigger>
                   <TooltipContent side="top">
-                    {{
-                      isSteering
-                        ? t("project.composer.steer")
-                        : props.isRunning
-                          ? t("project.composer.stop")
-                          : t("project.composer.send")
-                    }}
-                    <Kbd
-                      v-if="showShortcutHints && props.isRunning && !isSteering"
-                      aria-hidden="true"
-                      >esc</Kbd
+                    <!-- Sending or steering also has Option/Alt+Enter, which
+                         leaves the conversation where it is. -->
+                    <span
+                      v-if="
+                        showShortcutHints && (isSteering || !props.isRunning)
+                      "
+                      data-slot="send-shortcut-hints"
+                      class="grid grid-cols-[auto_auto] items-center gap-x-3 gap-y-1"
                     >
+                      <span>{{
+                        isSteering
+                          ? t("project.composer.steer")
+                          : t("project.composer.send")
+                      }}</span>
+                      <Kbd class="justify-self-end" aria-hidden="true">↵</Kbd>
+                      <span class="opacity-70">{{
+                        isSteering
+                          ? t("project.composer.steerWithoutScrolling")
+                          : t("project.composer.sendWithoutScrolling")
+                      }}</span>
+                      <KbdGroup class="justify-self-end" aria-hidden="true">
+                        <Kbd>{{ altKeyLabel }}</Kbd>
+                        <Kbd>↵</Kbd>
+                      </KbdGroup>
+                    </span>
+                    <template v-else>
+                      {{
+                        isSteering
+                          ? t("project.composer.steer")
+                          : props.isRunning
+                            ? t("project.composer.stop")
+                            : t("project.composer.send")
+                      }}
+                      <Kbd
+                        v-if="
+                          showShortcutHints && props.isRunning && !isSteering
+                        "
+                        aria-hidden="true"
+                        >esc</Kbd
+                      >
+                    </template>
                   </TooltipContent>
                 </Tooltip>
               </InputGroupAddon>

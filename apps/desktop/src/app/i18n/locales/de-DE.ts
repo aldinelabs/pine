@@ -1643,6 +1643,8 @@ export default {
       send: "Nachricht senden",
       steer: "Antwort lenken",
       stop: "Antwort stoppen",
+      sendWithoutScrolling: "Senden, ohne nach unten zu scrollen",
+      steerWithoutScrolling: "Lenken, ohne nach unten zu scrollen",
       withdrawSteering: "Vorgemerkte Nachricht zurückziehen",
       withdrawSteeringFailed:
         "Die vorgemerkte Nachricht konnte nicht zurückgezogen werden",

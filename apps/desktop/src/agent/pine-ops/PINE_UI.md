@@ -390,7 +390,10 @@ From top to bottom:
      scrolls the conversation to the new message; Option+Enter (Alt+Enter)
      sends without moving the conversation, which keeps following the reply
      only if it was already at the bottom; Shift+Enter starts a new line.
-     Send behaves like Enter. In a new session with no project, typing `@`
+     Send behaves like Enter; its tooltip lists both: "Send message ↵" and
+     "Send without scrolling to the bottom ⌥ ↵" (Alt ↵ on Windows and Linux),
+     or the Steer response equivalents while the agent works. In a new
+     session with no project, typing `@`
      chooses the project.
    - Optimize prompt (or Cmd+Enter / Ctrl+Enter in the text box). In a new
      session it is a sparkles button with its label in a peach-to-blue
@@ -405,10 +408,11 @@ From top to bottom:
      widens to the left, over the end of the text box without moving
      anything; it
      stays open while optimizing and closes again when the pointer or focus
-     leaves. Its tooltip shows "Optimize prompt ⌘ ↵". In a narrow composer
-     (a phone or narrow window) it is just the icon and only the tooltip
-     names it. Undo optimization rests as its icon and opens its label the
-     same way. The
+     leaves. It has no tooltip, since its label names it; in a narrow
+     composer (a phone or narrow window) it is just the icon, and only there
+     a tooltip names it ("Optimize prompt ⌘ ↵"). Undo optimization rests as
+     its icon and opens its label the same way, with a tooltip likewise only
+     in a narrow composer. The
      prompt optimization model rewrites what was typed into a clearer, more
      specific prompt, following prompt-writing best practices, and keeps
      the same language. It also reads the project's name and folders, the
@@ -578,7 +582,9 @@ From top to bottom:
      stops the running session and blocks new prompts until the limit is raised
      or cleared; it can be set before a session starts.
    - Action button: Send message when idle; Steer response (adds the message
-     to the running turn) or Stop response while the agent works.
+     to the running turn) or Stop response while the agent works. The Send
+     and Steer tooltips also show Option+Enter (Alt+Enter), which sends
+     without scrolling to the bottom; Stop's shows esc.
 
 #### File tab
 

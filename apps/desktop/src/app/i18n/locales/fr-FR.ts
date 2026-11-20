@@ -1639,6 +1639,8 @@ export default {
       send: "Envoyer le message",
       steer: "Réorienter la réponse",
       stop: "Arrêter la réponse",
+      sendWithoutScrolling: "Envoyer sans défiler jusqu’en bas",
+      steerWithoutScrolling: "Réorienter sans défiler jusqu’en bas",
       withdrawSteering: "Retirer le message en attente",
       withdrawSteeringFailed: "Impossible de retirer le message en attente",
       withdrawSteeringLabel: "Retirer",

@@ -1618,6 +1618,8 @@ export default {
       send: "Отправить сообщение",
       steer: "Скорректировать ответ",
       stop: "Остановить ответ",
+      sendWithoutScrolling: "Отправить без прокрутки вниз",
+      steerWithoutScrolling: "Скорректировать без прокрутки вниз",
       withdrawSteering: "Отозвать отложенное сообщение",
       withdrawSteeringFailed: "Не удалось отозвать отложенное сообщение",
       withdrawSteeringLabel: "Отозвать",

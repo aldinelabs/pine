@@ -1608,6 +1608,8 @@ export default {
       send: "Send message",
       steer: "Steer response",
       stop: "Stop response",
+      sendWithoutScrolling: "Send without scrolling to the bottom",
+      steerWithoutScrolling: "Steer without scrolling to the bottom",
       withdrawSteering: "Withdraw staged message",
       withdrawSteeringFailed: "Could not withdraw the staged message",
       withdrawSteeringLabel: "Withdraw",

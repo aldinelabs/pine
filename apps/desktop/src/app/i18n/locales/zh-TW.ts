@@ -1534,6 +1534,8 @@ export default {
       send: "傳送訊息",
       steer: "追加要求",
       stop: "停止回答",
+      sendWithoutScrolling: "傳送，不回到底部",
+      steerWithoutScrolling: "追加要求，不回到底部",
       withdrawSteering: "撤回暫存訊息",
       withdrawSteeringFailed: "無法撤回該暫存訊息",
       withdrawSteeringLabel: "撤回",

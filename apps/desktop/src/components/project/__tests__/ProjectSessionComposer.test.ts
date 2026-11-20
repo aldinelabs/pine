@@ -1424,10 +1424,49 @@ describe("ProjectSessionComposer", () => {
       "data-swap-ready",
     ]);
     expect(swap.hasAttribute("data-swap-ready")).toBe(true);
+    // With its label able to show, the button needs no tooltip.
+    const tooltip = (element: Element) =>
+      element.closest("[data-test-tooltip-trigger]")?.parentElement;
+    expect(
+      tooltip(
+        wrapper.get('[data-slot="optimize-prompt-trigger"]').element,
+      )?.getAttribute("disabled"),
+    ).toBe("true");
     wrapper.unmount();
     widths.mockRestore();
     properties.mockRestore();
     attributes.mockRestore();
+  });
+
+  it("names Option+Enter in Send's tooltip, and keeps Optimize prompt's for a bare icon", async () => {
+    const idle = mountComposer({ sessionId: "session-1" });
+    await nextTick();
+    const hints = idle.get('[data-slot="send-shortcut-hints"]');
+    expect(hints.text()).toContain("发送消息");
+    expect(hints.text()).toContain("发送，不回到底部");
+    expect(hints.findAll('[data-slot="kbd"]').map((key) => key.text())).toEqual(
+      ["↵", "⌥", "↵"],
+    );
+    // Without a measured label (a composer too narrow to show it) Optimize
+    // prompt keeps its tooltip.
+    expect(
+      idle
+        .get('[data-slot="optimize-prompt-trigger"]')
+        .element.closest("[data-test-tooltip-trigger]")
+        ?.parentElement?.getAttribute("disabled"),
+    ).toBe("false");
+    idle.unmount();
+
+    const stop = mountComposer({ sessionId: "session-1", isRunning: true });
+    expect(stop.find('[data-slot="send-shortcut-hints"]').exists()).toBe(false);
+    stop.unmount();
+
+    const steer = mountComposer({ sessionId: "session-1", isRunning: true });
+    await steer.get("textarea").setValue("别改测试");
+    expect(steer.get('[data-slot="send-shortcut-hints"]').text()).toContain(
+      "追加要求，不回到底部",
+    );
+    steer.unmount();
   });
 
   it("keeps the text box's addons from showing an I-beam over their buttons", () => {
