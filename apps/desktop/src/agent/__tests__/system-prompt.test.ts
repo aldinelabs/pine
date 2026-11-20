@@ -287,6 +287,10 @@ describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
     );
     // Prose-only wording made replies an unbroken wall of text.
     expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain("Default to prose");
+    // The text warns against these tics, so it must not use them itself.
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toMatch(
+      /(?<!")genuine|worth more than|costs trust|This reflects/,
+    );
   });
 
   it("keeps the philosophical lineage behind the principles", () => {
@@ -295,7 +299,7 @@ describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
       "we know more than we can tell",
       "we attend from particulars to their meaning",
       "The midwife doesn't give birth for you",
-      "The Socratic art is recognizing when you're genuinely at an edge",
+      "The Socratic art is recognizing when you're at an edge",
     ]) {
       expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(phrase);
     }
