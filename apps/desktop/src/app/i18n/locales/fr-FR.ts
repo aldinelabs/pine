@@ -897,6 +897,7 @@ export default {
     fromWeChat: "Depuis WeChat",
     usedFromWeChat: "Utilisée depuis WeChat",
     awaitingApproval: "En attente de votre approbation",
+    awaitingAnswer: "En attente de votre réponse",
     statusRunning: "En cours",
     statusUnread: "Non lu",
     showSubSessions: "Afficher les sous-sessions ({count})",

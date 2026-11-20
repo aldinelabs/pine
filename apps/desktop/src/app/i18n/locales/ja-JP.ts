@@ -889,6 +889,7 @@ export default {
     fromWeChat: "WeChat から",
     usedFromWeChat: "WeChat で使用",
     awaitingApproval: "承認待ち",
+    awaitingAnswer: "回答待ち",
     statusRunning: "実行中",
     statusUnread: "未読",
     showSubSessions: "サブセッションを表示（{count}）",

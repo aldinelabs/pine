@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  ChevronRightIcon,
-  MessageCircleIcon,
-  ShieldAlertIcon,
-  WorkflowIcon,
-} from "@lucide/vue";
+import { ChevronRightIcon, MessageCircleIcon, WorkflowIcon } from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
@@ -48,16 +43,25 @@ const isRunning = computed(() =>
 );
 
 const unreadStore = useSessionUnreadStore();
-/** Shown in the column under the project icon; running wins over unread. */
+/**
+ * Shown in the column under the project icon. What only the user can unblock
+ * (an approval, then a question) wins over a run, which wins over unread.
+ */
 const status = computed(() => {
+  if (sessionStore.isSessionAwaitingApproval(props.session.id))
+    return "approval";
+  if (sessionStore.isSessionAwaitingAnswer(props.session.id)) return "answer";
   if (isRunning.value) return "running";
   if (unreadStore.isUnread(props.session.id)) return "unread";
   return "idle";
 });
 
-const isAwaitingApproval = computed(() =>
-  sessionStore.isSessionAwaitingApproval(props.session.id),
-);
+const STATUS_LABELS = {
+  approval: "sessions.awaitingApproval",
+  answer: "sessions.awaitingAnswer",
+  running: "sessions.statusRunning",
+  unread: "sessions.statusUnread",
+} as const;
 
 const { locale, t } = useI18n();
 /**
@@ -215,29 +219,18 @@ const emit = defineEmits<{
           :class="cn('truncate', isRunning && 'shimmer')"
           >{{ title }}</span
         >
-        <span v-if="status !== 'idle'" class="sr-only">{{
-          t(
-            status === "running"
-              ? "sessions.statusRunning"
-              : "sessions.statusUnread",
-          )
-        }}</span>
+        <span
+          v-if="status !== 'idle'"
+          data-slot="session-status-label"
+          class="sr-only"
+          >{{ t(STATUS_LABELS[status]) }}</span
+        >
         <span
           v-if="runStartedAt && !isRunning"
           data-slot="session-automation-time"
           class="ms-auto shrink-0 text-xs text-muted-foreground tabular-nums"
           >{{ runStartedAt }}</span
         >
-        <span
-          v-if="isAwaitingApproval"
-          data-slot="session-awaiting-approval"
-          class="ms-auto flex shrink-0 text-warning"
-          role="img"
-          :aria-label="t('sessions.awaitingApproval')"
-          :title="t('sessions.awaitingApproval')"
-        >
-          <ShieldAlertIcon class="size-3.5" aria-hidden="true" />
-        </span>
         <!-- A span, not a button: the row is already one; keyboard users
              expand with the arrow keys. A 20px box in the 28px row sits 4px
              from its edge, so its radius is the row's minus 4px. -->
@@ -246,8 +239,7 @@ const emit = defineEmits<{
           data-slot="session-sub-sessions-toggle"
           :class="
             cn(
-              '-me-2 flex size-5 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-border hover:text-sidebar-accent-foreground',
-              !isAwaitingApproval && 'ms-auto',
+              'ms-auto -me-2 flex size-5 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-sidebar-border hover:text-sidebar-accent-foreground',
             )
           "
           :title="toggleLabel"

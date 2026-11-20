@@ -832,6 +832,7 @@ export default {
     fromWeChat: "來自微信",
     usedFromWeChat: "在微信中使用過",
     awaitingApproval: "等待你核准",
+    awaitingAnswer: "等待你回答",
     statusRunning: "執行中",
     statusUnread: "未讀",
     showSubSessions: "展開子會話（{count}）",

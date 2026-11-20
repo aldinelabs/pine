@@ -885,6 +885,7 @@ export default {
     fromWeChat: "Из WeChat",
     usedFromWeChat: "Использовался из WeChat",
     awaitingApproval: "Ожидает вашего подтверждения",
+    awaitingAnswer: "Ожидает вашего ответа",
     statusRunning: "Выполняется",
     statusUnread: "Не прочитано",
     showSubSessions: "Показать подсеансы ({count})",

@@ -117,13 +117,15 @@ Session list, one collapsible group per project:
   in this folder".
 - Session item: click to open it in a tab. The indent to the left of each
   title, under the project icon, shows the session's status (sub-sessions
-  too): a small accent-coloured spinner while it runs (a still ring when
-  reduced motion is on), and an accent-coloured dot when a run finished while
-  the user was not looking at that session ("Unread"). Finishing turns the
-  spinner into the dot; opening the session, or returning to its window,
-  clears the dot, and it survives a restart. A running session's title also
-  shimmers. A session stopped on an approval
-  shows a shield icon at the end of its row ("Waiting for your approval"). An automation run shows a workflow
+  too), inside the row's highlight: an amber dot inside a ring, with a soft
+  ping, while the session waits on the user ("Waiting for your approval" or
+  "Waiting for your answer"); otherwise a small accent-coloured spinner while
+  it runs (a still ring when reduced motion is on); otherwise an
+  accent-coloured dot when a run finished while the user was not looking at
+  that session ("Unread"). Each state morphs into the next (finishing turns
+  the spinner into the dot); opening the session, or returning to its window,
+  clears the unread dot, which survives a restart. A running session's title
+  also shimmers. An automation run shows a workflow
   icon and, when idle, the time it started. A session started from WeChat
   shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to
   shows the same icon labelled "Used from WeChat". A session with sub-sessions shows

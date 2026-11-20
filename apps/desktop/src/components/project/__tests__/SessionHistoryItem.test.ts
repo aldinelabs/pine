@@ -138,25 +138,46 @@ describe("SessionHistoryItem", () => {
     );
   });
 
-  it("marks a session waiting for the user's approval", async () => {
+  it("puts what waits on the user first in the indent column", async () => {
     const wrapper = mountItem();
-    const marker = () =>
-      wrapper.find('[data-slot="session-awaiting-approval"]');
-    expect(marker().exists()).toBe(false);
+    const status = () =>
+      wrapper.get('[data-slot="session-status"]').attributes("data-status");
+    const label = () =>
+      wrapper.get('[data-slot="session-status-label"]').text();
+    // The old end-of-row shield is gone.
+    expect(
+      wrapper.find('[data-slot="session-awaiting-approval"]').exists(),
+    ).toBe(false);
 
     const state = useSessionStore().stateFor(session.id);
+    useSessionUnreadStore().markUnread(session.id);
     state.isRunning = true;
+    state.pendingQuestionnaires = [
+      { requestId: "q1" } as (typeof state.pendingQuestionnaires)[number],
+    ];
+    await wrapper.vm.$nextTick();
+    expect(status()).toBe("answer");
+    expect(label()).toBe("Waiting for your answer");
+
     state.pendingApprovals = [
       { requestId: "r1" } as (typeof state.pendingApprovals)[number],
     ];
     await wrapper.vm.$nextTick();
-    expect(marker().attributes("aria-label")).toBe("Waiting for your approval");
-    // Wrapped in a span, the icon misses the row's svg sizing; it sets its own.
-    expect(marker().get("svg").classes()).toContain("size-3.5");
+    expect(status()).toBe("approval");
+    expect(label()).toBe("Waiting for your approval");
+    expect(
+      wrapper.find('[data-slot="session-awaiting-approval"]').exists(),
+    ).toBe(false);
 
     state.pendingApprovals = [];
+    state.pendingQuestionnaires = [];
     await wrapper.vm.$nextTick();
-    expect(marker().exists()).toBe(false);
+    expect(status()).toBe("running");
+
+    state.isRunning = false;
+    await wrapper.vm.$nextTick();
+    expect(status()).toBe("unread");
+    useSessionUnreadStore().markRead(session.id);
   });
 
   it("toggles sub-sessions from the chevron and the arrow keys", async () => {
