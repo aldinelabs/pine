@@ -21,6 +21,7 @@ import {
   mentionsSystemTemporaryPath,
   PineAttachedPathAccess,
   PineToolAccessPolicy,
+  projectTemporaryDirectory,
   SandboxCommandPermissionError,
 } from "../tools";
 
@@ -553,8 +554,16 @@ describeSandbox("createPineToolDefinitions", { timeout: 30_000 }, () => {
         .digest("hex")
         .slice(0, 24),
     );
-    expect(tools.find((tool) => tool.name === "bash")?.description).toContain(
-      `The scratch directory is ${JSON.stringify(await realpath(scratchDirectory))}`,
+    const bashDescription = tools.find(
+      (tool) => tool.name === "bash",
+    )?.description;
+    // The path differs per project, so the shared description only names it.
+    expect(bashDescription).toContain(
+      "The scratch directory is the project temporary directory, in the TMPDIR environment variable",
+    );
+    expect(bashDescription).not.toContain(await realpath(scratchDirectory));
+    expect(await projectTemporaryDirectory(location)).toBe(
+      await realpath(scratchDirectory),
     );
 
     const bash = tools.find((tool) => tool.name === "bash");

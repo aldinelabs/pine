@@ -129,7 +129,11 @@ import {
   type ToolGate,
   type UserApprovalRequest,
 } from "./gate";
-import { createPineToolDefinitions, PineAttachedPathAccess } from "./tools";
+import {
+  createPineToolDefinitions,
+  PineAttachedPathAccess,
+  projectTemporaryDirectory,
+} from "./tools";
 import {
   createSideChatExtension,
   forkEntries,
@@ -242,6 +246,7 @@ import {
   announcedContextNotices,
   contextNoticeMessage,
   type PineContextNoticeState,
+  workspaceNotice,
 } from "./runtime/context-notices";
 import {
   createReadLiveTranscriptToolDefinition,
@@ -1701,6 +1706,11 @@ export class PineAgentRuntime {
       getGate: () => live.gate,
       activated: () => this.activateAuthoring(live, "skill"),
     });
+    // Fixed for the session's life; differs per project, so it stays out of
+    // the tool descriptions and system prompt that sessions share.
+    const workspace = workspaceNotice({
+      scratchDirectory: await projectTemporaryDirectory(location),
+    });
     const resourceLoader = new DefaultResourceLoader({
       cwd: location.cwd,
       agentDir: location.agentDir,
@@ -1810,6 +1820,7 @@ export class PineAgentRuntime {
                 userProfile.interimAnswersEnabled,
               );
               const notices: PineContextNoticeState = {
+                workspace,
                 user_profile: systemPromptWithUserProfile(
                   "",
                   userProfile,

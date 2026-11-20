@@ -10,6 +10,7 @@ export const PINE_CONTEXT_NOTICE = "pine.context-notice";
 
 /** Notice names, in the order a combined notice lists them. */
 export const PINE_CONTEXT_NOTICE_KEYS = [
+  "workspace",
   "user_profile",
   "interface_elements",
   "disabled_tools",
@@ -120,4 +121,14 @@ export function contextNoticeMessage(
     display: false,
     details: { notices: changes },
   };
+}
+
+export interface PineWorkspaceNoticeInput {
+  /** The project's scratch directory, the shell's TMPDIR. */
+  scratchDirectory: string;
+}
+
+/** Where this session works; fixed for the session's life. */
+export function workspaceNotice(input: PineWorkspaceNoticeInput): string {
+  return `The scratch directory is ${JSON.stringify(input.scratchDirectory)}.`;
 }

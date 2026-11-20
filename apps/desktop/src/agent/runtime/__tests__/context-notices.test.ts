@@ -4,6 +4,7 @@ import {
   contextNoticeMessage,
   PINE_CONTEXT_NOTICE,
   type PineContextNoticeChanges,
+  workspaceNotice,
 } from "../context-notices";
 
 function notice(notices: PineContextNoticeChanges) {
@@ -93,5 +94,11 @@ describe("context notices", () => {
       user_profile: "new",
       skills: "skills",
     });
+  });
+
+  it("names the scratch directory in the workspace notice", () => {
+    expect(workspaceNotice({ scratchDirectory: "/data/tmp/abc" })).toBe(
+      'The scratch directory is "/data/tmp/abc".',
+    );
   });
 });

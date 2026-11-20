@@ -396,6 +396,26 @@ async function resolveFileReveal(
 /** Search indexes are costly to build, so sessions in this process share them. */
 const fffIndexPool = new FffIndexPool();
 
+/**
+ * The project's scratch directory, created on first use: the shell's TMPDIR.
+ * It differs per project, so it reaches the model in the workspace notice
+ * rather than in a tool description, which would split the cached prefix.
+ */
+export async function projectTemporaryDirectory(
+  location: Pick<AgentSessionLocation, "cwd" | "sessionsRoot">,
+): Promise<string> {
+  const directory = path.join(
+    path.dirname(location.sessionsRoot),
+    PROJECT_TEMPORARY_DIRECTORY,
+    createHash("sha256")
+      .update(await realpath(location.cwd))
+      .digest("hex")
+      .slice(0, 24),
+  );
+  await mkdir(directory, { recursive: true });
+  return realpath(directory);
+}
+
 export async function createPineToolDefinitions(
   location: AgentSessionLocation,
   gate?: ToolGate | null,
@@ -410,18 +430,8 @@ export async function createPineToolDefinitions(
   const privilegedShellName = isWindows
     ? "privileged_powershell"
     : "privileged_bash";
-  const bashTemporaryDirectory = path.join(
-    path.dirname(location.sessionsRoot),
-    PROJECT_TEMPORARY_DIRECTORY,
-    createHash("sha256")
-      .update(await realpath(location.cwd))
-      .digest("hex")
-      .slice(0, 24),
-  );
-  await mkdir(bashTemporaryDirectory, { recursive: true });
-  const canonicalBashTemporaryDirectory = await realpath(
-    bashTemporaryDirectory,
-  );
+  const canonicalBashTemporaryDirectory =
+    await projectTemporaryDirectory(location);
   const policy = await PineToolAccessPolicy.create(
     location.cwd,
     [
@@ -644,7 +654,7 @@ export async function createPineToolDefinitions(
         throw error;
       }
     },
-    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : `${sandboxShell().kind} with no user startup files`}. The scratch directory is ${JSON.stringify(canonicalBashTemporaryDirectory)}. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.${backgroundGuidance}`,
+    description: `${shellTool.description}${sandboxGuidance} The shell is ${isWindows ? "PowerShell without a profile" : `${sandboxShell().kind} with no user startup files`}. The scratch directory is the project temporary directory, in the TMPDIR environment variable; Pine's workspace notice gives its absolute path. Keep diagnostic stderr visible. Explicitly describe what each command does in the description field, written first, in the same language as the user's messages.${backgroundGuidance}`,
     promptSnippet: `${shellTool.promptSnippet}. Reads are restricted to shared folders, attachments, project temporary storage and runtime files; use ${privilegedShellName} directly to read or list other external paths, subject to approval. Use the project temporary directory for temporary files; always write description before command, in the user's language`,
   });
 
