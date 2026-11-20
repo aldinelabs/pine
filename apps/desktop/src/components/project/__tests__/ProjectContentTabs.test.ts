@@ -305,7 +305,7 @@ describe("ProjectContentTabs", () => {
     );
     const inactive = tabs.find((tab) => tab !== active);
     for (const tab of tabs) {
-      expect(tab.classes()).toContain("min-w-28");
+      expect(tab.classes()).toContain("min-w-36");
       expect(tab.classes()).not.toContain("w-40");
     }
     expect(active?.classes()).toEqual(
@@ -328,14 +328,60 @@ describe("ProjectContentTabs", () => {
     wrapper.unmount();
   });
 
-  it("fades a long title instead of truncating it and keeps hover from reflowing it", async () => {
-    const { wrapper } = await mountTabs();
-    const tab = wrapper.get('[data-slot="project-content-tab"]');
-    const title = tab.get('[data-slot="session-title"]');
-    expect(title.classes()).not.toContain("truncate");
-    expect(title.element.parentElement?.classList).toContain("scroll-fade-x");
-    expect(tab.get('[role="tab"]').classes().join(" ")).not.toMatch(/pr-10/);
-    wrapper.unmount();
+  it("fades a title only while it overflows and keeps hover from reflowing it", async () => {
+    const observers: {
+      callback: ResizeObserverCallback;
+      targets: Set<Element>;
+    }[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        targets = new Set<Element>();
+        constructor(callback: ResizeObserverCallback) {
+          observers.push({ callback, targets: this.targets });
+        }
+        observe(target: Element) {
+          this.targets.add(target);
+        }
+        unobserve(target: Element) {
+          this.targets.delete(target);
+        }
+        disconnect() {
+          this.targets.clear();
+        }
+      },
+    );
+    try {
+      const { wrapper } = await mountTabs();
+      const tab = wrapper.get('[data-slot="project-content-tab"]');
+      const title = tab.get('[data-slot="session-title"]');
+      const clip = title.element.parentElement as HTMLElement;
+      expect(title.classes()).not.toContain("truncate");
+      expect(tab.get('[role="tab"]').classes().join(" ")).not.toMatch(/pr-10/);
+
+      const observer = observers.find((item) => item.targets.has(clip));
+      expect(observer?.targets.has(title.element)).toBe(true);
+      let scrollWidth = 200;
+      Object.defineProperties(clip, {
+        clientWidth: { value: 120 },
+        scrollWidth: { get: () => scrollWidth },
+      });
+      const resize = (target: Element) =>
+        observer?.callback(
+          [{ target } as ResizeObserverEntry],
+          {} as ResizeObserver,
+        );
+
+      resize(title.element);
+      expect(clip.hasAttribute("data-overflow")).toBe(true);
+      scrollWidth = 120;
+      resize(clip);
+      expect(clip.hasAttribute("data-overflow")).toBe(false);
+
+      wrapper.unmount();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("shows a sub-session tab with its own icon", async () => {

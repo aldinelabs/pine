@@ -334,6 +334,45 @@ useResizeObserver(tabList, () => {
   updateTabListOverflow();
 });
 
+/*
+ * A title that does not fit fades out at its end. One observer watches every
+ * title's clip box and text, so the overflow is read only when either
+ * resizes (after layout), never per frame or per streamed token.
+ */
+function updateTabTitleOverflow(entries: ResizeObserverEntry[]): void {
+  for (const { target } of entries) {
+    // A closed tab's title reports one last resize as it leaves the page.
+    if (!target.isConnected) {
+      tabTitleObserver?.unobserve(target);
+      continue;
+    }
+    const clip =
+      target instanceof HTMLElement && target.dataset.tabTitleClip !== undefined
+        ? target
+        : target.parentElement;
+    if (!clip) continue;
+    clip.toggleAttribute("data-overflow", clip.scrollWidth > clip.clientWidth);
+  }
+}
+const tabTitleObserver =
+  typeof ResizeObserver === "undefined"
+    ? undefined
+    : new ResizeObserver(updateTabTitleOverflow);
+const observedTabTitleClips = new WeakMap<HTMLElement, Element | null>();
+function observeTabTitleClip(
+  element: Element | ComponentPublicInstance | null,
+): void {
+  if (!(element instanceof HTMLElement) || !tabTitleObserver) return;
+  const text = element.firstElementChild;
+  const observed = observedTabTitleClips.get(element);
+  if (observed !== undefined && observed === text) return;
+  if (observed) tabTitleObserver.unobserve(observed);
+  else tabTitleObserver.observe(element);
+  if (text) tabTitleObserver.observe(text);
+  observedTabTitleClips.set(element, text);
+}
+onBeforeUnmount(() => tabTitleObserver?.disconnect());
+
 onBeforeUnmount(() => {
   if (windowCloseTabHandler?.value === closeTabFromWindowShortcut) {
     windowCloseTabHandler.value = null;
@@ -885,9 +924,9 @@ watch(activeSession, (session) => {
                 :class="
                   cn(
                     // Tabs size to their titles. Inactive tabs give up width
-                    // first, down to min-w-28, before the list scrolls; the
+                    // first, down to min-w-36, before the list scrolls; the
                     // active tab keeps its whole width and a wider cap.
-                    'window-no-drag group/tab relative flex h-8 min-w-28 items-center rounded-2xl',
+                    'window-no-drag group/tab relative flex h-8 min-w-36 items-center rounded-2xl',
                     activeTabId === tab.id
                       ? 'max-w-80 shrink-0'
                       : 'max-w-60 shrink',
@@ -963,7 +1002,9 @@ watch(activeSession, (session) => {
                     "
                   >
                     <span
-                      class="scroll-fade-x block overflow-hidden text-left whitespace-nowrap [--scroll-fade-size:--spacing(6)]"
+                      :ref="observeTabTitleClip"
+                      data-tab-title-clip
+                      class="project-content-tab-title-clip block overflow-hidden text-left whitespace-nowrap"
                     >
                       <span
                         data-slot="session-title"
@@ -1134,6 +1175,11 @@ watch(activeSession, (session) => {
     #000 calc(var(--project-tab-close-cover) * 1.6)
   );
   transition: --project-tab-close-cover 200ms var(--ease-out-expo);
+}
+
+.project-content-tab-title-clip[data-overflow] {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 2rem);
+  mask-image: linear-gradient(to left, transparent, #000 2rem);
 }
 
 @media (prefers-reduced-motion: reduce) {
