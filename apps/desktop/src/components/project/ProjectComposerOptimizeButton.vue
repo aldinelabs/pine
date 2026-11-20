@@ -80,8 +80,9 @@ const labelClass = computed(() =>
 <template>
   <!-- Inline, the slot keeps the resting width (icon and keys) through an
        invisible copy; the button is anchored to its right edge and grows
-       leftwards out of it. The slot's -1px end margin puts the button as
-       far from Send as Send is from the composer's edge. -->
+       leftwards out of it. The slot's -1px end margin puts the resting keys
+       and the open pill as far from Send as Send is from the composer's
+       edge. -->
   <div
     v-if="isInline"
     data-slot="composer-optimize-slot"
@@ -89,7 +90,7 @@ const labelClass = computed(() =>
     :data-expanded="props.isRewriting || undefined"
   >
     <span
-      class="composer-optimize-sizer invisible flex h-8 items-center border border-transparent pr-3 pl-2.5"
+      class="composer-optimize-sizer invisible flex h-8 items-center border border-e-0 border-transparent pl-2.5"
       aria-hidden="true"
     >
       <span class="size-4" />
@@ -259,12 +260,14 @@ const labelClass = computed(() =>
   transition-duration: 0ms;
 }
 
+/* The label carries the open pill's end padding as a margin, so the keys
+   can rest right against the button's end. */
 .composer-optimize-label-track > .composer-optimize-label {
   display: block;
   flex-shrink: 0;
   width: max-content;
-  margin-inline-start: 0.375rem;
-  transform-origin: 100% 50%;
+  margin-inline: 0.375rem 0.75rem;
+  transform-origin: calc(100% + 0.75rem) 50%;
 }
 
 .composer-optimize-kbd-track > .composer-optimize-rest-kbd {
@@ -323,8 +326,12 @@ const labelClass = computed(() =>
 }
 
 /* Open, the button covers the end of the text box rather than pushing it,
-   so it takes the composer's surface (the input tint over the page). */
+   so it takes the composer's surface (the input tint over the page). It has
+   no end padding or border of its own (the label carries the padding), so
+   the resting keys sit exactly at its end. */
 .composer-optimize-inline {
+  padding-inline-end: 0;
+  border-inline-end-width: 0;
   transition:
     background-color 200ms ease,
     color 200ms ease;
