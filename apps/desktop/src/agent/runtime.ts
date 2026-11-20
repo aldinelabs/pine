@@ -111,6 +111,7 @@ import {
   systemPromptWithUserProfile,
   approvalModeNotice,
   approvalModeSystemPrompt,
+  workStyleSystemPrompt,
 } from "./system-prompt";
 import {
   AutoReviewGate,
@@ -1781,10 +1782,17 @@ export class PineAgentRuntime {
         {
           name: "pine-context-notices",
           factory: (pi) => {
-            pi.on("before_agent_start", async () => {
+            pi.on("before_agent_start", async (event) => {
               const settings = await readPineAgentSettings(live.agentDir);
               const userProfile =
                 settings.userProfile ?? createDefaultPineUserProfile();
+              // One fixed text per style, set at run start: switching styles
+              // adds a system update at the next run and keeps the prefix. An
+              // automation run has nobody to collaborate with.
+              event.systemPromptOptions.sections.pine_work_style =
+                workStyleSystemPrompt(
+                  live.automation ? "takeover" : userProfile.workStyle,
+                );
               // Applied for this run: pi keeps a tool list set here.
               this.applyInterimAnswersSetting(
                 live,

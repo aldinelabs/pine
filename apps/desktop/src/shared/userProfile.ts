@@ -6,6 +6,15 @@ export type PineCommunicationStyle =
 export type PineTechnicalBackground = "general-user" | "professional-user";
 
 /**
+ * Who drives the work. Collaborate: the user follows along in the conversation
+ * and decides as Pine goes. Takeover: Pine runs the task end to end and
+ * reports back.
+ */
+export const PINE_WORK_STYLES = ["collaborate", "takeover"] as const;
+export type PineWorkStyle = (typeof PINE_WORK_STYLES)[number];
+export const DEFAULT_PINE_WORK_STYLE: PineWorkStyle = "collaborate";
+
+/**
  * How Pine refers to the user. The values are language independent; the
  * interface labels are not stored.
  */
@@ -39,6 +48,7 @@ export interface PineUserProfile {
   personalDetails: string;
   pronouns: PinePronouns;
   technicalBackground: PineTechnicalBackground;
+  workStyle: PineWorkStyle;
 }
 
 export interface SetUserProfileResult {
@@ -57,6 +67,7 @@ export function createDefaultPineUserProfile(): PineUserProfile {
     personalDetails: "",
     pronouns: "unspecified",
     technicalBackground: "general-user",
+    workStyle: DEFAULT_PINE_WORK_STYLE,
   };
 }
 
@@ -76,6 +87,9 @@ export function normalizePineUserProfile(
       ? profile.pronouns
       : "unspecified",
     technicalBackground: profile.technicalBackground,
+    workStyle: isPineWorkStyle(profile.workStyle)
+      ? profile.workStyle
+      : DEFAULT_PINE_WORK_STYLE,
   };
 }
 
@@ -93,6 +107,10 @@ export function isPineTechnicalBackground(
   value: string,
 ): value is PineTechnicalBackground {
   return value === "general-user" || value === "professional-user";
+}
+
+export function isPineWorkStyle(value: unknown): value is PineWorkStyle {
+  return PINE_WORK_STYLES.some((style) => style === value);
 }
 
 export function isPinePronouns(value: unknown): value is PinePronouns {

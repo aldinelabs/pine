@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createDefaultPineUserProfile,
   isPinePronouns,
+  isPineWorkStyle,
   normalizePineUserProfile,
   PINE_CUSTOM_PRONOUNS_MAX_LENGTH,
   PINE_PRONOUNS,
@@ -31,6 +32,22 @@ describe("pronouns in the user profile", () => {
     for (const value of ["male", "", undefined, 5, null]) {
       expect(isPinePronouns(value)).toBe(false);
     }
+  });
+});
+
+describe("work style in the user profile", () => {
+  it("defaults to collaborate", () => {
+    expect(createDefaultPineUserProfile().workStyle).toBe("collaborate");
+  });
+
+  it("normalizes an unknown style to collaborate", () => {
+    const profile = {
+      ...createDefaultPineUserProfile(),
+      workStyle: "boss",
+    } as unknown as PineUserProfile;
+    expect(normalizePineUserProfile(profile).workStyle).toBe("collaborate");
+    expect(isPineWorkStyle("takeover")).toBe(true);
+    expect(isPineWorkStyle("boss")).toBe(false);
   });
 });
 

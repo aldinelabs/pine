@@ -7,6 +7,7 @@ import {
   approvalModeSystemPrompt,
   systemPromptForPlatform,
   userPronounsPrompt,
+  workStyleSystemPrompt,
 } from "../system-prompt";
 import {
   createDefaultPineUserProfile,
@@ -56,6 +57,7 @@ describe("systemPromptWithUserProfile", () => {
       personalDetails: "正在学习桌面应用开发。",
       pronouns: "unspecified",
       technicalBackground: "professional-user",
+      workStyle: "collaborate",
     });
 
     expect(prompt.startsWith("base prompt")).toBe(true);
@@ -76,6 +78,7 @@ describe("systemPromptWithUserProfile", () => {
       personalDetails: "",
       pronouns: "unspecified",
       technicalBackground: "general-user",
+      workStyle: "collaborate",
     });
 
     expect(prompt).toContain("balanced tone");
@@ -93,6 +96,7 @@ describe("systemPromptWithUserProfile", () => {
       personalDetails: "",
       pronouns: "unspecified" as const,
       technicalBackground: "general-user" as const,
+      workStyle: "collaborate" as const,
     };
     const prompt = systemPromptWithUserProfile("base prompt", profile);
 
@@ -226,6 +230,30 @@ describe("approvalModeNotice", () => {
     );
     expect(approvalModeNotice("YOLO", "win32")).toContain(
       "Ordinary PowerShell calls are rejected",
+    );
+  });
+});
+
+describe("workStyleSystemPrompt", () => {
+  it("asks for self-contained replies when collaborating", () => {
+    const prompt = workStyleSystemPrompt("collaborate");
+
+    expect(prompt).toContain("## Work style: collaborate");
+    expect(prompt).toContain("bring that content into the reply");
+    expect(prompt).not.toContain("end to end");
+  });
+
+  it("lets Pine drive and report when taking over", () => {
+    const prompt = workStyleSystemPrompt("takeover");
+
+    expect(prompt).toContain("## Work style: full takeover");
+    expect(prompt).toContain("Report outcomes");
+    expect(prompt).not.toContain("bring that content into the reply");
+  });
+
+  it("returns the same text for the same style", () => {
+    expect(workStyleSystemPrompt("collaborate")).toBe(
+      workStyleSystemPrompt("collaborate"),
     );
   });
 });

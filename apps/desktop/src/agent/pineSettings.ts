@@ -34,7 +34,9 @@ import {
   isPineCommunicationStyle,
   isPinePronouns,
   isPineTechnicalBackground,
+  isPineWorkStyle,
   sanitizeCustomPronouns,
+  DEFAULT_PINE_WORK_STYLE,
   type PineUserProfile,
 } from "../shared/userProfile";
 
@@ -121,7 +123,8 @@ function isPineUserProfile(value: unknown): value is PineUserProfile {
     typeof profile.interimAnswersEnabled === "boolean" &&
     typeof profile.monetMode === "boolean" &&
     isPinePronouns(profile.pronouns) &&
-    typeof profile.customPronouns === "string"
+    typeof profile.customPronouns === "string" &&
+    isPineWorkStyle(profile.workStyle)
   );
 }
 
@@ -155,6 +158,9 @@ function migrateUserProfile(value: unknown): unknown {
       ? profile.pronouns
       : "unspecified",
     customPronouns: sanitizeCustomPronouns(profile.customPronouns),
+    workStyle: isPineWorkStyle(profile.workStyle)
+      ? profile.workStyle
+      : DEFAULT_PINE_WORK_STYLE,
   };
 }
 

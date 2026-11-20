@@ -584,6 +584,13 @@ export default {
       "Vermeidet unnötigen Fachjargon, erklärt die Arbeit in klarer, zielorientierter Sprache, hilft bei der Wahl der klügsten Option und bietet einfache Alternativen an, wenn etwas schiefgeht.",
     userProfileTechProfessionalDescription:
       "Verzichtet auf übermäßige Erklärungen, vermittelt komplexe technische Details direkt und bietet einem experimentierfreudigen Benutzer anspruchsvolle Lösungen, wobei der konstruktivste Weg gewählt wird.",
+    userProfileWorkStyleLabel: "Arbeitsstil",
+    userProfileWorkStyleCollaborate: "Zusammenarbeit",
+    userProfileWorkStyleTakeover: "Vollständige Übernahme",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine arbeitet die Aufgabe mit dir im Gespräch durch, zitiert oder fasst die besprochenen Stellen einer Datei zusammen, damit du sie nicht daneben öffnen musst, und fragt bei deinen Entscheidungen nach.",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine erledigt die Aufgabe von Anfang bis Ende, verweist knapp auf Dateien und Abschnitte und berichtet die Ergebnisse.",
     interactiveAnswers: "Interaktive Antworten",
     interactiveAnswersDescription:
       "Pine darf bei Bedarf interaktive Checklisten, Rechner, Tabellen und Diagramme in Antworten einfügen.",

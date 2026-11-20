@@ -581,6 +581,13 @@ export default {
       "不要な専門用語を避け、目的に沿った分かりやすい言葉で作業内容を説明し、最も賢明な選択肢を選べるよう手助けし、問題が起きたときは簡単な代替案を提示します。",
     userProfileTechProfessionalDescription:
       "過剰な説明を省き、複雑な技術的詳細を率直に伝え、自分で試行錯誤するユーザーに高度な解決策を示しつつ、最も建設的な道筋を選びます。",
+    userProfileWorkStyleLabel: "作業スタイル",
+    userProfileWorkStyleCollaborate: "協働",
+    userProfileWorkStyleTakeover: "フル委任",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine は会話の中であなたと一緒に作業を進め、ファイルの内容に触れるときは該当箇所を引用または要約するので、ファイルを横に開いておく必要はありません。判断が必要な場面では確認します。",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine がタスクを最後まで進め、ファイルやセクションは簡潔に参照し、結果を報告します。",
     interactiveAnswers: "インタラクティブな回答",
     interactiveAnswersDescription:
       "必要に応じて、回答に操作可能なチェックリスト、計算機、表、グラフを含めます。",

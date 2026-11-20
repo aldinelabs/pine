@@ -567,6 +567,13 @@ export default {
       "불필요한 전문 용어를 피하고, 목표 중심의 명확한 언어로 작업을 설명하며, 가장 현명한 선택지를 고르도록 돕고, 문제가 생기면 간단한 대안을 제시합니다.",
     userProfileTechProfessionalDescription:
       "지나친 설명은 생략하고 복잡한 기술 내용을 직접적으로 전달하며, 직접 다뤄 보려는 사용자에게 정교한 해결책을 제시하되 가장 건설적인 길을 선택합니다.",
+    userProfileWorkStyleLabel: "작업 방식",
+    userProfileWorkStyleCollaborate: "협업",
+    userProfileWorkStyleTakeover: "전체 위임",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine이 대화 안에서 함께 작업을 진행하며, 파일 내용을 다룰 때는 해당 부분을 인용하거나 요약하므로 파일을 옆에 열어 둘 필요가 없습니다. 결정이 필요할 때는 확인을 요청합니다.",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine이 작업을 처음부터 끝까지 진행하고, 파일과 섹션은 간단히 언급하며, 결과를 보고합니다.",
     interactiveAnswers: "인터랙티브 답변",
     interactiveAnswersDescription:
       "필요할 때 답변에 직접 조작할 수 있는 체크리스트, 계산기, 표, 차트를 포함합니다.",

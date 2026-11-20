@@ -19,7 +19,9 @@ import {
   PROJECT_ICONS,
 } from "../../shared/projects";
 import {
+  DEFAULT_PINE_WORK_STYLE,
   PINE_PRONOUNS,
+  PINE_WORK_STYLES,
   sanitizeCustomPronouns,
 } from "../../shared/userProfile";
 import { ProjectEntryReferenceSchema } from "../projectFileOperations";
@@ -515,6 +517,7 @@ export const UserProfileSchema = z.object({
   personalDetails: z.string().max(10_000),
   pronouns: z.enum(PINE_PRONOUNS),
   technicalBackground: z.enum(["general-user", "professional-user"]),
+  workStyle: z.enum(PINE_WORK_STYLES).default(DEFAULT_PINE_WORK_STYLE),
 });
 export const InspectAttachmentsRequestSchema = z.object({
   paths: z.array(z.string().min(1).max(4_096)).max(100),

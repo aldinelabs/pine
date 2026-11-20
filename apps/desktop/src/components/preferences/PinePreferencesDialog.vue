@@ -121,6 +121,7 @@ import {
   isPineCommunicationStyle,
   isPinePronouns,
   isPineTechnicalBackground,
+  isPineWorkStyle,
   normalizePineUserProfile,
   PINE_CUSTOM_PRONOUNS_MAX_LENGTH,
   PINE_PRONOUNS,
@@ -265,6 +266,13 @@ const technicalBackgroundDescription = computed(() =>
       : "preferences.userProfileTechProfessionalDescription",
   ),
 );
+const workStyleDescription = computed(() =>
+  t(
+    profileDraft.workStyle === "collaborate"
+      ? "preferences.userProfileWorkStyleCollaborateDescription"
+      : "preferences.userProfileWorkStyleTakeoverDescription",
+  ),
+);
 const isProfileDirty = computed(
   () =>
     !userProfilesEqual(
@@ -392,7 +400,8 @@ function userProfilesEqual(a: PineUserProfile, b: PineUserProfile): boolean {
     a.customPronouns === b.customPronouns &&
     a.technicalBackground === b.technicalBackground &&
     a.interactiveAnswersEnabled === b.interactiveAnswersEnabled &&
-    a.interimAnswersEnabled === b.interimAnswersEnabled
+    a.interimAnswersEnabled === b.interimAnswersEnabled &&
+    a.workStyle === b.workStyle
   );
 }
 
@@ -533,6 +542,12 @@ function onPronounsCloseAutoFocus(event: Event): void {
 function updateTechnicalBackground(value: unknown): void {
   if (typeof value === "string" && isPineTechnicalBackground(value)) {
     profileDraft.technicalBackground = value;
+  }
+}
+
+function updateWorkStyle(value: unknown): void {
+  if (isPineWorkStyle(value)) {
+    profileDraft.workStyle = value;
   }
 }
 
@@ -1192,6 +1207,33 @@ defineExpose({ open });
                 </ToggleGroup>
                 <FieldDescription>
                   {{ technicalBackgroundDescription }}
+                </FieldDescription>
+              </Field>
+
+              <Field>
+                <FieldLabel id="pine-user-profile-work-style-label">
+                  {{ t("preferences.userProfileWorkStyleLabel") }}
+                </FieldLabel>
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  size="sm"
+                  :spacing="2"
+                  class="w-full"
+                  :model-value="profileDraft.workStyle"
+                  aria-labelledby="pine-user-profile-work-style-label"
+                  data-testid="pine-user-profile-work-style"
+                  @update:model-value="updateWorkStyle"
+                >
+                  <ToggleGroupItem value="collaborate" class="flex-1">
+                    {{ t("preferences.userProfileWorkStyleCollaborate") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="takeover" class="flex-1">
+                    {{ t("preferences.userProfileWorkStyleTakeover") }}
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <FieldDescription>
+                  {{ workStyleDescription }}
                 </FieldDescription>
               </Field>
 

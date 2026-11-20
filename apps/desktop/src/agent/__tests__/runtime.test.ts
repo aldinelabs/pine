@@ -37,6 +37,7 @@ import {
 import type { JudgeRequest, JudgeRuling, UserApprovalRequest } from "../gate";
 import type { LiveAgentSession } from "../runtime/session-state";
 import type { GateDecision } from "../protocol";
+import { workStyleSystemPrompt } from "../system-prompt";
 import type { PineAgentEvent } from "../../shared/agent";
 import {
   PINE_APPROVAL_DECISION_ENTRY,
@@ -2249,6 +2250,106 @@ describe("PineAgentRuntime", () => {
       await writeToolGroupEnabled(location.agentDir, "liveContext", true);
       await session.prompt("Third.");
       expect(requests[2].tools).toEqual(allOn);
+    } finally {
+      await runtime.dispose();
+    }
+  });
+
+  it("sets the work style in the system prompt and switches it at the next run", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pine-agent-runtime-"));
+    temporaryDirectories.push(root);
+    const location = {
+      agentDir: path.join(root, "agent"),
+      cwd: path.join(root, "source"),
+      folders: [
+        { access: "read-write" as const, path: path.join(root, "source") },
+      ],
+      sessionsRoot: path.join(root, "sessions"),
+    };
+    await mkdir(location.cwd, { recursive: true });
+    await mkdir(location.agentDir, { recursive: true });
+    await writeFile(
+      path.join(location.agentDir, "models.json"),
+      JSON.stringify({
+        providers: {
+          verify: {
+            api: "openai-completions",
+            apiKey: "verify-key",
+            baseUrl: "http://127.0.0.1:1/v1",
+            models: [{ id: "tools", input: ["text"] }],
+          },
+        },
+      }),
+    );
+    await writeFile(
+      path.join(location.agentDir, "settings.json"),
+      JSON.stringify({ defaultProvider: "verify", defaultModel: "tools" }),
+    );
+    const runtime = new PineAgentRuntime({
+      emit: (event) => {
+        if (event.type !== "host-request") return;
+        runtime.resolveHostRequest(event.requestId, {
+          ok: false,
+          error: "Not available in this test.",
+        });
+      },
+    });
+    try {
+      const created = await runtime.createSession(location);
+      const { session } = (
+        runtime as unknown as {
+          liveSessions: Map<string, { session: AgentSession }>;
+        }
+      ).liveSessions.get(created.session.id)!;
+      const requests: string[][] = [];
+      session.agent.streamFunction = (model, context) => {
+        requests.push(
+          context.messages.map((message) => JSON.stringify(message)),
+        );
+        const response: AssistantMessage = {
+          ...assistantMessage(100, 0, 0),
+          api: model.api,
+          provider: model.provider,
+          model: model.id,
+          stopReason: "stop",
+          content: [{ type: "text", text: "Done." }],
+        };
+        const stream = createAssistantMessageEventStream();
+        stream.push({ type: "start", partial: response });
+        stream.push({ type: "done", reason: "stop", message: response });
+        stream.end();
+        return stream;
+      };
+      // As it appears inside a serialized message.
+      const encoded = (text: string) => JSON.stringify(text).slice(1, -1);
+      const collaborate = encoded(workStyleSystemPrompt("collaborate"));
+      const takeover = encoded(workStyleSystemPrompt("takeover"));
+
+      // No saved profile: collaborate, in the leading system prompt.
+      await session.prompt("First.");
+      expect(requests[0][0]).toContain('"role":"system"');
+      expect(requests[0][0]).toContain(collaborate);
+      expect(requests[0].join("")).not.toContain(takeover);
+
+      await writePineUserProfile(location.agentDir, {
+        ...createDefaultPineUserProfile(),
+        workStyle: "takeover",
+      });
+      await session.prompt("Second.");
+      // The earlier prefix is kept; the switch arrives as a system update.
+      expect(requests[1].slice(0, requests[0].length)).toEqual(requests[0]);
+      const update = requests[1]
+        .slice(requests[0].length)
+        .find((message) => message.includes('"role":"system"'));
+      expect(update).toContain(takeover);
+
+      // Unchanged on the next run: nothing new for the system prompt.
+      await session.prompt("Third.");
+      expect(
+        requests[2]
+          .slice(requests[1].length)
+          .filter((message) => message.includes(takeover)),
+      ).toEqual([]);
     } finally {
       await runtime.dispose();
     }

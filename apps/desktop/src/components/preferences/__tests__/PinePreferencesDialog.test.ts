@@ -630,18 +630,22 @@ describe("PinePreferencesDialog", () => {
     expect(form.find('button[type="submit"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("冷静专业");
 
-    const [styleGroup, backgroundGroup] = wrapper
+    const [styleGroup, backgroundGroup, workStyleGroup] = wrapper
       .findAllComponents(ToggleGroup)
       .filter((group) =>
         [
           "pine-user-profile-style-label",
           "pine-user-profile-background-label",
+          "pine-user-profile-work-style-label",
         ].includes(group.attributes("aria-labelledby") ?? ""),
       );
 
     // Neutral is the default style.
     expect(styleGroup?.props("modelValue")).toBe("neutral");
     expect(backgroundGroup?.props("modelValue")).toBe("general-user");
+    // Collaborate is the default work style.
+    expect(workStyleGroup?.props("modelValue")).toBe("collaborate");
+    expect(wrapper.text()).toContain("无需另开文件对照");
 
     await nickname.setValue("  小 Pine  ");
     await form
@@ -652,6 +656,7 @@ describe("PinePreferencesDialog", () => {
       .setValue("先给出结论，再解释关键原因。");
     styleGroup?.vm.$emit("update:modelValue", "calm-professional");
     backgroundGroup?.vm.$emit("update:modelValue", "professional-user");
+    workStyleGroup?.vm.$emit("update:modelValue", "takeover");
     await wrapper.vm.$nextTick();
 
     await vi.waitFor(() =>
@@ -666,6 +671,7 @@ describe("PinePreferencesDialog", () => {
         personalDetails: "正在学习桌面应用开发",
         pronouns: "unspecified",
         technicalBackground: "professional-user",
+        workStyle: "takeover",
       }),
     );
 

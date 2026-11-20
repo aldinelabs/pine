@@ -540,6 +540,13 @@ export default {
       "避開不必要的專業術語，圍繞目標用易懂的語言解釋正在做什麼；需要時幫助你做出當前最明智的決策，出錯時提供簡單易懂的替代方案。",
     userProfileTechProfessionalDescription:
       "省略過度解釋，直接溝通複雜技術細節，提供技術上較複雜的解決方案；假設你願意折騰，但仍選擇建設性最強的最優路徑。",
+    userProfileWorkStyleLabel: "工作風格",
+    userProfileWorkStyleCollaborate: "協作",
+    userProfileWorkStyleTakeover: "全接管",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine 在對話中與你一起推進，討論檔案內容時直接引用或概括相關段落，你無需另開檔案對照，並在需要你決定時徵求意見。",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine 端到端地推進任務，簡要指稱檔案和章節，完成後回報結果。",
     interactiveAnswers: "互動式回答",
     interactiveAnswersDescription:
       "啟用後，Pine 可在合適時使用能直接操作的清單、計算機、表格和圖表回答。",

@@ -2,6 +2,7 @@ import type { PineApprovalMode } from "../shared/agent";
 import {
   sanitizeCustomPronouns,
   type PineUserProfile,
+  type PineWorkStyle,
 } from "../shared/userProfile";
 import { MONET_STYLE_GUIDE } from "./monet-style";
 
@@ -252,4 +253,21 @@ export function approvalModeNotice(
     `Pine permission mode notice: the active permission mode is now ${APPROVAL_MODE_NAMES[approvalMode]} (${approvalMode}). Follow the rules for this mode from the system prompt until another notice arrives.${yolo}`,
     platform,
   );
+}
+
+const WORK_STYLE_SYSTEM_PROMPTS: Record<PineWorkStyle, string> = {
+  collaborate: `## Work style: collaborate
+
+The user is working through this with you in the conversation and usually does not have the files you read open beside it. Make each reply stand on its own: when a point rests on a passage, figure, or line in a document, bring that content into the reply, quoting the few words that matter or summarizing them, rather than pointing at it by section number, label, or position. Instead of "§3.2 contradicts B4", say what each one says and why they conflict. Carry only the context the user needs to follow and decide, move in steps they can keep up with, and check in on decisions that are theirs to make.`,
+  takeover: `## Work style: full takeover
+
+The user has handed this work to you and expects you to drive it end to end. Make the reasonable calls yourself and keep going instead of checking in on routine choices; still stop for anything consequential the user should own. Report outcomes rather than walking through content: refer to files, sections, and items by name or location, and say what changed, what you decided, and what remains.`,
+};
+
+/**
+ * The system prompt section for the user's work style. There is one fixed
+ * text per style, so a session's prompt only changes when the user switches.
+ */
+export function workStyleSystemPrompt(workStyle: PineWorkStyle): string {
+  return WORK_STYLE_SYSTEM_PROMPTS[workStyle];
 }

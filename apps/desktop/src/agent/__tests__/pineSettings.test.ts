@@ -16,6 +16,7 @@ import {
   writeLiveTranslationModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
+import { createDefaultPineUserProfile } from "../../shared/userProfile";
 
 vi.mock("../runtime/decisions-models", () => ({
   decisionsModelDescriptors: vi.fn(() =>
@@ -416,6 +417,7 @@ describe("Pine agent settings", () => {
       personalDetails: "Enjoys learning by doing.",
       pronouns: "custom",
       technicalBackground: "general-user",
+      workStyle: "takeover",
     });
 
     await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
@@ -434,6 +436,7 @@ describe("Pine agent settings", () => {
         personalDetails: "Enjoys learning by doing.",
         pronouns: "custom",
         technicalBackground: "general-user",
+        workStyle: "takeover",
       },
     });
   });
@@ -498,6 +501,7 @@ describe("Pine agent settings", () => {
       monetMode: false,
       pronouns: "unspecified",
       technicalBackground: "general-user",
+      workStyle: "collaborate",
     });
   });
 
@@ -525,6 +529,7 @@ describe("Pine agent settings", () => {
       customPronouns: "",
       interimAnswersEnabled: true,
       pronouns: "unspecified",
+      workStyle: "collaborate",
     });
   });
 
@@ -554,6 +559,7 @@ describe("Pine agent settings", () => {
       customPronouns: "",
       interimAnswersEnabled: true,
       pronouns: "unspecified",
+      workStyle: "collaborate",
     });
   });
 
@@ -581,7 +587,43 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
       interimAnswersEnabled: true,
+      workStyle: "collaborate",
     });
+  });
+
+  it("defaults the work style to collaborate and keeps a saved one", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-work-style-"),
+    );
+    temporaryDirectories.push(agentDir);
+    const userProfile = {
+      ...createDefaultPineUserProfile(),
+      workStyle: undefined as unknown,
+    };
+    const settingsPath = path.join(agentDir, "pine-settings.json");
+
+    await writeFile(settingsPath, JSON.stringify({ userProfile }));
+    expect((await readPineAgentSettings(agentDir)).userProfile?.workStyle).toBe(
+      "collaborate",
+    );
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({ userProfile: { ...userProfile, workStyle: "boss" } }),
+    );
+    expect((await readPineAgentSettings(agentDir)).userProfile).toEqual(
+      createDefaultPineUserProfile(),
+    );
+
+    await writeFile(
+      settingsPath,
+      JSON.stringify({
+        userProfile: { ...userProfile, workStyle: "takeover" },
+      }),
+    );
+    expect((await readPineAgentSettings(agentDir)).userProfile?.workStyle).toBe(
+      "takeover",
+    );
   });
 
   it("sanitises hand-edited custom pronouns on read", async () => {

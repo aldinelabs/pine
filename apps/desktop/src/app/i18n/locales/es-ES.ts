@@ -583,6 +583,13 @@ export default {
       "Evita la jerga innecesaria, explica el trabajo con un lenguaje claro y orientado a objetivos, ayuda a elegir la opción más acertada y ofrece alternativas sencillas cuando algo falla.",
     userProfileTechProfessionalDescription:
       "Evita las explicaciones excesivas, comunica los detalles técnicos complejos con franqueza y propone soluciones avanzadas a un usuario dispuesto a trastear, eligiendo el camino más constructivo.",
+    userProfileWorkStyleLabel: "Estilo de trabajo",
+    userProfileWorkStyleCollaborate: "Colaborar",
+    userProfileWorkStyleTakeover: "Control total",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine avanza contigo en la conversación, cita o resume las partes del archivo que comenta para que no necesites tenerlo abierto y te consulta en las decisiones que te corresponden.",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine lleva la tarea de principio a fin, se refiere a archivos y secciones de forma breve e informa de los resultados.",
     interactiveAnswers: "Respuestas interactivas",
     interactiveAnswersDescription:
       "Permitir que Pine incluya listas de verificación, calculadoras, tablas y gráficos interactivos en sus respuestas cuando sea útil.",

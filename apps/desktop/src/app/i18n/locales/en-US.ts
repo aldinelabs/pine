@@ -573,6 +573,13 @@ export default {
       "Avoid unnecessary jargon, explain the work in clear goal-oriented language, help choose the wisest option, and offer simple alternatives when something breaks.",
     userProfileTechProfessionalDescription:
       "Skip over-explaining, communicate complex technical details directly, and offer sophisticated solutions for a user willing to tinker while choosing the most constructive path.",
+    userProfileWorkStyleLabel: "Work style",
+    userProfileWorkStyleCollaborate: "Collaborate",
+    userProfileWorkStyleTakeover: "Full takeover",
+    userProfileWorkStyleCollaborateDescription:
+      "Pine works through the task with you in the conversation, quotes or summarizes the parts of a file it discusses so you don't need the file open, and checks in on your decisions.",
+    userProfileWorkStyleTakeoverDescription:
+      "Pine drives the task end to end, refers to files and sections briefly, and reports the results.",
     interactiveAnswers: "Interactive answers",
     interactiveAnswersDescription:
       "Allow Pine to include interactive checklists, calculators, tables, and charts in replies when useful.",
