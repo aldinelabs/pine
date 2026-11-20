@@ -25,6 +25,7 @@ import {
 import type { AutomationApprovalRequest } from "@/shared/automation";
 import type { PinePendingApproval } from "@/stores/session";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
+import ComposerKeycap from "../ComposerKeycap.vue";
 import ProjectApprovalCard from "../ProjectApprovalCard.vue";
 import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 import { MODIFIER_HOLD_DELAY_MS } from "@/composables/useModifierHold";
@@ -1375,6 +1376,10 @@ describe("ProjectSessionComposer", () => {
     expect(keys.classes()).toContain("composer-optimize-kbd-clip");
     expect(keys.attributes("aria-hidden")).toBe("true");
     expect(keys.text()).toBe("⌘↵");
+    // The keys share the reply suggestion's keycap, and at rest the button
+    // keeps only a small inset from Send.
+    expect(keys.findComponent(ComposerKeycap).exists()).toBe(true);
+    expect(trigger.classes()).toContain("composer-optimize-has-keys");
     expect(slot.attributes("data-expanded")).toBeUndefined();
 
     // While optimizing it stays open to show progress.

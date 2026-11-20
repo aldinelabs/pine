@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { InputGroupButton } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import ComposerKeycap from "@/components/project/ComposerKeycap.vue";
 import {
   Tooltip,
   TooltipContent,
@@ -50,6 +51,8 @@ const buttonClass = computed(() =>
 const showShortcutHints = useShortcutHints();
 const isMac = (window.pine?.platform ?? "darwin") === "darwin";
 const modLabel = isMac ? "⌘" : "Ctrl";
+// The resting keycap: "⌘↵" on a Mac, "Ctrl ↵" elsewhere.
+const keysLabel = isMac ? "⌘↵" : "Ctrl ↵";
 const keyShortcut = isMac ? "Meta+Enter" : "Control+Enter";
 const showsUndo = computed(() => props.canUndo && !props.isRewriting);
 const label = computed(() =>
@@ -85,14 +88,18 @@ const labelClass = computed(() =>
     :data-expanded="props.isRewriting || undefined"
   >
     <span
-      class="composer-optimize-sizer invisible flex h-8 items-center border border-transparent pr-3 pl-2.5"
+      :class="
+        cn(
+          'composer-optimize-sizer invisible flex h-8 items-center border border-transparent pl-2.5',
+          showsUndo ? 'pr-3' : 'pr-1.5',
+        )
+      "
       aria-hidden="true"
     >
       <span class="size-4" />
       <span v-if="!showsUndo" class="composer-optimize-rest-kbd pl-1.5">
-        <Kbd
-          ><span>{{ modLabel }}</span
-          ><span>↵</span></Kbd
+        <ComposerKeycap
+          ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
         >
       </span>
     </span>
@@ -118,7 +125,7 @@ const labelClass = computed(() =>
         <InputGroupButton
           v-else
           data-slot="optimize-prompt-trigger"
-          :class="buttonClass"
+          :class="cn(buttonClass, 'composer-optimize-has-keys')"
           type="button"
           variant="ghost"
           size="sm"
@@ -143,9 +150,8 @@ const labelClass = computed(() =>
             aria-hidden="true"
           >
             <span class="composer-optimize-rest-kbd pl-1.5">
-              <Kbd
-                ><span>{{ modLabel }}</span
-                ><span>↵</span></Kbd
+              <ComposerKeycap
+                ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
               >
             </span>
           </span>
@@ -290,28 +296,23 @@ const labelClass = computed(() =>
     filter 150ms ease-out;
 }
 
-/* Keys in the composer read as keycaps: white with a hairline ring on the
-   light surface, the default fill in dark, like the reply suggestion's
-   Tab key. */
-.composer-optimize-rest-kbd :deep([data-slot="kbd"]) {
-  background-color: var(--background);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent);
-}
-
-:global(.dark) .composer-optimize-rest-kbd :deep([data-slot="kbd"]) {
-  background-color: var(--input);
-  box-shadow: none;
-}
-
 /* Open, the button covers the end of the text box rather than pushing it,
    so it takes the composer's surface (the input tint over the page). */
 .composer-optimize-inline {
-  transition-property: background-color, color;
-  transition-duration: 200ms;
+  transition-property: background-color, color, padding;
+  transition-duration: 200ms, 200ms, 500ms;
+  transition-timing-function: ease, ease, var(--ease-out-expo);
+}
+
+/* At rest there is no chrome, so the keycap keeps only a small inset from
+   Send; open, the pill takes its full end padding. */
+.composer-optimize-has-keys {
+  padding-inline-end: 0.375rem;
 }
 
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
   .composer-optimize-inline {
+  padding-inline-end: 0.75rem;
   background:
     linear-gradient(
       color-mix(in oklab, var(--muted) 60%, transparent),

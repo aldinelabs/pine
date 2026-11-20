@@ -86,6 +86,7 @@ import { useCollapseTransition } from "@/composables/useCollapseTransition";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { useModifierHold } from "@/composables/useModifierHold";
 import ProjectComposerOptimizeButton from "@/components/project/ProjectComposerOptimizeButton.vue";
+import ComposerKeycap from "@/components/project/ComposerKeycap.vue";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import {
   Popover,
@@ -1559,15 +1560,8 @@ function handleRootSubmit(event: Event): void {
                     }}</span>
                     <!-- One keycap: "Tab", then, with several alternatives,
                          "2/3 ↑↓" ("2 ↑↓" while more stream in) behind a
-                         hairline. The keys stay <kbd> segments. On the light
-                         composer surface the default key fill nearly matches
-                         it; a white cap with a hairline ring reads as a key.
-                         Dark keeps the default. -->
-                    <span
-                      data-slot="reply-suggestion-key"
-                      class="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-lg bg-muted px-1.5 font-sans text-xs font-medium text-muted-foreground ring-1 ring-foreground/10 select-none in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
-                      aria-hidden="true"
-                    >
+                         hairline. -->
+                    <ComposerKeycap data-slot="reply-suggestion-key">
                       <kbd class="font-sans">Tab</kbd>
                       <Transition
                         :css="false"
@@ -1589,7 +1583,7 @@ function handleRootSubmit(event: Event): void {
                           <kbd class="font-sans">↑↓</kbd>
                         </span>
                       </Transition>
-                    </span>
+                    </ComposerKeycap>
                     <span :id="replySuggestionId" class="sr-only">
                       {{ replySuggestion }} —
                       {{ t("project.composer.acceptReplySuggestion") }}

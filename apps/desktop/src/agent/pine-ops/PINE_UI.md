@@ -389,8 +389,9 @@ From top to bottom:
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
      action button while the agent is not working, as its sparkles icon and
-     a "⌘↵" (Windows and Linux: "Ctrl ↵") key, in muted grey like a new
-     session's project picker. Hovering it or reaching it with Tab folds the
+     a "⌘↵" (Windows and Linux: "Ctrl ↵") keycap styled like the reply
+     suggestion's "Tab" key, in muted grey like a new session's project
+     picker and with no button outline until it opens. Hovering it or reaching it with Tab folds the
      key away and opens the label "Optimize prompt" to the left in the
      gradient, over the end of the text box without moving anything; it
      stays open while optimizing and closes again when the pointer or focus
