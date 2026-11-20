@@ -14,6 +14,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import SessionContextMenu from "@/components/sessions/SessionContextMenu.vue";
+import { SESSION_TREE_ROW_CLASS } from "@/components/project/sessionTreeRow";
 import SessionStatusIndicator from "@/components/project/SessionStatusIndicator.vue";
 import { useSessionStore } from "@/stores/session";
 import { useSessionUnreadStore } from "@/stores/sessionUnread";
@@ -181,7 +182,7 @@ const emit = defineEmits<{
     >
       <SidebarMenuSubButton
         as="button"
-        :class="cn('w-full translate-x-0', depth > 0 && 'ps-9')"
+        :class="cn(SESSION_TREE_ROW_CLASS, depth > 0 && 'ps-15')"
         :aria-expanded="subSessionCount > 0 ? expanded : undefined"
         :data-sub-session="depth > 0 || undefined"
         :data-session-id="session.id"
@@ -264,8 +265,8 @@ const emit = defineEmits<{
         </span>
       </SidebarMenuSubButton>
     </SessionContextMenu>
-    <!-- Outside the row's button, which clips: it sits in the indent,
-         centred under the project icon, for sub-sessions too. -->
+    <!-- Centred under the project icon, for sub-sessions too, inside the
+         row's highlight, which reaches back over the indent. -->
     <SessionStatusIndicator :status="status" />
     <!--
       Tree line from the parent down to its last sub-session, centred under

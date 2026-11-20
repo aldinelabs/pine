@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/sidebar";
 import ProjectDeleteDialog from "@/components/project/ProjectDeleteDialog.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
+import { SESSION_TREE_ROW_CLASS } from "@/components/project/sessionTreeRow";
 import SessionHistoryItem from "@/components/project/SessionHistoryItem.vue";
 import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
 import SessionGroupDeleteDialog from "@/components/sessions/SessionGroupDeleteDialog.vue";
@@ -926,11 +927,13 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                               <CollapsibleTrigger as-child>
                                 <SidebarMenuSubButton
                                   as="button"
-                                  class="w-full translate-x-0"
-                                  :class="{
-                                    'bg-sidebar-accent ring-1 ring-sidebar-ring':
-                                      dropTargetId === folder.group.id,
-                                  }"
+                                  :class="[
+                                    SESSION_TREE_ROW_CLASS,
+                                    {
+                                      'bg-sidebar-accent ring-1 ring-sidebar-ring':
+                                        dropTargetId === folder.group.id,
+                                    },
+                                  ]"
                                   :data-session-group-toggle="folder.group.id"
                                   :title="folder.group.name"
                                 >
@@ -1028,7 +1031,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                               <SidebarMenuSubItem v-if="!folder.rows.length">
                                 <SidebarMenuSubButton
                                   as="button"
-                                  class="w-full translate-x-0"
+                                  :class="SESSION_TREE_ROW_CLASS"
                                   disabled
                                 >
                                   <span>{{ t("sessions.emptyGroup") }}</span>
@@ -1085,7 +1088,10 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                       <SidebarMenuSubItem v-if="group.hasMore">
                         <SidebarMenuSubButton
                           as="button"
-                          class="w-full translate-x-0 text-muted-foreground"
+                          :class="[
+                            SESSION_TREE_ROW_CLASS,
+                            'text-muted-foreground',
+                          ]"
                           :data-project-show-more="group.project.id"
                           @click="historyStore.showMore(group.project.id)"
                         >
@@ -1097,7 +1103,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                       >
                         <SidebarMenuSubButton
                           as="button"
-                          class="w-full translate-x-0"
+                          :class="SESSION_TREE_ROW_CLASS"
                           disabled
                         >
                           <span>{{ t("sessions.noSessions") }}</span>
