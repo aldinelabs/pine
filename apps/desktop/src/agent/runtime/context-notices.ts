@@ -12,6 +12,8 @@ export const PINE_CONTEXT_NOTICE = "pine.context-notice";
 export const PINE_CONTEXT_NOTICE_KEYS = [
   "workspace",
   "user_profile",
+  // Now the pine_interface_elements system section; kept for sessions that
+  // were given the text as a notice before the move.
   "interface_elements",
   "disabled_tools",
   "wechat",

@@ -214,7 +214,7 @@ import {
 import { imageModel, IMAGE_MODEL_PROVIDER_ID } from "./media/models";
 import { PineSkillRepository } from "./skills/repository";
 import { PineMemoryRepository } from "./memory/repository";
-import { memoryNotice } from "./memory/prompt";
+import { MEMORY_SYSTEM_PROMPT, memoryNotice } from "./memory/prompt";
 import { createMemoryToolDefinitions } from "./memory/tools";
 import { DEFAULT_MEMORY_ENABLED } from "../shared/memory";
 import {
@@ -1829,8 +1829,19 @@ export class PineAgentRuntime {
                   userProfile,
                 ).trim(),
               };
-              if (userProfile.interactiveAnswersEnabled)
-                notices.interface_elements = intelligentUiSystemPrompt();
+              // Fixed text, present or absent like the methodology above. A
+              // session that was given it as a notice keeps the notice, so
+              // the text never reaches the model twice.
+              if (userProfile.interactiveAnswersEnabled) {
+                if (
+                  announcedContextNotices(live.session.messages)
+                    .interface_elements !== undefined
+                )
+                  notices.interface_elements = intelligentUiSystemPrompt();
+                else
+                  event.systemPromptOptions.sections.pine_interface_elements =
+                    intelligentUiSystemPrompt();
+              }
               const toolGroups = resolvePineToolGroups(settings.toolGroups);
               this.applyToolGroupsSetting(live, toolGroups);
               const disabledTools = disabledToolsNotice(
@@ -1847,8 +1858,12 @@ export class PineAgentRuntime {
                 !live.automation &&
                 (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
               this.applyMemorySetting(live, memoryEnabled);
-              if (memoryEnabled)
+              // The guide is fixed text; only the note list is per project.
+              if (memoryEnabled) {
+                event.systemPromptOptions.sections.pine_memory =
+                  MEMORY_SYSTEM_PROMPT;
                 notices.memory = memoryNotice(await memoryRepository.list());
+              }
               const networkRegion = networkRegionSystemPrompt(
                 localNetworkRegionSignals(),
               );

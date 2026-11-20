@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PineMemorySummary } from "../../../shared/memory";
-import { memoryNotice } from "../prompt";
+import { MEMORY_SYSTEM_PROMPT, memoryNotice } from "../prompt";
 
 function memory(
   overrides: Partial<PineMemorySummary> & { name: string },
@@ -16,13 +16,22 @@ function memory(
 
 describe("memoryNotice", () => {
   it("says so when nothing has been saved", () => {
-    const notice = memoryNotice([]);
-    expect(notice).toContain("## Long-term memory");
-    expect(notice).toContain("No notes have been saved yet.");
+    expect(memoryNotice([])).toBe("No notes have been saved yet.");
   });
 
+  it("carries only the note list; the guide is a system prompt section", () => {
+    const notice = memoryNotice([memory({ name: "build" })]);
+    expect(notice).not.toContain("## Long-term memory");
+    expect(MEMORY_SYSTEM_PROMPT).toMatch(/^## Long-term memory\n/);
+    expect(MEMORY_SYSTEM_PROMPT).toContain(
+      "Pine's memory notice lists each note's name",
+    );
+  });
+});
+
+describe("MEMORY_SYSTEM_PROMPT", () => {
   it("sets a bar for what to save, generalized beyond the project", () => {
-    const notice = memoryNotice([]);
+    const notice = MEMORY_SYSTEM_PROMPT;
     expect(notice).toContain("a future, different conversation will need it");
     expect(notice).toContain(
       "each note is a prediction that it will matter again",
@@ -35,7 +44,9 @@ describe("memoryNotice", () => {
     );
     expect(notice).toContain("instead of adding a near-duplicate");
   });
+});
 
+describe("memoryNotice lists", () => {
   it("lists notes by scope and marks unverified ones", () => {
     const notice = memoryNotice([
       memory({ name: "build" }),

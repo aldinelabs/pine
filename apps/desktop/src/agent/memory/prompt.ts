@@ -13,10 +13,11 @@ export const MEMORY_INDEX_BUDGET = 6_000;
 // remember less of what matters; without a bar, though, they save incident
 // logs and one-off trivia that crowd the list.
 // Project notes may stay specific; global notes and No Project are
-// generalized. Static wording covers every scope, so the notice never varies.
-const MEMORY_GUIDE = `## Long-term memory
+// generalized. Static wording covers every scope, so the section never varies
+// and sessions in every project share it from the prompt cache.
+export const MEMORY_SYSTEM_PROMPT = `## Long-term memory
 
-Pine keeps notes for you across sessions so that later sessions start with what earlier ones learned. Each note holds one fact in its own file, in one of two scopes: project notes apply to this project, global notes to every project. The list below shows each note's name and one-line description; call ${MEMORY_READ_TOOL_NAME} for a note's full text when its description bears on the task.
+Pine keeps notes for you across sessions so that later sessions start with what earlier ones learned. Each note holds one fact in its own file, in one of two scopes: project notes apply to this project, global notes to every project. Pine's memory notice lists each note's name and one-line description; call ${MEMORY_READ_TOOL_NAME} for a note's full text when its description bears on the task.
 
 Save a note with ${MEMORY_SAVE_TOOL_NAME} when the user asks you to remember something, or when you judge that a future, different conversation will need it and could not read or re-derive it from the project itself: each note is a prediction that it will matter again. That usually means the user's stable preferences and corrections, durable facts about their environment and setup, decisions and the reasons behind them, and lessons or traps likely to recur. One-off tasks, transient states, trivia from a single question, and what the files, the session history, or the current conversation already record rarely qualify; a few well-kept notes serve later sessions better than many narrow ones.
 
@@ -33,16 +34,16 @@ function indexLine(memory: PineMemorySummary): string {
 }
 
 /**
- * The `memory` context notice: the guide and the list of notes. Notes past the
- * budget are counted, not listed, so the notice stays small however many
- * notes accumulate.
+ * The `memory` context notice: the list of notes, which differs per project;
+ * the guide is the `pine_memory` system prompt section. Notes past the budget
+ * are counted, not listed, so the notice stays small however many notes
+ * accumulate.
  */
 export function memoryNotice(
   memories: readonly PineMemorySummary[],
   budget = MEMORY_INDEX_BUDGET,
 ): string {
-  if (memories.length === 0)
-    return `${MEMORY_GUIDE}\n\nNo notes have been saved yet.`;
+  if (memories.length === 0) return "No notes have been saved yet.";
   const sections: string[] = [];
   let used = 0;
   let omitted = 0;
@@ -67,5 +68,5 @@ export function memoryNotice(
     sections.push(
       `${omitted} more ${omitted === 1 ? "note is" : "notes are"} not listed here; call ${MEMORY_READ_TOOL_NAME} without a name to list every note.`,
     );
-  return `${MEMORY_GUIDE}\n\n${sections.join("\n\n")}`;
+  return sections.join("\n\n");
 }
