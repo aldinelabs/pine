@@ -244,6 +244,18 @@ function signMacPackage(outputPaths: string[], arch: string): void {
   }
 }
 
+/** Window size, icon size and icon centres of the DMG window, in points. */
+const dmgLayout = JSON.parse(
+  readFileSync(
+    path.join(__dirname, "resources/installer/dmg-layout.json"),
+    "utf8",
+  ),
+) as {
+  iconSize: number;
+  app: { x: number; y: number };
+  applications: { x: number; y: number };
+};
+
 const windowsCertificateFile = process.env.WINDOWS_CERTIFICATE_FILE;
 const windowsCertificatePassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
 const windowsSign =
@@ -376,10 +388,36 @@ const config: ForgeConfig = {
       exe: "Pine.exe",
       setupExe: "PineSetup.exe",
       setupIcon: path.join(__dirname, "resources/icon.ico"),
+      // Shown while Squirrel installs; see resources/generate-installer-art.mjs.
+      loadingGif: path.join(
+        __dirname,
+        "resources/installer/windows-loading.gif",
+      ),
+      // Apps & features downloads this URL for the uninstall entry's icon.
+      iconUrl:
+        "https://raw.githubusercontent.com/aldinelabs/pine/main/apps/desktop/resources/icon.ico",
       windowsSign,
     }),
     new MakerZIP({}, ["darwin"]),
-    new MakerDMG({ format: "ULFO" }, ["darwin"]),
+    new MakerDMG(
+      {
+        format: "ULFO",
+        // appdmg pairs dmg-background@2x.png with it into a Retina TIFF and
+        // sizes the window to it; resources/generate-installer-art.mjs draws
+        // the background around the same layout.
+        background: path.join(
+          __dirname,
+          "resources/installer/dmg-background.png",
+        ),
+        icon: path.join(__dirname, "resources/icon.icns"),
+        iconSize: dmgLayout.iconSize,
+        contents: (options) => [
+          { ...dmgLayout.app, type: "file", path: options.appPath },
+          { ...dmgLayout.applications, type: "link", path: "/Applications" },
+        ],
+      },
+      ["darwin"],
+    ),
     new MakerRpm({
       options: { icon: path.join(__dirname, "resources/icon.png") },
     }),
