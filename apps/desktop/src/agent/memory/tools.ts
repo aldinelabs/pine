@@ -198,9 +198,9 @@ export function createMemoryToolDefinitions(
       name: MEMORY_SAVE_TOOL_NAME,
       label: "Save Memory",
       description:
-        "Save a long-term memory note that future sessions will see. Saving under an existing name and scope replaces that note, which is how a note is corrected.",
+        "Save a long-term memory note that future sessions will see. Save only what will help in future, different conversations, phrased at the level where it is reusable. Saving under an existing name and scope replaces that note, which is how a note is corrected or a related fact merged in.",
       promptSnippet:
-        "Save what a future session would need and could not read from the project itself",
+        "Save a durable, generalized fact that future, different conversations would need and could not read from the project itself",
       parameters: saveParams,
       prepareArguments: (args) => args as Static<typeof saveParams>,
       executionMode: "sequential",

@@ -21,6 +21,18 @@ describe("memoryNotice", () => {
     expect(notice).toContain("No notes have been saved yet.");
   });
 
+  it("sets a bar for what to save, stricter in No Project", () => {
+    const notice = memoryNotice([]);
+    expect(notice).toContain("future, different conversations");
+    expect(notice).toContain("Do not save one-off tasks");
+    expect(notice).toContain("In No Project");
+    expect(notice).toContain("when in doubt, skip it or ask the user");
+    expect(notice).toContain(
+      'local-debug-environment ("本机调试环境要点记录"), not wechat-debug-pitfalls',
+    );
+    expect(notice).toContain("instead of adding a near-duplicate");
+  });
+
   it("lists notes by scope and marks unverified ones", () => {
     const notice = memoryNotice([
       memory({ name: "build" }),
