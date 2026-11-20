@@ -22,9 +22,9 @@ import type { PineToolAccessPolicy } from "./tool-access-policy";
 const DESCRIPTION = [
   "Register files as this session's artifacts: the deliverables the user asked for, listed in the workbench Artifacts panel (and offered by the WeChat `.files` command). Submitting does not open or preview anything.",
   "",
-  `- When your work produces deliverables, submit all of them in one call with every file in \`files\`, and in the same step call ${UI_PRESENT_FILE_TOOL_NAME} in parallel for the single most significant one (the file the user most likely wants to see first).`,
+  `- When your work produces deliverables, submit all of them in one call with every file in \`files\` before you end that turn, and in the same step call ${UI_PRESENT_FILE_TOOL_NAME} in parallel for the single most significant one (the file the user most likely wants to see first). Naming a path in your reply does not show the file to the user.`,
   `- Submit only finished results the user would keep: reports, documents, data, generated media, code they asked for. Do not submit intermediate files, scratch outputs, logs, or files you only present to show progress or a comparison; use ${UI_PRESENT_FILE_TOOL_NAME} alone for those.`,
-  "- Every submission keeps a copy of each file as a version the user can preview, compare with the current file and restore. Whenever you finish a major revision of a deliverable (a new draft, a substantial rewrite, changes the user asked for), submit it again so that version is kept; do not resubmit unchanged files or after every small edit.",
+  "- Every submission keeps a copy of each file as a version the user can preview, compare with the current file and restore. Whenever you finish revising a deliverable (changes the user asked for, a new draft, a substantial rewrite), submit it again in that turn so the user gets that version; do not resubmit unchanged files or after each intermediate edit.",
   "- Submitting a path again also updates its title and description and moves it to the top.",
   "- Paths must be files inside the folders shared with Pine or the user's attachments; save or copy a deliverable into a shared folder first. Directories and missing files are rejected per file, and the result lists what was accepted and rejected.",
   "- title (short) and description (one line) are optional and shown in the Artifacts list.",

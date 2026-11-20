@@ -198,9 +198,9 @@ describe("ui_submit_artifact", () => {
     ]);
   });
 
-  it("tells the agent to submit again after each major revision", async () => {
+  it("tells the agent to submit again after each revision", async () => {
     const { tool } = await setup();
-    expect(tool.description).toContain("major revision");
+    expect(tool.description).toContain("finish revising a deliverable");
     expect(tool.description).toContain("restore");
   });
 
