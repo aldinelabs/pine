@@ -1999,9 +1999,8 @@ describe("ProjectSessionComposer", () => {
       );
       await c.stream(["按日期排序"]);
       expect(c.shown()).toBe("按日期排序");
-      // Nothing to step to yet, so no arrows and no room for them.
-      expect(c.badge()).toBe("Tab 1");
-      expect(arrowRoomHidden(c.wrapper)).toBe(true);
+      // One so far: a plain "Tab", as if it stays the only one.
+      expect(c.badge()).toBe("Tab");
       // Another request's alternatives are not ours.
       await c.stream(["别的"], "other");
       await c.stream(["按日期排序", "按名称排序"]);
@@ -2052,6 +2051,13 @@ describe("ProjectSessionComposer", () => {
 
     it("hides the badge for a single alternative", async () => {
       const c = await streamingComposer();
+      // Streaming in, a lone one already reads as the single state, so the
+      // cap never widens and shrinks back when no other comes.
+      await c.stream(["只有一个"]);
+      expect(c.badge()).toBe("Tab");
+      expect(
+        c.wrapper.find('[data-slot="reply-suggestion-alternatives"]').exists(),
+      ).toBe(false);
       await c.finish(["只有一个"]);
       expect(c.shown()).toBe("只有一个");
       expect(c.badge()).toBe("Tab");
@@ -2157,6 +2163,57 @@ describe("ProjectSessionComposer", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+
+    it("shows a reopened conversation's cap in its final state at once", async () => {
+      const kept: Record<string, { alternatives: string[]; index: number }> = {
+        "session-1": { alternatives: ["一", "二", "三"], index: 0 },
+        "session-2": { alternatives: ["只有一个"], index: 0 },
+        "session-3": { alternatives: ["甲", "乙", "丙"], index: 2 },
+      };
+      const animate = vi.fn();
+      Element.prototype.animate = animate;
+      const wrapper = mountComposer(
+        { sessionId: "session-0", isRunning: false },
+        "high",
+        "zh-CN",
+        { suggestReply: vi.fn() },
+      );
+      vi.spyOn(useSessionStore(), "replySuggestionFor").mockImplementation(
+        (sessionId: string) => kept[sessionId],
+      );
+      await wrapper.setProps({ sessionId: "session-1" });
+      const suggestion = () => wrapper.get('[data-slot="reply-suggestion"]');
+      const room = () => wrapper.get(".session-composer-suggestion-arrows");
+      // Shown with three: only ↓, and nothing armed to animate until it
+      // has rendered once.
+      expect(keycap(wrapper)).toBe("Tab 1/3 ↓");
+      expect(room().attributes("data-swap-ready")).toBeUndefined();
+      await flushPromises();
+
+      // Another conversation in the same tab shows anew, not as a change.
+      const first = suggestion().element;
+      await wrapper.setProps({ sessionId: "session-2" });
+      await flushPromises();
+      expect(suggestion().element).not.toBe(first);
+      expect(keycap(wrapper)).toBe("Tab");
+      expect(
+        wrapper.find('[data-slot="reply-suggestion-alternatives"]').exists(),
+      ).toBe(false);
+
+      // Even from one set with arrows to another: a new cap, not armed yet.
+      await wrapper.setProps({ sessionId: "session-1" });
+      await flushPromises();
+      const armed = room().element;
+      expect(armed.hasAttribute("data-swap-ready")).toBe(true);
+      await wrapper.setProps({ sessionId: "session-3" });
+      expect(keycap(wrapper)).toBe("Tab 3/3 ↑");
+      expect(room().element).not.toBe(armed);
+      expect(room().attributes("data-swap-ready")).toBeUndefined();
+      await flushPromises();
+      expect(animate).not.toHaveBeenCalled();
+      delete (Element.prototype as Partial<Element>).animate;
+      wrapper.unmount();
     });
 
     it("restores kept alternatives at the one that showed", async () => {

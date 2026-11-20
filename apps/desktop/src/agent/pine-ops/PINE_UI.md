@@ -474,7 +474,9 @@ From top to bottom:
      the user might send, most likely first. As soon as the first is
      written, it fades in where the placeholder was (after the placeholder
      fades out), in the same grey, followed by a single key cap; the others
-     join as they are written. With one suggestion the cap reads "Tab".
+     join as they are written. With one suggestion, including while more
+     may still come, the cap reads "Tab", also when a conversation is
+     reopened or switched to.
      With several, the cap widens to read "Tab | 2/3 ↑↓", with the shown
      one's number ("Tab | 1 ↓" while more may still come); the count
      slides in and grows smoothly as suggestions arrive. In the empty,

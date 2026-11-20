@@ -817,10 +817,15 @@ watch(replySuggestion, (suggestion, previous) => {
 watch(showsReplySuggestion, (shows) => {
   if (!shows) replySuggestionFades.value = false;
 });
-/** "2/3" once every alternative is in, "2" while more may come. */
+/**
+ * "2/3" once every alternative is in, "2" while more may come. A lone
+ * suggestion shows no count even while others may follow, so the cap starts
+ * as a plain "Tab" and only widens once a second one is really there,
+ * rather than widening early and shrinking back if no other comes.
+ */
 const replySuggestionPosition = computed(() => {
   const count = replySuggestions.value.length;
-  if (replySuggestionsComplete.value && count < 2) return "";
+  if (count < 2) return "";
   const position = replySuggestionIndex.value + 1;
   return replySuggestionsComplete.value
     ? `${position}/${count}`
@@ -867,10 +872,12 @@ const replySuggestionCountTransition = {
 };
 const replySuggestionCount = ref<HTMLElement | null>(null);
 let countWidth = 0;
+let countElement: HTMLElement | null = null;
 watch(
   () => replySuggestionPosition.value,
   () => {
-    countWidth = replySuggestionCount.value?.getBoundingClientRect().width ?? 0;
+    countElement = replySuggestionCount.value;
+    countWidth = countElement?.getBoundingClientRect().width ?? 0;
   },
   { flush: "pre" },
 );
@@ -878,7 +885,13 @@ watch(
   () => replySuggestionPosition.value,
   () => {
     const element = replySuggestionCount.value;
-    if (!element || !countWidth || typeof element.animate !== "function")
+    // A newly shown cap (another conversation's set) starts as it is.
+    if (
+      !element ||
+      element !== countElement ||
+      !countWidth ||
+      typeof element.animate !== "function"
+    )
       return;
     const width = element.getBoundingClientRect().width;
     if (Math.abs(width - countWidth) < 0.5 || prefersReducedMotion()) return;
@@ -904,6 +917,12 @@ const keptReplySuggestion = computed(() =>
     : undefined,
 );
 let replySuggestionSettled = false;
+/**
+ * Bumped when a kept set is restored, so its suggestion and cap show anew
+ * in their final state rather than animating from the set shown before
+ * (switching conversations in the same tab clears and restores at once).
+ */
+const replySuggestionSet = ref(0);
 
 function showReplySuggestions(alternatives: readonly string[]): void {
   const shown = replySuggestion.value;
@@ -923,6 +942,8 @@ function restoreReplySuggestion(): void {
   )
     return;
   replySuggestionSettled = true;
+  replySuggestionSet.value++;
+  replySuggestionFades.value = false;
   replySuggestionsComplete.value = true;
   replySuggestions.value = [...kept.alternatives];
   replySuggestionIndex.value = Math.min(
@@ -1596,6 +1617,7 @@ function handleRootSubmit(event: Event): void {
                 >
                   <div
                     v-if="showsReplySuggestion"
+                    :key="replySuggestionSet"
                     data-slot="reply-suggestion"
                     class="session-composer-suggestion pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 pt-3.5 text-sm leading-5 text-muted-foreground"
                   >
