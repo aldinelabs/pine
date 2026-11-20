@@ -624,7 +624,6 @@ const canRewrite = computed(
   () =>
     message.value.trim().length > 0 &&
     message.value.length <= MAX_PROMPT_REWRITE_INPUT_LENGTH &&
-    !props.isRunning &&
     !isRewriting.value &&
     !isMentioning.value &&
     !committingProject.value &&
@@ -711,6 +710,8 @@ function conversationContext(): PromptRewriteContext {
 
 function rewriteContext(): PromptRewriteContext {
   const context = conversationContext();
+  // A draft typed while the agent works steers that turn.
+  if (props.isRunning) context.steering = true;
   const attached = [...props.context, ...attachments.value];
   if (attached.length > 0) {
     context.attachments = attached
@@ -1610,10 +1611,11 @@ function handleRootSubmit(event: Event): void {
                 class="max-w-[50%] cursor-default self-end py-1.5 pr-2.5"
                 align="inline-end"
               >
-                <!-- In a session, Optimize prompt sits beside Send; a draft
-                     has it below, next to the approval mode. -->
+                <!-- In a session, Optimize prompt sits beside Send (or Stop
+                     and Steer while the agent works, for steering drafts); a
+                     draft has it below, next to the approval mode. -->
                 <ProjectComposerOptimizeButton
-                  v-if="props.sessionId && !props.isRunning"
+                  v-if="props.sessionId"
                   placement="inline"
                   :can-rewrite="canRewrite"
                   :is-rewriting="isRewriting"

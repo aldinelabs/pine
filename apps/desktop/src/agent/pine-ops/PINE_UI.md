@@ -388,7 +388,8 @@ From top to bottom:
      session it is a sparkles button with its label in a peach-to-blue
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
-     action button while the agent is not working, as its sparkles icon and
+     action button (also while the agent works, for a steering message), as
+     its sparkles icon and
      a "⌘↵" (Windows and Linux: "Ctrl ↵") keycap styled like the reply
      suggestion's "Tab" key, in muted grey like a new session's project
      picker, with no button outline until it opens; the button sits as far
@@ -416,8 +417,10 @@ From top to bottom:
      button reads "Optimizing…" (the gradient flows through it in a new
      session; it shimmers in a session), and the working light runs along
      the border in the same gradient instead of the accent color, growing in
-     and fading out the same way; Esc cancels. It needs typed text and is
-     not available while the agent is working. Attachments and quotes are
+     and fading out the same way; Esc cancels. It needs typed text. While
+     the agent works it rewrites a steering message as a short, direct
+     correction to the running turn rather than a full task brief, and Steer
+     response waits until it is done. Attachments and quotes are
      kept as they are.
    - Reply suggestion: when the agent finishes answering in a session, the
      prompt optimization model suggests up to three different next messages

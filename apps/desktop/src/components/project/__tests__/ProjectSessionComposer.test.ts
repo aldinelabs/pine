@@ -23,6 +23,7 @@ import {
   type PineProject,
 } from "@/shared/projects";
 import type { AutomationApprovalRequest } from "@/shared/automation";
+import type { RewritePromptRequest } from "@/shared/promptRewrite";
 import type { PinePendingApproval } from "@/stores/session";
 import AutomationApprovalCard from "@/components/automations/AutomationApprovalCard.vue";
 import ComposerKeycap from "../ComposerKeycap.vue";
@@ -1195,6 +1196,10 @@ describe("ProjectSessionComposer", () => {
     expect(rewritePrompt).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: "写个周报" }),
     );
+    expect(
+      (rewritePrompt.mock.calls[0] as unknown as [RewritePromptRequest])[0]
+        .context?.steering,
+    ).toBeUndefined();
     expect(wrapper.emitted("submit")).toBeUndefined();
     expect(textarea.attributes("disabled")).toBeDefined();
     expect(wrapper.get(WORKING_BORDER).attributes("data-variant")).toBe(
@@ -1214,6 +1219,59 @@ describe("ProjectSessionComposer", () => {
     expect(
       element.value.slice(element.selectionStart, element.selectionEnd),
     ).toBe("[[团队名称]]");
+    wrapper.unmount();
+  });
+
+  it("optimizes a steering draft while the agent works, as a steering rewrite", async () => {
+    let resolve: (value: { prompt: string }) => void = () => undefined;
+    const rewritePrompt = vi.fn<
+      (request: RewritePromptRequest) => Promise<{ prompt: string }>
+    >(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const wrapper = mountComposer(
+      { sessionId: "session-1", isRunning: true, isActive: true },
+      "high",
+      "zh-CN",
+      { rewritePrompt },
+    );
+    const trigger = () =>
+      wrapper.get(
+        '.session-composer-row [data-align="inline-end"] [data-slot="optimize-prompt-trigger"]',
+      );
+    // With nothing typed it waits beside Stop.
+    expect(trigger().attributes("disabled")).toBeDefined();
+    expect(wrapper.find('button[aria-label="停止回答"]').exists()).toBe(true);
+
+    const textarea = wrapper.get("textarea");
+    await textarea.setValue("别改测试，只改实现");
+    expect(trigger().attributes("disabled")).toBeUndefined();
+    const steer = () => wrapper.get('button[aria-label="追加要求"]');
+    expect(steer().attributes("disabled")).toBeUndefined();
+
+    // Cmd+Enter still optimizes rather than steering.
+    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
+    expect(rewritePrompt).toHaveBeenCalledTimes(1);
+    expect(rewritePrompt.mock.calls[0]?.[0]).toMatchObject({
+      prompt: "别改测试，只改实现",
+      context: { steering: true },
+    });
+    expect(wrapper.emitted("submit")).toBeUndefined();
+    expect(steer().attributes("disabled")).toBeDefined();
+
+    resolve({ prompt: "保持测试不变，只修改实现代码。" });
+    await flushPromises();
+    await flushPromises();
+    expect((textarea.element as HTMLTextAreaElement).value).toBe(
+      "保持测试不变，只修改实现代码。",
+    );
+    expect(steer().attributes("disabled")).toBeUndefined();
+    expect(
+      wrapper.find('[data-slot="undo-prompt-optimization"]').exists(),
+    ).toBe(true);
     wrapper.unmount();
   });
 
@@ -1245,20 +1303,6 @@ describe("ProjectSessionComposer", () => {
     );
     expect(wrapper.get("textarea").attributes("disabled")).toBeUndefined();
     wrapper.unmount();
-  });
-
-  it("does not optimize while the agent is running", async () => {
-    const rewritePrompt = vi.fn();
-    const wrapper = mountComposer({ isRunning: true }, "high", "zh-CN", {
-      rewritePrompt,
-    });
-    const textarea = wrapper.get("textarea");
-    await textarea.setValue("补充一点");
-
-    await textarea.trigger("keydown", { key: "Enter", metaKey: true });
-
-    expect(rewritePrompt).not.toHaveBeenCalled();
-    expect(wrapper.emitted("submit")).toBeUndefined();
   });
 
   it("offers Optimize prompt in a new session's footer and beside Send in a session", async () => {
@@ -1306,7 +1350,8 @@ describe("ProjectSessionComposer", () => {
     ).toBe(true);
     undoable.unmount();
 
-    // In a session it sits beside Send instead, and hides while running.
+    // In a session it sits beside Send instead, and stays beside Stop while
+    // the agent works, for steering drafts.
     const session = mountComposer({ sessionId: "session-1" });
     expect(
       session
@@ -1322,9 +1367,10 @@ describe("ProjectSessionComposer", () => {
     ).toBe(true);
     session.unmount();
     const running = mountComposer({ sessionId: "session-1", isRunning: true });
-    expect(running.find('[data-slot="optimize-prompt-trigger"]').exists()).toBe(
-      false,
+    const runningTrigger = running.get(
+      '.session-composer-row [data-align="inline-end"] [data-slot="optimize-prompt-trigger"]',
     );
+    expect(runningTrigger.attributes("disabled")).toBeDefined();
     running.unmount();
   });
 

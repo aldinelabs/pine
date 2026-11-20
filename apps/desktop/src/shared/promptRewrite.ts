@@ -50,6 +50,11 @@ export interface PromptRewriteContext {
   attachments?: { name: string; path: string; kind?: string }[];
   /** Passages quoted into the draft. */
   quotes?: { text: string; file?: string; lines?: string }[];
+  /**
+   * The draft steers a turn the agent is still working on, so it is a short
+   * mid-turn correction rather than a new task.
+   */
+  steering?: boolean;
 }
 
 export interface RewritePromptRequest {

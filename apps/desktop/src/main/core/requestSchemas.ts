@@ -449,6 +449,7 @@ const PromptRewriteContextSchema = z
       .max(PROMPT_REWRITE_LIMITS.conversationMessages)
       .optional(),
     conversationTrimmed: z.boolean().optional(),
+    steering: z.boolean().optional(),
     attachments: z
       .array(
         z

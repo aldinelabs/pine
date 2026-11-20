@@ -1,6 +1,7 @@
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { describe, expect, it } from "vitest";
 import {
+  PROMPT_REWRITE_STEERING_NOTE,
   PROMPT_REWRITE_SYSTEM_PROMPT,
   promptRewriteContext,
   REPLY_SUGGESTION_SYSTEM_PROMPT,
@@ -82,6 +83,25 @@ describe("prompt rewrite", () => {
     expect(content.indexOf("<draft_prompt>")).toBeGreaterThan(
       content.indexOf("</quoted_passages>"),
     );
+  });
+
+  it("asks for a short correction when the draft steers a running turn", () => {
+    const steering = promptRewriteContext("别改测试", {
+      conversation: [{ role: "user", text: "修复登录 bug" }],
+      steering: true,
+    });
+    const content = steering.messages[0]?.content as string;
+    expect(content).toContain(
+      `${PROMPT_REWRITE_STEERING_NOTE}\n\nRewrite this draft prompt:\n\n<draft_prompt>\n别改测试`,
+    );
+    expect(content.indexOf(PROMPT_REWRITE_STEERING_NOTE)).toBeGreaterThan(
+      content.indexOf("</conversation_so_far>"),
+    );
+    // The system prompt stays the same, and other drafts get no note.
+    expect(steering.systemPrompt).toBe(PROMPT_REWRITE_SYSTEM_PROMPT);
+    expect(
+      promptRewriteContext("x", { steering: false }).messages[0]?.content,
+    ).not.toContain(PROMPT_REWRITE_STEERING_NOTE);
   });
 
   it("sends the draft alone without context", () => {

@@ -94,12 +94,23 @@ export function promptRewriteBackground(
   return sections.join("\n\n");
 }
 
+/**
+ * Said before a steering draft. The agent is mid-turn, so the rewrite stays
+ * a short, direct correction instead of growing into a task brief; it goes
+ * with the draft so the system prompt stays the same for every rewrite.
+ */
+export const PROMPT_REWRITE_STEERING_NOTE =
+  "The agent is still working on its current turn, and this draft will reach it mid-turn to steer that work: to correct, redirect, or add to what it is doing. Keep the rewrite a short, direct instruction about the change, usually a sentence or a few. Do not restate the original task, expand it into a full brief, or add structure or placeholders the correction does not need.";
+
 export function promptRewriteContext(
   prompt: string,
   context?: PromptRewriteContext,
 ): Context {
   const background = promptRewriteBackground(context);
   const draft = `<draft_prompt>\n${prompt}\n</draft_prompt>`;
+  const request = context?.steering
+    ? `${PROMPT_REWRITE_STEERING_NOTE}\n\nRewrite this draft prompt:`
+    : "Rewrite this draft prompt:";
   return {
     systemPrompt: PROMPT_REWRITE_SYSTEM_PROMPT,
     messages: [
@@ -107,8 +118,8 @@ export function promptRewriteContext(
         role: "user",
         timestamp: Date.now(),
         content: background
-          ? `Background for understanding the draft:\n\n${background}\n\nRewrite this draft prompt:\n\n${draft}`
-          : `Rewrite this draft prompt:\n\n${draft}`,
+          ? `Background for understanding the draft:\n\n${background}\n\n${request}\n\n${draft}`
+          : `${request}\n\n${draft}`,
       },
     ],
   };
