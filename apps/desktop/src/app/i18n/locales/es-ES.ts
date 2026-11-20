@@ -2374,6 +2374,7 @@ export default {
             complete: "Sesión iniciada en ",
             declined: "No se inició la sesión",
             error: "No se pudo iniciar una sesión",
+            model: " con {model}",
           },
           tree: {
             running: "Leyendo las carpetas de sesiones de ",

@@ -2352,6 +2352,7 @@ export default {
             complete: "Сеанс запущен в проекте ",
             declined: "Сеанс не запущен",
             error: "Не удалось запустить сеанс",
+            model: " на {model}",
           },
           tree: {
             running: "Чтение папок сеансов: ",

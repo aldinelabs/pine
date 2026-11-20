@@ -81,6 +81,7 @@ import {
   type PineProject,
 } from "../../../shared/projects";
 import type { AutomationRunSession } from "../../../shared/automation";
+import type { PineModelSelection } from "../../../shared/models";
 import type { PineCore } from "../pineCore";
 import {
   BackgroundTaskRequestSchema,
@@ -146,6 +147,8 @@ export interface BackgroundSessionInput {
   title?: string;
   /** Makes the new session a sub-session of this one. */
   parentSessionId?: string;
+  /** The model it runs on, as if picked in its composer. */
+  model?: PineModelSelection;
 }
 
 /**
@@ -158,7 +161,7 @@ export async function startBackgroundSession(
   input: BackgroundSessionInput,
 ): Promise<PromptSessionResult> {
   const { repository, runtimes } = core;
-  const { ownerId, project, parentSessionId } = input;
+  const { ownerId, project, parentSessionId, model } = input;
   if (!runtimes.isOpen(ownerId, project.id))
     await runtimes.share(
       ownerId,
@@ -173,7 +176,11 @@ export async function startBackgroundSession(
       target: { kind: "new", projectId: project.id },
       approvalMode: input.approvalMode,
     },
-    { focus: false, ...(parentSessionId ? { parentSessionId } : {}) },
+    {
+      focus: false,
+      ...(parentSessionId ? { parentSessionId } : {}),
+      ...(model ? { model } : {}),
+    },
   );
   if (input.title)
     await runtimes
@@ -216,6 +223,21 @@ const SessionHostOperationSchema = z.discriminatedUnion("op", [
       "YOLO",
     ]),
     locale: z.enum(["en-US", "zh-CN"]),
+    model: z
+      .object({
+        providerId: z.string().min(1).max(200),
+        modelId: z.string().min(1).max(500),
+        thinkingLevel: z.enum([
+          "off",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max",
+        ]),
+      })
+      .optional(),
   }),
   z.object({
     op: z.literal("tree"),
@@ -813,6 +835,7 @@ export async function answerSessionOperation(
     locale: parsed.locale,
     ...(parsed.title ? { title: parsed.title } : {}),
     ...(parentSessionId ? { parentSessionId } : {}),
+    ...(parsed.model ? { model: parsed.model } : {}),
   });
   return {
     op: "start",

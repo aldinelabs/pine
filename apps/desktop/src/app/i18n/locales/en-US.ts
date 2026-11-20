@@ -2334,6 +2334,7 @@ export default {
             complete: "Started a session in ",
             declined: "Didn’t start a session",
             error: "Couldn’t start a session",
+            model: " on {model}",
           },
           tree: {
             running: "Reading session folders of ",

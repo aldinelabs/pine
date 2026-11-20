@@ -142,7 +142,7 @@ import {
   writeForkFile,
 } from "./sideChat";
 import { ForegroundPromoter } from "./foreground-promotion";
-import { createModelToolDefinitions } from "./modelTools";
+import { createModelToolDefinitions, listUsableModels } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
 import type {
   FilePresentationDisplay,
@@ -2058,6 +2058,11 @@ export class PineAgentRuntime {
           attachedSessions: () =>
             attachedSessionsFromSessionEntries(
               live.session.sessionManager.getEntries(),
+            ),
+          usableModels: async () =>
+            listUsableModels(
+              await this.modelService.getModelCatalog(live.agentDir),
+              this.currentModelSelection(live),
             ),
           reviewOutOfScope: (input) =>
             live.approvalMode === "YOLO"

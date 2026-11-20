@@ -2381,6 +2381,7 @@ export default {
             complete: "Sitzung gestartet in ",
             declined: "Keine Sitzung gestartet",
             error: "Sitzung konnte nicht gestartet werden",
+            model: " mit {model}",
           },
           tree: {
             running: "Lese Sitzungsordner von ",

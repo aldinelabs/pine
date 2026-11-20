@@ -190,6 +190,56 @@ describe("ProjectRuntimeRegistry", () => {
     }
   });
 
+  it("selects a background session's model before its first message", async () => {
+    const host = createAgentHost();
+    const order: string[] = [];
+    const selectModel = vi.fn(() => {
+      order.push("select");
+      return Promise.resolve({ disposed: true });
+    });
+    host.selectModel = selectModel;
+    host.prompt = vi.fn(() => {
+      order.push("prompt");
+      return Promise.resolve({ accepted: true, session: sessionSummary });
+    });
+    const registry = new ProjectRuntimeRegistry(host, "/pine/agent");
+    const { dataRoot, project } = await createRuntimeFixture();
+    const paths = {
+      attachmentsRoot: path.join(dataRoot, "attachments"),
+      cacheRoot: path.join(dataRoot, "cache"),
+      projectRoot: dataRoot,
+      sessionsRoot: path.join(dataRoot, "sessions"),
+    };
+    try {
+      await registry.open(1, project, paths);
+      await registry.prompt(
+        1,
+        {
+          message: "Count the files",
+          target: { kind: "new", projectId: project.id },
+        },
+        {
+          focus: false,
+          model: {
+            providerId: "anthropic",
+            modelId: "small",
+            thinkingLevel: "low",
+          },
+        },
+      );
+      expect(selectModel).toHaveBeenCalledExactlyOnceWith(
+        "/pine/agent",
+        "anthropic",
+        "small",
+        "low",
+        sessionSummary.id,
+      );
+      expect(order).toEqual(["select", "prompt"]);
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
   it("reconfigures a shared project once and retains both clients", async () => {
     const host = createAgentHost();
     const disposeSession = vi.fn().mockResolvedValue({ disposed: true });

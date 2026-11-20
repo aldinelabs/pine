@@ -2376,6 +2376,7 @@ export default {
             complete: "Session démarrée dans ",
             declined: "Session non démarrée",
             error: "Impossible de démarrer une session",
+            model: " avec {model}",
           },
           tree: {
             running: "Lecture des dossiers de sessions de ",

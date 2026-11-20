@@ -32,6 +32,7 @@ import type {
   DeleteCustomProviderRequest,
   LoginProviderRequest,
   PineModelCatalog,
+  PineModelSelection,
   ProviderLoginResult,
   SelectModelRequest,
   SelectApprovalModelRequest,
@@ -1044,7 +1045,16 @@ export class ProjectRuntimeRegistry {
     {
       focus = true,
       parentSessionId,
-    }: { focus?: boolean; parentSessionId?: string } = {},
+      model,
+    }: {
+      focus?: boolean;
+      parentSessionId?: string;
+      /**
+       * The model a new session runs on, chosen before its first message the
+       * way its composer's picker would.
+       */
+      model?: PineModelSelection;
+    } = {},
   ): Promise<PromptSessionResult> {
     const runtime = this.get(webContentsId, request.target.projectId);
     let approvalMode = request.approvalMode ?? "auto-approve";
@@ -1077,6 +1087,14 @@ export class ProjectRuntimeRegistry {
     if (!this.isCurrent(webContentsId, runtime)) {
       throw new Error("The project closed before submitting a prompt.");
     }
+    if (model && request.target.kind === "new")
+      await this.agentHost.selectModel(
+        this.agentDir,
+        model.providerId,
+        model.modelId,
+        model.thinkingLevel,
+        activeSession.id,
+      );
     approvalMode =
       request.approvalMode ?? activeSession.approvalMode ?? "auto-approve";
     if (mutators.length > 0)

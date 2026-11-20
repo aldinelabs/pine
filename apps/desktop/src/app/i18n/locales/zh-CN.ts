@@ -2239,6 +2239,7 @@ export default {
             complete: "已新建会话，项目 ",
             declined: "未新建会话",
             error: "无法新建会话",
+            model: "，使用 {model}",
           },
           tree: {
             running: "正在读取会话文件夹：",

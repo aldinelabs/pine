@@ -2345,6 +2345,7 @@ export default {
             complete: "セッションを開始しました。プロジェクト: ",
             declined: "セッションを開始しませんでした",
             error: "セッションを開始できませんでした",
+            model: "（{model}）",
           },
           tree: {
             running: "セッションフォルダを読み込み中：",

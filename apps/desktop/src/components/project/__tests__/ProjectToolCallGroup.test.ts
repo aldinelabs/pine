@@ -170,16 +170,32 @@ describe("ProjectToolCallGroup", () => {
         },
         {
           id: "t-declined",
-          input: { message: "Write it" },
+          input: { message: "Write it", model: "anthropic/small" },
           name: "ui_session_new",
           status: "complete",
           output: { details: { started: false } },
+        },
+        {
+          id: "t-model",
+          input: { message: "Count files", model: "anthropic/small" },
+          name: "ui_session_new",
+          status: "complete",
+          output: {
+            details: {
+              started: true,
+              projectId: "p-x",
+              projectName: "Notes",
+              model: { modelId: "small", name: "Small" },
+            },
+          },
         },
       ],
     });
 
     const text = wrapper.text();
-    expect(text).toContain("处理了 4 次会话操作");
+    expect(text).toContain("处理了 5 次会话操作");
+    expect(text).toContain("已新建会话，项目 Notes，使用 Small");
+    expect(text).not.toContain("未新建会话，使用");
     expect(text).toContain("已列出最近的会话");
     expect(text).toContain("已搜索会话 changelog");
     expect(text).toContain("已新建会话，项目 Pine");

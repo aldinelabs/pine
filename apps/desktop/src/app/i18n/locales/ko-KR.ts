@@ -2321,6 +2321,7 @@ export default {
             complete: "세션을 시작함. 프로젝트: ",
             declined: "세션을 시작하지 않음",
             error: "세션을 시작할 수 없음",
+            model: " ({model})",
           },
           tree: {
             running: "세션 폴더 읽는 중: ",

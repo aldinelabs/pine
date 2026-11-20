@@ -875,6 +875,11 @@ export type SessionHostOperation =
       message: string;
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
+      /**
+       * The model the new session runs on, as if the user picked it in its
+       * composer; the user's default model when omitted.
+       */
+      model?: PineModelSelection;
     }
   | {
       op: "tree";

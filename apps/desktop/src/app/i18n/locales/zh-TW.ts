@@ -2243,6 +2243,7 @@ export default {
             complete: "已建立會話，專案 ",
             declined: "未建立會話",
             error: "無法建立會話",
+            model: "，使用 {model}",
           },
           tree: {
             running: "正在讀取會話資料夾：",

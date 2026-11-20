@@ -20,9 +20,43 @@ import type {
 } from "../protocol";
 import {
   createSessionToolDefinitions,
+  resolveSessionModel,
   type PineSessionToolContext,
   type RenameCurrentSessionResult,
+  type UsableModels,
 } from "../sessionTools";
+
+function usableModel(
+  providerId: string,
+  modelId: string,
+  thinkingLevels: UsableModels["models"][number]["thinkingLevels"],
+): UsableModels["models"][number] {
+  return {
+    providerId,
+    providerName: providerId,
+    modelId,
+    name: `${modelId} name`,
+    contextWindow: 200_000,
+    maxTokens: 8_000,
+    input: ["text"],
+    reasoning: thinkingLevels.length > 1,
+    thinkingLevels,
+  };
+}
+
+const usable: UsableModels = {
+  current: {
+    providerId: "anthropic",
+    modelId: "big",
+    thinkingLevel: "high",
+  },
+  models: [
+    usableModel("anthropic", "big", ["off", "low", "medium", "high"]),
+    usableModel("anthropic", "small", ["off", "low", "medium"]),
+    usableModel("openrouter", "shared", ["off"]),
+    usableModel("other", "shared", ["off"]),
+  ],
+};
 
 const session: AgentHostSession = {
   id: "5d1c7d0e-7a2b-4c43-9f1e-1b2a3c4d5e6f",
@@ -130,6 +164,7 @@ function setup(
     attachedSessions: () => attachedSessions,
     getApprovalMode: () => approvalMode,
     getLocale: () => "en-US",
+    usableModels: () => Promise.resolve(usable),
   };
   const [
     search,
@@ -276,6 +311,66 @@ describe("session tools", () => {
     expect(requestHost).not.toHaveBeenCalled();
     expect(result.details).toEqual({ started: false });
     expect(text(result)).toContain("Not now.");
+  });
+
+  it("starts a session on a chosen model and says which", async () => {
+    const { start, requestHost } = setup("auto-approve");
+
+    const result = await run(start, {
+      message: "List the TODOs",
+      model: "anthropic/small",
+      thinkingLevel: "low",
+    });
+
+    expect(requestHost).toHaveBeenCalledWith({
+      kind: "session",
+      operation: expect.objectContaining({
+        op: "start",
+        model: {
+          providerId: "anthropic",
+          modelId: "small",
+          thinkingLevel: "low",
+        },
+      }),
+    });
+    expect(text(result)).toContain("on anthropic/small with thinking low");
+    expect(result.details).toMatchObject({
+      model: { modelId: "small", name: "small name", thinkingLevel: "low" },
+    });
+  });
+
+  it("leaves the model alone when none is asked for", async () => {
+    const { start, requestHost } = setup("auto-approve");
+
+    await run(start, { message: "Go" });
+
+    const operation = (
+      requestHost.mock.calls[0]?.[0] as { operation: SessionHostOperation }
+    ).operation;
+    expect(operation).not.toHaveProperty("model");
+  });
+
+  it("names the choices instead of starting on an unknown model", async () => {
+    const { start, requestHost } = setup("auto-approve");
+
+    await expect(run(start, { message: "Go", model: "gpt-9" })).rejects.toThrow(
+      'Model "gpt-9" is not one the user can use. Use providerId/modelId from ui_list_models: anthropic/big, anthropic/small, openrouter/shared, other/shared.',
+    );
+    expect(requestHost).not.toHaveBeenCalled();
+  });
+
+  it("asks for the reviewer to see the model in Let Me Review", async () => {
+    const { start, requestApproval } = setup("let-me-review", {
+      kind: "deny",
+    });
+
+    await run(start, { message: "Go", model: "small" });
+
+    expect(requestApproval).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: expect.stringContaining("on small name (thinking medium)"),
+      }),
+    );
   });
 
   it("shows folders, their sessions and what is outside them", async () => {
@@ -546,5 +641,51 @@ describe("session tools", () => {
         ),
       }),
     );
+  });
+});
+
+describe("resolveSessionModel", () => {
+  it("is undefined when neither a model nor a level is given", () => {
+    expect(resolveSessionModel(usable, " ", undefined)).toBeUndefined();
+  });
+
+  it("accepts a bare model id offered by one provider", () => {
+    expect(resolveSessionModel(usable, "small", undefined)).toEqual({
+      providerId: "anthropic",
+      modelId: "small",
+      // This session thinks high; small tops out at medium.
+      thinkingLevel: "medium",
+      name: "small name",
+    });
+  });
+
+  it("asks which provider when a bare id is ambiguous", () => {
+    expect(() => resolveSessionModel(usable, "shared", undefined)).toThrow(
+      'Model "shared" is offered by more than one provider. Use one of: openrouter/shared, other/shared.',
+    );
+    expect(
+      resolveSessionModel(usable, "other/shared", undefined),
+    ).toMatchObject({ providerId: "other", thinkingLevel: "off" });
+  });
+
+  it("refuses a thinking level the model lacks and lists its levels", () => {
+    expect(() => resolveSessionModel(usable, "anthropic/small", "max")).toThrow(
+      "anthropic/small does not support thinking level max. It supports: off, low, medium.",
+    );
+  });
+
+  it("changes only the level on this session's model", () => {
+    expect(resolveSessionModel(usable, undefined, "low")).toEqual({
+      providerId: "anthropic",
+      modelId: "big",
+      thinkingLevel: "low",
+      name: "big name",
+    });
+  });
+
+  it("says so when the user has no usable model", () => {
+    expect(() =>
+      resolveSessionModel({ models: [] }, "anthropic/big", undefined),
+    ).toThrow("(none; the user has no provider set up)");
   });
 });

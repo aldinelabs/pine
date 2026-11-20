@@ -14,6 +14,7 @@ import {
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_SEND_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
+  UI_LIST_MODELS_TOOL_NAME,
   approvalModeWithin,
   type PineApprovalMode,
 } from "../shared/agent";
@@ -31,6 +32,11 @@ import type {
 } from "./protocol";
 import { sessionSearchQuery } from "../shared/sessions";
 import type { AttachedSession } from "../shared/attachments";
+import type { PineModelSelection, PineThinkingLevel } from "../shared/models";
+import type { listUsableModels } from "./modelTools";
+
+/** The chat models the user can pick, as `ui_list_models` lists them. */
+export type UsableModels = ReturnType<typeof listUsableModels>;
 
 export interface PineSessionToolContext {
   /** Ask main, which owns session storage and the project library. */
@@ -47,6 +53,8 @@ export interface PineSessionToolContext {
   getParentSessionId(): string | undefined;
   /** Sessions the user attached to their messages in this session. */
   attachedSessions(): readonly AttachedSession[];
+  /** The models a new session can run on, and the one this session uses. */
+  usableModels(): Promise<UsableModels>;
   /**
    * Reviews access past the session tools' own scope, such as reading a
    * session that is not this one's parent, sub-session or sibling, the way
@@ -141,6 +149,102 @@ function denied(decision: GateDecision, what: string) {
       },
     ],
     details: { done: false },
+  };
+}
+
+const THINKING_LEVELS: readonly PineThinkingLevel[] = [
+  "off",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
+
+function modelReference(model: { providerId: string; modelId: string }) {
+  return `${model.providerId}/${model.modelId}`;
+}
+
+/** A model a new session runs on, with the name the user knows it by. */
+export interface ChosenModel extends PineModelSelection {
+  name?: string;
+}
+
+/**
+ * The model and thinking level a new session asked for, checked against the
+ * models the user configured. Neither given: undefined, which leaves the
+ * user's default. A bad choice throws with the valid ones, instead of quietly
+ * starting on another model.
+ */
+export function resolveSessionModel(
+  usable: UsableModels,
+  model: string | undefined,
+  thinkingLevel: PineThinkingLevel | undefined,
+): ChosenModel | undefined {
+  const reference = model?.trim();
+  if (!reference && !thinkingLevel) return undefined;
+  const choices = () =>
+    usable.models.length
+      ? usable.models.map((candidate) => modelReference(candidate)).join(", ")
+      : "(none; the user has no provider set up)";
+  let chosen: UsableModels["models"][number] | undefined;
+  if (reference) {
+    const exact = usable.models.find(
+      (candidate) => modelReference(candidate) === reference,
+    );
+    const byId = usable.models.filter(
+      (candidate) => candidate.modelId === reference,
+    );
+    if (!exact && byId.length > 1)
+      throw new Error(
+        `Model "${reference}" is offered by more than one provider. Use one of: ${byId.map((candidate) => modelReference(candidate)).join(", ")}.`,
+      );
+    chosen = exact ?? byId[0];
+    if (!chosen)
+      throw new Error(
+        `Model "${reference}" is not one the user can use. Use providerId/modelId from ${UI_LIST_MODELS_TOOL_NAME}: ${choices()}.`,
+      );
+  } else {
+    const current = usable.current ?? usable.userDefault;
+    chosen = current
+      ? usable.models.find(
+          (candidate) =>
+            candidate.providerId === current.providerId &&
+            candidate.modelId === current.modelId,
+        )
+      : undefined;
+    if (!chosen)
+      throw new Error(
+        `This session's model is no longer available, so pass model as well: ${choices()}.`,
+      );
+  }
+  const supported = chosen.thinkingLevels;
+  let level: PineThinkingLevel;
+  if (thinkingLevel) {
+    if (!supported.includes(thinkingLevel))
+      throw new Error(
+        `${modelReference(chosen)} does not support thinking level ${thinkingLevel}. It supports: ${supported.join(", ") || "off"}.`,
+      );
+    level = thinkingLevel;
+  } else {
+    // Keep this session's level where the model has it, else the closest
+    // level below it, so a cheaper model is not pushed to think harder.
+    const wanted = usable.current?.thinkingLevel ?? "off";
+    const rank = THINKING_LEVELS.indexOf(wanted);
+    level =
+      [...supported]
+        .filter((candidate) => THINKING_LEVELS.indexOf(candidate) <= rank)
+        .sort((a, b) => THINKING_LEVELS.indexOf(b) - THINKING_LEVELS.indexOf(a))
+        .at(0) ??
+      supported[0] ??
+      "off";
+  }
+  return {
+    providerId: chosen.providerId,
+    modelId: chosen.modelId,
+    thinkingLevel: level,
+    ...(chosen.name ? { name: chosen.name } : {}),
   };
 }
 
@@ -239,6 +343,20 @@ export function createSessionToolDefinitions(
       }),
     ),
     approvalMode: Type.Optional(approvalModeSchema),
+    model: Type.Optional(
+      Type.String({
+        description: `The model it runs on, as providerId/modelId from ${UI_LIST_MODELS_TOOL_NAME} (a modelId alone works when only one provider has it). Omit to use the user's default model.`,
+      }),
+    ),
+    thinkingLevel: Type.Optional(
+      Type.Union(
+        THINKING_LEVELS.map((level) => Type.Literal(level)),
+        {
+          description:
+            "Its thinking level; must be one the model supports. Defaults to this session's level, or the closest lower one the model has.",
+        },
+      ),
+    ),
   });
   const newTool = defineTool({
     name: UI_SESSION_NEW_TOOL_NAME,
@@ -255,6 +373,7 @@ export function createSessionToolDefinitions(
       "- A sub-session has no memory of this conversation: its first message must include everything it needs and say what to report back.",
       "- Give each a short title naming its task, so the user can tell them apart in the sidebar.",
       `- Pine delivers a notice each time a sub-session finishes a turn or waits for approval; continue with other work or end your turn, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of its messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
+      `- Mechanical, read-only or narrowly scoped work often runs well on a cheaper or faster model (see ${UI_LIST_MODELS_TOOL_NAME}); otherwise leave model out.`,
     ].join("\n"),
     parameters: newParams,
     prepareArguments: (args) => args as Static<typeof newParams>,
@@ -276,11 +395,19 @@ export function createSessionToolDefinitions(
         );
       const projectId = params.projectId?.trim();
       const title = params.title?.trim().slice(0, 80);
+      const model =
+        params.model?.trim() || params.thinkingLevel
+          ? resolveSessionModel(
+              await context.usableModels(),
+              params.model,
+              params.thinkingLevel,
+            )
+          : undefined;
       if (callerMode === "let-me-review") {
         const decision = await context.requestApproval({
           toolCallId,
           toolName: UI_SESSION_NEW_TOOL_NAME,
-          subject: `New ${approvalMode} ${relation === "child" || isSubSession ? "sub-session" : "session"}${projectId ? ` in project ${projectId}` : ""}`,
+          subject: `New ${approvalMode} ${relation === "child" || isSubSession ? "sub-session" : "session"}${projectId ? ` in project ${projectId}` : ""}${model ? ` on ${model.name ?? modelReference(model)} (thinking ${model.thinkingLevel})` : ""}`,
           description: "Start a new session",
           evidence: message,
           signal,
@@ -305,17 +432,29 @@ export function createSessionToolDefinitions(
         message,
         approvalMode,
         locale: context.getLocale(),
+        ...(model
+          ? {
+              model: {
+                providerId: model.providerId,
+                modelId: model.modelId,
+                thinkingLevel: model.thinkingLevel,
+              },
+            }
+          : {}),
       });
+      const on = model
+        ? `, on ${modelReference(model)} with thinking ${model.thinkingLevel}`
+        : "";
       return {
         content: [
           {
             type: "text" as const,
             text: result.parentSessionId
-              ? `Started sub-session ${result.sessionId} (${result.approvalMode}). Pine tells ${isSubSession ? "the parent session" : "you"} when it finishes a turn or waits for approval; do not poll it.`
-              : `Started session ${result.sessionId} in ${result.projectName} (${result.approvalMode}). It runs on its own; find it later with ${UI_SESSION_SEARCH_TOOL_NAME}.`,
+              ? `Started sub-session ${result.sessionId} (${result.approvalMode}${on}). Pine tells ${isSubSession ? "the parent session" : "you"} when it finishes a turn or waits for approval; do not poll it.`
+              : `Started session ${result.sessionId} in ${result.projectName} (${result.approvalMode}${on}). It runs on its own; find it later with ${UI_SESSION_SEARCH_TOOL_NAME}.`,
           },
         ],
-        details: { started: true, ...result },
+        details: { started: true, ...result, ...(model ? { model } : {}) },
       };
     },
   });

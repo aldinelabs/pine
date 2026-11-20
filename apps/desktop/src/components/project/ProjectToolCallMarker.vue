@@ -1530,6 +1530,13 @@ const presentation = computed(() => {
       tense === "complete" && details.started !== true ? "declined" : tense;
     const projectId = firstString(details, ["projectId"]) ?? "";
     const project = projectStore?.projectById(projectId);
+    // The model the agent chose for it; none means the user's default.
+    const chosenModel = inputRecord(details.model);
+    const modelName =
+      outcome === "complete" || outcome === "running"
+        ? (firstString(chosenModel, ["name", "modelId"]) ??
+          firstString(input, ["model"]))
+        : undefined;
     return {
       before: t(`project.transcript.tools.session.new.${outcome}`),
       operation: undefined,
@@ -1543,7 +1550,11 @@ const presentation = computed(() => {
       targetMono: false,
       purpose: undefined,
       faviconDataUrl: undefined,
-      after: "",
+      after: modelName
+        ? t("project.transcript.tools.session.new.model", {
+            model: modelName,
+          })
+        : "",
     };
   }
   if (isPresentFileTool(props.toolCall.name)) {

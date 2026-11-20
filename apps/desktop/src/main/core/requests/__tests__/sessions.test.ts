@@ -629,6 +629,30 @@ describe("answerSessionOperation", () => {
     expect(result).toMatchObject({ parentSessionId: requester.sessionId });
   });
 
+  it("starts a session on the model the agent chose", async () => {
+    const { core, prompt } = fixture();
+    const model = {
+      providerId: "anthropic",
+      modelId: "small",
+      thinkingLevel: "low" as const,
+    };
+
+    await answerSessionOperation(core, requester, {
+      op: "start",
+      relation: "child",
+      message: "Count the files",
+      approvalMode: "auto-approve",
+      locale: "en-US",
+      model,
+    });
+
+    expect(prompt.mock.calls[0]?.[2]).toEqual({
+      focus: false,
+      parentSessionId: requester.sessionId,
+      model,
+    });
+  });
+
   it("titles a session the agent named", async () => {
     const { core, renameSession } = fixture();
 
