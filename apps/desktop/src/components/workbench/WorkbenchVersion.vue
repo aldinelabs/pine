@@ -54,7 +54,9 @@ function onClick(): void {
     </template>
     <template v-else>
       <GitCommitHorizontal aria-hidden="true" />
-      <span>{{ t("project.version", { version: pineVersion }) }}</span>
+      <span class="tabular-nums">{{
+        t("project.version", { version: pineVersion })
+      }}</span>
     </template>
   </Button>
 </template>
