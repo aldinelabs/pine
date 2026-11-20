@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
       :aria-expanded="isExpanded"
       @click="toggleExpanded"
     >
-      <MarkerContent>{{ summaryLabel }}</MarkerContent>
+      <MarkerContent class="tabular-nums">{{ summaryLabel }}</MarkerContent>
 
       <MarkerIcon>
         <ChevronRightIcon
