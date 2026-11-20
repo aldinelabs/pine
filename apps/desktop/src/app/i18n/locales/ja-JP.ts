@@ -1815,6 +1815,7 @@ export default {
         finished: "サブセッション {name} が完了しました",
         failed: "サブセッション {name} が失敗しました",
         awaitingApproval: "サブセッション {name} が承認を待っています",
+        stopped: "サブセッション {name} を停止しました",
         untitled: "無題",
       },
       relay: {

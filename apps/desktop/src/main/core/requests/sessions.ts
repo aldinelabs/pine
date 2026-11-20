@@ -754,7 +754,13 @@ export async function answerSessionOperation(
       ? requester.ownerId
       : holders[0];
     if (owner === undefined) return { op: "stop", stopped: false };
-    const { aborted } = await runtimes.abort(owner, parsed.sessionId);
+    const byParent =
+      parentOf(project, parsed.sessionId) === requester.sessionId;
+    const { aborted } = await core.stopForSession(
+      parsed.sessionId,
+      byParent ? "parent" : "session",
+      () => runtimes.abort(owner, parsed.sessionId),
+    );
     return { op: "stop", stopped: aborted };
   }
 

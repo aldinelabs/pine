@@ -1843,6 +1843,7 @@ export default {
         finished: "Sous-session {name} terminée",
         failed: "Échec de la sous-session {name}",
         awaitingApproval: "La sous-session {name} attend votre approbation",
+        stopped: "Vous avez arrêté la sous-session {name}",
         untitled: "Sans titre",
       },
       relay: {

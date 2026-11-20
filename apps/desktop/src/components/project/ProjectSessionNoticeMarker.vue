@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { CheckIcon, CircleXIcon, ShieldAlertIcon } from "@lucide/vue";
+import {
+  CheckIcon,
+  CircleStopIcon,
+  CircleXIcon,
+  ShieldAlertIcon,
+} from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
@@ -57,6 +62,7 @@ function open(): void {
         v-else-if="notice.state === 'failed'"
         class="text-destructive"
       />
+      <CircleStopIcon v-else-if="notice.state === 'stopped'" />
       <CheckIcon v-else />
     </MarkerIcon>
     <MarkerContent>

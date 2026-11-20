@@ -153,6 +153,9 @@ function fixture({
       abort,
     },
     sessionActivity: vi.fn().mockReturnValue(activity),
+    stopForSession: vi.fn(
+      (_id: string, _by: string, stop: () => Promise<unknown>) => stop(),
+    ),
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
@@ -913,6 +916,12 @@ describe("answerSessionOperation", () => {
   });
 });
 
+/** The fixture's spy behind `core.stopForSession`. */
+function stopSpy(core: PineCore) {
+  return (core as unknown as { stopForSession: ReturnType<typeof vi.fn> })
+    .stopForSession;
+}
+
 describe("stopping a session", () => {
   it("stops a running sub-session the way the user's Stop does", async () => {
     const { core, abort } = fixture({
@@ -928,6 +937,12 @@ describe("stopping a session", () => {
 
     expect(abort).toHaveBeenCalledExactlyOnceWith(7, looseSession);
     expect(result).toEqual({ op: "stop", stopped: true });
+    // Its parent asked, so the abort that follows is not the user's.
+    expect(stopSpy(core)).toHaveBeenCalledWith(
+      looseSession,
+      "parent",
+      expect.any(Function),
+    );
   });
 
   it("leaves an idle session alone", async () => {
@@ -958,6 +973,11 @@ describe("stopping a session", () => {
     });
 
     expect(abort).toHaveBeenCalledExactlyOnceWith(3, filedSession);
+    expect(stopSpy(core)).toHaveBeenCalledWith(
+      filedSession,
+      "session",
+      expect.any(Function),
+    );
   });
 
   it("refuses itself and sessions outside the relatives without a project", async () => {

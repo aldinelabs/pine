@@ -442,7 +442,11 @@ export interface PineSessionNotice {
   sessionId: string;
   projectId: string;
   title?: string;
-  state: "finished" | "failed" | "awaiting-approval";
+  /**
+   * `stopped`: the user stopped its turn (Stop, or anything else but its
+   * parent's own `ui_session_stop`, which reports nothing).
+   */
+  state: "finished" | "failed" | "awaiting-approval" | "stopped";
 }
 
 /** The session a sub-session's file says started it. */
@@ -474,7 +478,8 @@ export function sessionNoticeOf(
     typeof notice.projectId !== "string" ||
     (notice.state !== "finished" &&
       notice.state !== "failed" &&
-      notice.state !== "awaiting-approval")
+      notice.state !== "awaiting-approval" &&
+      notice.state !== "stopped")
   )
     return undefined;
   return {

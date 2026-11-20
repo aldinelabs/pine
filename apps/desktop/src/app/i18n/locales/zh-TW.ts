@@ -1720,6 +1720,7 @@ export default {
         finished: "子會話 {name} 已完成",
         failed: "子會話 {name} 失敗了",
         awaitingApproval: "子會話 {name} 正在等待你核准",
+        stopped: "你停止了子會話 {name}",
         untitled: "未命名",
       },
       relay: {

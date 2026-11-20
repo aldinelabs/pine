@@ -1,4 +1,5 @@
 import { SIDE_CHAT_EVENT_CHANNEL } from "../../shared/sideChats";
+import type { PineSessionNotice } from "../../shared/sessions";
 import { realpath } from "node:fs/promises";
 import { hostname } from "node:os";
 import path from "node:path";
@@ -153,6 +154,13 @@ export class PineCore {
    * project's temporary files are in use, so they cannot be cleared.
    */
   private readonly runningSessions = new Set<string>();
+  /** Sessions another session's `ui_session_stop` is stopping, and whether that is their parent. */
+  private readonly agentStops = new Map<string, "parent" | "session">();
+  /** Turns being aborted, and who asked for it. */
+  private readonly abortsInFlight = new Map<
+    string,
+    "user" | "parent" | "session"
+  >();
   /** Work a session asked for that must wait until its reply ends. */
   private readonly afterReply = new Map<string, () => Promise<void>>();
   private readonly sessionsWithRunningTasks = new Set<string>();
@@ -631,10 +639,27 @@ export class PineCore {
       .size;
   }
 
+  /**
+   * Runs another session's `ui_session_stop` of `sessionId`. Any abort that
+   * does not come through here counts as the user's.
+   */
+  async stopForSession<T>(
+    sessionId: string,
+    by: "parent" | "session",
+    stop: () => Promise<T>,
+  ): Promise<T> {
+    this.agentStops.set(sessionId, by);
+    try {
+      return await stop();
+    } finally {
+      this.agentStops.delete(sessionId);
+    }
+  }
+
   /** A sub-session's parent hears each turn it ends and each approval it needs. */
   private reportToParent(
     sessionId: string,
-    state: "finished" | "failed" | "awaiting-approval",
+    state: PineSessionNotice["state"],
   ): void {
     void notifyParentOf(this, sessionId, state).catch((error: unknown) =>
       console.error("Failed to tell a session about its sub-session.", error),
@@ -794,12 +819,24 @@ export class PineCore {
       );
     } else if (agentEvent.type === "questionnaire-decided") {
       this.runtimes.forgetQuestionnaire(agentEvent.requestId);
+    } else if (
+      agentEvent.type === "run-state" &&
+      agentEvent.state === "aborting"
+    ) {
+      this.abortsInFlight.set(
+        agentEvent.sessionId,
+        this.agentStops.get(agentEvent.sessionId) ?? "user",
+      );
     }
     const finished =
       agentEvent.type === "run-state" &&
       (agentEvent.state === "idle" || agentEvent.state === "failed");
     let teleportProjectId: string | undefined;
+    const aborted = finished
+      ? this.abortsInFlight.get(agentEvent.sessionId)
+      : undefined;
     if (finished) {
+      this.abortsInFlight.delete(agentEvent.sessionId);
       teleportProjectId = this.runtimes.takeScheduledTeleport(
         agentEvent.sessionId,
       );
@@ -815,11 +852,19 @@ export class PineCore {
       this.notifyLibraryChanged("sessions", ownerId);
     if (teleportProjectId)
       void this.teleportSession(agentEvent.sessionId, teleportProjectId);
-    else if (finished)
-      this.reportToParent(
-        agentEvent.sessionId,
-        agentEvent.state === "failed" ? "failed" : "finished",
-      );
+    else if (finished) {
+      // The parent's own stop already told it what happened; a stop by
+      // another session reads as an ordinary end of the turn.
+      if (aborted !== "parent")
+        this.reportToParent(
+          agentEvent.sessionId,
+          aborted === "user"
+            ? "stopped"
+            : agentEvent.state === "failed"
+              ? "failed"
+              : "finished",
+        );
+    }
     const scheduled = finished && this.afterReply.get(agentEvent.sessionId);
     if (scheduled) {
       this.afterReply.delete(agentEvent.sessionId);

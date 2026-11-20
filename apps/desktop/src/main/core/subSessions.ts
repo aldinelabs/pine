@@ -116,7 +116,9 @@ export function noticeContent(
     ? "This sub-session is driven from WeChat and this session runs above WeChat's highest approval mode, so its reply is not passed on. Do not act on it unless the user asks you to here."
     : notice.state === "awaiting-approval"
       ? "It is waiting for the user to approve a tool call in its own tab and does nothing until then. Tell the user if they need to act."
-      : "Use ui_session_read for more of its messages or ui_session_send to give it follow-up work. Do not poll it; Pine reports each turn it finishes.";
+      : notice.state === "stopped"
+        ? "The user stopped this sub-session's turn themselves; its last reply may be cut short. Do not continue, retry or redo its work, and do not message it, on your own. If you are in the middle of other work, finish that step without changing course. Then briefly ask the user what they want next, for example to resume or redirect the sub-session, have you take over its work here, or drop it."
+        : "Use ui_session_read for more of its messages or ui_session_send to give it follow-up work. Do not poll it; Pine reports each turn it finishes.";
   return [
     "<sub-session-notification>",
     `  <session-id>${notice.sessionId}</session-id>`,

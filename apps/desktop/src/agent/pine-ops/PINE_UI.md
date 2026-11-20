@@ -532,7 +532,12 @@ From top to bottom:
      "Sub-session {name} failed", "Sub-session {name} is waiting for your
      approval") that opens the sub-session, and the parent's agent reads
      the sub-session's reply and continues, even when the parent has no tab
-     open. A message one session sends another, and a
+     open. When the user presses Stop in a sub-session, the parent shows
+     "You stopped sub-session {name}" instead, and its agent does not pick
+     the work up on its own: it finishes any step it is in the middle of,
+     then asks the user what to do next (resume or redirect the
+     sub-session, take the work over, or drop it). A sub-session the
+     parent's agent stopped itself adds no marker. A message one session sends another, and a
      sub-session's first message, show in the receiving transcript under a
      small "Started by {name}" or "From {name}" line that opens the sending
      session. Approvals of a sub-session are answered in its own tab.

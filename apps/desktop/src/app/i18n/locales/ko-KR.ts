@@ -1792,6 +1792,7 @@ export default {
         finished: "하위 세션 {name} 완료됨",
         failed: "하위 세션 {name} 실패함",
         awaitingApproval: "하위 세션 {name}이(가) 승인을 기다리는 중",
+        stopped: "하위 세션 {name}을(를) 중지했습니다",
         untitled: "제목 없음",
       },
       relay: {

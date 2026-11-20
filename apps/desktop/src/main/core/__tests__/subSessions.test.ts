@@ -62,6 +62,21 @@ describe("noticeContent", () => {
     expect(content).toContain("Do not poll it");
   });
 
+  it("tells the parent the user stopped it and to ask before acting", () => {
+    const content = noticeContent(
+      { sessionId: "a1", projectId: "x", state: "stopped" },
+      "Half a",
+    );
+    expect(content).toContain("<status>stopped</status>");
+    expect(content).toContain("<last-reply>Half a</last-reply>");
+    expect(content).toContain(
+      "The user stopped this sub-session's turn themselves",
+    );
+    expect(content).toContain("Do not continue, retry or redo its work");
+    expect(content).toContain("briefly ask the user what they want next");
+    expect(content).not.toContain("ui_session_send to give it follow-up work");
+  });
+
   it("asks the parent to tell the user about an approval", () => {
     const content = noticeContent(
       { sessionId: "a1", projectId: "x", state: "awaiting-approval" },

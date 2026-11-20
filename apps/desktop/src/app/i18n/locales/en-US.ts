@@ -1806,6 +1806,7 @@ export default {
         finished: "Sub-session {name} finished",
         failed: "Sub-session {name} failed",
         awaitingApproval: "Sub-session {name} is waiting for your approval",
+        stopped: "You stopped sub-session {name}",
         untitled: "Untitled",
       },
       relay: {

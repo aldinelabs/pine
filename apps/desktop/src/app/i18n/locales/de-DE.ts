@@ -1849,6 +1849,7 @@ export default {
         finished: "Untersitzung {name} abgeschlossen",
         failed: "Untersitzung {name} fehlgeschlagen",
         awaitingApproval: "Untersitzung {name} wartet auf deine Freigabe",
+        stopped: "Du hast die Untersitzung {name} gestoppt",
         untitled: "Ohne Titel",
       },
       relay: {

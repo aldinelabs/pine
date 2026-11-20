@@ -1840,6 +1840,7 @@ export default {
         finished: "Subsesión {name} terminada",
         failed: "La subsesión {name} falló",
         awaitingApproval: "La subsesión {name} espera tu aprobación",
+        stopped: "Detuviste la subsesión {name}",
         untitled: "Sin título",
       },
       relay: {

@@ -1819,6 +1819,7 @@ export default {
         finished: "Подсеанс {name} завершён",
         failed: "Подсеанс {name} завершился с ошибкой",
         awaitingApproval: "Подсеанс {name} ожидает вашего подтверждения",
+        stopped: "Вы остановили подсеанс {name}",
         untitled: "Без названия",
       },
       relay: {

@@ -1716,6 +1716,7 @@ export default {
         finished: "子会话 {name} 已完成",
         failed: "子会话 {name} 失败了",
         awaitingApproval: "子会话 {name} 正在等待你批准",
+        stopped: "你停止了子会话 {name}",
         untitled: "未命名",
       },
       relay: {
