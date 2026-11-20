@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { PineColorSwatches } from "@/components/pine";
 import UserAvatar from "@/components/users/UserAvatar.vue";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
 import { USER_COLOR_CLASSES } from "@/lib/userColors";
 import {
   MAX_USER_NAME_LENGTH,
@@ -77,6 +77,14 @@ watch(
     error.value = undefined;
   },
   { immediate: true },
+);
+
+const colorOptions = computed(() =>
+  USER_COLORS.map((option) => ({
+    value: option,
+    label: t(`users.colors.${option}`),
+    class: USER_COLOR_CLASSES[option].swatch,
+  })),
 );
 
 const trimmed = computed(() => name.value.trim());
@@ -160,72 +168,48 @@ async function save(): Promise<void> {
               :aria-labelledby="`${id}-avatar`"
               class="grid grid-cols-9 gap-1"
             >
-              <button
+              <Button
                 type="button"
                 role="radio"
+                size="icon-sm"
                 data-slot="user-avatar-option"
+                class="text-sm font-medium"
+                :variant="avatar === null ? 'secondary' : 'ghost'"
                 :aria-checked="avatar === null"
                 :aria-label="t('users.initial')"
                 :title="t('users.initial')"
-                :class="
-                  cn(
-                    'flex aspect-square items-center justify-center rounded-md text-sm font-medium outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
-                    avatar === null && 'bg-secondary ring-1 ring-border',
-                  )
-                "
                 @click="avatar = null"
               >
                 {{
                   trimmed ? Array.from(trimmed)[0]?.toLocaleUpperCase() : "A"
                 }}
-              </button>
-              <button
+              </Button>
+              <Button
                 v-for="option in USER_AVATARS"
                 :key="option"
                 type="button"
                 role="radio"
+                size="icon-sm"
                 data-slot="user-avatar-option"
+                class="text-base"
+                :variant="avatar === option ? 'secondary' : 'ghost'"
                 :aria-checked="avatar === option"
                 :aria-label="option"
-                :class="
-                  cn(
-                    'flex aspect-square items-center justify-center rounded-md text-lg outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/30',
-                    avatar === option && 'bg-secondary ring-1 ring-border',
-                  )
-                "
                 @click="avatar = option"
               >
                 {{ option }}
-              </button>
+              </Button>
             </div>
           </Field>
 
           <Field>
             <FieldTitle :id="`${id}-color`">{{ t("users.color") }}</FieldTitle>
-            <div
-              role="radiogroup"
-              :aria-labelledby="`${id}-color`"
-              class="flex flex-wrap gap-2"
-            >
-              <button
-                v-for="option in USER_COLORS"
-                :key="option"
-                type="button"
-                role="radio"
-                data-slot="user-color-option"
-                :aria-checked="color === option"
-                :aria-label="t(`users.colors.${option}`)"
-                :title="t(`users.colors.${option}`)"
-                :class="
-                  cn(
-                    'size-6 rounded-full outline-none ring-offset-2 ring-offset-background focus-visible:ring-3 focus-visible:ring-ring/50',
-                    USER_COLOR_CLASSES[option].swatch,
-                    color === option && 'ring-2 ring-foreground/70',
-                  )
-                "
-                @click="color = option"
-              />
-            </div>
+            <PineColorSwatches
+              v-model="color"
+              :options="colorOptions"
+              :labelledby="`${id}-color`"
+              item-slot="user-color-option"
+            />
           </Field>
 
           <Field v-if="props.offerCopy && !props.user" orientation="horizontal">
