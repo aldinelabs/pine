@@ -31,12 +31,23 @@ describe("flattenAncestorTests", () => {
     );
   });
 
-  it("rewrites only the compound that holds the test", () => {
+  it("keeps the rest of the selector after the subject compound", () => {
     expect(
       flattenAncestorTests(
-        ".list > .a:is(:where(.group\\/tab):has(:is(:focus-visible)) *) svg",
+        ".a:is(:where(.group\\/tab):has(:is(:focus-visible)) *) svg",
       ),
-    ).toBe(".list > :where(.group\\/tab):has(:is(:focus-visible)) .a svg");
+    ).toBe(":where(.group\\/tab):has(:is(:focus-visible)) .a svg");
+  });
+
+  it("leaves tests on a later compound alone", () => {
+    // The ancestor may sit above the earlier compounds: here .dark is <html>,
+    // outside the input group.
+    for (const selector of [
+      ".list > .a:is(:where(.group\\/tab):has(:is(:focus-visible)) *) svg",
+      ":where([data-slot=input-group]) .dark\\:in-data-x:is(.dark *)",
+      '.kbd-row[data-v-1] [data-slot="kbd"]:is(.dark *)',
+    ])
+      expect(flattenAncestorTests(selector)).toBe(selector);
   });
 
   it("rewrites each selector in a list", () => {

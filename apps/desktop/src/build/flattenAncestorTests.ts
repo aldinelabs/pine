@@ -18,6 +18,9 @@
  * matches the same elements with the same specificity, and Chromium only
  * re-checks the elements it concerns.
  *
+ * Only tests on a selector's first compound move: the ancestor may sit above
+ * the earlier compounds, which a combinator in place would not allow.
+ *
  * Each selector moves out one test, the `:has()` one when there is one: two
  * tests on one compound may both be met by the same ancestor, which two
  * chained combinators would no longer allow.
@@ -128,7 +131,9 @@ function flattenComplex(result: string): string {
     const end = closingIndex(result, index + 3);
     if (end < 0) return false;
     const test = ancestorTest(result.slice(index + 4, end - 1));
-    if (test)
+    // Only a test on the first compound moves out unchanged: on a later one,
+    // `.a .x:is(B *)` lets B sit above .a, which `.a B .x` would not.
+    if (test && currentCompound === 0)
       matches.push({ start: index, end, compoundStart: currentCompound, test });
   });
   const match =
