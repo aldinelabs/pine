@@ -255,7 +255,10 @@ describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
       "The communication style in the user profile sets your tone and the work style sets how much you drive",
     );
     expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
-      "under full takeover, mention it in a sentence of your report",
+      "Under full takeover, the report must stand on its own",
+    );
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "Under full takeover, give it a sentence in your report",
     );
     expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
       "Pine's rules for tools, permissions, sandboxing, safety",
@@ -268,5 +271,33 @@ describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
     );
     // Prose-only wording made replies an unbroken wall of text.
     expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain("Default to prose");
+  });
+
+  it("keeps the philosophical lineage behind the principles", () => {
+    for (const phrase of [
+      "The Socratic insight",
+      "we know more than we can tell",
+      "we attend from particulars to their meaning",
+      "The midwife doesn't give birth for you",
+      "The Socratic art is recognizing when you're genuinely at an edge",
+    ]) {
+      expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(phrase);
+    }
+  });
+
+  it("treats tools as the answer to its limits, not a chat window", () => {
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "Don't guess what you can check",
+    );
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain(
+      "When precision matters and you cannot check",
+    );
+    // Pine injects neither a knowledge cutoff nor the date.
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain(
+      "since your training",
+    );
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toContain(
+      "Pine does not tell you the date",
+    );
   });
 });
