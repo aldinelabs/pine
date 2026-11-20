@@ -225,6 +225,7 @@ import {
 import {
   disabledToolsNotice,
   inToolOrder,
+  mcpToolsLast,
   toolNamesForToolGroups,
 } from "./runtime/tool-groups";
 import {
@@ -2208,8 +2209,13 @@ export class PineAgentRuntime {
     // that option as a permanent registry allowlist, which would make lazily
     // activated tools impossible to add later. All definitions are registered
     // above, then the initial model-visible set is narrowed before any prompt.
-    live.toolOrder = session.getActiveToolNames();
-    this.syncActiveTools(live);
+    // MCP tools depend on the user's servers; listed last, a change to them
+    // leaves the cached prefix of every other tool intact.
+    live.toolOrder = mcpToolsLast(
+      session.getActiveToolNames(),
+      this.mcpToolNames(live),
+    );
+    this.syncActiveTools(live, { canonicalOrder: true });
     live.unsubscribe = session.subscribe((event) => {
       if (event.type === "tool_execution_start")
         live.activeToolCalls.set(event.toolCallId, event.toolName);
@@ -2374,6 +2380,14 @@ export class PineAgentRuntime {
     this.syncActiveTools(live, { canonicalOrder: true });
   }
 
+  /** The tools pi-mcp-adapter registered for the user's MCP servers. */
+  private mcpToolNames(live: LiveAgentSession): string[] {
+    return live.session
+      .getAllTools()
+      .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
+      .map((tool) => tool.name);
+  }
+
   /**
    * `canonicalOrder` lists the tools in the session's original order instead
    * of pi's, which appends newly active tools: after switching a tool group
@@ -2384,10 +2398,7 @@ export class PineAgentRuntime {
     options: { canonicalOrder?: boolean } = {},
   ): void {
     const activeToolNames = live.session.getActiveToolNames();
-    const mcpToolNames = live.session
-      .getAllTools()
-      .filter((tool) => tool.sourceInfo.path === "<inline:pi-mcp-adapter>")
-      .map((tool) => tool.name);
+    const mcpToolNames = this.mcpToolNames(live);
     const toolNamesForState = live.automation
       ? toolNamesForTinyFishCredential(
           toolNamesForAutomationRun(
@@ -2464,7 +2475,7 @@ export class PineAgentRuntime {
       return { updated: false };
     }
     await live.session.reload();
-    this.syncActiveTools(live);
+    this.syncActiveTools(live, { canonicalOrder: true });
     return { updated: true };
   }
 
@@ -2903,7 +2914,7 @@ export class PineAgentRuntime {
         if (this.liveSessions.get(live.session.sessionId) !== live) return;
         live.mcpReloadPending = false;
         await live.session.reload();
-        this.syncActiveTools(live);
+        this.syncActiveTools(live, { canonicalOrder: true });
       } catch {
         live.mcpReloadPending = false;
       }

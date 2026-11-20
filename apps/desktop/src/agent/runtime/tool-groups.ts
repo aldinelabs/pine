@@ -160,6 +160,18 @@ export function toolNamesForToolGroups(
  * their relative order after the rest. The sort is stable, so the result
  * depends only on the set of names, not on how they were arrived at.
  */
+/** `toolNames` with the MCP tools moved to the end, each part in its order. */
+export function mcpToolsLast(
+  toolNames: readonly string[],
+  mcpToolNames: readonly string[],
+): string[] {
+  const mcp = new Set(mcpToolNames);
+  return [
+    ...toolNames.filter((name) => !mcp.has(name)),
+    ...toolNames.filter((name) => mcp.has(name)),
+  ];
+}
+
 export function inToolOrder(
   toolNames: readonly string[],
   order: readonly string[],

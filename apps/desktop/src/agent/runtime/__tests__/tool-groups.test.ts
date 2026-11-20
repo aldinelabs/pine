@@ -7,6 +7,7 @@ import {
 import {
   disabledToolsNotice,
   inToolOrder,
+  mcpToolsLast,
   TOOL_GROUP_TOOL_NAMES,
   toolNamesForToolGroups,
 } from "../tool-groups";
@@ -141,5 +142,16 @@ describe("inToolOrder", () => {
       "mcp_b",
       "mcp_a",
     ]);
+  });
+});
+
+describe("mcpToolsLast", () => {
+  it("moves MCP tools behind the rest, keeping each part's order", () => {
+    expect(
+      mcpToolsLast(
+        ["read", "mcpScript", "mcp", "mcp__docs", "find", "todo"],
+        ["mcp", "mcpScript", "mcp__docs"],
+      ),
+    ).toEqual(["read", "find", "todo", "mcpScript", "mcp", "mcp__docs"]);
   });
 });
