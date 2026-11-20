@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, expect, it } from "vitest";
+import { watch } from "vue";
 import {
   DRAFT_WORKBENCH_KEY,
   WORKBENCH_STORAGE_KEY,
@@ -286,4 +287,52 @@ it("shows a file tab's details and comments, closed until asked for", () => {
   store.setFileOpen("file-1", true);
   store.forgetFile("file-1");
   expect(store.isFileOpen("file-1")).toBe(false);
+});
+
+it("keeps a file tab's column while the next session tab resumes", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  store.setOpen(true, "session-a");
+  sessionStore.activeSession = { id: "session-a" } as PineSessionSummary;
+  store.setFrontSession("session-a");
+
+  // Session A opens an attachment's full preview in a file tab.
+  store.setFrontSession(undefined);
+  store.showFile("file-1", { comments: false, commentCount: 0 });
+  expect(store.activeLayout.open).toBe(false);
+
+  const opened: boolean[] = [];
+  const stop = watch(
+    () => store.activeLayout.open,
+    (open) => opened.push(open),
+    { flush: "sync" },
+  );
+  // Session B's tab comes to the front; the file tab leaves it before the
+  // session store has resumed B.
+  store.setFrontSession("session-b");
+  store.showFile("file-1", undefined);
+  expect(store.activeLayout.open).toBe(false);
+  sessionStore.activeSession = { id: "session-b" } as PineSessionSummary;
+  stop();
+
+  expect(store.activeKey).toBe("session-b");
+  expect(opened).toEqual([]);
+});
+
+it("returns from a file tab to its own session's column", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  store.setOpen(true, "session-a");
+  sessionStore.activeSession = { id: "session-a" } as PineSessionSummary;
+  store.setFrontSession(undefined);
+  store.showFile("file-1", { comments: false, commentCount: 0 });
+
+  store.setFrontSession("session-a");
+  store.showFile("file-1", undefined);
+  expect(store.activeKey).toBe("session-a");
+  expect(store.activeLayout.open).toBe(true);
+
+  // A later switch between session tabs waits on the session as before.
+  store.setFrontSession("session-b");
+  expect(store.activeKey).toBe("session-a");
 });

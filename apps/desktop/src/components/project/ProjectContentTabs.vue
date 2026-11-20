@@ -56,7 +56,7 @@ import {
 } from "@/lib/contentTabDrag";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
-import { useWorkbenchStore } from "@/stores/workbench";
+import { DRAFT_WORKBENCH_KEY, useWorkbenchStore } from "@/stores/workbench";
 import type { ProjectContentTab } from "@/stores/contentTabs";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
@@ -120,6 +120,17 @@ const shouldReserveWindowControlsSpace = computed(
 // The open workbench sits under the trailing titlebar controls, so the tab
 // actions can move flush to the content edge.
 const workbench = useWorkbenchStore();
+// Tell the workbench which session comes to the front before the session
+// store resumes it, so the column never shows the session being left.
+watch(
+  () => {
+    const tab = activeContentTab.value;
+    if (tab?.kind !== "session") return undefined;
+    return tab.state === "bound" ? tab.sessionId : DRAFT_WORKBENCH_KEY;
+  },
+  (key) => workbench.setFrontSession(key),
+  { immediate: true, flush: "sync" },
+);
 const shouldReserveTrailingControlsSpace = computed(
   () => !workbench.displayedOpen || workbench.isClosing || isMobile.value,
 );

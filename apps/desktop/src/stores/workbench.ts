@@ -120,10 +120,37 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     else fileCardTargets.delete(panel);
   }
 
-  const activeKey = computed(() =>
-    activeFile.value
-      ? `${FILE_KEY_PREFIX}${activeFile.value.tabId}`
-      : (sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY),
+  /**
+   * The session of the tab in front (`DRAFT_WORKBENCH_KEY` for a draft), or
+   * `undefined` for a file tab; the content tabs report it as soon as the
+   * front tab changes, before the session store has resumed that session.
+   */
+  const frontSession = ref<string>();
+  /** The file tab that last left the front. */
+  const departedFile = ref<string>();
+
+  const activeKey = computed(() => {
+    if (activeFile.value) return `${FILE_KEY_PREFIX}${activeFile.value.tabId}`;
+    const session = sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY;
+    // Leaving a file tab for another session's tab, the column keeps the
+    // file's state until that session becomes the active one; falling back
+    // to the session still active would flash its column open or shut.
+    if (
+      departedFile.value !== undefined &&
+      frontSession.value !== undefined &&
+      frontSession.value !== session
+    )
+      return `${FILE_KEY_PREFIX}${departedFile.value}`;
+    return session;
+  });
+
+  // Whatever session becomes active next ends the wait, a failed resume too.
+  watch(
+    () => sessionStore.activeSession?.id,
+    () => {
+      departedFile.value = undefined;
+    },
+    { flush: "sync" },
   );
 
   /**
@@ -372,8 +399,20 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     tabId: string,
     file: { comments: boolean; commentCount: number } | undefined,
   ): void {
-    if (file) activeFile.value = { tabId, ...file };
-    else if (activeFile.value?.tabId === tabId) activeFile.value = undefined;
+    if (file) {
+      activeFile.value = { tabId, ...file };
+      departedFile.value = undefined;
+    } else if (activeFile.value?.tabId === tabId) {
+      departedFile.value = tabId;
+      activeFile.value = undefined;
+    }
+  }
+
+  /** The tab in front changed; see `frontSession`. */
+  function setFrontSession(key: string | undefined): void {
+    frontSession.value = key;
+    // Between session tabs the column waits on the session it shows.
+    if (!activeFile.value) departedFile.value = undefined;
   }
 
   function isFileOpen(tabId: string): boolean {
@@ -427,6 +466,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     setDisplayedOpen,
     setFileCardTarget,
     setFileOpen,
+    setFrontSession,
     setOpen,
     setResizing,
     setSplit,
