@@ -64,11 +64,14 @@ const selected = computed({
     <DropdownMenuTrigger as-child>
       <Button
         variant="ghost"
-        class="shrink-0"
+        class="min-w-0 shrink"
         data-testid="workbench-card-switch"
         :aria-label="t('project.workbench.switchPanel')"
       >
-        {{ label ?? t(`project.workbench.panels.${panel}`) }}
+        <!-- A narrow card shortens the title, never the header's actions. -->
+        <span class="min-w-0 truncate">{{
+          label ?? t(`project.workbench.panels.${panel}`)
+        }}</span>
         <Badge
           v-if="isBeta(panel)"
           variant="outline"
