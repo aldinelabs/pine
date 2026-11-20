@@ -1146,7 +1146,13 @@ defineExpose({ open });
                       t('preferences.userProfileNicknamePlaceholder')
                     "
                   />
-                  <InputGroupAddon align="inline-end">
+                  <!-- 4px inset from the bar's outer edge on top, right and
+                       bottom (3px plus its 1px border); the trigger's full
+                       rounding (14px) is the bar's 18px minus that inset. -->
+                  <InputGroupAddon
+                    align="inline-end"
+                    class="py-0 pr-[3px] has-[>button]:mr-0"
+                  >
                     <Select
                       :model-value="profileDraft.pronouns"
                       @update:model-value="updatePronouns"
@@ -1154,7 +1160,7 @@ defineExpose({ open });
                       <SelectTrigger
                         data-testid="pine-user-profile-pronouns-select"
                         size="sm"
-                        class="bg-background dark:bg-input/60 text-foreground max-w-40 rounded-4xl"
+                        class="hover:bg-foreground/5 data-[state=open]:bg-foreground/5 dark:hover:bg-foreground/10 dark:data-[state=open]:bg-foreground/10 text-foreground h-7 max-w-40 rounded-full bg-transparent px-3 dark:bg-transparent"
                         :aria-label="t('preferences.userProfilePronounsLabel')"
                       >
                         <SelectValue />
