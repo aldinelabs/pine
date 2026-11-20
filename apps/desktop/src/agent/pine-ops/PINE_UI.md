@@ -391,7 +391,7 @@ From top to bottom:
      action button while the agent is not working, as its sparkles icon and
      a "⌘↵" (Windows and Linux: "Ctrl ↵") keycap styled like the reply
      suggestion's "Tab" key, in muted grey like a new session's project
-     picker, with no button outline until it opens; the key sits as far
+     picker, with no button outline until it opens; the button sits as far
      from the action button as the action button is from the composer's
      edge. Hovering it or reaching it with Tab blurs the key away in place
      and brings in the label "Optimize prompt" in the gradient as the button

@@ -2104,12 +2104,6 @@ function handleRootSubmit(event: Event): void {
   .session-composer-row :deep(.composer-optimize-rest-kbd) {
     display: none;
   }
-
-  /* With only its icon, Optimize prompt is an even icon button. */
-  .session-composer-row :deep(.composer-optimize-inline),
-  .session-composer-row :deep(.composer-optimize-sizer) {
-    padding-inline-end: 0.625rem;
-  }
 }
 
 /* A narrow footer (a phone, a split or narrow window) compacts its controls
