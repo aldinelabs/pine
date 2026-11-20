@@ -802,6 +802,15 @@ html.sidebar-vibrancy
   }
 }
 
+/* A disabled button ignores the pointer, so it shows whatever is behind it.
+   An input group's addon is cursor-text (click to focus its input), which
+   put an I-beam over a disabled Send or Confirm; while one of its buttons
+   is disabled the addon takes the plain arrow instead. Unlayered to beat
+   the cursor-text utility. */
+[data-slot="input-group-addon"]:has(button:disabled) {
+  cursor: default;
+}
+
 /*
  * Project accent colours rotate the hue of the interface tokens; status and
  * chart colours keep Pine's defaults. Switching only changes the root's
