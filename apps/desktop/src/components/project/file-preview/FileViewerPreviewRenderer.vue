@@ -66,6 +66,7 @@ import {
   type PreviewRendererEvents,
   type PreviewRendererProps,
 } from "./previewRenderer";
+import { holdViewerDuringResize } from "./resizeHold";
 
 /**
  * Renderers that draw fixed white pages even in dark mode, so they offer
@@ -107,6 +108,7 @@ const emit = defineEmits<PreviewRendererEvents>();
 const { t, locale } = useI18n();
 const appearance = useAppearanceStore();
 const host = useTemplateRef<HTMLDivElement>("host");
+const frame = useTemplateRef<HTMLDivElement>("frame");
 
 let viewer: FileViewerInstance | undefined;
 let disposed = false;
@@ -130,6 +132,12 @@ const annotationAdapter = computed(() =>
     : fileViewerAnnotationAdapter(rendererId.value),
 );
 let stopAnnotationObserver: (() => void) | undefined;
+/**
+ * Renderers that restyle and refit their pages on every size change, so
+ * dragging a panel edge scales their pages until it stops.
+ */
+const resizeHeldRenderers = new Set(["pdf"]);
+let stopResizeHold: (() => void) | undefined;
 const searchQuery = ref("");
 
 // Inverting a light page reads as dark, so the chrome around it stays light.
@@ -445,6 +453,8 @@ onMounted(async () => {
       subtree: true,
       attributeFilter: ["class", "hidden"],
     });
+    if (frame.value && resizeHeldRenderers.has(rendererId.value))
+      stopResizeHold = holdViewerDuringResize(frame.value, element);
     reportMediaMetadata();
     readFileProperties(loadedSource);
     stopAnnotationObserver = annotationAdapter.value?.observe?.(element, () =>
@@ -463,6 +473,7 @@ onBeforeUnmount(() => {
   disposed = true;
   stopSkin?.();
   stopAnnotationObserver?.();
+  stopResizeHold?.();
   chromeObserver?.disconnect();
   clearTimeout(chromeTimer);
   reading.abort();
@@ -738,7 +749,7 @@ defineExpose({
         </Button>
       </div>
     </Teleport>
-    <div class="relative min-h-0 flex-1">
+    <div ref="frame" class="relative min-h-0 flex-1 overflow-hidden">
       <div
         ref="host"
         data-slot="file-viewer"
