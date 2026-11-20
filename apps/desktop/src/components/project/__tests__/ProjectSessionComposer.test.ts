@@ -1853,9 +1853,25 @@ describe("ProjectSessionComposer", () => {
       if (!cap.exists()) return "";
       // One capsule whose keys stay <kbd> segments.
       return cap
-        .findAll('kbd, [data-slot="reply-suggestion-position"]')
-        .map((segment) => segment.text())
+        .findAll(
+          'kbd:not([data-slot="reply-suggestion-arrows"]), [data-slot="reply-suggestion-position"], [data-slot="reply-suggestion-arrows"]',
+        )
+        .map((segment) =>
+          segment.attributes("data-slot") === "reply-suggestion-arrows"
+            ? arrows(wrapper)
+            : segment.text(),
+        )
+        .filter(Boolean)
         .join(" ");
+    }
+
+    /** The ↑/↓ hints that show, e.g. "↓" at the first alternative. */
+    function arrows(wrapper: ReturnType<typeof mountComposer>): string {
+      return wrapper
+        .findAll('[data-slot="reply-suggestion-arrows"] > span')
+        .filter((arrow) => arrow.attributes("data-hidden") === undefined)
+        .map((arrow) => arrow.text())
+        .join("");
     }
 
     it("shows the count inside the Tab keycap, behind a hairline", async () => {
@@ -1864,6 +1880,7 @@ describe("ProjectSessionComposer", () => {
       const cap = c.wrapper.get('[data-slot="reply-suggestion-key"]');
       expect(cap.findAll("kbd").map((key) => key.text())).toEqual([
         "Tab",
+        "→",
         "↑↓",
       ]);
       expect(cap.findAll('[data-slot="kbd"]')).toHaveLength(0);
@@ -1943,7 +1960,7 @@ describe("ProjectSessionComposer", () => {
       };
       const shown = () =>
         wrapper.find('[data-slot="reply-suggestion"] span').text();
-      // The keycap's segments as read: "Tab", or "Tab 2/3 ↑↓".
+      // The keycap's segments as read: "Tab →", or "Tab → 2/3 ↑↓".
       const badge = () => keycap(wrapper);
       return {
         wrapper,
@@ -1974,28 +1991,30 @@ describe("ProjectSessionComposer", () => {
       );
       await c.stream(["按日期排序"]);
       expect(c.shown()).toBe("按日期排序");
-      expect(c.badge()).toBe("Tab 1 ↑↓");
+      // Nothing to step to yet: both arrows keep their room, hidden.
+      expect(c.badge()).toBe("Tab → 1");
       // Another request's alternatives are not ours.
       await c.stream(["别的"], "other");
       await c.stream(["按日期排序", "按名称排序"]);
       expect(c.shown()).toBe("按日期排序");
-      expect(c.badge()).toBe("Tab 1 ↑↓");
+      expect(c.badge()).toBe("Tab → 1 ↓");
+      expect(await c.press("ArrowUp")).toBe(false);
       expect(await c.press("ArrowDown")).toBe(true);
       expect(c.shown()).toBe("按名称排序");
-      expect(c.badge()).toBe("Tab 2 ↑↓");
+      expect(c.badge()).toBe("Tab → 2 ↑");
 
       await c.finish(["按日期排序", "按名称排序", "先别动"]);
       // The shown alternative stays put as the set completes.
       expect(c.shown()).toBe("按名称排序");
-      expect(c.badge()).toBe("Tab 2/3 ↑↓");
+      expect(c.badge()).toBe("Tab → 2/3 ↑↓");
       expect(c.keep).toHaveBeenLastCalledWith("session-1", {
         alternatives: ["按日期排序", "按名称排序", "先别动"],
         index: 1,
       });
-      await c.press("ArrowDown");
-      await c.press("ArrowDown");
-      expect(c.badge()).toBe("Tab 1/3 ↑↓");
-      await c.press("ArrowUp");
+      // The ends stop rather than wrap, and the arrows say so.
+      expect(await c.press("ArrowDown")).toBe(true);
+      expect(c.badge()).toBe("Tab → 3/3 ↑");
+      expect(await c.press("ArrowDown")).toBe(false);
       expect(c.shown()).toBe("先别动");
 
       // Tab takes the shown alternative and uses them all up.
@@ -2025,8 +2044,30 @@ describe("ProjectSessionComposer", () => {
       const c = await streamingComposer();
       await c.finish(["只有一个"]);
       expect(c.shown()).toBe("只有一个");
-      expect(c.badge()).toBe("Tab");
+      expect(c.badge()).toBe("Tab →");
       expect(await c.press("ArrowDown")).toBe(false);
+      expect(await c.press("ArrowUp")).toBe(false);
+      c.wrapper.unmount();
+    });
+
+    it("takes the suggestion with → from an empty box", async () => {
+      const c = await streamingComposer();
+      await c.finish(["一", "二"]);
+      expect(await c.press("ArrowRight", { shiftKey: true })).toBe(false);
+      expect(await c.press("ArrowRight", { metaKey: true })).toBe(false);
+      expect(await c.press("ArrowRight", { altKey: true })).toBe(false);
+      expect(await c.press("ArrowRight", { ctrlKey: true })).toBe(false);
+      expect(await c.press("ArrowRight", { isComposing: true })).toBe(false);
+      expect(c.shown()).toBe("一");
+      await c.press("ArrowDown");
+      expect(await c.press("ArrowRight")).toBe(true);
+      expect((c.textarea.element as HTMLTextAreaElement).value).toBe("二");
+      expect(c.keep).toHaveBeenLastCalledWith("session-1", null);
+      // With text in the box → moves the caret as usual.
+      const textarea = c.textarea.element as HTMLTextAreaElement;
+      textarea.setSelectionRange(0, 0);
+      expect(await c.press("ArrowRight")).toBe(false);
+      expect(textarea.value).toBe("二");
       c.wrapper.unmount();
     });
 
@@ -2042,7 +2083,7 @@ describe("ProjectSessionComposer", () => {
       await c.textarea.setValue("");
       // Back to the alternative that showed, at once.
       expect(c.shown()).toBe("二");
-      expect(c.badge()).toBe("Tab 2/2 ↑↓");
+      expect(c.badge()).toBe("Tab → 2/2 ↑");
       expect(c.textarea.classes()).not.toContain(
         "session-composer-input--suggestion-fades",
       );
@@ -2054,7 +2095,7 @@ describe("ProjectSessionComposer", () => {
       await c.stream(["一", "二"]);
       await c.fail();
       expect(c.shown()).toBe("一");
-      expect(c.badge()).toBe("Tab 1/2 ↑↓");
+      expect(c.badge()).toBe("Tab → 1/2 ↓");
       expect(c.keep).toHaveBeenLastCalledWith("session-1", {
         alternatives: ["一", "二"],
         index: 0,
@@ -2093,14 +2134,14 @@ describe("ProjectSessionComposer", () => {
       try {
         const c = await streamingComposer();
         await c.finish(["一", "二", "三"]);
-        await c.press("ArrowUp");
-        await c.press("ArrowUp");
+        await c.press("ArrowDown");
+        await c.press("ArrowDown");
         expect(c.keep).toHaveBeenCalledTimes(1);
         vi.advanceTimersByTime(800);
         expect(c.keep).toHaveBeenCalledTimes(2);
         expect(c.keep).toHaveBeenLastCalledWith("session-1", {
           alternatives: ["一", "二", "三"],
-          index: 1,
+          index: 2,
         });
         c.wrapper.unmount();
       } finally {
@@ -2126,7 +2167,7 @@ describe("ProjectSessionComposer", () => {
       expect(wrapper.get('[data-slot="reply-suggestion"] span').text()).toBe(
         "二",
       );
-      expect(keycap(wrapper)).toBe("Tab 2/2 ↑↓");
+      expect(keycap(wrapper)).toBe("Tab → 2/2 ↑");
       expect(suggestReply).not.toHaveBeenCalled();
       wrapper.unmount();
     });

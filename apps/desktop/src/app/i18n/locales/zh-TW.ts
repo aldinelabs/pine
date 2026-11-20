@@ -470,7 +470,7 @@ export default {
     composerGlowDescription: "智慧代理工作時，在輸入框邊框上顯示流動的光",
     replySuggestions: "回覆建議",
     replySuggestionsDescription:
-      "智慧體回答後，在輸入框中提供建議的下一則訊息，按 Tab 採用。使用指令最佳化模型。",
+      "智慧體回答後，在輸入框中提供建議的下一則訊息，按 Tab 或 → 採用。使用指令最佳化模型。",
     sidebarVibrancy: "側欄原生材質",
     sidebarVibrancyDescription: "使用 macOS 原生側欄材質渲染側欄",
     modelCatalogRefresh: "模型目錄",
@@ -1513,7 +1513,7 @@ export default {
       optimizePromptFailedDescription:
         "請在 設定 › 模型 中檢查指令最佳化模型後重試。",
       undoPromptOptimization: "復原最佳化",
-      acceptReplySuggestion: "按 Tab 採用建議",
+      acceptReplySuggestion: "按 Tab 或右方向鍵採用建議",
       replySuggestionAlternative:
         "第 {position} 個建議，共 {count} 個，按上下方向鍵切換",
       replySuggestionAlternativeStreaming:

@@ -495,7 +495,7 @@ export default {
       "에이전트가 작업하는 동안 입력란 테두리를 따라 흐르는 빛을 표시합니다",
     replySuggestions: "답장 제안",
     replySuggestionsDescription:
-      "에이전트가 답한 뒤 입력란에 다음 메시지를 제안합니다. Tab 키로 사용할 수 있습니다. 프롬프트 최적화 모델을 사용합니다.",
+      "에이전트가 답한 뒤 입력란에 다음 메시지를 제안합니다. Tab 또는 → 키로 사용할 수 있습니다. 프롬프트 최적화 모델을 사용합니다.",
     sidebarVibrancy: "기본 사이드바 소재",
     sidebarVibrancyDescription:
       "macOS 기본 사이드바 소재로 사이드바를 표시합니다",
@@ -1573,7 +1573,7 @@ export default {
       optimizePromptFailedDescription:
         "설정 › 모델에서 프롬프트 최적화 모델을 확인한 뒤 다시 시도하세요.",
       undoPromptOptimization: "최적화 실행 취소",
-      acceptReplySuggestion: "Tab 키로 제안 사용",
+      acceptReplySuggestion: "Tab 또는 오른쪽 화살표 키로 제안 사용",
       replySuggestionAlternative:
         "제안 {position}/{count}, 위아래 화살표 키로 전환",
       replySuggestionAlternativeStreaming:

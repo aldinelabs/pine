@@ -468,7 +468,7 @@ export default {
     composerGlowDescription: "智能体工作时，在输入框边框上显示流动的光",
     replySuggestions: "回复建议",
     replySuggestionsDescription:
-      "智能体回答后，在输入框中给出建议的下一条消息，按 Tab 采用。使用指令优化模型。",
+      "智能体回答后，在输入框中给出建议的下一条消息，按 Tab 或 → 采用。使用指令优化模型。",
     sidebarVibrancy: "侧栏原生材质",
     sidebarVibrancyDescription: "使用 macOS 原生侧栏材质渲染侧栏",
     modelCatalogRefresh: "模型目录",
@@ -1509,7 +1509,7 @@ export default {
       optimizePromptFailedDescription:
         "请在 设置 › 模型 中检查指令优化模型后重试。",
       undoPromptOptimization: "撤销优化",
-      acceptReplySuggestion: "按 Tab 采用建议",
+      acceptReplySuggestion: "按 Tab 或右方向键采用建议",
       replySuggestionAlternative:
         "第 {position} 个建议，共 {count} 个，按上下方向键切换",
       replySuggestionAlternativeStreaming:

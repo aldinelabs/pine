@@ -509,7 +509,7 @@ export default {
       "Muestra una luz que recorre el borde del cuadro de texto mientras el agente trabaja",
     replySuggestions: "Sugerencias de respuesta",
     replySuggestionsDescription:
-      "Cuando el agente responde, sugiere un siguiente mensaje en el cuadro de texto; pulsa Tab para usarlo. Usa el modelo de optimización de prompts.",
+      "Cuando el agente responde, sugiere un siguiente mensaje en el cuadro de texto; pulsa Tab o → para usarlo. Usa el modelo de optimización de prompts.",
     sidebarVibrancy: "Material nativo de la barra lateral",
     sidebarVibrancyDescription:
       "Dibuja la barra lateral con el material nativo de macOS",
@@ -1609,7 +1609,8 @@ export default {
       optimizePromptFailedDescription:
         "Revisa el modelo de optimización de prompts en Ajustes › Modelos e inténtalo de nuevo.",
       undoPromptOptimization: "Deshacer optimización",
-      acceptReplySuggestion: "Pulsa Tab para usar la sugerencia",
+      acceptReplySuggestion:
+        "Pulsa Tab o la flecha derecha para usar la sugerencia",
       replySuggestionAlternative:
         "Sugerencia {position} de {count}, pulsa Arriba o Abajo para cambiar",
       replySuggestionAlternativeStreaming:

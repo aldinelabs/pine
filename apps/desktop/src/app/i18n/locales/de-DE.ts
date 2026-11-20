@@ -510,7 +510,7 @@ export default {
       "Zeigt ein Licht, das am Rand des Eingabefelds entlangläuft, während der Agent arbeitet",
     replySuggestions: "Antwortvorschläge",
     replySuggestionsDescription:
-      "Schlägt nach der Antwort des Agenten eine nächste Nachricht im Eingabefeld vor; mit Tab übernehmen. Nutzt das Modell für Prompt-Optimierung.",
+      "Schlägt nach der Antwort des Agenten eine nächste Nachricht im Eingabefeld vor; mit Tab oder → übernehmen. Nutzt das Modell für Prompt-Optimierung.",
     sidebarVibrancy: "Natives Seitenleistenmaterial",
     sidebarVibrancyDescription:
       "Stellt die Seitenleiste mit dem nativen macOS-Seitenleistenmaterial dar",
@@ -1614,7 +1614,8 @@ export default {
       optimizePromptFailedDescription:
         "Prüfe das Modell für Prompt-Optimierung unter Einstellungen › Modelle und versuche es erneut.",
       undoPromptOptimization: "Optimierung rückgängig machen",
-      acceptReplySuggestion: "Mit Tab den Vorschlag übernehmen",
+      acceptReplySuggestion:
+        "Mit Tab oder Pfeil rechts den Vorschlag übernehmen",
       replySuggestionAlternative:
         "Vorschlag {position} von {count}, mit Pfeil nach oben oder unten wechseln",
       replySuggestionAlternativeStreaming:

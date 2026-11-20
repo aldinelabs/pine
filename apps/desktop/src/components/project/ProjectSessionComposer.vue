@@ -770,13 +770,15 @@ async function rewritePrompt(): Promise<void> {
 /*
  * Reply suggestion: once the agent finishes answering, the prompt rewrite
  * model guesses the user's next message. It takes the placeholder's place
- * while the text box is empty and nothing is being typed, and Tab fills it
- * in and uses it up. Typing hides it without using it up, so emptying the
+ * while the text box is empty and nothing is being typed, and Tab or → fills
+ * it in and uses it up. Typing hides it without using it up, so emptying the
  * box shows it again until the next run.
  *
  * The model offers a few alternatives in one request. They stream in: the
  * first replaces the placeholder as soon as it is complete, the others join
- * as they finish, and ↑/↓ in the empty box steps through them.
+ * as they finish, and ↑/↓ in the empty box steps through them, stopping at
+ * the first and last rather than wrapping, so the cap's ↑ and ↓ show only
+ * where there is one to step to.
  *
  * Only a suggestion that arrives over a visible placeholder fades: the
  * placeholder fades out, then the suggestion fades in. When it comes back
@@ -824,6 +826,31 @@ const replySuggestionPosition = computed(() => {
     ? `${position}/${count}`
     : `${position}`;
 });
+
+/** Whether ↑/↓ have an alternative to step to; their hints follow. */
+const replySuggestionHasPrevious = computed(
+  () => replySuggestionIndex.value > 0,
+);
+const replySuggestionHasNext = computed(
+  () => replySuggestionIndex.value < replySuggestions.value.length - 1,
+);
+/*
+ * ↑ and ↓ keep their room in the cap and blur in and out in place, so the
+ * cap never changes width as they come and go. They swap only once the
+ * alternatives have mounted, so the first state shows at once.
+ */
+const replySuggestionArrows = ref<HTMLElement | null>(null);
+watch(
+  replySuggestionArrows,
+  (arrows, _previous, onCleanup) => {
+    if (!arrows) return;
+    const frame = requestAnimationFrame(() =>
+      arrows.setAttribute("data-swap-ready", ""),
+    );
+    onCleanup(() => cancelAnimationFrame(frame));
+  },
+  { flush: "post" },
+);
 
 /*
  * The count makes room beside Tab and blurs in, and eases to its new width
@@ -988,16 +1015,20 @@ function clearReplySuggestion(): void {
   replySuggestionsComplete.value = true;
 }
 
-/** Steps through the alternatives with ↑/↓, wrapping around. */
-function stepReplySuggestion(step: 1 | -1): void {
-  const count = replySuggestions.value.length;
-  if (count < 2) return;
-  replySuggestionIndex.value =
-    (replySuggestionIndex.value + step + count) % count;
+/**
+ * Steps through the alternatives with ↑/↓, stopping at either end; false
+ * when there is none that way, so the key keeps its usual meaning.
+ */
+function stepReplySuggestion(step: 1 | -1): boolean {
+  if (!(step > 0 ? replySuggestionHasNext : replySuggestionHasPrevious).value)
+    return false;
+  replySuggestionIndex.value += step;
   // Only a finished set is kept; a still-streaming one is kept when done.
-  if (!replySuggestionsComplete.value) return;
-  clearTimeout(keepIndexTimer);
-  keepIndexTimer = setTimeout(() => keepReplySuggestion(), 800);
+  if (replySuggestionsComplete.value) {
+    clearTimeout(keepIndexTimer);
+    keepIndexTimer = setTimeout(() => keepReplySuggestion(), 800);
+  }
+  return true;
 }
 
 // Typing stops the stream; what is complete stays for an emptied box.
@@ -1239,6 +1270,14 @@ function removeAttachment(path: string): void {
   );
 }
 
+/** Whether the caret sits at the end of the text box with nothing selected. */
+function caretAtEnd(event: KeyboardEvent): boolean {
+  const textarea = event.target;
+  if (!(textarea instanceof HTMLTextAreaElement)) return message.value === "";
+  const end = textarea.value.length;
+  return textarea.selectionStart === end && textarea.selectionEnd === end;
+}
+
 function handleKeydown(event: KeyboardEvent): void {
   if (isMentioning.value) {
     handleChooserKeydown(event);
@@ -1257,8 +1296,11 @@ function handleKeydown(event: KeyboardEvent): void {
     emit("dismissContext");
     return;
   }
+  // Tab or → takes the suggestion; → only from the end of the text, so it
+  // never takes over moving the caret.
   if (
-    event.key === "Tab" &&
+    (event.key === "Tab" ||
+      (event.key === "ArrowRight" && caretAtEnd(event))) &&
     showsReplySuggestion.value &&
     !event.shiftKey &&
     !event.altKey &&
@@ -1275,15 +1317,14 @@ function handleKeydown(event: KeyboardEvent): void {
   if (
     (event.key === "ArrowUp" || event.key === "ArrowDown") &&
     showsReplySuggestion.value &&
-    replySuggestions.value.length > 1 &&
     !event.shiftKey &&
     !event.altKey &&
     !event.metaKey &&
     !event.ctrlKey &&
-    !event.isComposing
+    !event.isComposing &&
+    stepReplySuggestion(event.key === "ArrowDown" ? 1 : -1)
   ) {
     event.preventDefault();
-    stepReplySuggestion(event.key === "ArrowDown" ? 1 : -1);
     return;
   }
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -1561,11 +1602,13 @@ function handleRootSubmit(event: Event): void {
                     <span class="min-w-0 truncate" aria-hidden="true">{{
                       replySuggestion
                     }}</span>
-                    <!-- One keycap: "Tab", then, with several alternatives,
-                         "2/3 ↑↓" ("2 ↑↓" while more stream in) behind a
-                         hairline. -->
+                    <!-- One keycap: "Tab →", then, with several
+                         alternatives, "2/3 ↑↓" ("2 ↑↓" while more stream in)
+                         behind a hairline; ↑ and ↓ show only where there is
+                         an alternative that way. -->
                     <ComposerKeycap data-slot="reply-suggestion-key">
                       <kbd class="font-sans">Tab</kbd>
+                      <kbd class="font-sans">→</kbd>
                       <Transition
                         :css="false"
                         @enter="replySuggestionCountTransition.onEnter"
@@ -1583,7 +1626,25 @@ function handleRootSubmit(event: Event): void {
                             class="inline-block overflow-hidden text-center whitespace-nowrap tabular-nums"
                             >{{ replySuggestionPosition }}</span
                           >
-                          <kbd class="font-sans">↑↓</kbd>
+                          <kbd
+                            ref="replySuggestionArrows"
+                            data-slot="reply-suggestion-arrows"
+                            class="session-composer-suggestion-arrows inline-flex font-sans"
+                          >
+                            <span
+                              data-slot="reply-suggestion-previous"
+                              :data-hidden="
+                                replySuggestionHasPrevious ? undefined : ''
+                              "
+                              >↑</span
+                            ><span
+                              data-slot="reply-suggestion-next"
+                              :data-hidden="
+                                replySuggestionHasNext ? undefined : ''
+                              "
+                              >↓</span
+                            >
+                          </kbd>
                         </span>
                       </Transition>
                     </ComposerKeycap>
@@ -2094,7 +2155,39 @@ function handleRootSubmit(event: Event): void {
   opacity: 0;
 }
 
+/* ↑ and ↓ keep their room and swap in place like Optimize prompt's keys:
+   the outgoing one blurs, shrinks and fades; the incoming one sharpens and
+   grows back. Only once mounted, so the first state shows at once. */
+.session-composer-suggestion-arrows > span {
+  display: inline-block;
+  opacity: 1;
+  filter: none;
+  scale: 1;
+}
+
+.session-composer-suggestion-arrows > span[data-hidden] {
+  opacity: 0;
+  filter: blur(3px);
+  scale: 0.9;
+}
+
+.session-composer-suggestion-arrows[data-swap-ready] > span {
+  transition:
+    opacity 220ms ease-out 100ms,
+    filter 300ms ease-out 100ms,
+    scale 500ms var(--ease-out-expo) 100ms;
+}
+
+.session-composer-suggestion-arrows[data-swap-ready] > span[data-hidden] {
+  transition:
+    opacity 100ms ease-out,
+    filter 100ms ease-out,
+    scale 100ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .session-composer-suggestion-arrows[data-swap-ready] > span,
+  .session-composer-suggestion-arrows[data-swap-ready] > span[data-hidden],
   .session-composer-input--suggestion-fades::placeholder,
   .session-composer-suggestion-enter-active {
     transition: none;

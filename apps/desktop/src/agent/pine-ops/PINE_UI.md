@@ -474,21 +474,24 @@ From top to bottom:
      the user might send, most likely first. As soon as the first is
      written, it fades in where the placeholder was (after the placeholder
      fades out), in the same grey, followed by a single key cap; the others
-     join as they are written. With one suggestion the cap reads "Tab".
-     With several, the cap widens to read "Tab | 1/3 ↑↓", with the shown
-     one's number ("Tab | 1 ↑↓" while more may still come); the count
+     join as they are written. With one suggestion the cap reads "Tab →".
+     With several, the cap widens to read "Tab → | 1/3 ↑↓", with the shown
+     one's number ("Tab → | 1 ↑↓" while more may still come); the count
      slides in and grows smoothly as suggestions arrive. In the empty,
      focused text box, ↑ and ↓ switch to the previous and next suggestion,
-     wrapping around. Tab puts the shown suggestion in the text box and uses
-     them all up. Any typing, including text an input method is still
+     stopping at the first and last (no wrapping around). The cap's ↑ shows
+     only when there is a previous suggestion and its ↓ only when there is a
+     next one, so the first shows just ↓ and the last just ↑; they fade in
+     and out in place without the cap changing width. Tab or → puts the
+     shown suggestion in the text box and uses them all up. Any typing, including text an input method is still
      composing, replaces it at once and stops further suggestions from
-     arriving; if the text box is emptied without using Tab, the same
+     arriving; if the text box is emptied without using it, the same
      suggestion comes back at once, without the placeholder showing in
      between, until a new run starts. If generating fails partway, the
      suggestions written so far stay. Unused suggestions are kept with the
      conversation: closing its tab or quitting Pine and reopening it later
      shows them again, at the one that was showing, until the user sends a
-     message, uses one with Tab, or the conversation changes (a newer
+     message, uses one with Tab or →, or the conversation changes (a newer
      reply, a rewind or a compaction). They can be turned off with Reply
      suggestions in Pine Settings › Agent.
    - While the agent is working, a thin light runs clockwise along the text
@@ -1222,9 +1225,10 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+R: open the composer's approval mode menu (outside other text
   fields)
 - Mod+I: open the composer's model menu (outside other text fields)
-- Tab in an empty composer showing a reply suggestion: use the suggestion
+- Tab or → in an empty composer showing a reply suggestion: use the
+  suggestion
 - ↑/↓ in an empty composer showing several reply suggestions: show the
-  previous/next suggestion
+  previous/next suggestion (stops at the first and last)
 - Composer text box: Enter sends and scrolls the conversation smoothly to
   the new message; Option+Enter (Alt+Enter) sends without moving the
   conversation; Shift+Enter starts a new line
