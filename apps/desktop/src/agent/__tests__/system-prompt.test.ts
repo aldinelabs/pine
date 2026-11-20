@@ -248,6 +248,22 @@ describe("workStyleSystemPrompt", () => {
   });
 });
 
+describe("wellbeing in the Pine system prompt", () => {
+  it("is always on, outside the Aldine methodology", () => {
+    expect(PINE_SYSTEM_PROMPT).toContain("## Wellbeing");
+    expect(PINE_SYSTEM_PROMPT).toContain("offer crisis resources right away");
+    expect(PINE_SYSTEM_PROMPT).toContain("don't do risk assessment");
+    expect(PINE_SYSTEM_PROMPT).toContain(
+      "Don't validate reluctance to seek help",
+    );
+    expect(PINE_SYSTEM_PROMPT).toContain("could be used for self-harm");
+    expect(PINE_SYSTEM_PROMPT).toContain("you cannot be a friend");
+    expect(PINE_SYSTEM_PROMPT).toContain("shared by a household");
+    expect(PINE_SYSTEM_PROMPT).not.toContain("Sóber");
+    expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).not.toContain("## Wellbeing");
+  });
+});
+
 describe("ALDINE_METHODOLOGY_SYSTEM_PROMPT", () => {
   it("defers tone and pace to the user's other settings", () => {
     expect(ALDINE_METHODOLOGY_SYSTEM_PROMPT).toMatch(/^## Aldine methodology/);
