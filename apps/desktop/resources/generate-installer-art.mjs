@@ -130,8 +130,8 @@ function dmgBackground() {
 </svg>`;
 }
 
-// Squirrel shows the GIF in a borderless window while it installs. The spinner
-// is shadcn-vue's Spinner: lucide's loader-circle at 16 px, turning once a
+// Squirrel shows the GIF in a borderless window while it installs. The spinner,
+// set inline before its caption as in a shadcn-vue button, is the Spinner: lucide's loader-circle at 16 px, turning once a
 // second at a constant speed like Tailwind's animate-spin.
 const GIF = { width: 360, height: 220, frames: 25, delay: 4 };
 
@@ -143,12 +143,13 @@ function loadingFrame() {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     box-shadow: inset 0 0 0 1px ${COLORS.border};
   }
-  .spinner { display: block; width: 16px; height: 16px; color: ${COLORS.muted}; }
+  .status { display: flex; align-items: center; gap: 8px; color: ${COLORS.muted}; font-size: 13px; font-weight: 450; }
+  .spinner { display: block; flex: none; width: 16px; height: 16px; }
 </style>
 ${lockup(18)}
-<svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<div class="status"><svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-</svg>`;
+</svg><span>Installing…</span></div>`;
 }
 
 mkdirSync(output, { recursive: true });
