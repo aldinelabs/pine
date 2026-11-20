@@ -72,6 +72,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -1102,67 +1107,86 @@ defineExpose({ open });
             class="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
           >
             <FieldGroup class="gap-5 p-6 max-sm:px-4">
-              <Field>
-                <FieldLabel for="pine-user-profile-nickname">
-                  {{ t("preferences.userProfileNicknameLabel") }}
-                </FieldLabel>
-                <Input
-                  id="pine-user-profile-nickname"
-                  v-model="profileDraft.nickname"
-                  maxlength="100"
-                  autocomplete="nickname"
-                  :placeholder="t('preferences.userProfileNicknamePlaceholder')"
+              <Field orientation="horizontal">
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                  <FieldTitle id="pine-aldine-methodology-setting">
+                    {{ t("preferences.aldineMethodology") }}
+                    <Badge
+                      variant="outline"
+                      class="text-muted-foreground px-1.5 tracking-wide uppercase"
+                    >
+                      {{ t("preferences.beta") }}
+                    </Badge>
+                  </FieldTitle>
+                  <FieldDescription id="pine-aldine-methodology-description">
+                    {{ t("preferences.aldineMethodologyDescription") }}
+                  </FieldDescription>
+                </div>
+                <Switch
+                  v-model="profileDraft.aldineMethodologyEnabled"
+                  data-testid="pine-aldine-methodology-toggle"
+                  :disabled="!hasHydratedProfile"
+                  aria-labelledby="pine-aldine-methodology-setting"
+                  aria-describedby="pine-aldine-methodology-description"
                 />
-                <FieldDescription>
-                  {{ t("preferences.userProfileNicknameDescription") }}
-                </FieldDescription>
               </Field>
 
               <Field>
-                <FieldLabel id="pine-user-profile-pronouns-label">
-                  {{ t("preferences.userProfilePronounsLabel") }}
+                <FieldLabel for="pine-user-profile-nickname">
+                  {{ t("preferences.userProfileAddressLabel") }}
                 </FieldLabel>
-                <div class="flex flex-wrap gap-2">
-                  <Select
-                    :model-value="profileDraft.pronouns"
-                    @update:model-value="updatePronouns"
-                  >
-                    <SelectTrigger
-                      data-testid="pine-user-profile-pronouns-select"
-                      class="w-fit"
-                      aria-labelledby="pine-user-profile-pronouns-label"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent @close-auto-focus="onPronounsCloseAutoFocus">
-                      <SelectGroup>
-                        <SelectItem
-                          v-for="option in PINE_PRONOUNS"
-                          :key="option"
-                          :value="option"
-                        >
-                          {{ t(PRONOUN_LABEL_KEYS[option]) }}
-                        </SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    v-if="profileDraft.pronouns === 'custom'"
-                    :id="CUSTOM_PRONOUNS_INPUT_ID"
-                    v-model="profileDraft.customPronouns"
-                    class="min-w-40 flex-1"
-                    :maxlength="PINE_CUSTOM_PRONOUNS_MAX_LENGTH"
-                    autocomplete="off"
-                    :aria-label="
-                      t('preferences.userProfilePronounsCustomLabel')
-                    "
+                <InputGroup data-testid="pine-user-profile-address">
+                  <InputGroupInput
+                    id="pine-user-profile-nickname"
+                    v-model="profileDraft.nickname"
+                    maxlength="100"
+                    autocomplete="nickname"
                     :placeholder="
-                      t('preferences.userProfilePronounsCustomPlaceholder')
+                      t('preferences.userProfileNicknamePlaceholder')
                     "
                   />
-                </div>
+                  <InputGroupAddon align="inline-end">
+                    <Select
+                      :model-value="profileDraft.pronouns"
+                      @update:model-value="updatePronouns"
+                    >
+                      <SelectTrigger
+                        data-testid="pine-user-profile-pronouns-select"
+                        size="sm"
+                        class="bg-background dark:bg-input/60 text-foreground max-w-40 rounded-4xl"
+                        :aria-label="t('preferences.userProfilePronounsLabel')"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        @close-auto-focus="onPronounsCloseAutoFocus"
+                      >
+                        <SelectGroup>
+                          <SelectItem
+                            v-for="option in PINE_PRONOUNS"
+                            :key="option"
+                            :value="option"
+                          >
+                            {{ t(PRONOUN_LABEL_KEYS[option]) }}
+                          </SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </InputGroupAddon>
+                </InputGroup>
+                <Input
+                  v-if="profileDraft.pronouns === 'custom'"
+                  :id="CUSTOM_PRONOUNS_INPUT_ID"
+                  v-model="profileDraft.customPronouns"
+                  :maxlength="PINE_CUSTOM_PRONOUNS_MAX_LENGTH"
+                  autocomplete="off"
+                  :aria-label="t('preferences.userProfilePronounsCustomLabel')"
+                  :placeholder="
+                    t('preferences.userProfilePronounsCustomPlaceholder')
+                  "
+                />
                 <FieldDescription>
-                  {{ t("preferences.userProfilePronounsDescription") }}
+                  {{ t("preferences.userProfileAddressDescription") }}
                 </FieldDescription>
               </Field>
 
@@ -1246,30 +1270,6 @@ defineExpose({ open });
                 <FieldDescription>
                   {{ workStyleDescription }}
                 </FieldDescription>
-              </Field>
-
-              <Field orientation="horizontal">
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                  <FieldTitle id="pine-aldine-methodology-setting">
-                    {{ t("preferences.aldineMethodology") }}
-                    <Badge
-                      variant="outline"
-                      class="text-muted-foreground px-1.5 tracking-wide uppercase"
-                    >
-                      {{ t("preferences.beta") }}
-                    </Badge>
-                  </FieldTitle>
-                  <FieldDescription id="pine-aldine-methodology-description">
-                    {{ t("preferences.aldineMethodologyDescription") }}
-                  </FieldDescription>
-                </div>
-                <Switch
-                  v-model="profileDraft.aldineMethodologyEnabled"
-                  data-testid="pine-aldine-methodology-toggle"
-                  :disabled="!hasHydratedProfile"
-                  aria-labelledby="pine-aldine-methodology-setting"
-                  aria-describedby="pine-aldine-methodology-description"
-                />
               </Field>
 
               <Field>

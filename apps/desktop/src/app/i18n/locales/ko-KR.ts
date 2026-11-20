@@ -539,9 +539,10 @@ export default {
     tinyFishApiKeyLabel: "API 키",
     tinyFishApiKeyPlaceholder: "TinyFish API 키를 입력하세요",
     saveTinyFishApiKey: "키 저장",
-    userProfileNicknameLabel: "별명",
+    userProfileAddressLabel: "호칭과 대명사",
     userProfileNicknamePlaceholder: "Pine이 어떻게 불러드릴까요?",
-    userProfileNicknameDescription: "Pine은 적절할 때 이 이름을 사용합니다.",
+    userProfileAddressDescription:
+      "Pine은 적절할 때 이 이름을 사용하고, 사용자를 3인칭으로 가리킬 때(대신 작성하는 문서나 메시지 등)는 선택한 대명사를 사용합니다.",
     userProfilePronounsLabel: "대명사",
     userProfilePronounsUnspecified: "지정 안 함",
     userProfilePronounsHe: "그",
@@ -550,8 +551,6 @@ export default {
     userProfilePronounsCustom: "사용자 지정",
     userProfilePronounsCustomLabel: "사용자 지정 대명사",
     userProfilePronounsCustomPlaceholder: "사용할 대명사를 입력하세요",
-    userProfilePronounsDescription:
-      "Pine이 사용자를 3인칭으로 가리킬 때 사용합니다. 예: 대신 작성하는 문서나 메시지.",
     userProfileStyleLabel: "대화 스타일",
     userProfileStyleCalm: "차분하고 전문적인",
     userProfileStyleNeutral: "중립적인",

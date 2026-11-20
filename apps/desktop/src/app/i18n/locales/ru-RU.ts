@@ -545,10 +545,10 @@ export default {
     tinyFishApiKeyLabel: "API-ключ",
     tinyFishApiKeyPlaceholder: "Введите свой API-ключ TinyFish",
     saveTinyFishApiKey: "Сохранить ключ",
-    userProfileNicknameLabel: "Имя для обращения",
+    userProfileAddressLabel: "Обращение и местоимения",
     userProfileNicknamePlaceholder: "Как Pine следует вас называть?",
-    userProfileNicknameDescription:
-      "Pine будет использовать это имя, когда это уместно.",
+    userProfileAddressDescription:
+      "Pine использует это имя, когда это уместно, а местоимения — когда говорит о вас в третьем лице, например в документах или сообщениях, которые пишет за вас.",
     userProfilePronounsLabel: "Местоимения",
     userProfilePronounsUnspecified: "Не указано",
     userProfilePronounsHe: "он/его",
@@ -557,8 +557,6 @@ export default {
     userProfilePronounsCustom: "Другое",
     userProfilePronounsCustomLabel: "Свои местоимения",
     userProfilePronounsCustomPlaceholder: "Введите свои местоимения",
-    userProfilePronounsDescription:
-      "Pine использует эти местоимения, когда говорит о вас в третьем лице, например в документах или сообщениях, которые пишет за вас.",
     userProfileStyleLabel: "Стиль общения",
     userProfileStyleCalm: "Спокойный и профессиональный",
     userProfileStyleNeutral: "Нейтральный",

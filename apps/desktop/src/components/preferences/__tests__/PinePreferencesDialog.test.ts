@@ -721,6 +721,22 @@ describe("PinePreferencesDialog", () => {
     return select;
   }
 
+  it("puts the Aldine methodology first in the user profile", async () => {
+    installPineApi("linux");
+    const { wrapper } = mountDialog();
+    await openSection(wrapper, "自定义");
+
+    const fields = wrapper
+      .get('[data-testid="pine-user-profile-form"]')
+      .findAll('[data-slot="field"]');
+    expect(
+      fields[0]
+        ?.find('[data-testid="pine-aldine-methodology-toggle"]')
+        .exists(),
+    ).toBe(true);
+    expect(fields[1]?.find("#pine-user-profile-nickname").exists()).toBe(true);
+  });
+
   it("edits pronouns in the user profile", async () => {
     installPineApi("linux");
     // The default mock is a profile saved before pronouns existed.
@@ -729,7 +745,16 @@ describe("PinePreferencesDialog", () => {
     const customInput = "#pine-user-profile-custom-pronouns";
     const select = pronounsSelect(wrapper);
 
-    expect(wrapper.text()).toContain("人称代词");
+    // The pronouns select sits inside the nickname field and keeps its own
+    // accessible name.
+    expect(wrapper.text()).toContain("称呼");
+    expect(wrapper.text()).not.toContain("人称代词");
+    expect(
+      wrapper
+        .get('[data-testid="pine-user-profile-address"]')
+        .find('[data-testid="pine-user-profile-pronouns-select"]')
+        .attributes("aria-label"),
+    ).toBe("人称代词");
     expect(select.props("modelValue")).toBe("unspecified");
     expect(wrapper.find(customInput).exists()).toBe(false);
 

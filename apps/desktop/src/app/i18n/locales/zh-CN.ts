@@ -510,9 +510,10 @@ export default {
     tinyFishApiKeyLabel: "API 密钥",
     tinyFishApiKeyPlaceholder: "输入 TinyFish API 密钥",
     saveTinyFishApiKey: "保存密钥",
-    userProfileNicknameLabel: "昵称",
+    userProfileAddressLabel: "称呼",
     userProfileNicknamePlaceholder: "Pine 应该如何称呼你？",
-    userProfileNicknameDescription: "Pine 会在合适的时候使用这个称呼。",
+    userProfileAddressDescription:
+      "Pine 会在合适的时候用这个称呼；以第三人称提到你时（如替你撰写的文档或消息）使用所选代词。",
     userProfilePronounsLabel: "人称代词",
     userProfilePronounsUnspecified: "不指定",
     userProfilePronounsHe: "他",
@@ -521,8 +522,6 @@ export default {
     userProfilePronounsCustom: "自定义",
     userProfilePronounsCustomLabel: "自定义人称代词",
     userProfilePronounsCustomPlaceholder: "输入你希望使用的代词",
-    userProfilePronounsDescription:
-      "Pine 以第三人称提到你时会使用这个代词，例如在替你撰写的文档或消息里。",
     userProfileStyleLabel: "语言风格",
     userProfileStyleCalm: "冷静专业",
     userProfileStyleNeutral: "中性",

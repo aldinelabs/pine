@@ -554,10 +554,10 @@ export default {
     tinyFishApiKeyLabel: "API-Schlüssel",
     tinyFishApiKeyPlaceholder: "Geben Sie Ihren TinyFish-API-Schlüssel ein",
     saveTinyFishApiKey: "Schlüssel speichern",
-    userProfileNicknameLabel: "Spitzname",
+    userProfileAddressLabel: "Name und Pronomen",
     userProfileNicknamePlaceholder: "Wie soll Pine Sie nennen?",
-    userProfileNicknameDescription:
-      "Pine verwendet diesen Namen, wenn es passt.",
+    userProfileAddressDescription:
+      "Pine verwendet diesen Namen, wenn es passt, und die Pronomen, wenn es in der dritten Person über Sie schreibt, etwa in Dokumenten oder Nachrichten, die es für Sie verfasst.",
     userProfilePronounsLabel: "Pronomen",
     userProfilePronounsUnspecified: "Keine Angabe",
     userProfilePronounsHe: "er/ihm",
@@ -566,8 +566,6 @@ export default {
     userProfilePronounsCustom: "Benutzerdefiniert",
     userProfilePronounsCustomLabel: "Eigene Pronomen",
     userProfilePronounsCustomPlaceholder: "Eigene Pronomen eingeben",
-    userProfilePronounsDescription:
-      "Pine verwendet diese Pronomen, wenn es in der dritten Person über Sie schreibt, zum Beispiel in Dokumenten oder Nachrichten, die es für Sie verfasst.",
     userProfileStyleLabel: "Kommunikationsstil",
     userProfileStyleCalm: "Ruhig und professionell",
     userProfileStyleNeutral: "Neutral",

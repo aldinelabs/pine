@@ -1022,24 +1022,25 @@ the user opens themselves do not pulse.
       and the agent is told which families are off so it can point the user
       back here. Reading and editing files, the to-do list, the clock,
       questions to the user and Pine's own UI reference have no switch.
-  - User profile: nickname, pronouns (a dropdown: Not specified, he/him,
-    she/her, they/them or Custom; Custom shows a short text field for your own
-    wording; Not specified by default; Pine uses them when it refers to you in
-    the third person), communication style (Calm & professional, Neutral or
-    Warm & friendly), technical background,
-    work style (Full takeover, the default: Pine drives the task itself and
-    quotes or summarizes the parts of a file it discusses, so you can follow
-    its conclusions and changes without opening the file beside the chat;
-    Collaborate: Pine assumes you have the file open, points to sections,
-    paragraphs or line numbers instead of repeating them, keeps you in the
-    loop and asks before key decisions; automations always run as Full
-    takeover), Aldine methodology (a switch with a Beta badge,
-    on by default: Pine talks like a clear-headed dialogue partner, candid,
-    specific and light on pleasantries; it shapes how Pine thinks, asks and
-    disagrees, while the communication style sets the tone and the work style
-    sets how much Pine drives), personal details, custom instructions. Changes
-    save automatically and apply from the next message in every
-    conversation.
+  - User profile, top to bottom: Aldine methodology (a switch with a Beta
+    badge, on by default: Pine talks like a clear-headed dialogue partner,
+    candid, specific and light on pleasantries; it shapes how Pine thinks,
+    asks and disagrees, while the communication style sets the tone and the
+    work style sets how much Pine drives), Name and pronouns (one field: type
+    the name Pine should call you, and pick pronouns from the compact
+    dropdown at its right end: Not specified, he/him, she/her, they/them or
+    Custom; Custom shows a short text field below for your own wording; Not
+    specified by default; Pine uses the pronouns when it refers to you in the
+    third person), communication style (Calm & professional, Neutral or Warm
+    & friendly), technical background, work style (Full takeover, the
+    default: Pine drives the task itself and quotes or summarizes the parts
+    of a file it discusses, so you can follow its conclusions and changes
+    without opening the file beside the chat; Collaborate: Pine assumes you
+    have the file open, points to sections, paragraphs or line numbers
+    instead of repeating them, keeps you in the loop and asks before key
+    decisions; automations always run as Full takeover), personal details,
+    custom instructions. Changes save automatically and apply from the next
+    message in every conversation.
   - Multiple users (desktop app only): "Add user" opens the Add a user
     dialog (name, avatar from a grid of emoji or the name's initial, colour,
     and "Copy my model connections", on by default, which copies the API

@@ -552,9 +552,10 @@ export default {
     tinyFishApiKeyLabel: "API キー",
     tinyFishApiKeyPlaceholder: "TinyFish API キーを入力",
     saveTinyFishApiKey: "キーを保存",
-    userProfileNicknameLabel: "ニックネーム",
+    userProfileAddressLabel: "呼び名と代名詞",
     userProfileNicknamePlaceholder: "Pine にどう呼ばれたいですか？",
-    userProfileNicknameDescription: "Pine は適切な場面でこの名前を使います。",
+    userProfileAddressDescription:
+      "Pine は適切な場面でこの名前を使い、あなたを三人称で表すとき（代わりに作成する文書やメッセージなど）は選んだ代名詞を使います。",
     userProfilePronounsLabel: "代名詞",
     userProfilePronounsUnspecified: "指定しない",
     userProfilePronounsHe: "彼",
@@ -563,8 +564,6 @@ export default {
     userProfilePronounsCustom: "カスタム",
     userProfilePronounsCustomLabel: "カスタム代名詞",
     userProfilePronounsCustomPlaceholder: "使ってほしい代名詞を入力",
-    userProfilePronounsDescription:
-      "Pine があなたを三人称で表すとき（代わりに作成する文書やメッセージなど）に使います。",
     userProfileStyleLabel: "コミュニケーションスタイル",
     userProfileStyleCalm: "落ち着いた専門的な口調",
     userProfileStyleNeutral: "ニュートラル",
