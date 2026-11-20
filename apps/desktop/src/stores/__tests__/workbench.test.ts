@@ -256,8 +256,8 @@ it("shows a file tab's details and comments, closed until asked for", () => {
   expect(store.activeKey).toBe("file:file-1");
   expect(store.activeLayout).toMatchObject({
     open: false,
-    top: "file-details",
-    bottom: "file-comments",
+    top: "file-comments",
+    bottom: "file-details",
   });
 
   store.toggle();

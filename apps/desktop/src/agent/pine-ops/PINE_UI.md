@@ -583,9 +583,9 @@ application. "Send to tab…" or "Send selection to tab…" attaches the file or
 the selected content to a session tab, or creates a session for it.
 
 While a file tab is in front, Pine's right sidebar (the workbench column)
-shows two cards for that file instead of the session's cards: Details on top
-and, for project files that can take comments, Comments below, with the same
-handle to resize them. It is closed by default for each file tab; the
+shows cards for that file instead of the session's cards: for project files
+that can take comments, Comments on top and Details below, with the same
+handle to resize them; other files show Details alone. It is closed by default for each file tab; the
 footer's Comments button (Details for files that cannot take comments; with
 the number of comments when there are any), the title bar's workbench button
 and Mod+Alt+B open and close it, and the X on either card closes it. Each
@@ -840,7 +840,7 @@ close the card. The panels are:
     the dialog adds "The capture stops first." and Delete stops it before
     deleting.
     The card then shows its setup row again.
-- Details and Comments: shown only while a file tab is in front, in place of
+- Comments and Details: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.
 - Side chat: opened by the user only (panel switcher, Add card, or Follow up

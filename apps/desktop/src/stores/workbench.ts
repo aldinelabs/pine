@@ -164,8 +164,9 @@ export const useWorkbenchStore = defineStore("workbench", () => {
       activeFile.value?.tabId === tabId && activeFile.value.comments;
     return {
       open: fileOpen.get(tabId) ?? false,
-      top: FILE_DETAILS_PANEL,
-      bottom: comments ? FILE_COMMENTS_PANEL : null,
+      // Comments come first where the file takes them; details sit below.
+      top: comments ? FILE_COMMENTS_PANEL : FILE_DETAILS_PANEL,
+      bottom: comments ? FILE_DETAILS_PANEL : null,
       split: fileSplit.value,
       preview: null,
     };
