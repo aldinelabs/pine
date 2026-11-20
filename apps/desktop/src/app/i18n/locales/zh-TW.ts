@@ -403,6 +403,7 @@ export default {
       personalization: "自定義",
       projects: "專案管理",
       remote: "遠端控制",
+      users: "多使用者",
     },
     groups: {
       language: "介面",
@@ -2724,6 +2725,64 @@ export default {
       both: "允許 Pine 擷取你所在應用的視窗並讀取選中文字",
     },
     openSettings: "開啟設定",
+  },
+  users: {
+    title: "誰在使用 Pine？",
+    add: "新增使用者",
+    remember: "在這台電腦上記住我的選擇",
+    fallbackName: "我",
+    name: "名字",
+    avatar: "頭像",
+    initial: "首字",
+    color: "顏色",
+    colors: {
+      green: "綠色",
+      blue: "藍色",
+      violet: "紫色",
+      rose: "玫紅",
+      amber: "琥珀",
+      teal: "青色",
+      orange: "橙色",
+      slate: "石板灰",
+    },
+    addTitle: "新增使用者",
+    addDescription: "新使用者有自己的對話、專案和記憶。",
+    editTitle: "編輯使用者",
+    copyConnections: "複製我的模型連線",
+    copyConnectionsHint:
+      "為對方複製一份你的 API 金鑰、登入和模型選擇，其他內容都不會複製。",
+    create: "新增使用者",
+    save: "儲存",
+    errors: {
+      "duplicate-name": "已有使用者使用這個名字。",
+      damaged: "Pine 無法讀取使用者清單，因此不會修改它。",
+      "trash-failed":
+        "無法把該使用者的資料夾移到垃圾桶，因此沒有刪除任何內容。",
+      protected: "不能刪除這個使用者。",
+      generic: "無法儲存變更。",
+    },
+    settings: {
+      description:
+        "共用這台電腦的每個人都可以有自己的 Pine：各自的對話、專案、記憶和模型連線。",
+      notSecure:
+        "使用者沒有密碼。能使用這台電腦帳戶的人都能打開任何一個使用者，所以這只是把東西分開，並不保密。",
+      current: "目前",
+      switch: "切換到此使用者",
+      delete: "刪除使用者",
+      deleteTitle: "刪除「{name}」？",
+      deleteDescription:
+        "對方的對話、專案、記憶和模型連線會移到垃圾桶。專案資料夾裡的檔案不受影響。",
+      askAtLaunch: "打開 Pine 時詢問是誰在使用",
+      askAtLaunchHint: "關閉後，Pine 會以上次使用的使用者打開。",
+      background:
+        "只有正在使用 Pine 的人，其自動化和微信遠端會執行；其他人的會在他們下次打開 Pine 時補上。",
+      actions: "「{name}」的操作",
+    },
+    switcher: {
+      label: "切換使用者",
+      manage: "管理使用者…",
+      current: "目前使用者：{name}",
+    },
   },
   webSignIn: {
     title: "登入 Pine",

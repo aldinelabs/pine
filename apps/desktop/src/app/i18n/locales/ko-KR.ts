@@ -424,6 +424,7 @@ export default {
       personalization: "사용자 프로필",
       projects: "프로젝트",
       remote: "원격 제어",
+      users: "여러 사용자",
     },
     groups: {
       language: "인터페이스",
@@ -2814,6 +2815,64 @@ export default {
       both: "Pine이 현재 사용 중인 앱을 캡처하고 선택한 텍스트를 읽도록 허용",
     },
     openSettings: "설정 열기",
+  },
+  users: {
+    title: "누가 Pine을 사용하나요?",
+    add: "사용자 추가",
+    remember: "이 컴퓨터에서 선택 기억하기",
+    fallbackName: "나",
+    name: "이름",
+    avatar: "아바타",
+    initial: "첫 글자",
+    color: "색상",
+    colors: {
+      green: "초록",
+      blue: "파랑",
+      violet: "보라",
+      rose: "로즈",
+      amber: "호박색",
+      teal: "청록",
+      orange: "주황",
+      slate: "슬레이트",
+    },
+    addTitle: "사용자 추가",
+    addDescription: "새 사용자는 자신만의 대화, 프로젝트, 메모리로 시작합니다.",
+    editTitle: "사용자 편집",
+    copyConnections: "내 모델 연결 복사",
+    copyConnectionsHint:
+      "API 키, 로그인, 모델 선택을 복사해 줍니다. 그 밖의 것은 복사하지 않습니다.",
+    create: "사용자 추가",
+    save: "저장",
+    errors: {
+      "duplicate-name": "다른 사용자가 이미 이 이름을 사용하고 있습니다.",
+      damaged: "Pine이 사용자 목록을 읽을 수 없어 변경하지 않습니다.",
+      "trash-failed":
+        "사용자 폴더를 휴지통으로 옮길 수 없어 아무것도 삭제하지 않았습니다.",
+      protected: "이 사용자는 삭제할 수 없습니다.",
+      generic: "변경 사항을 저장할 수 없습니다.",
+    },
+    settings: {
+      description:
+        "이 컴퓨터를 함께 쓰는 사람마다 자신만의 Pine을 가질 수 있습니다. 대화, 프로젝트, 메모리, 모델 연결이 따로 관리됩니다.",
+      notSecure:
+        "사용자에게는 비밀번호가 없습니다. 이 컴퓨터 계정을 쓸 수 있는 사람은 누구나 모든 사용자를 열 수 있으므로, 서로 섞이지 않게 할 뿐 비공개는 아닙니다.",
+      current: "현재",
+      switch: "이 사용자로 전환",
+      delete: "사용자 삭제",
+      deleteTitle: "{name}을(를) 삭제할까요?",
+      deleteDescription:
+        "대화, 프로젝트, 메모리, 모델 연결이 휴지통으로 이동합니다. 프로젝트 폴더의 파일은 건드리지 않습니다.",
+      askAtLaunch: "Pine을 열 때 누가 사용하는지 묻기",
+      askAtLaunchHint: "끄면 마지막으로 사용한 사용자로 열립니다.",
+      background:
+        "자동화와 WeChat 원격은 지금 Pine을 쓰는 사람의 것만 실행됩니다. 다른 사람의 것은 그 사람이 다음에 Pine을 열 때 이어서 실행됩니다.",
+      actions: "{name} 작업",
+    },
+    switcher: {
+      label: "사용자 전환",
+      manage: "사용자 관리…",
+      current: "{name}(으)로 사용 중",
+    },
   },
   webSignIn: {
     title: "Pine에 로그인",

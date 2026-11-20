@@ -437,6 +437,7 @@ export default {
       personalization: "ユーザープロフィール",
       projects: "プロジェクト",
       remote: "リモート操作",
+      users: "複数ユーザー",
     },
     groups: {
       language: "インターフェース",
@@ -2853,6 +2854,65 @@ export default {
       both: "使用中のアプリをキャプチャし、選択テキストを Pine が読み取れるようにする",
     },
     openSettings: "設定を開く",
+  },
+  users: {
+    title: "Pine を使っているのは誰ですか？",
+    add: "ユーザーを追加",
+    remember: "このコンピュータで選択を記憶する",
+    fallbackName: "自分",
+    name: "名前",
+    avatar: "アバター",
+    initial: "頭文字",
+    color: "色",
+    colors: {
+      green: "グリーン",
+      blue: "ブルー",
+      violet: "バイオレット",
+      rose: "ローズ",
+      amber: "アンバー",
+      teal: "ティール",
+      orange: "オレンジ",
+      slate: "スレート",
+    },
+    addTitle: "ユーザーを追加",
+    addDescription:
+      "新しいユーザーは自分だけの会話、プロジェクト、メモリで始まります。",
+    editTitle: "ユーザーを編集",
+    copyConnections: "自分のモデル接続をコピー",
+    copyConnectionsHint:
+      "API キー、サインイン、モデルの選択をコピーして渡します。それ以外はコピーされません。",
+    create: "ユーザーを追加",
+    save: "保存",
+    errors: {
+      "duplicate-name": "この名前はすでに別のユーザーが使っています。",
+      damaged: "Pine はユーザー一覧を読み込めないため、変更しません。",
+      "trash-failed":
+        "ユーザーのフォルダをゴミ箱に移動できなかったため、何も削除されていません。",
+      protected: "このユーザーは削除できません。",
+      generic: "変更を保存できませんでした。",
+    },
+    settings: {
+      description:
+        "このコンピュータを共有する人はそれぞれ自分の Pine を持てます。会話、プロジェクト、メモリ、モデル接続は別々です。",
+      notSecure:
+        "ユーザーにパスワードはありません。このコンピュータのアカウントを使える人は誰でもどのユーザーも開けるため、分けて保つための機能であり、秘密を守るものではありません。",
+      current: "使用中",
+      switch: "このユーザーに切り替える",
+      delete: "ユーザーを削除",
+      deleteTitle: "{name} を削除しますか？",
+      deleteDescription:
+        "会話、プロジェクト、メモリ、モデル接続はゴミ箱に移動します。プロジェクトフォルダ内のファイルには触れません。",
+      askAtLaunch: "起動時に誰が使うか確認する",
+      askAtLaunchHint: "オフにすると、最後に使ったユーザーで開きます。",
+      background:
+        "オートメーションと WeChat リモートは、Pine を使っている人の分だけ動きます。ほかの人の分は、その人が次に Pine を開いたときに追いつきます。",
+      actions: "{name} の操作",
+    },
+    switcher: {
+      label: "ユーザーを切り替える",
+      manage: "ユーザーを管理…",
+      current: "{name} として使用中",
+    },
   },
   webSignIn: {
     title: "Pine にサインイン",

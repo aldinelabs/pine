@@ -49,10 +49,31 @@ to click.
   transcript, saved with the session and highlighted in the text.
 - Quote: a passage selected in the transcript and attached to the next message
   as a chip in the composer.
+- User: one person's Pine on a computer that several people share (Pine
+  Settings › Multiple users). Each user has their own conversations,
+  projects, memory, Skills, MCP servers, automations, remote control and
+  WeChat bindings, model connections and settings. Users have no passwords;
+  they keep things apart, not private. Pine runs as one user at a time, and
+  only that user's automations and WeChat remote run. With a single user
+  (the default) none of this shows anywhere except that Settings section.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
   hints appear only after a physical keyboard has been used.
+
+## Who's using Pine?
+
+With more than one user, Pine opens on "Who's using Pine?" before anything
+else: one round tile per user (their emoji, or the first letter of their name,
+on their colour, with the name below; the user who has never been named shows
+as "Me") and an "Add user" tile that opens the Add a user dialog (name,
+avatar, colour; it does not copy model connections). The user who used Pine
+last has focus. Arrow keys move between tiles, Return or Space opens the
+focused one, and 1–9 open that user directly. "Remember my choice on this
+computer" at the bottom makes Pine open as the last user from then on, without
+asking; turning "Ask who's using Pine when it opens" back on in Settings ›
+Multiple users brings the question back. Picking a user loads their Pine into
+the same window. Pine skips this screen when it restarts to switch users.
 
 ## Main window
 
@@ -1179,6 +1200,8 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - File preview with text selected: Mod+Alt+M comments on the selection; in
   the comment box Enter saves, Shift+Enter starts a new line and Esc cancels
 - File preview while drawing an area to comment on: Esc cancels
+- Who's using Pine?: arrow keys move between users; Return or Space opens
+  one; 1–9 open that user
 - Audio and video preview: Space or K play / pause; Left / Right seek 5
   seconds; J / L seek 10 seconds; M mute; F full screen (video); I / O mark
   the start / end of a span to comment on; Esc clears the marks

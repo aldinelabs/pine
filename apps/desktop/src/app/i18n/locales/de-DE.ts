@@ -439,6 +439,7 @@ export default {
       personalization: "Benutzerprofil",
       projects: "Projekte",
       remote: "Fernsteuerung",
+      users: "Mehrere Benutzer",
     },
     groups: {
       language: "Oberfläche",
@@ -2893,6 +2894,67 @@ export default {
       both: "Pine das Erfassen der aktuellen App und das Lesen ihres ausgewählten Texts erlauben",
     },
     openSettings: "Einstellungen öffnen",
+  },
+  users: {
+    title: "Wer verwendet Pine?",
+    add: "Benutzer hinzufügen",
+    remember: "Meine Auswahl auf diesem Computer merken",
+    fallbackName: "Ich",
+    name: "Name",
+    avatar: "Avatar",
+    initial: "Initiale",
+    color: "Farbe",
+    colors: {
+      green: "Grün",
+      blue: "Blau",
+      violet: "Violett",
+      rose: "Rosé",
+      amber: "Bernstein",
+      teal: "Petrol",
+      orange: "Orange",
+      slate: "Schiefer",
+    },
+    addTitle: "Benutzer hinzufügen",
+    addDescription:
+      "Er beginnt mit eigenen Unterhaltungen, Projekten und Erinnerungen.",
+    editTitle: "Benutzer bearbeiten",
+    copyConnections: "Meine Modellverbindungen kopieren",
+    copyConnectionsHint:
+      "Gibt ihm eine eigene Kopie deiner API-Schlüssel, Anmeldungen und Modellauswahl. Sonst wird nichts kopiert.",
+    create: "Hinzufügen",
+    save: "Sichern",
+    errors: {
+      "duplicate-name": "Ein anderer Benutzer hat bereits diesen Namen.",
+      damaged:
+        "Pine kann seine Benutzerliste nicht lesen und ändert sie deshalb nicht.",
+      "trash-failed":
+        "Der Ordner des Benutzers konnte nicht in den Papierkorb gelegt werden; es wurde nichts gelöscht.",
+      protected: "Dieser Benutzer kann nicht gelöscht werden.",
+      generic: "Die Änderung konnte nicht gesichert werden.",
+    },
+    settings: {
+      description:
+        "Alle, die diesen Computer teilen, können ihr eigenes Pine haben – mit eigenen Unterhaltungen, Projekten, Erinnerungen und Modellverbindungen.",
+      notSecure:
+        "Benutzer haben keine Passwörter. Wer dieses Benutzerkonto des Computers verwenden kann, kann jeden Benutzer öffnen. Das hält Dinge getrennt, aber nicht privat.",
+      current: "Aktuell",
+      switch: "Zu diesem Benutzer wechseln",
+      delete: "Benutzer löschen",
+      deleteTitle: "{name} löschen?",
+      deleteDescription:
+        "Unterhaltungen, Projekte, Erinnerungen und Modellverbindungen werden in den Papierkorb gelegt. Dateien in den Projektordnern bleiben unberührt.",
+      askAtLaunch: "Beim Öffnen fragen, wer Pine verwendet",
+      askAtLaunchHint:
+        "Ausgeschaltet öffnet Pine mit dem zuletzt verwendeten Benutzer.",
+      background:
+        "Nur bei der Person, die Pine gerade verwendet, laufen Automationen und WeChat-Fernsteuerung. Die der anderen holen beim nächsten Öffnen von Pine auf.",
+      actions: "Aktionen für {name}",
+    },
+    switcher: {
+      label: "Benutzer wechseln",
+      manage: "Benutzer verwalten …",
+      current: "Pine wird als {name} verwendet",
+    },
   },
   webSignIn: {
     title: "Bei Pine anmelden",

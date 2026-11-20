@@ -429,6 +429,7 @@ export default {
       personalization: "User profile",
       projects: "Projects",
       remote: "Remote control",
+      users: "Multiple users",
     },
     groups: {
       language: "Interface",
@@ -2821,6 +2822,65 @@ export default {
       both: "Let Pine capture the app you're in and read its selected text",
     },
     openSettings: "Open Settings",
+  },
+  users: {
+    title: "Who's using Pine?",
+    add: "Add user",
+    remember: "Remember my choice on this computer",
+    fallbackName: "Me",
+    name: "Name",
+    avatar: "Avatar",
+    initial: "Initial",
+    color: "Color",
+    colors: {
+      green: "Green",
+      blue: "Blue",
+      violet: "Violet",
+      rose: "Rose",
+      amber: "Amber",
+      teal: "Teal",
+      orange: "Orange",
+      slate: "Slate",
+    },
+    addTitle: "Add a user",
+    addDescription:
+      "They start with their own conversations, projects and memory.",
+    editTitle: "Edit user",
+    copyConnections: "Copy my model connections",
+    copyConnectionsHint:
+      "Gives them their own copy of your API keys, sign-ins and model choices. Nothing else is copied.",
+    create: "Add user",
+    save: "Save",
+    errors: {
+      "duplicate-name": "Another user already has this name.",
+      damaged: "Pine can't read its list of users, so it won't change it.",
+      "trash-failed":
+        "The user's folder couldn't be moved to the Trash, so nothing was deleted.",
+      protected: "This user can't be deleted.",
+      generic: "The change couldn't be saved.",
+    },
+    settings: {
+      description:
+        "Each person who shares this computer can have their own Pine, with their own conversations, projects, memory and model connections.",
+      notSecure:
+        "Users have no passwords. Anyone who can use this computer account can open any user, so this keeps things apart, not private.",
+      current: "Current",
+      switch: "Switch to this user",
+      delete: "Delete user",
+      deleteTitle: "Delete {name}?",
+      deleteDescription:
+        "Their conversations, projects, memory and model connections move to the Trash. Files in their project folders are not touched.",
+      askAtLaunch: "Ask who's using Pine when it opens",
+      askAtLaunchHint: "When off, Pine opens as whoever used it last.",
+      background:
+        "Only the person using Pine has their automations and WeChat remote running. Everyone else's catch up the next time they open Pine.",
+      actions: "Actions for {name}",
+    },
+    switcher: {
+      label: "Switch user",
+      manage: "Manage users…",
+      current: "Using Pine as {name}",
+    },
   },
   webSignIn: {
     title: "Sign in to Pine",

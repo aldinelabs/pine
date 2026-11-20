@@ -436,6 +436,7 @@ export default {
       personalization: "Perfil de usuario",
       projects: "Proyectos",
       remote: "Control remoto",
+      users: "Varios usuarios",
     },
     groups: {
       language: "Interfaz",
@@ -2881,6 +2882,67 @@ export default {
       both: "Permite que Pine capture la aplicación en la que estás y lea su texto seleccionado",
     },
     openSettings: "Abrir ajustes",
+  },
+  users: {
+    title: "¿Quién usa Pine?",
+    add: "Añadir usuario",
+    remember: "Recordar mi elección en este ordenador",
+    fallbackName: "Yo",
+    name: "Nombre",
+    avatar: "Avatar",
+    initial: "Inicial",
+    color: "Color",
+    colors: {
+      green: "Verde",
+      blue: "Azul",
+      violet: "Violeta",
+      rose: "Rosa",
+      amber: "Ámbar",
+      teal: "Verde azulado",
+      orange: "Naranja",
+      slate: "Pizarra",
+    },
+    addTitle: "Añadir un usuario",
+    addDescription:
+      "Empieza con sus propias conversaciones, proyectos y memoria.",
+    editTitle: "Editar usuario",
+    copyConnections: "Copiar mis conexiones de modelos",
+    copyConnectionsHint:
+      "Le da su propia copia de tus claves de API, inicios de sesión y modelos elegidos. No se copia nada más.",
+    create: "Añadir",
+    save: "Guardar",
+    errors: {
+      "duplicate-name": "Otro usuario ya tiene este nombre.",
+      damaged:
+        "Pine no puede leer su lista de usuarios, así que no la cambiará.",
+      "trash-failed":
+        "No se pudo mover la carpeta del usuario a la papelera, así que no se eliminó nada.",
+      protected: "Este usuario no se puede eliminar.",
+      generic: "No se pudo guardar el cambio.",
+    },
+    settings: {
+      description:
+        "Cada persona que comparte este ordenador puede tener su propio Pine, con sus conversaciones, proyectos, memoria y conexiones de modelos.",
+      notSecure:
+        "Los usuarios no tienen contraseña. Cualquiera que pueda usar esta cuenta del ordenador puede abrir cualquier usuario, así que esto separa las cosas, pero no las hace privadas.",
+      current: "Actual",
+      switch: "Cambiar a este usuario",
+      delete: "Eliminar usuario",
+      deleteTitle: "¿Eliminar a {name}?",
+      deleteDescription:
+        "Sus conversaciones, proyectos, memoria y conexiones de modelos se mueven a la papelera. Los archivos de sus carpetas de proyecto no se tocan.",
+      askAtLaunch: "Preguntar quién usa Pine al abrirlo",
+      askAtLaunchHint:
+        "Si está desactivado, Pine se abre con el último usuario.",
+      background:
+        "Solo funcionan las automatizaciones y el control remoto de WeChat de quien está usando Pine. Las de los demás se ponen al día la próxima vez que abran Pine.",
+      actions: "Acciones de {name}",
+    },
+    switcher: {
+      label: "Cambiar de usuario",
+      manage: "Gestionar usuarios…",
+      current: "Usando Pine como {name}",
+    },
   },
   webSignIn: {
     title: "Iniciar sesión en Pine",

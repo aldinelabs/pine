@@ -16,6 +16,7 @@ import { syncThemeColor } from "./lib/themeColor";
 import { createAppRouter } from "./router";
 import { useAppearanceStore } from "./stores/appearance";
 import { QUICK_COMPOSER_ROUTE_HASH } from "./shared/quickComposer";
+import { USER_PICKER_ROUTE_HASH } from "./shared/users";
 import { useQuickComposerHandoffStore } from "./stores/quickComposerHandoff";
 import { useUpdaterStore } from "./stores/updater";
 import "./index.css";
@@ -69,6 +70,15 @@ async function startRenderer(): Promise<void> {
       .use(pinia)
       .use(i18n)
       .mount("#app");
+    releaseSplash();
+    return;
+  }
+  // "Who's using Pine?" runs before any user's data is open, so it loads
+  // none of the workspace's stores.
+  if (window.location.hash.startsWith(`#/${USER_PICKER_ROUTE_HASH}`)) {
+    const { default: UserPickerView } =
+      await import("./components/users/UserPickerView.vue");
+    createApp(UserPickerView).use(pinia).use(i18n).mount("#app");
     releaseSplash();
     return;
   }

@@ -400,6 +400,7 @@ export default {
       personalization: "自定义",
       projects: "项目管理",
       remote: "远程控制",
+      users: "多用户",
     },
     groups: {
       language: "界面",
@@ -2720,6 +2721,63 @@ export default {
       both: "允许 Pine 截取你所在应用的窗口并读取选中文字",
     },
     openSettings: "打开设置",
+  },
+  users: {
+    title: "谁在使用 Pine？",
+    add: "添加用户",
+    remember: "在这台电脑上记住我的选择",
+    fallbackName: "我",
+    name: "名字",
+    avatar: "头像",
+    initial: "首字",
+    color: "颜色",
+    colors: {
+      green: "绿色",
+      blue: "蓝色",
+      violet: "紫色",
+      rose: "玫红",
+      amber: "琥珀",
+      teal: "青色",
+      orange: "橙色",
+      slate: "石板灰",
+    },
+    addTitle: "添加用户",
+    addDescription: "新用户有自己的对话、项目和记忆。",
+    editTitle: "编辑用户",
+    copyConnections: "复制我的模型连接",
+    copyConnectionsHint:
+      "为对方复制一份你的 API 密钥、登录和模型选择，其他内容都不会复制。",
+    create: "添加用户",
+    save: "保存",
+    errors: {
+      "duplicate-name": "已有用户使用这个名字。",
+      damaged: "Pine 无法读取用户列表，因此不会修改它。",
+      "trash-failed": "无法把该用户的文件夹移到废纸篓，因此没有删除任何内容。",
+      protected: "不能删除这个用户。",
+      generic: "无法保存更改。",
+    },
+    settings: {
+      description:
+        "共用这台电脑的每个人都可以有自己的 Pine：各自的对话、项目、记忆和模型连接。",
+      notSecure:
+        "用户没有密码。能使用这台电脑账户的人都能打开任何一个用户，所以这只是把东西分开，并不保密。",
+      current: "当前",
+      switch: "切换到此用户",
+      delete: "删除用户",
+      deleteTitle: "删除“{name}”？",
+      deleteDescription:
+        "对方的对话、项目、记忆和模型连接会移到废纸篓。项目文件夹里的文件不受影响。",
+      askAtLaunch: "打开 Pine 时询问是谁在使用",
+      askAtLaunchHint: "关闭后，Pine 会以上次使用的用户打开。",
+      background:
+        "只有正在使用 Pine 的人，其自动化和微信远程会运行；其他人的会在他们下次打开 Pine 时补上。",
+      actions: "“{name}”的操作",
+    },
+    switcher: {
+      label: "切换用户",
+      manage: "管理用户…",
+      current: "当前用户：{name}",
+    },
   },
   webSignIn: {
     title: "登录 Pine",
