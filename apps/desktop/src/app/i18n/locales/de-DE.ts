@@ -1067,6 +1067,13 @@ export default {
           numbered: "Sprecher {n}",
           rename: "Umbenennen",
           mergeInto: "Zusammenführen mit",
+          chipHint: "Klicken zum Umbenennen oder Zusammenführen",
+          resetName: "„{name}“ verwenden",
+          manage: "Sprecher",
+          title: "Sprecher",
+          nameOf: "Name für {name}",
+          segments: "{n} Abschnitt | {n} Abschnitte",
+          mergeLabel: "{name} zusammenführen mit",
           failedTitle: "Sprecherbeschriftungen sind für diese Aufnahme aus",
           failedDescription: "Die Transkription läuft ohne sie weiter.",
 
@@ -1090,6 +1097,7 @@ export default {
         transcript: "Transkript",
         waiting: "Warte auf die ersten Worte…",
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",
+        menu: "Live-Kontext-Aktionen",
         delete: {
           action: "Live-Kontext löschen",
           title: "Diesen Live-Kontext löschen?",

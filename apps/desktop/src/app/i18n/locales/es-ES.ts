@@ -1060,6 +1060,13 @@ export default {
           numbered: "Hablante {n}",
           rename: "Cambiar nombre",
           mergeInto: "Combinar con",
+          chipHint: "Haz clic para renombrar o combinar",
+          resetName: "Usar «{name}»",
+          manage: "Hablantes",
+          title: "Hablantes",
+          nameOf: "Nombre de {name}",
+          segments: "{n} segmento | {n} segmentos",
+          mergeLabel: "Combinar {name} con",
           failedTitle:
             "Las etiquetas de hablantes están desactivadas en esta captura",
           failedDescription: "La transcripción sigue sin ellas.",
@@ -1084,6 +1091,7 @@ export default {
         transcript: "Transcripción",
         waiting: "Esperando las primeras palabras…",
         waitingPaused: "En pausa. Reanuda para seguir transcribiendo.",
+        menu: "Acciones del contexto en directo",
         delete: {
           action: "Eliminar contexto en directo",
           title: "¿Eliminar este contexto en directo?",

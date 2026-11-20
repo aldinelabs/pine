@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeFloat16 } from "../liveContextDiarizer";
 import type { LiveContextEvent } from "../../shared/liveContext";
+import { LIVE_CONTEXT_SPEAKER_NAME_MAX } from "../../shared/liveContextSpeakers";
 import {
   deleteLiveTranscript,
   LiveContextService,
@@ -648,6 +649,27 @@ describe("LiveContextService", () => {
         2,
       );
       expect((await service.transcript(target)).speakers).toEqual(merged);
+    });
+
+    it("keeps a trimmed, capped name past Stop, and clears it back", async () => {
+      await startWithSpeakers();
+      await service.renameSpeaker({
+        ...target,
+        speaker: "system-1",
+        name: `  ${"名".repeat(60)}  `,
+      });
+      await service.stop();
+      const saved = (await service.transcript(target)).speakers;
+      expect(saved.names["system-1"]).toBe(
+        "名".repeat(LIVE_CONTEXT_SPEAKER_NAME_MAX),
+      );
+      const cleared = await service.renameSpeaker({
+        ...target,
+        speaker: "system-1",
+        name: "   ",
+      });
+      expect(cleared.names).toEqual({});
+      expect((await service.transcript(target)).speakers.names).toEqual({});
     });
   });
 

@@ -753,14 +753,17 @@ close the card. The panels are:
   several seconds, usually in two separate stretches. Two labels found to be
   one voice later show as one name throughout. "Speaker 1 + Speaker 2"
   marks people talking at once; "· Echo of system audio" with dimmed text
-  marks other people's audio picked up by the microphone. Clicking a label
-  offers Rename and Merge into.
-  Once the conversation has a transcript, a trash button (Delete live
-  context) sits in the card header beside Add card. It asks first ("Delete
-  this live context?"): the conversation's transcript and speaker names
-  are permanently deleted and it can't be undone; while this conversation
-  is capturing, the dialog adds "The capture stops first." and Delete stops
-  it before deleting. The card then shows its setup row again.
+  marks other people's audio picked up by the microphone. Speaker labels
+  look clickable (pointer, hover tint, tooltip "Click to rename or merge");
+  clicking one opens Rename, "Use “Speaker n”" (once renamed) and Merge into
+  (each target shows its microphone or speaker icon). Rename turns the label
+  into a small field in place: Enter or clicking away saves, Esc cancels,
+  and an empty name goes back to "Speaker n". Names are trimmed and at most
+  40 characters; two speakers may share a name (merge them if they are one
+  person). A new name shows on every block of that speaker, in every
+  window, and stays after Stop and restarts. "Me" and "Others" (shown
+  without Identify speakers) stand for the microphone and system audio, not
+  people, and cannot be renamed.
   The agent can start live context itself when asked (for example "take
   notes of this class"): an Approval required card appears in every
   approval mode, reading "Pine wants to start live context in this
@@ -780,6 +783,18 @@ close the card. The panels are:
   when lines are attached. Other conversations, side chats and
   sub-sessions do not see it; after the transcript is deleted the agent is
   told to disregard it.
+  Once the conversation has a transcript, a "…" button (Live context
+  actions) sits in the card header beside Add card (in a narrow card the
+  title shortens first, so the buttons stay visible), with:
+  - Speakers (shown once speakers are labeled): a popover listing every
+    speaker with its color and source icon, its name in a field (empty
+    shows "Speaker n"; Enter or leaving the field saves, Esc puts it back),
+    how many segments it speaks in, and a Merge into button.
+  - Delete live context: asks first ("Delete this live context?"): the
+    conversation's transcript and speaker names are permanently deleted and
+    it can't be undone; while this conversation is capturing, the dialog
+    adds "The capture stops first." and Delete stops it before deleting.
+    The card then shows its setup row again.
 - Details and Comments: shown only while a file tab is in front, in place of
   the session's cards (see File tab); they have no panel switcher or Add
   card.

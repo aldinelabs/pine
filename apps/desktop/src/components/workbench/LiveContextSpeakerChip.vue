@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { MicIcon, Volume2Icon } from "@lucide/vue";
-import { nextTick, ref } from "vue";
+import {
+  MergeIcon,
+  MicIcon,
+  PencilIcon,
+  RotateCcwIcon,
+  Volume2Icon,
+} from "@lucide/vue";
+import { computed, nextTick, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   DropdownMenu,
@@ -12,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { speakerColor } from "@/lib/liveContextSpeakerColor";
 import type { LiveContextSpeakerKey } from "@/shared/liveContext";
 import {
   LIVE_CONTEXT_SPEAKER_NAME_MAX,
@@ -20,8 +27,10 @@ import {
 
 /**
  * One speaker's label in the Live Context transcript: a pill tinted in the
- * speaker's color, with the source's icon. It opens a menu to rename the
- * speaker or merge it into another one.
+ * speaker's color, with the source's icon. Clicking it opens a menu to
+ * rename the speaker in place (Enter saves, Esc cancels, an empty name
+ * goes back to "Speaker n"), restore the default name, or merge it into
+ * another speaker.
  */
 const props = defineProps<{
   speaker: LiveContextSpeakerKey;
@@ -37,19 +46,13 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 
-const COLORS = [
-  "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
-  "bg-amber-500/14 text-amber-800 dark:bg-amber-400/15 dark:text-amber-300",
-  "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
-  "bg-rose-500/12 text-rose-700 dark:bg-rose-400/15 dark:text-rose-300",
-  "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
-  "bg-teal-500/12 text-teal-700 dark:bg-teal-400/15 dark:text-teal-300",
-  "bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300",
-  "bg-fuchsia-500/12 text-fuchsia-700 dark:bg-fuchsia-400/15 dark:text-fuchsia-300",
-];
 const { source, speaker: number } = parseSpeakerKey(props.speaker);
-// Mic and system speakers start at different colors, so "1" and "1" differ.
-const color = COLORS[(number - 1 + (source === "system" ? 4 : 0)) % 8];
+const color = speakerColor(props.speaker);
+/** "Speaker 2": the label before any rename, and what clearing restores. */
+const defaultLabel = computed(() =>
+  t("project.workbench.liveContext.speakers.numbered", { n: number }),
+);
+const renamed = computed(() => props.label !== defaultLabel.value);
 
 const editing = ref(false);
 const draft = ref("");
@@ -70,7 +73,11 @@ async function startRename(): Promise<void> {
 function finishRename(save: boolean): void {
   if (!editing.value) return;
   editing.value = false;
-  if (save && draft.value.trim() !== props.label) emit("rename", draft.value);
+  if (!save) return;
+  const name = draft.value.trim();
+  // Unchanged, or cleared while it already has its default name.
+  if (name === props.label || (!name && !renamed.value)) return;
+  emit("rename", name);
 }
 </script>
 
@@ -79,8 +86,10 @@ function finishRename(save: boolean): void {
     v-if="editing"
     ref="input"
     v-model="draft"
-    class="h-6 w-40 rounded-full px-2 text-xs"
+    class="h-5 w-auto max-w-48 min-w-20 rounded-full px-2 text-xs font-medium [field-sizing:content] md:text-xs"
+    :class="color"
     :maxlength="LIVE_CONTEXT_SPEAKER_NAME_MAX"
+    :placeholder="defaultLabel"
     :aria-label="t('project.workbench.liveContext.speakers.rename')"
     data-testid="live-context-speaker-name"
     @keydown.enter.prevent="finishRename(true)"
@@ -91,8 +100,9 @@ function finishRename(save: boolean): void {
     <DropdownMenuTrigger as-child>
       <button
         type="button"
-        class="focus-visible:ring-ring/30 inline-flex h-5 max-w-full items-center gap-1 rounded-full px-2 text-xs font-medium transition-[opacity,filter] outline-none hover:brightness-95 focus-visible:ring-3 dark:hover:brightness-125"
+        class="focus-visible:ring-ring/30 inline-flex h-5 max-w-full cursor-pointer items-center gap-1 rounded-full px-2 text-xs font-medium transition-[opacity,filter] outline-none hover:brightness-95 focus-visible:ring-3 data-[state=open]:brightness-95 dark:hover:brightness-125 dark:data-[state=open]:brightness-125"
         :class="[color, provisional && 'opacity-60']"
+        :title="t('project.workbench.liveContext.speakers.chipHint')"
         :data-speaker="speaker"
         data-testid="live-context-speaker"
       >
@@ -105,11 +115,25 @@ function finishRename(save: boolean): void {
       </button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="start">
-      <DropdownMenuItem @select="startRename">
+      <DropdownMenuItem data-action="rename" @select="startRename">
+        <PencilIcon aria-hidden="true" />
         {{ t("project.workbench.liveContext.speakers.rename") }}
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        v-if="renamed"
+        data-action="reset-name"
+        @select="emit('rename', '')"
+      >
+        <RotateCcwIcon aria-hidden="true" />
+        {{
+          t("project.workbench.liveContext.speakers.resetName", {
+            name: defaultLabel,
+          })
+        }}
       </DropdownMenuItem>
       <DropdownMenuSub v-if="others.length">
         <DropdownMenuSubTrigger>
+          <MergeIcon aria-hidden="true" />
           {{ t("project.workbench.liveContext.speakers.mergeInto") }}
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
@@ -119,6 +143,14 @@ function finishRename(save: boolean): void {
             :data-merge-into="other.speaker"
             @select="emit('merge', other.speaker)"
           >
+            <component
+              :is="
+                parseSpeakerKey(other.speaker).source === 'mic'
+                  ? MicIcon
+                  : Volume2Icon
+              "
+              aria-hidden="true"
+            />
             {{ other.label }}
           </DropdownMenuItem>
         </DropdownMenuSubContent>

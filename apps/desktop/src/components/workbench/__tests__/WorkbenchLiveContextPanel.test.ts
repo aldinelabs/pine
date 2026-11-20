@@ -5,7 +5,7 @@ import { createAppI18n } from "@/app/i18n";
 import type { LiveContextEvent, LiveContextStatus } from "@/shared/liveContext";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { defineComponent, h } from "vue";
-import LiveContextDeleteButton from "../LiveContextDeleteButton.vue";
+import LiveContextHeaderMenu from "../LiveContextHeaderMenu.vue";
 import WorkbenchLiveContextPanel from "../WorkbenchLiveContextPanel.vue";
 
 const PROJECT_ID = "00000000-0000-4000-8000-000000000001";
@@ -84,6 +84,19 @@ function stubApi(
     resume: vi.fn().mockResolvedValue(listeningHere),
     stop: vi.fn().mockResolvedValue(idle),
     deleteTranscript: vi.fn().mockResolvedValue(idle),
+    renameSpeaker: vi.fn((request: { speaker: string; name: string }) => {
+      const name = request.name.trim();
+      return Promise.resolve({
+        names: name ? { [request.speaker]: name } : {},
+        merges: {},
+      });
+    }),
+    mergeSpeakers: vi.fn((request: { from: string; into: string }) =>
+      Promise.resolve({
+        names: {},
+        merges: { [request.from]: request.into },
+      }),
+    ),
     openPrivacySettings: vi.fn().mockResolvedValue(undefined),
     transcript: vi.fn().mockResolvedValue(
       transcript ?? {
@@ -122,12 +135,12 @@ async function mountPanel() {
 
 const mounted: { unmount(): void }[] = [];
 
-/** The card's header button beside the panel, as WorkbenchCard shows them. */
+/** The card's header menu beside the panel, as WorkbenchCard shows them. */
 async function mountWithDelete() {
   setActivePinia(createPinia());
   const wrapper = mount(
     defineComponent({
-      render: () => [h(LiveContextDeleteButton), h(WorkbenchLiveContextPanel)],
+      render: () => [h(LiveContextHeaderMenu), h(WorkbenchLiveContextPanel)],
     }),
     {
       attachTo: document.body,
@@ -137,6 +150,19 @@ async function mountWithDelete() {
   mounted.push(wrapper);
   await flushPromises();
   return wrapper;
+}
+
+/** Opens the header menu and picks one of its items. */
+async function choose(
+  wrapper: { get(selector: string): { trigger(event: string): Promise<void> } },
+  item: "live-context-delete" | "live-context-speakers",
+) {
+  await wrapper.get("[data-testid=live-context-menu]").trigger("click");
+  await flushPromises();
+  document.body.querySelector<HTMLElement>(`[data-testid=${item}]`)?.click();
+  await flushPromises();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flushPromises();
 }
 
 function deleteDialog(): HTMLElement | null {
@@ -599,8 +625,7 @@ describe("WorkbenchLiveContextPanel", () => {
     const { api } = stubApi(idle);
     const wrapper = await mountWithDelete();
     expect(wrapper.text()).toContain("期末考第五章");
-    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
-    await flushPromises();
+    await choose(wrapper, "live-context-delete");
     const dialog = deleteDialog();
     expect(dialog?.textContent).toContain("permanently deleted");
     expect(dialog?.textContent).not.toContain("The capture stops first.");
@@ -616,7 +641,7 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(wrapper.find("[data-testid=live-context-setup]").exists()).toBe(
       true,
     );
-    expect(wrapper.find("[data-testid=live-context-delete]").exists()).toBe(
+    expect(wrapper.find("[data-testid=live-context-menu]").exists()).toBe(
       false,
     );
   });
@@ -624,8 +649,7 @@ describe("WorkbenchLiveContextPanel", () => {
   it("keeps the transcript when the deletion is cancelled", async () => {
     const { api } = stubApi(idle);
     const wrapper = await mountWithDelete();
-    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
-    await flushPromises();
+    await choose(wrapper, "live-context-delete");
     const cancel = [
       ...(deleteDialog()?.querySelectorAll<HTMLElement>("button") ?? []),
     ].find((button) => button.textContent?.trim() === "Cancel");
@@ -638,15 +662,14 @@ describe("WorkbenchLiveContextPanel", () => {
   it("says a capture into the conversation stops before it is deleted", async () => {
     stubApi(listeningHere);
     const wrapper = await mountWithDelete();
-    await wrapper.get("[data-testid=live-context-delete]").trigger("click");
-    await flushPromises();
+    await choose(wrapper, "live-context-delete");
     expect(deleteDialog()?.textContent).toContain("The capture stops first.");
   });
 
   it("offers no deletion before there is a transcript", async () => {
     stubApi(idle, { segments: [], speakers: { names: {}, merges: {} } });
     const wrapper = await mountWithDelete();
-    expect(wrapper.find("[data-testid=live-context-delete]").exists()).toBe(
+    expect(wrapper.find("[data-testid=live-context-menu]").exists()).toBe(
       false,
     );
   });
@@ -686,6 +709,135 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(
       wrapper.get("[data-testid=live-context-jump]").attributes("data-active"),
     ).toBe("false");
+  });
+
+  describe("speakers", () => {
+    const labeled = {
+      segments: [
+        {
+          id: "a",
+          source: "system",
+          start: 0,
+          end: 1,
+          text: "Hello all.",
+          final: true,
+          turns: [{ offset: 0, speaker: "system-1" }],
+        },
+        {
+          id: "b",
+          source: "system",
+          start: 1,
+          end: 2,
+          text: "Design first.",
+          final: true,
+          turns: [{ offset: 0, speaker: "system-2" }],
+        },
+        {
+          id: "c",
+          source: "system",
+          start: 400_000,
+          end: 400_001,
+          text: "One more thing.",
+          final: true,
+          turns: [{ offset: 0, speaker: "system-3" }],
+        },
+      ],
+      speakers: { names: {}, merges: {}, aliases: { "system-3": "system-2" } },
+    };
+    const chip = (speaker: string) =>
+      document.body.querySelector<HTMLElement>(
+        `[data-testid=live-context-speaker][data-speaker="${speaker}"]`,
+      );
+    const menuItem = (action: string) =>
+      document.body.querySelector<HTMLElement>(`[data-action=${action}]`);
+
+    async function startRename(
+      wrapper: Awaited<ReturnType<typeof mountWithDelete>>,
+      speaker: string,
+    ) {
+      chip(speaker)?.click();
+      await flushPromises();
+      menuItem("rename")?.click();
+      await flushPromises();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return wrapper.get("[data-testid=live-context-speaker-name]");
+    }
+
+    it("renames a speaker in place from its chip", async () => {
+      const { api } = stubApi(idle, labeled);
+      const wrapper = await mountWithDelete();
+      expect(chip("system-1")?.title).toBe("Click to rename or merge");
+
+      const input = await startRename(wrapper, "system-1");
+      expect(input.attributes("placeholder")).toBe("Speaker 1");
+      await input.setValue("  Alice  ");
+      await input.trigger("keydown", { key: "Enter" });
+      await flushPromises();
+      expect(api.renameSpeaker).toHaveBeenCalledWith(
+        expect.objectContaining({ speaker: "system-1", name: "Alice" }),
+      );
+      expect(chip("system-1")?.textContent?.trim()).toBe("Alice");
+
+      // Esc leaves the name as it was.
+      const again = await startRename(wrapper, "system-1");
+      await again.setValue("Nobody");
+      await again.trigger("keydown", { key: "Escape" });
+      await flushPromises();
+      expect(api.renameSpeaker).toHaveBeenCalledTimes(1);
+      expect(chip("system-1")?.textContent?.trim()).toBe("Alice");
+
+      // Back to the default name, from the menu.
+      chip("system-1")?.click();
+      await flushPromises();
+      expect(menuItem("reset-name")?.textContent?.trim()).toBe(
+        "Use “Speaker 1”",
+      );
+      menuItem("reset-name")?.click();
+      await flushPromises();
+      expect(api.renameSpeaker).toHaveBeenLastCalledWith(
+        expect.objectContaining({ speaker: "system-1", name: "" }),
+      );
+      expect(chip("system-1")?.textContent?.trim()).toBe("Speaker 1");
+    });
+
+    it("lists every speaker in the header menu, to rename or merge", async () => {
+      const { api } = stubApi(idle, labeled);
+      const wrapper = await mountWithDelete();
+      await choose(wrapper, "live-context-speakers");
+      const rows = [
+        ...document.body.querySelectorAll<HTMLElement>(
+          "[data-testid=live-context-speakers-list] li",
+        ),
+      ];
+      // Pine's alias folds Speaker 3 into Speaker 2.
+      expect(
+        rows.map(
+          (row) =>
+            `${row.dataset.speaker} ${row.querySelector("input")?.placeholder} ${row.querySelector("[data-testid=live-context-speaker-count]")?.textContent}`,
+        ),
+      ).toEqual(["system-1 Speaker 1 1", "system-2 Speaker 2 2"]);
+
+      const input = rows[1].querySelector("input");
+      if (!input) throw new Error("no name field");
+      input.value = "Bob";
+      input.dispatchEvent(new Event("change"));
+      await flushPromises();
+      expect(api.renameSpeaker).toHaveBeenCalledWith(
+        expect.objectContaining({ speaker: "system-2", name: "Bob" }),
+      );
+
+      rows[0]
+        .querySelector<HTMLElement>("[data-testid=live-context-speaker-merge]")
+        ?.click();
+      await flushPromises();
+      document.body
+        .querySelector<HTMLElement>('[data-merge-into="system-2"]')
+        ?.click();
+      await flushPromises();
+      expect(api.mergeSpeakers).toHaveBeenCalledWith(
+        expect.objectContaining({ from: "system-1", into: "system-2" }),
+      );
+    });
   });
 
   it("pauses and resumes from the status bar", async () => {

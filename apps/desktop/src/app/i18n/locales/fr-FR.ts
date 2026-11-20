@@ -1062,6 +1062,13 @@ export default {
           numbered: "Locuteur {n}",
           rename: "Renommer",
           mergeInto: "Fusionner avec",
+          chipHint: "Cliquer pour renommer ou fusionner",
+          resetName: "Utiliser « {name} »",
+          manage: "Intervenants",
+          title: "Intervenants",
+          nameOf: "Nom de {name}",
+          segments: "{n} segment | {n} segments",
+          mergeLabel: "Fusionner {name} avec",
           failedTitle:
             "Les étiquettes de locuteurs sont désactivées pour cette capture",
           failedDescription: "La transcription continue sans elles.",
@@ -1086,6 +1093,7 @@ export default {
         transcript: "Transcription",
         waiting: "En attente des premiers mots…",
         waitingPaused: "En pause. Reprenez pour continuer la transcription.",
+        menu: "Actions du contexte en direct",
         delete: {
           action: "Supprimer le contexte en direct",
           title: "Supprimer ce contexte en direct ?",
