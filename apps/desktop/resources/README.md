@@ -27,3 +27,17 @@ References: [Apple Icon Composer](https://developer.apple.com/documentation/xcod
 `generate-web-icons.mjs` renders the browser interface's home-screen icons and
 favicon into `public/web/` with the same logo and colours, using the installed
 Google Chrome through Playwright: `bun apps/desktop/resources/generate-web-icons.mjs`.
+
+# Installer art
+
+`installer/` holds the macOS DMG window background (`dmg-background.png` and
+`@2x`, which appdmg merges into a Retina TIFF) and the GIF Squirrel shows while
+it installs on Windows. Both read "Pine by Aldine" over the app's olive muted
+surface, with Pine's lockup proportioned like Aldine's. `dmg-layout.json` is
+the DMG window and icon layout shared with `forge.config.ts`. Finder draws dark
+icon labels over a light background in both appearances, and nothing sits in
+the bottom 66 pt, where a user's path and status bars may cover the window.
+
+Run `bun apps/desktop/resources/generate-installer-art.mjs` after changing the
+logos, colours or layout; it renders with the installed Google Chrome through
+Playwright and encodes the GIF with `installer/gif-encoder.mjs`.
