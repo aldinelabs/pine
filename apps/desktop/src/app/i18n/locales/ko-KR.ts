@@ -2047,6 +2047,7 @@ export default {
           awaitingApproval: "사용자 승인 대기 중",
           autoApprovalDenied: "자동 승인에서 거부됨",
           userApprovalDenied: "사용자가 거부함",
+          stopped: "중지됨",
           sandboxDenied: "샌드박스에서 거부됨",
         },
         approvals: {

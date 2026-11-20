@@ -177,6 +177,26 @@ describe("WebSessionState", () => {
     ]);
   });
 
+  it("does not replay a tool a stop cut off once the run is idle", () => {
+    const state = new WebSessionState();
+    const sessionId = "session";
+    state.observe("project", {
+      type: "run-state",
+      sessionId,
+      state: "running",
+    });
+    state.observe("project", {
+      type: "tool-start",
+      sessionId,
+      toolCallId: "hung",
+      toolName: "bash",
+    });
+    state.observe("project", { type: "run-state", sessionId, state: "idle" });
+
+    const [snapshot] = state.snapshots(() => "project");
+    expect(snapshot.events.map((event) => event.type)).toEqual(["run-state"]);
+  });
+
   it("drops stale approval cards at run completion and forgets disposed sessions", () => {
     const state = new WebSessionState();
     state.observe("project", {

@@ -21,6 +21,7 @@ import {
   PINE_APPROVAL_DECISION_ENTRY,
   PINE_APPROVAL_MODE_ENTRY,
   PINE_LIVE_CONTEXT_ENTRY,
+  PINE_STOPPED_TOOL_CALL_ENTRY,
   type PineTextMessage,
   replySuggestionFromBranch,
 } from "../../shared/sessions";
@@ -717,6 +718,66 @@ describe("ProjectSessionService", () => {
             },
           ],
         }),
+      ]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("restores calls a stop cut off as stopped, apart from real failures", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const session = await createSession(repository, options.cwd);
+    // A parallel batch: one call failed on its own, one ended because of the
+    // stop, and one never started.
+    await appendMessage(
+      session,
+      fauxAssistantMessage(
+        [
+          fauxToolCall("read", { path: "/missing" }, { id: "call-failed" }),
+          fauxToolCall("bash", { command: "sleep 60" }, { id: "call-stopped" }),
+          fauxToolCall("read", { path: "/later" }, { id: "call-unstarted" }),
+        ],
+        { stopReason: "toolUse", timestamp: Date.now() - 1_000 },
+      ),
+    );
+    await appendMessage(session, {
+      role: "toolResult",
+      toolCallId: "call-failed",
+      toolName: "read",
+      content: [{ type: "text", text: "ENOENT" }],
+      isError: true,
+      timestamp: Date.now(),
+    });
+    await appendCustomEntry(session, PINE_STOPPED_TOOL_CALL_ENTRY, {
+      toolCallId: "call-stopped",
+    });
+    await appendMessage(session, {
+      role: "toolResult",
+      toolCallId: "call-stopped",
+      toolName: "bash",
+      content: [{ type: "text", text: "Command aborted" }],
+      isError: true,
+      timestamp: Date.now(),
+    });
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      const result = await service.loadMessages(session.metadata.id);
+      const toolCalls = result.messages.flatMap((message) =>
+        message.blocks.flatMap((block) =>
+          block.type === "toolCall" ? [block.toolCall] : [],
+        ),
+      );
+
+      expect(
+        toolCalls.map(({ id, status, stopped }) => ({ id, status, stopped })),
+      ).toEqual([
+        { id: "call-failed", status: "error", stopped: undefined },
+        { id: "call-stopped", status: "error", stopped: true },
+        { id: "call-unstarted", status: "error", stopped: true },
       ]);
     } finally {
       await service.dispose();

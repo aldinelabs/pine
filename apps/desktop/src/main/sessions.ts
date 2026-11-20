@@ -32,7 +32,10 @@ import type {
   PineApprovalReasonCode,
   SessionSearchResult,
 } from "../shared/sessions";
-import { PINE_APPROVAL_DECISION_ENTRY } from "../shared/sessions";
+import {
+  PINE_APPROVAL_DECISION_ENTRY,
+  PINE_STOPPED_TOOL_CALL_ENTRY,
+} from "../shared/sessions";
 import {
   isSandboxDeniedPayload,
   type PineApprovalMode,
@@ -299,6 +302,23 @@ function approvalDecisionsFromEntries(
   return decisions;
 }
 
+/** Tool calls the user's stop ended, as the runtime recorded them. */
+function stoppedToolCallIdsFromEntries(entries: readonly Entry[]): Set<string> {
+  const ids = new Set<string>();
+  for (const entry of entries) {
+    if (
+      entry.type === "custom" &&
+      entry.customType === PINE_STOPPED_TOOL_CALL_ENTRY &&
+      typeof entry.data === "object" &&
+      entry.data !== null &&
+      "toolCallId" in entry.data &&
+      typeof entry.data.toolCallId === "string"
+    )
+      ids.add(entry.data.toolCallId);
+  }
+  return ids;
+}
+
 function textFromContent(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
@@ -347,6 +367,7 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
   const messages: IndexedTextMessage[] = [];
   const toolOwners = new Map<string, PineTextMessage>();
   const approvalDecisions = approvalDecisionsFromEntries(entries);
+  const stoppedToolCallIds = stoppedToolCallIdsFromEntries(entries);
 
   for (const [index, entry] of entries.entries()) {
     // Entries are append-only, so file position is a stable cursor.
@@ -441,6 +462,10 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
                   }
                 : entryMessage.content,
             ...(approval ? { approval } : {}),
+            ...(entryMessage.isError &&
+            stoppedToolCallIds.has(entryMessage.toolCallId)
+              ? { stopped: true }
+              : {}),
           },
         };
       });
@@ -479,12 +504,18 @@ function indexedTextMessages(entries: Entry[]): IndexedTextMessage[] {
     }
   }
 
+  // A call with no result never finished: the run was stopped (or the app
+  // quit) before it did.
   for (const { message } of messages) {
     message.blocks = message.blocks.map((block) =>
       block.type === "toolCall" && block.toolCall.status === "pending"
         ? {
             ...block,
-            toolCall: { ...block.toolCall, status: "error" as const },
+            toolCall: {
+              ...block.toolCall,
+              status: "error" as const,
+              stopped: true,
+            },
           }
         : block,
     );

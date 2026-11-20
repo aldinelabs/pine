@@ -282,6 +282,36 @@ export function mergeToolCallBlocks(
   });
 }
 
+/**
+ * Blocks with every call that has not finished marked as stopped, or the
+ * same array when there is none. Once a run is idle no call can still be
+ * running, so a call left pending or running was cut off by the stop: it was
+ * never started (the stop came while the model streamed it, or before its
+ * turn in a batch) or its end never arrived.
+ */
+export function stopUnfinishedToolCalls(
+  blocks: PineContentBlock[],
+): PineContentBlock[] {
+  if (
+    !blocks.some(
+      (block) =>
+        block.type === "toolCall" &&
+        (block.toolCall.status === "pending" ||
+          block.toolCall.status === "running"),
+    )
+  )
+    return blocks;
+  return blocks.map((block) =>
+    block.type === "toolCall" &&
+    (block.toolCall.status === "pending" || block.toolCall.status === "running")
+      ? {
+          ...block,
+          toolCall: { ...block.toolCall, status: "error", stopped: true },
+        }
+      : block,
+  );
+}
+
 function mergeBlockStatuses(
   blocks: PineContentBlock[],
   previous: readonly PineContentBlock[] | undefined,
@@ -1860,6 +1890,11 @@ export const useSessionStore = defineStore("session", () => {
           currentSessionId.value,
         );
       if (event.state === "idle" || event.state === "failed") {
+        messages.value.forEach((message, index) => {
+          const blocks = stopUnfinishedToolCalls(message.blocks);
+          if (blocks !== message.blocks)
+            putMessage({ ...message, blocks }, index);
+        });
         state.hideFinishedTodos();
         pendingApprovals.value = [];
         state.notifiedAutoApprovalFailureIds.clear();
@@ -2155,6 +2190,9 @@ export const useSessionStore = defineStore("session", () => {
                 decidedBy: "sandbox" as const,
               },
             }
+          : {}),
+        ...(event.type === "tool-end"
+          ? { stopped: event.stopped === true }
           : {}),
         ...(event.type === "tool-start" && event.payload !== undefined
           ? { input: event.payload }

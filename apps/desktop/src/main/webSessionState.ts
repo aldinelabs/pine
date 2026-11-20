@@ -128,8 +128,10 @@ export class WebSessionState {
       event.type === "run-state" &&
       (event.state === "idle" || event.state === "failed")
     ) {
+      // Nothing runs once the run is idle: a tool whose end never came was
+      // cut off by a stop, and replaying it would show it running again.
       for (const key of state.values.keys())
-        if (/^(approval|questionnaire|review):/.test(key))
+        if (/^(approval|questionnaire|review|tool):/.test(key))
           state.values.delete(key);
     }
     const key = retainedKey(event);

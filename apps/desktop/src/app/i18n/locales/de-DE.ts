@@ -2106,6 +2106,7 @@ export default {
           awaitingApproval: "Wartet auf Freigabe durch den Benutzer",
           autoApprovalDenied: "Von der automatischen Freigabe abgelehnt",
           userApprovalDenied: "Vom Benutzer abgelehnt",
+          stopped: "Gestoppt",
           sandboxDenied: "Von der Sandbox abgelehnt",
         },
         approvals: {

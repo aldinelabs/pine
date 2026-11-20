@@ -260,7 +260,11 @@ From top to bottom:
      available when reopening the conversation. Older calls without review
      records do not show a model inferred from current settings. During automatic
      review and approval waits, tool targets keep their monospace styling within
-     the shimmering label;
+     the shimmering label. A call the user's Stop cut off (still running, or
+     not yet started) stops shimmering and shows a stop icon with its label
+     followed by "· Stopped" in muted text, not the red failure style; its
+     details show the status "Stopped". It stays that way when the
+     conversation is reopened;
    - file search calls ("Found files for …", "Searched code for …"), which
      show the searched name or text and how many files or lines matched; their
      details list each file, line number and matching line;

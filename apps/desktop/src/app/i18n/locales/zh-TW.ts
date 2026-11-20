@@ -1971,6 +1971,7 @@ export default {
           awaitingApproval: "等待使用者審批",
           autoApprovalDenied: "自動審批駁回",
           userApprovalDenied: "使用者已拒絕",
+          stopped: "已停止",
           sandboxDenied: "沙箱拒絕",
         },
         approvals: {

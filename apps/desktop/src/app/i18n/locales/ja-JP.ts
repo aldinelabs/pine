@@ -2071,6 +2071,7 @@ export default {
           awaitingApproval: "ユーザーの承認待ち",
           autoApprovalDenied: "自動承認で拒否されました",
           userApprovalDenied: "ユーザーが拒否しました",
+          stopped: "停止しました",
           sandboxDenied: "サンドボックスが拒否しました",
         },
         approvals: {

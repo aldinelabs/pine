@@ -330,6 +330,12 @@ export const PINE_AUTHORIZATION_GRANT_ENTRY =
 /** Audit record preserving a tool approval decision in the session transcript. */
 export const PINE_APPROVAL_DECISION_ENTRY = "pine.approval-decision" as const;
 
+/**
+ * Records a tool call the user's stop interrupted, so a reopened session
+ * shows it as stopped rather than failed. Not part of the model's context.
+ */
+export const PINE_STOPPED_TOOL_CALL_ENTRY = "pine.stopped-tool-call" as const;
+
 export type PineToolCallStatus = "pending" | "running" | "complete" | "error";
 
 /** Actual reviewer attempts, captured at execution time rather than from preferences. */
@@ -404,6 +410,11 @@ export interface PineToolCall {
   output?: unknown;
   startedAt?: string;
   durationMs?: number;
+  /**
+   * The user stopped the run before this call finished: it either never ran
+   * or ended because of the stop. Always paired with status "error".
+   */
+  stopped?: boolean;
 }
 
 export interface PineSessionModel {

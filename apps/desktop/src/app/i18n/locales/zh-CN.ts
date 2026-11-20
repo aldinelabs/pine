@@ -1967,6 +1967,7 @@ export default {
           awaitingApproval: "等待用户审批",
           autoApprovalDenied: "自动审批驳回",
           userApprovalDenied: "用户已拒绝",
+          stopped: "已停止",
           sandboxDenied: "沙箱拒绝",
         },
         approvals: {

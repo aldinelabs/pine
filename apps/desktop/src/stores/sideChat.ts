@@ -16,6 +16,7 @@ import type {
 } from "@/shared/sideChats";
 import {
   mergeToolCallBlocks,
+  stopUnfinishedToolCalls,
   transcriptMessageFromEvent,
   messageCreatedAt,
   type PineTranscriptMessage,
@@ -438,6 +439,13 @@ export const useSideChatStore = defineStore("sideChat", () => {
         chat.isRunning =
           event.state === "running" || event.state === "aborting";
         if (event.state === "failed" && event.error) chat.error = event.error;
+        if (event.state === "idle" || event.state === "failed") {
+          chat.messages.forEach((message, index) => {
+            const blocks = stopUnfinishedToolCalls(message.blocks);
+            if (blocks !== message.blocks)
+              chat.messages[index] = rawMessage({ ...message, blocks });
+          });
+        }
         return;
       case "session-error":
         chat.error = event.message;
@@ -460,6 +468,9 @@ export const useSideChatStore = defineStore("sideChat", () => {
             : {}),
           ...(event.type === "tool-end" && event.payload !== undefined
             ? { output: event.payload }
+            : {}),
+          ...(event.type === "tool-end"
+            ? { stopped: event.stopped === true }
             : {}),
         };
         const message = chat.messages[index];

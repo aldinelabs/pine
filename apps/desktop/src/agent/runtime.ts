@@ -82,6 +82,7 @@ import {
   PINE_SKILL_AUTHORING_ACTIVE_ENTRY,
   PINE_AUTOMATION_AUTHORING_ACTIVE_ENTRY,
   PINE_MCP_AUTHORING_ACTIVE_ENTRY,
+  PINE_STOPPED_TOOL_CALL_ENTRY,
   type PineApprovalDecision,
   type PineApprovalExplanation,
   type PineApprovalReview,
@@ -517,6 +518,11 @@ export class PineAgentRuntime {
       emitSteeringQueue: (live) => this.emitSteeringQueue(live),
       recordApprovalDecision: (live, decision) =>
         this.recordApprovalDecision(live, decision),
+      recordStoppedToolCall: (live, toolCallId) =>
+        live.session.sessionManager.appendCustomEntry(
+          PINE_STOPPED_TOOL_CALL_ENTRY,
+          { toolCallId },
+        ),
       generateInitialTitle: (live) => this.generateInitialTitle(live),
       getContextUsage: (session, message) =>
         this.getContextUsage(session, message),

@@ -68,6 +68,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Whether the user stopped the run this event belongs to. Pi only ends a tool
+ * call once the tool settles, so a call that fails after the stop failed
+ * because of it.
+ */
+function runStopped(session: AgentSession): boolean {
+  const agent = (session as Partial<Pick<AgentSession, "agent">>).agent;
+  return agent?.signal?.aborted === true;
+}
+
 /** A message whose content already reached the renderer through `tool-end`. */
 function isToolResultMessage(message: unknown): boolean {
   return isRecord(message) && message.role === "toolResult";
@@ -82,6 +92,8 @@ export interface PineAgentEventForwarderOptions {
     live: LiveAgentSession,
     decision: PineApprovalDecision,
   ) => void;
+  /** Persists that the user's stop ended a tool call. */
+  recordStoppedToolCall?: (live: LiveAgentSession, toolCallId: string) => void;
   generateInitialTitle: (live: LiveAgentSession) => Promise<void>;
   getContextUsage: (
     session: AgentSession,
@@ -244,7 +256,15 @@ export class PineAgentEventForwarder {
       case "tool_execution_end": {
         this.toolUpdates.get(sessionId)?.delete(event.toolCallId);
         const payload = toPineJsonValue(event.result);
-        if (event.isError && isSandboxDeniedPayload(payload)) {
+        const sandboxDenied = event.isError && isSandboxDeniedPayload(payload);
+        const stopped = event.isError && !sandboxDenied && runStopped(session);
+        if (stopped) {
+          this.options.recordStoppedToolCall?.(
+            this.options.getSession(sessionId),
+            event.toolCallId,
+          );
+        }
+        if (sandboxDenied) {
           this.options.recordApprovalDecision(
             this.options.getSession(sessionId),
             {
@@ -262,6 +282,7 @@ export class PineAgentEventForwarder {
           toolName: event.toolName,
           payload,
           isError: event.isError,
+          ...(stopped ? { stopped: true } : {}),
         });
         break;
       }

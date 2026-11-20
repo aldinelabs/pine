@@ -301,6 +301,8 @@ export type PineAgentEvent =
       toolName: string;
       payload?: PineJsonValue;
       isError?: boolean;
+      /** On `tool-end`: the call ended because the user stopped the run. */
+      stopped?: boolean;
       /** ISO time the tool started, set when a reconnect replays a running tool. */
       startedAt?: string;
     }

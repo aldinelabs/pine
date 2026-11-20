@@ -1001,6 +1001,102 @@ describe("session store", () => {
     expect(store.isRunning).toBe(true);
   });
 
+  it("marks every call a stop cut off as stopped once the run is idle", async () => {
+    let listener: ((event: PineAgentEvent) => void) | undefined;
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: {
+        onSessionEvent: vi.fn((nextListener) => {
+          listener = nextListener;
+          return () => undefined;
+        }),
+        promptSession: vi.fn().mockResolvedValue({ session }),
+      },
+    });
+    const store = useSessionStore();
+    store.connectAgentEvents();
+    await store.prompt("Run the tools", { projectId: PROJECT_ID });
+    const emit = (event: PineAgentEvent) => listener?.(event);
+    const toolCall = (id: string) => ({
+      type: "toolCall",
+      id,
+      name: "bash",
+      arguments: { command: id },
+    });
+    const tool = (
+      type: "tool-start" | "tool-end",
+      toolCallId: string,
+      extra: { isError?: boolean; stopped?: boolean } = {},
+    ) =>
+      emit({
+        type,
+        sessionId: session.id,
+        toolCallId,
+        toolName: "bash",
+        ...extra,
+      });
+
+    emit({ type: "run-state", sessionId: session.id, state: "running" });
+    const message = {
+      role: "assistant",
+      timestamp: 1_784_000_000_000,
+      content: [
+        toolCall("done"),
+        toolCall("ended"),
+        toolCall("hung"),
+        toolCall("unstarted"),
+      ],
+    };
+    emit({
+      type: "message-start",
+      sessionId: session.id,
+      messageId: "assistant-1",
+      message,
+    });
+    emit({
+      type: "message-end",
+      sessionId: session.id,
+      messageId: "assistant-1",
+      message,
+    });
+    tool("tool-start", "done");
+    tool("tool-end", "done", { isError: false });
+    tool("tool-start", "ended");
+    tool("tool-start", "hung");
+    emit({ type: "run-state", sessionId: session.id, state: "aborting" });
+    tool("tool-end", "ended", { isError: true, stopped: true });
+
+    const calls = () =>
+      store.messages.flatMap((entry) =>
+        entry.blocks.flatMap((block) =>
+          block.type === "toolCall"
+            ? [
+                {
+                  id: block.toolCall.id,
+                  status: block.toolCall.status,
+                  stopped: block.toolCall.stopped === true,
+                },
+              ]
+            : [],
+        ),
+      );
+    expect(calls()).toEqual([
+      { id: "done", status: "complete", stopped: false },
+      { id: "ended", status: "error", stopped: true },
+      { id: "hung", status: "running", stopped: false },
+      { id: "unstarted", status: "pending", stopped: false },
+    ]);
+
+    emit({ type: "run-state", sessionId: session.id, state: "idle" });
+
+    expect(calls()).toEqual([
+      { id: "done", status: "complete", stopped: false },
+      { id: "ended", status: "error", stopped: true },
+      { id: "hung", status: "error", stopped: true },
+      { id: "unstarted", status: "error", stopped: true },
+    ]);
+  });
+
   it("surfaces model and runtime errors in the transcript", async () => {
     let listener: ((event: PineAgentEvent) => void) | undefined;
     Object.defineProperty(window, "pine", {

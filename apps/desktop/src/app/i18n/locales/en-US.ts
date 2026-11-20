@@ -2061,6 +2061,7 @@ export default {
           awaitingApproval: "Awaiting user approval",
           autoApprovalDenied: "Automatic approval denied",
           userApprovalDenied: "Denied by user",
+          stopped: "Stopped",
           sandboxDenied: "Denied by sandbox",
         },
         approvals: {

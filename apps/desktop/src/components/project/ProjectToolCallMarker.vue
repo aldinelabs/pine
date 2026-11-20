@@ -3,6 +3,7 @@ import {
   AlertCircleIcon,
   CheckIcon,
   CircleHelpIcon,
+  CircleStopIcon,
   EyeIcon,
   ShieldBanIcon,
 } from "@lucide/vue";
@@ -434,6 +435,10 @@ const kindIcon = toolIcon(props.toolCall.name);
 
 const isRunning = computed(() => isRunningTool(props.toolCall));
 const isDenied = computed(() => isDeniedTool(props.toolCall));
+/** Cut off by the user's stop: shown apart from a failure, not as one. */
+const isStopped = computed(
+  () => props.toolCall.stopped === true && !isDenied.value,
+);
 
 function inputRecord(value: unknown): Record<string, unknown> {
   if (typeof value === "string") {
@@ -1066,7 +1071,8 @@ const presentation = computed(() => {
       ? "reviewing"
       : props.awaitingApproval
         ? "awaiting"
-        : isRunning.value
+        : // A stopped call reads as what it was doing when the stop came.
+          isRunning.value || isStopped.value
           ? "running"
           : props.toolCall.status === "error"
             ? "error"
@@ -1774,7 +1780,10 @@ const fullText = computed(() => {
   const after = presentation.value.after;
   const targetSeparator =
     !operation && separator === " " && target ? separator : "";
-  return `${before}${operation ?? ""}${operation ? separator : targetSeparator}${target}${purpose ? ` ${purpose}` : ""}${after}`;
+  const stopped = isStopped.value
+    ? ` · ${t("project.transcript.toolDetails.statuses.stopped")}`
+    : "";
+  return `${before}${operation ?? ""}${operation ? separator : targetSeparator}${target}${purpose ? ` ${purpose}` : ""}${after}${stopped}`;
 });
 </script>
 
@@ -1802,6 +1811,7 @@ const fullText = computed(() => {
          tint. -->
       <MarkerIcon>
         <ShieldBanIcon v-if="isDenied" class="text-warning" />
+        <CircleStopIcon v-else-if="isStopped" />
         <AlertCircleIcon
           v-else-if="toolCall.status === 'error'"
           class="text-destructive"
@@ -1816,7 +1826,7 @@ const fullText = computed(() => {
             ? 'text-warning'
             : isActive
               ? shimmerClass
-              : toolCall.status === 'error' && 'text-destructive'
+              : toolCall.status === 'error' && !isStopped && 'text-destructive'
         "
         :title="fullText"
       >
@@ -1873,7 +1883,14 @@ const fullText = computed(() => {
           >{{
             t("project.transcript.tools.writeLines", { count: writeLineCount })
           }}</span
-        ><span v-if="presentation.after">{{ presentation.after }}</span>
+        ><span v-if="presentation.after">{{ presentation.after }}</span
+        ><span
+          v-if="isStopped"
+          data-tool-stopped
+          class="text-sm font-normal text-muted-foreground"
+          >{{ " · "
+          }}{{ t("project.transcript.toolDetails.statuses.stopped") }}</span
+        >
       </MarkerContent>
     </Marker>
   </ProjectToolCallDialog>

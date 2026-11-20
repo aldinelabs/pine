@@ -2100,6 +2100,7 @@ export default {
           awaitingApproval: "En attente de l'approbation de l'utilisateur",
           autoApprovalDenied: "Refusé par l'approbation automatique",
           userApprovalDenied: "Refusé par l'utilisateur",
+          stopped: "Arrêté",
           sandboxDenied: "Refusé par le bac à sable",
         },
         approvals: {

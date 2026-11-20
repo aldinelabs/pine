@@ -2076,6 +2076,7 @@ export default {
           awaitingApproval: "Ожидает подтверждения пользователя",
           autoApprovalDenied: "Отклонено автоматическим подтверждением",
           userApprovalDenied: "Отклонено пользователем",
+          stopped: "Остановлено",
           sandboxDenied: "Отклонено песочницей",
         },
         approvals: {

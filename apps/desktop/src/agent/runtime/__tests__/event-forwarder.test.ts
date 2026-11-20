@@ -351,3 +351,81 @@ describe("PineAgentEventForwarder session summaries", () => {
     expect(summaries()).toHaveLength(2);
   });
 });
+
+describe("PineAgentEventForwarder stopped tool calls", () => {
+  function createStopForwarder() {
+    const emitted: PineAgentEvent[] = [];
+    const abort = new AbortController();
+    const session = {
+      sessionId: SESSION_ID,
+      agent: {
+        get signal() {
+          return abort.signal;
+        },
+      },
+    } as unknown as AgentSession;
+    const live = { session } as unknown as LiveAgentSession;
+    const recordStoppedToolCall = vi.fn();
+    const forwarder = new PineAgentEventForwarder({
+      emit: (event) => {
+        emitted.push(event);
+      },
+      getLiveSession: () => live,
+      getSession: () => live,
+      emitSteeringQueue: vi.fn(),
+      recordApprovalDecision: vi.fn(),
+      recordStoppedToolCall,
+      generateInitialTitle: vi.fn(() => Promise.resolve()),
+      getContextUsage: vi.fn(() => undefined),
+      emitContextUsage: vi.fn(),
+    });
+    const finish = (toolCallId: string, isError: boolean) => {
+      forwarder.forward(session, {
+        type: "tool_execution_end",
+        toolCallId,
+        toolName: "bash",
+        result: { content: [{ type: "text", text: "done" }] },
+        isError,
+      } as unknown as AgentSessionEvent);
+    };
+    const toolEnds = () =>
+      emitted.flatMap((event) =>
+        event.type === "tool-end"
+          ? [{ id: event.toolCallId, stopped: event.stopped }]
+          : [],
+      );
+    return { abort, finish, live, recordStoppedToolCall, toolEnds };
+  }
+
+  it("marks and records a call that fails after the stop", () => {
+    const { abort, finish, live, recordStoppedToolCall, toolEnds } =
+      createStopForwarder();
+
+    finish("call-before", true);
+    abort.abort();
+    // Parallel calls each end on their own once the stop reaches them.
+    finish("call-a", true);
+    finish("call-b", true);
+
+    expect(toolEnds()).toEqual([
+      { id: "call-before", stopped: undefined },
+      { id: "call-a", stopped: true },
+      { id: "call-b", stopped: true },
+    ]);
+    expect(recordStoppedToolCall.mock.calls).toEqual([
+      [live, "call-a"],
+      [live, "call-b"],
+    ]);
+  });
+
+  it("keeps a call that still succeeded after the stop complete", () => {
+    const { abort, finish, recordStoppedToolCall, toolEnds } =
+      createStopForwarder();
+
+    abort.abort();
+    finish("call-a", false);
+
+    expect(toolEnds()).toEqual([{ id: "call-a", stopped: undefined }]);
+    expect(recordStoppedToolCall).not.toHaveBeenCalled();
+  });
+});

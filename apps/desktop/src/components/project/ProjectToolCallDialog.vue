@@ -68,6 +68,7 @@ const wideDetails = computed(() =>
 );
 
 type StatusKey =
+  | "stopped"
   | "pending"
   | "running"
   | "complete"
@@ -96,6 +97,7 @@ const statusKey = computed<StatusKey>(() => {
   ) {
     return "awaitingApproval";
   }
+  if (props.toolCall.stopped) return "stopped";
   return props.toolCall.status;
 });
 
