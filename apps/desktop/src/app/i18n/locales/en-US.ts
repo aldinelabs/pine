@@ -468,6 +468,7 @@ export default {
     utilityModel: "Title generation model",
     approvalModel: "Approval model",
     promptRewriteModel: "Prompt optimization model",
+    liveTranslationModel: "Live translation model",
     selectUtilityModel: "Choose model",
     noUtilityModelSelected: "No model selected",
     imageModel: "Image generation model",
@@ -2854,6 +2855,10 @@ export default {
     },
     promptRewriteModel: {
       title: "Unable to update prompt optimization model",
+      description: "Check the model provider and try again",
+    },
+    liveTranslationModel: {
+      title: "Unable to update live translation model",
       description: "Check the model provider and try again",
     },
     imageModel: {

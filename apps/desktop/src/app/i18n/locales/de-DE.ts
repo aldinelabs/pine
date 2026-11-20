@@ -480,6 +480,7 @@ export default {
     utilityModel: "Modell für Titelerzeugung",
     approvalModel: "Modell für Freigabeprüfung",
     promptRewriteModel: "Modell für Prompt-Optimierung",
+    liveTranslationModel: "Modell für Live-Übersetzung",
     selectUtilityModel: "Modell auswählen",
     noUtilityModelSelected: "Kein Modell ausgewählt",
     imageModel: "Modell für Bilderzeugung",
@@ -2939,6 +2940,10 @@ export default {
     },
     promptRewriteModel: {
       title: "Modell für Prompt-Optimierung konnte nicht geändert werden",
+      description: "Prüfe den Modellanbieter und versuche es erneut",
+    },
+    liveTranslationModel: {
+      title: "Modell für Live-Übersetzung konnte nicht geändert werden",
       description: "Prüfe den Modellanbieter und versuche es erneut",
     },
     imageModel: {

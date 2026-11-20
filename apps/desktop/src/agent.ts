@@ -192,6 +192,12 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
         request.selection,
       );
       break;
+    case "models:select-live-translation":
+      result = await runtime.selectLiveTranslationModel(
+        request.agentDir,
+        request.selection,
+      );
+      break;
     case "prompts:suggest-reply":
       result = await runtime.suggestReply(request.agentDir, request.context);
       break;

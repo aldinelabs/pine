@@ -147,6 +147,7 @@ import {
   SELECT_VIDEO_MODEL_CHANNEL,
   SELECT_APPROVAL_MODEL_CHANNEL,
   SELECT_PROMPT_REWRITE_MODEL_CHANNEL,
+  SELECT_LIVE_TRANSLATION_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -169,6 +170,7 @@ import {
   type SelectVideoModelRequest,
   type SelectApprovalModelRequest,
   type SelectPromptRewriteModelRequest,
+  type SelectLiveTranslationModelRequest,
   type SelectUtilityModelRequest,
 } from "../shared/models";
 import {
@@ -781,6 +783,10 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: SelectPromptRewriteModelRequest,
     ): Promise<{ updated: boolean }> =>
       transport.invoke(SELECT_PROMPT_REWRITE_MODEL_CHANNEL, request),
+    selectLiveTranslationModel: (
+      request: SelectLiveTranslationModelRequest,
+    ): Promise<{ updated: boolean }> =>
+      transport.invoke(SELECT_LIVE_TRANSLATION_MODEL_CHANNEL, request),
     rewritePrompt: (
       request: RewritePromptRequest,
     ): Promise<RewritePromptResult> =>

@@ -479,6 +479,7 @@ export default {
     utilityModel: "タイトル生成用モデル",
     approvalModel: "承認レビュー用モデル",
     promptRewriteModel: "指示最適化モデル",
+    liveTranslationModel: "ライブ翻訳モデル",
     selectUtilityModel: "モデルを選択",
     noUtilityModelSelected: "モデルが選択されていません",
     imageModel: "画像生成モデル",
@@ -2896,6 +2897,10 @@ export default {
     },
     promptRewriteModel: {
       title: "指示最適化モデルを更新できません",
+      description: "モデルプロバイダーを確認して、もう一度お試しください",
+    },
+    liveTranslationModel: {
+      title: "ライブ翻訳モデルを更新できません",
       description: "モデルプロバイダーを確認して、もう一度お試しください",
     },
     imageModel: {

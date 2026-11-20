@@ -114,6 +114,7 @@ function mountPicker(
     | "session"
     | "utility"
     | "approval"
+    | "liveTranslation"
     | "image"
     | "video"
     | "decisions" = "session",
@@ -122,6 +123,7 @@ function mountPicker(
   const logoutProvider = vi.fn().mockResolvedValue({ disposed: true });
   const selectModel = vi.fn().mockResolvedValue(undefined);
   const selectUtilityModel = vi.fn().mockResolvedValue(undefined);
+  const selectLiveTranslationModel = vi.fn().mockResolvedValue(undefined);
   const selectImageModel = vi.fn().mockResolvedValue(undefined);
   const selectVideoModel = vi.fn().mockResolvedValue(undefined);
   const getAutoApprovalSettings = vi
@@ -142,6 +144,7 @@ function mountPicker(
       selectImageModel,
       selectVideoModel,
       selectUtilityModel,
+      selectLiveTranslationModel,
       addCustomModel: vi.fn(),
     },
   });
@@ -182,6 +185,7 @@ function mountPicker(
     selectVideoModel,
     selectModel,
     selectUtilityModel,
+    selectLiveTranslationModel,
     wrapper,
   };
 }
@@ -337,6 +341,34 @@ describe("ModelPickerDialog utility model selection", () => {
     });
     expect(selectModel).not.toHaveBeenCalled();
     expect(wrapper.emitted("update:open")).toContainEqual([false]);
+  });
+});
+
+describe("ModelPickerDialog live translation model selection", () => {
+  it("saves the live translation model, not the utility or session model", async () => {
+    const {
+      selectLiveTranslationModel,
+      selectModel,
+      selectUtilityModel,
+      wrapper,
+    } = mountPicker("liveTranslation");
+    const modelItem = wrapper
+      .findAll("[data-picker-row]")
+      .find((item) => item.attributes("data-value")?.includes(utilityModel.id));
+
+    await modelItem?.trigger("click");
+    await flushPromises();
+
+    expect(selectLiveTranslationModel).toHaveBeenCalledWith({
+      modelId: utilityModel.id,
+      providerId: utilityModel.providerId,
+    });
+    expect(selectUtilityModel).not.toHaveBeenCalled();
+    expect(selectModel).not.toHaveBeenCalled();
+    expect(useModelsStore().liveTranslationSelection).toEqual({
+      modelId: utilityModel.id,
+      providerId: utilityModel.providerId,
+    });
   });
 });
 

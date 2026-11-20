@@ -443,6 +443,7 @@ export default {
     utilityModel: "标题生成模型",
     approvalModel: "审批模型",
     promptRewriteModel: "指令优化模型",
+    liveTranslationModel: "实时翻译模型",
     selectUtilityModel: "选择模型",
     noUtilityModelSelected: "未选择任何模型",
     imageModel: "图像生成模型",
@@ -2759,6 +2760,10 @@ export default {
     },
     promptRewriteModel: {
       title: "无法更新指令优化模型",
+      description: "请检查模型提供商后重试",
+    },
+    liveTranslationModel: {
+      title: "无法更新实时翻译模型",
       description: "请检查模型提供商后重试",
     },
     imageModel: {

@@ -215,6 +215,7 @@ export function createWebChannels(
     [models.SELECT_UTILITY_MODEL_CHANNEL, command("none")],
     [models.SELECT_APPROVAL_MODEL_CHANNEL, command("none")],
     [models.SELECT_PROMPT_REWRITE_MODEL_CHANNEL, command("none")],
+    [models.SELECT_LIVE_TRANSLATION_MODEL_CHANNEL, command("none")],
     [REWRITE_PROMPT_CHANNEL, command("none")],
     [SUGGEST_REPLY_CHANNEL, command("none")],
     [models.ADD_CUSTOM_MODEL_CHANNEL, command("none")],

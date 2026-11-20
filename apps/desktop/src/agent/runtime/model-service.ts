@@ -24,6 +24,7 @@ import {
   type PineThinkingLevel,
   type PineApprovalModelSelection,
   type PinePromptRewriteModelSelection,
+  type PineLiveTranslationModelSelection,
   type PineUtilityModelSelection,
   type ProviderLoginResult,
   type UpdateCustomModelRequest,
@@ -51,6 +52,7 @@ import {
   writeVideoModelSelection,
   writeApprovalModelSelection,
   writePromptRewriteModelSelection,
+  writeLiveTranslationModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 import type { PineContextCompactionStrategy } from "../../shared/preferences";
@@ -226,6 +228,17 @@ export class PineModelService {
         ? promptRewriteSelection
         : undefined;
 
+    const liveTranslationSelection = pineSettings.liveTranslationModel;
+    const validLiveTranslationSelection =
+      liveTranslationSelection &&
+      runtime.hasConfiguredAuth(liveTranslationSelection.providerId) &&
+      runtime.getModel(
+        liveTranslationSelection.providerId,
+        liveTranslationSelection.modelId,
+      )
+        ? liveTranslationSelection
+        : undefined;
+
     const imageSelection = pineSettings.imageModel;
     const storedImageSelection =
       imageSelection &&
@@ -276,6 +289,9 @@ export class PineModelService {
         : {}),
       ...(validPromptRewriteSelection
         ? { promptRewriteSelection: validPromptRewriteSelection }
+        : {}),
+      ...(validLiveTranslationSelection
+        ? { liveTranslationSelection: validLiveTranslationSelection }
         : {}),
       ...(defaultProvider &&
       defaultModel &&
@@ -553,6 +569,21 @@ export class PineModelService {
     return { updated: true };
   }
 
+  async selectLiveTranslationModel(
+    agentDir: string,
+    selection: PineLiveTranslationModelSelection,
+  ): Promise<{ updated: boolean }> {
+    const runtime = await this.getModelRuntime(agentDir);
+    const model = runtime.getModel(selection.providerId, selection.modelId);
+    if (!model) throw new Error("Model not found.");
+    const available = await runtime.getAvailable(selection.providerId);
+    if (!available.some((candidate) => candidate.id === selection.modelId)) {
+      throw new Error("Configure this provider before selecting its model.");
+    }
+    await writeLiveTranslationModelSelection(agentDir, selection);
+    return { updated: true };
+  }
+
   async selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,
@@ -649,6 +680,23 @@ export class PineModelService {
   ): Promise<Model<Api> | undefined> {
     const selection = (await readPineAgentSettings(agentDir))
       .promptRewriteModel;
+    if (
+      selection &&
+      runtime.hasConfiguredAuth(selection.providerId) &&
+      runtime.getModel(selection.providerId, selection.modelId)
+    ) {
+      return runtime.getModel(selection.providerId, selection.modelId);
+    }
+    return this.utilityModel(agentDir, runtime);
+  }
+
+  /** Live Context translation's model; falls back to the title/utility model. */
+  async liveTranslationModel(
+    agentDir: string,
+    runtime: ModelRuntime,
+  ): Promise<Model<Api> | undefined> {
+    const selection = (await readPineAgentSettings(agentDir))
+      .liveTranslationModel;
     if (
       selection &&
       runtime.hasConfiguredAuth(selection.providerId) &&

@@ -166,6 +166,7 @@ const {
   utilitySelectedModel,
   approvalSelectedModel,
   promptRewriteSelectedModel,
+  liveTranslationSelectedModel,
 } = storeToRefs(modelsStore);
 const isOpen = ref(false);
 const activeSection = ref<PreferenceSection>("general");
@@ -178,6 +179,7 @@ const showPage = useDialogPages();
 const isUtilityModelPickerOpen = ref(false);
 const isApprovalModelPickerOpen = ref(false);
 const isPromptRewriteModelPickerOpen = ref(false);
+const isLiveTranslationModelPickerOpen = ref(false);
 const isImageModelPickerOpen = ref(false);
 const isVideoModelPickerOpen = ref(false);
 const isTinyFishCredentialDialogOpen = ref(false);
@@ -1770,6 +1772,30 @@ defineExpose({ open });
 
                   <Field orientation="responsive">
                     <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-live-translation-model-setting">
+                        {{ t("preferences.liveTranslationModel") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{
+                          liveTranslationSelectedModel?.name ??
+                          utilitySelectedModel?.name ??
+                          t("preferences.noUtilityModelSelected")
+                        }}
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-live-translation-model-button"
+                      variant="outline"
+                      size="sm"
+                      aria-labelledby="pine-live-translation-model-setting"
+                      @click="isLiveTranslationModelPickerOpen = true"
+                    >
+                      {{ t("preferences.selectUtilityModel") }}
+                    </Button>
+                  </Field>
+
+                  <Field orientation="responsive">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
                       <FieldTitle id="pine-image-model-setting">
                         {{ t("preferences.imageModel") }}
                       </FieldTitle>
@@ -2108,6 +2134,10 @@ defineExpose({ open });
   <ModelPickerDialog
     v-model:open="isPromptRewriteModelPickerOpen"
     purpose="promptRewrite"
+  />
+  <ModelPickerDialog
+    v-model:open="isLiveTranslationModelPickerOpen"
+    purpose="liveTranslation"
   />
 
   <ModelPickerDialog v-model:open="isImageModelPickerOpen" purpose="image" />

@@ -415,6 +415,11 @@ export const SelectPromptRewriteModelRequestSchema =
     modelId: true,
     providerId: true,
   });
+export const SelectLiveTranslationModelRequestSchema =
+  SelectModelRequestSchema.pick({
+    modelId: true,
+    providerId: true,
+  });
 const PromptRewriteContextSchema = z
   .object({
     project: z

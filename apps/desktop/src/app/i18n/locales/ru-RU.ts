@@ -469,6 +469,7 @@ export default {
     utilityModel: "Модель генерации заголовков",
     approvalModel: "Модель проверки разрешений",
     promptRewriteModel: "Модель оптимизации запросов",
+    liveTranslationModel: "Модель синхронного перевода",
     selectUtilityModel: "Выбрать модель",
     noUtilityModelSelected: "Модель не выбрана",
     imageModel: "Модель генерации изображений",
@@ -2893,6 +2894,10 @@ export default {
     },
     promptRewriteModel: {
       title: "Не удалось изменить модель оптимизации запросов",
+      description: "Проверьте поставщика модели и повторите попытку",
+    },
+    liveTranslationModel: {
+      title: "Не удалось изменить модель синхронного перевода",
       description: "Проверьте поставщика модели и повторите попытку",
     },
     imageModel: {

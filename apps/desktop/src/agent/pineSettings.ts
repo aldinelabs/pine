@@ -11,6 +11,7 @@ import type {
   PineVideoModelSelection,
   PineApprovalModelSelection,
   PinePromptRewriteModelSelection,
+  PineLiveTranslationModelSelection,
   PineUtilityModelSelection,
 } from "../shared/models";
 import {
@@ -56,6 +57,7 @@ export interface PineAgentSettings {
   utilityModel?: PineUtilityModelSelection;
   approvalModel?: PineApprovalModelSelection;
   promptRewriteModel?: PinePromptRewriteModelSelection;
+  liveTranslationModel?: PineLiveTranslationModelSelection;
   userProfile?: PineUserProfile;
   /** Read providers from Pi's models.json (as written by Pi or CC Switch). */
   piProviders?: PiProvidersSetting;
@@ -172,6 +174,7 @@ export async function readPineAgentSettings(
     const utilityModel = settings.utilityModel;
     const approvalModel = settings.approvalModel;
     const promptRewriteModel = settings.promptRewriteModel;
+    const liveTranslationModel = settings.liveTranslationModel;
     const userProfile = migrateUserProfile(settings.userProfile);
     const contextCompactionStrategy = settings.contextCompactionStrategy;
     const contextCompactionRoute = settings.contextCompactionRoute;
@@ -234,6 +237,9 @@ export async function readPineAgentSettings(
       ...(isModelSelection(utilityModel) ? { utilityModel } : {}),
       ...(isModelSelection(approvalModel) ? { approvalModel } : {}),
       ...(isModelSelection(promptRewriteModel) ? { promptRewriteModel } : {}),
+      ...(isModelSelection(liveTranslationModel)
+        ? { liveTranslationModel }
+        : {}),
       ...(isPineUserProfile(userProfile) ? { userProfile } : {}),
       ...(isPiProvidersSetting(settings.piProviders)
         ? {
@@ -278,6 +284,13 @@ export async function writePromptRewriteModelSelection(
   promptRewriteModel: PinePromptRewriteModelSelection,
 ): Promise<void> {
   await writePineAgentSettings(agentDir, { promptRewriteModel });
+}
+
+export async function writeLiveTranslationModelSelection(
+  agentDir: string,
+  liveTranslationModel: PineLiveTranslationModelSelection,
+): Promise<void> {
+  await writePineAgentSettings(agentDir, { liveTranslationModel });
 }
 
 export async function writeImageModelSelection(

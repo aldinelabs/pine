@@ -63,6 +63,7 @@ import type {
   SelectVideoModelRequest,
   SelectApprovalModelRequest,
   SelectPromptRewriteModelRequest,
+  SelectLiveTranslationModelRequest,
   SelectUtilityModelRequest,
   UpdateCustomModelRequest,
   UpdateCustomProviderRequest,
@@ -650,6 +651,9 @@ export interface PineDesktopApi
   ) => Promise<{ updated: boolean }>;
   selectPromptRewriteModel: (
     request: SelectPromptRewriteModelRequest,
+  ) => Promise<{ updated: boolean }>;
+  selectLiveTranslationModel: (
+    request: SelectLiveTranslationModelRequest,
   ) => Promise<{ updated: boolean }>;
   /** Rewrites a composer draft into a clearer prompt. */
   rewritePrompt: (

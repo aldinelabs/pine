@@ -477,6 +477,7 @@ export default {
     utilityModel: "Modelo de generación de títulos",
     approvalModel: "Modelo de revisión de aprobaciones",
     promptRewriteModel: "Modelo de optimización de prompts",
+    liveTranslationModel: "Modelo de traducción en directo",
     selectUtilityModel: "Elegir modelo",
     noUtilityModelSelected: "Ningún modelo seleccionado",
     imageModel: "Modelo de generación de imágenes",
@@ -2919,6 +2920,10 @@ export default {
     },
     promptRewriteModel: {
       title: "No se pudo actualizar el modelo de optimización de prompts",
+      description: "Revisa el proveedor del modelo e inténtalo de nuevo",
+    },
+    liveTranslationModel: {
+      title: "No se pudo actualizar el modelo de traducción en directo",
       description: "Revisa el proveedor del modelo e inténtalo de nuevo",
     },
     imageModel: {

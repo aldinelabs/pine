@@ -92,6 +92,7 @@ const props = withDefaults(
       | "utility"
       | "approval"
       | "promptRewrite"
+      | "liveTranslation"
       | "image"
       | "video"
       | "decisions";
@@ -514,7 +515,9 @@ function isSelected(model: PineModelDescriptor): boolean {
         ? modelsStore.approvalSelection
         : props.purpose === "promptRewrite"
           ? modelsStore.promptRewriteSelection
-          : sessionSelection.value;
+          : props.purpose === "liveTranslation"
+            ? modelsStore.liveTranslationSelection
+            : sessionSelection.value;
   return (
     selected?.providerId === model.providerId && selected.modelId === model.id
   );

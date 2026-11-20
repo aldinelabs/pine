@@ -19,6 +19,7 @@ import type {
   PineThinkingLevel,
   PineApprovalModelSelection,
   PinePromptRewriteModelSelection,
+  PineLiveTranslationModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -420,6 +421,12 @@ export type AgentWorkerRequest =
       type: "models:select-prompt-rewrite";
       agentDir: string;
       selection: PinePromptRewriteModelSelection;
+    }
+  | {
+      id: string;
+      type: "models:select-live-translation";
+      agentDir: string;
+      selection: PineLiveTranslationModelSelection;
     }
   | {
       id: string;

@@ -116,6 +116,9 @@ export const useModelsStore = defineStore("models", () => {
   const promptRewriteSelection = computed(
     () => catalog.value.promptRewriteSelection,
   );
+  const liveTranslationSelection = computed(
+    () => catalog.value.liveTranslationSelection,
+  );
   const recommendedModelIds = computed(
     () => new Set(catalog.value.recommendedModelIds ?? []),
   );
@@ -196,6 +199,16 @@ export const useModelsStore = defineStore("models", () => {
   });
   const promptRewriteSelectedModel = computed(() => {
     const selected = promptRewriteSelection.value;
+    return selected
+      ? models.value.find(
+          (model) =>
+            model.providerId === selected.providerId &&
+            model.id === selected.modelId,
+        )
+      : undefined;
+  });
+  const liveTranslationSelectedModel = computed(() => {
+    const selected = liveTranslationSelection.value;
     return selected
       ? models.value.find(
           (model) =>
@@ -461,6 +474,22 @@ export const useModelsStore = defineStore("models", () => {
     };
   }
 
+  async function selectLiveTranslationModel(
+    model: PineModelDescriptor,
+  ): Promise<void> {
+    await window.pine.selectLiveTranslationModel({
+      providerId: model.providerId,
+      modelId: model.id,
+    });
+    catalog.value = {
+      ...catalog.value,
+      liveTranslationSelection: {
+        providerId: model.providerId,
+        modelId: model.id,
+      },
+    };
+  }
+
   async function selectImageModel(
     model: PineImageModelDescriptor,
   ): Promise<void> {
@@ -595,6 +624,7 @@ export const useModelsStore = defineStore("models", () => {
     selectUtilityModel,
     selectApprovalModel,
     selectPromptRewriteModel,
+    selectLiveTranslationModel,
     selectedModel,
     selectedModelFor,
     selection,
@@ -608,8 +638,10 @@ export const useModelsStore = defineStore("models", () => {
     utilitySelectedModel,
     approvalSelectedModel,
     promptRewriteSelectedModel,
+    liveTranslationSelectedModel,
     approvalSelection,
     promptRewriteSelection,
+    liveTranslationSelection,
     utilitySelection,
   };
 });

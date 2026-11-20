@@ -874,8 +874,9 @@ the user opens themselves do not pulse.
     in to or remove these providers; change them in Pi or CC Switch. Then
     title generation model, approval model, prompt optimization model (used
     by the composer's Optimize prompt; without one it uses the title
-    generation model), image generation model, video generation model,
-    Decisions model.
+    generation model), live translation model (translates live context when
+    its translation is on; without one it uses the title generation model),
+    image generation model, video generation model, Decisions model.
   - Agent: Interactive answers switch (enabled by default;
     in WeChat an interactive answer arrives as text, lists and tables; its
     buttons, or the options of a block's only picker, are numbered and the

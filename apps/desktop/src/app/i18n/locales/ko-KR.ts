@@ -466,6 +466,7 @@ export default {
     utilityModel: "제목 생성 모델",
     approvalModel: "승인 검토 모델",
     promptRewriteModel: "프롬프트 최적화 모델",
+    liveTranslationModel: "실시간 번역 모델",
     selectUtilityModel: "모델 선택",
     noUtilityModelSelected: "선택된 모델 없음",
     imageModel: "이미지 생성 모델",
@@ -2853,6 +2854,10 @@ export default {
     },
     promptRewriteModel: {
       title: "프롬프트 최적화 모델을 업데이트할 수 없습니다",
+      description: "모델 제공업체를 확인한 뒤 다시 시도하세요",
+    },
+    liveTranslationModel: {
+      title: "실시간 번역 모델을 업데이트할 수 없습니다",
       description: "모델 제공업체를 확인한 뒤 다시 시도하세요",
     },
     imageModel: {

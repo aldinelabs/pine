@@ -14,6 +14,7 @@ import {
   SELECT_MODEL_CHANNEL,
   SELECT_APPROVAL_MODEL_CHANNEL,
   SELECT_PROMPT_REWRITE_MODEL_CHANNEL,
+  SELECT_LIVE_TRANSLATION_MODEL_CHANNEL,
   SELECT_UTILITY_MODEL_CHANNEL,
   UPDATE_CUSTOM_MODEL_CHANNEL,
   UPDATE_CUSTOM_PROVIDER_CHANNEL,
@@ -48,6 +49,7 @@ import {
   SelectModelRequestSchema,
   SelectApprovalModelRequestSchema,
   SelectPromptRewriteModelRequestSchema,
+  SelectLiveTranslationModelRequestSchema,
   RewritePromptRequestSchema,
   SuggestReplyRequestSchema,
   SelectUtilityModelRequestSchema,
@@ -223,6 +225,14 @@ export function registerModelRequests(core: PineCore): void {
     (_context, request: unknown): Promise<{ updated: boolean }> =>
       core.runtimes.selectPromptRewriteModel(
         SelectPromptRewriteModelRequestSchema.parse(request),
+      ),
+  );
+
+  core.handle(
+    SELECT_LIVE_TRANSLATION_MODEL_CHANNEL,
+    (_context, request: unknown): Promise<{ updated: boolean }> =>
+      core.runtimes.selectLiveTranslationModel(
+        SelectLiveTranslationModelRequestSchema.parse(request),
       ),
   );
 

@@ -445,6 +445,7 @@ export default {
     utilityModel: "標題產生模型",
     approvalModel: "審批模型",
     promptRewriteModel: "指令最佳化模型",
+    liveTranslationModel: "即時翻譯模型",
     selectUtilityModel: "選擇模型",
     noUtilityModelSelected: "未選擇任何模型",
     imageModel: "影象產生模型",
@@ -2763,6 +2764,10 @@ export default {
     },
     promptRewriteModel: {
       title: "無法更新指令最佳化模型",
+      description: "請檢查模型供應商後重試",
+    },
+    liveTranslationModel: {
+      title: "無法更新即時翻譯模型",
       description: "請檢查模型供應商後重試",
     },
     imageModel: {

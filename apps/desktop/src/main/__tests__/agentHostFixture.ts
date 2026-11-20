@@ -33,6 +33,7 @@ export function createAgentHost(sessionSummary: PineSessionSummary): AgentHost {
     selectUtilityModel: vi.fn().mockResolvedValue({ updated: true }),
     selectApprovalModel: vi.fn().mockResolvedValue({ updated: true }),
     selectPromptRewriteModel: vi.fn().mockResolvedValue({ updated: true }),
+    selectLiveTranslationModel: vi.fn().mockResolvedValue({ updated: true }),
     rewritePrompt: vi.fn().mockResolvedValue({ prompt: "" }),
     suggestReply: vi.fn().mockResolvedValue({ suggestion: "" }),
     selectVideoModel: vi.fn(),

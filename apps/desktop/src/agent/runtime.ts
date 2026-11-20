@@ -65,6 +65,7 @@ import type {
   PineThinkingLevel,
   PineApprovalModelSelection,
   PinePromptRewriteModelSelection,
+  PineLiveTranslationModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -1363,6 +1364,13 @@ export class PineAgentRuntime {
     selection: PinePromptRewriteModelSelection,
   ): Promise<{ updated: boolean }> {
     return this.modelService.selectPromptRewriteModel(agentDir, selection);
+  }
+
+  selectLiveTranslationModel(
+    agentDir: string,
+    selection: PineLiveTranslationModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.modelService.selectLiveTranslationModel(agentDir, selection);
   }
 
   /** Rewrites a composer draft with the prompt rewrite model. */

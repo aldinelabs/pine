@@ -13,6 +13,7 @@ import {
   writePineUserProfile,
   writeRemoteKeepAwake,
   writeApprovalModelSelection,
+  writeLiveTranslationModelSelection,
   writeUtilityModelSelection,
 } from "../pineSettings";
 
@@ -313,6 +314,40 @@ describe("Pine agent settings", () => {
       utilityModel: { providerId: "provider", modelId: "title-model" },
       approvalModel: { providerId: "provider", modelId: "approval-model" },
     });
+  });
+
+  it("persists the live translation model separately from the utility model", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-live-translation-"),
+    );
+    temporaryDirectories.push(agentDir);
+
+    await writeUtilityModelSelection(agentDir, {
+      providerId: "provider",
+      modelId: "title-model",
+    });
+    await writeLiveTranslationModelSelection(agentDir, {
+      providerId: "provider",
+      modelId: "fast-model",
+    });
+
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({
+      utilityModel: { providerId: "provider", modelId: "title-model" },
+      liveTranslationModel: { providerId: "provider", modelId: "fast-model" },
+    });
+  });
+
+  it("drops a malformed live translation model", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-agent-settings-live-translation-bad-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await writeFile(
+      path.join(agentDir, "pine-settings.json"),
+      JSON.stringify({ liveTranslationModel: { providerId: 3 } }),
+    );
+
+    await expect(readPineAgentSettings(agentDir)).resolves.toEqual({});
   });
 
   it("preserves the utility model when saving a user profile", async () => {

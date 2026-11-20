@@ -28,6 +28,7 @@ import type {
   PineThinkingLevel,
   PineApprovalModelSelection,
   PinePromptRewriteModelSelection,
+  PineLiveTranslationModelSelection,
   PineUtilityModelSelection,
   ProviderLoginResult,
   UpdateCustomModelRequest,
@@ -188,6 +189,10 @@ export interface AgentHost {
   selectPromptRewriteModel(
     agentDir: string,
     selection: PinePromptRewriteModelSelection,
+  ): Promise<{ updated: boolean }>;
+  selectLiveTranslationModel(
+    agentDir: string,
+    selection: PineLiveTranslationModelSelection,
   ): Promise<{ updated: boolean }>;
   rewritePrompt(
     agentDir: string,
@@ -547,6 +552,17 @@ export class AgentProcessHost implements AgentHost {
   ): Promise<{ updated: boolean }> {
     return this.request({
       type: "models:select-prompt-rewrite",
+      agentDir,
+      selection,
+    });
+  }
+
+  selectLiveTranslationModel(
+    agentDir: string,
+    selection: PineLiveTranslationModelSelection,
+  ): Promise<{ updated: boolean }> {
+    return this.request({
+      type: "models:select-live-translation",
       agentDir,
       selection,
     });

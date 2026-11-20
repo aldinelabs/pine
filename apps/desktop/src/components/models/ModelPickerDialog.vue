@@ -38,6 +38,7 @@ const props = withDefaults(
       | "utility"
       | "approval"
       | "promptRewrite"
+      | "liveTranslation"
       | "image"
       | "video"
       | "decisions";
@@ -197,6 +198,8 @@ async function selectModel(model: PineModelDescriptor): Promise<void> {
       await modelsStore.selectApprovalModel(model);
     } else if (props.purpose === "promptRewrite") {
       await modelsStore.selectPromptRewriteModel(model);
+    } else if (props.purpose === "liveTranslation") {
+      await modelsStore.selectLiveTranslationModel(model);
     } else {
       await modelsStore.select(model, undefined, props.sessionId);
     }
@@ -205,7 +208,8 @@ async function selectModel(model: PineModelDescriptor): Promise<void> {
     if (
       props.purpose !== "utility" &&
       props.purpose !== "approval" &&
-      props.purpose !== "promptRewrite"
+      props.purpose !== "promptRewrite" &&
+      props.purpose !== "liveTranslation"
     )
       throw error;
     const key =
@@ -213,7 +217,9 @@ async function selectModel(model: PineModelDescriptor): Promise<void> {
         ? "approvalModel"
         : props.purpose === "promptRewrite"
           ? "promptRewriteModel"
-          : "utilityModel";
+          : props.purpose === "liveTranslation"
+            ? "liveTranslationModel"
+            : "utilityModel";
     handleError(error, {
       id: `preferences.${props.purpose}-model`,
       title: t(`errors.${key}.title`),

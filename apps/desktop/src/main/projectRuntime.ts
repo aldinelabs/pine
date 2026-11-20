@@ -35,6 +35,7 @@ import type {
   SelectModelRequest,
   SelectApprovalModelRequest,
   SelectPromptRewriteModelRequest,
+  SelectLiveTranslationModelRequest,
   SelectUtilityModelRequest,
   SelectImageModelRequest,
   SelectVideoModelRequest,
@@ -1278,6 +1279,12 @@ export class ProjectRuntimeRegistry {
     request: SelectPromptRewriteModelRequest,
   ): Promise<{ updated: boolean }> {
     return this.agentHost.selectPromptRewriteModel(this.agentDir, request);
+  }
+
+  selectLiveTranslationModel(
+    request: SelectLiveTranslationModelRequest,
+  ): Promise<{ updated: boolean }> {
+    return this.agentHost.selectLiveTranslationModel(this.agentDir, request);
   }
 
   suggestReply(request: SuggestReplyRequest): Promise<SuggestReplyResult> {
