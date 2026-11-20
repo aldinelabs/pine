@@ -12,7 +12,7 @@ import { showProject } from "@/stores/__tests__/showProject";
 const setOpenMobile = vi.hoisted(() => vi.fn());
 vi.mock("@/components/ui/sidebar", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  useSidebar: () => ({ setOpenMobile }),
+  useSidebar: () => ({ isMobile: { value: false }, setOpenMobile }),
 }));
 
 const slot = { template: "<div><slot /></div>" };

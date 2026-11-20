@@ -21,7 +21,7 @@ const emit = defineEmits<{
 
 // On a phone the sidebar is a sheet over the content. It steps aside once
 // a tab opens or one of its dialogs takes over the screen.
-const { setOpenMobile } = useSidebar();
+const { isMobile, setOpenMobile } = useSidebar();
 const { activeTab } = useContentTabNavigation();
 // Opening a session can reuse the empty draft tab, so the session counts too.
 watch(
@@ -39,7 +39,10 @@ function handOff(open: () => void): void {
 }
 
 const sidebar = useTemplateRef<InstanceType<typeof Sidebar>>("sidebar");
+// The sidebar's root element changes between the sheet and the column, so
+// the glass looks it up again whenever a narrow window switches between them.
 useSidebarGlassWidth(() => {
+  void isMobile.value;
   const element: unknown = sidebar.value?.$el;
   return element instanceof HTMLElement ? element : undefined;
 });

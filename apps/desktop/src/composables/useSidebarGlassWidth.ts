@@ -1,7 +1,7 @@
 import { useEventListener, useResizeObserver } from "@vueuse/core";
 import {
-  computed,
   onBeforeUnmount,
+  shallowRef,
   toValue,
   watch,
   type MaybeRefOrGetter,
@@ -11,17 +11,16 @@ import { useAppearanceStore } from "@/stores/appearance";
 /**
  * Reports how much of a sidebar shows, so the native glass under the page
  * covers exactly that strip. While the sidebar slides it reports every frame.
+ *
+ * `root` is read again after each render its dependencies change: a narrow
+ * window swaps the sidebar's column for a sheet and back, and the glass must
+ * follow the column that returns, or it stays at the sheet's width of 0.
  */
 export function useSidebarGlassWidth(
   root: MaybeRefOrGetter<HTMLElement | null | undefined>,
 ): void {
   const appearance = useAppearanceStore();
-  const container = computed(() => {
-    const element = toValue(root)?.querySelector(
-      '[data-slot="sidebar-container"]',
-    );
-    return element instanceof HTMLElement ? element : undefined;
-  });
+  const container = shallowRef<HTMLElement>();
 
   let sent: number | undefined;
   function send(width: number): void {
@@ -54,6 +53,19 @@ export function useSidebarGlassWidth(
       if (event.target === container.value) stop();
     });
   useResizeObserver(container, report);
+  watch(
+    () => {
+      const element = toValue(root)?.querySelector(
+        '[data-slot="sidebar-container"]',
+      );
+      return element instanceof HTMLElement ? element : undefined;
+    },
+    (element) => {
+      container.value = element;
+      report();
+    },
+    { immediate: true, flush: "post" },
+  );
   watch(
     () => appearance.sidebarVibrancy,
     () => {
