@@ -34,6 +34,25 @@
 }
 
 /*
+ * Word pages are paper, as docx-preview draws them: white, or its dark page
+ * in dark mode (remapped to the muted token). docx-preview sets that on
+ * `.docx-wrapper > section.docx`, but file-viewer moves each page into a
+ * frame to fit it to the preview, so the rule never matches and the page
+ * showed whatever surface lay behind it, the card's gray in the workbench.
+ */
+.pine-file-viewer .docx-wrapper > [data-docx-responsive-frame] > section.docx {
+  background: white;
+}
+
+.pine-file-viewer
+  [data-docx-dark-mode="true"]
+  .docx-wrapper
+  > [data-docx-responsive-frame]
+  > section.docx {
+  background: var(--pine-fv-muted);
+}
+
+/*
  * Loading screens and badges, which Pine replaces with its own spinner while
  * a document parses. Rows that stream in after the first ones need none.
  */
