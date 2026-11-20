@@ -118,10 +118,29 @@ const mcpTitleKey = computed(() => {
       return "titleAdd";
   }
 });
+// Live Context about to start: what it listens to, in which language.
+const liveCapture = computed(() =>
+  explainedView.value ? undefined : props.approval.liveContextCapture,
+);
+const liveCaptureLanguage = computed(() => {
+  const locale = liveCapture.value?.locale;
+  if (!locale) return "";
+  try {
+    return (
+      new Intl.DisplayNames([i18n.locale.value], { type: "language" }).of(
+        locale,
+      ) ?? locale
+    );
+  } catch {
+    return locale;
+  }
+});
 const showDetailsDisclosure = computed(() =>
-  mcpChange.value
-    ? Boolean(mcpChange.value.definition)
-    : explainedView.value || Boolean(evidence.value),
+  liveCapture.value
+    ? false
+    : mcpChange.value
+      ? Boolean(mcpChange.value.definition)
+      : explainedView.value || Boolean(evidence.value),
 );
 
 function respond(action: PineApprovalAction, guidanceText?: string): void {
@@ -184,6 +203,9 @@ function startGuidance(): void {
               previousName: mcpChange.previousName ?? "",
             })
           }}
+        </template>
+        <template v-else-if="liveCapture">
+          {{ t("project.approvalRequest.liveContext.title") }}
         </template>
         <template v-else-if="!explainedView">
           {{ t(`project.approvalRequest.${triggerKey}`) }}
@@ -328,6 +350,54 @@ function startGuidance(): void {
             </dd>
           </div>
         </dl>
+      </div>
+      <div
+        v-else-if="liveCapture"
+        class="flex flex-col gap-3 text-sm"
+        data-slot="approval-live-context"
+      >
+        <p>{{ t("project.approvalRequest.liveContext.intro") }}</p>
+        <dl class="flex flex-col gap-2.5">
+          <div class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.workbench.liveContext.sources") }}
+            </dt>
+            <dd data-slot="approval-live-context-sources">
+              {{
+                liveCapture.sources
+                  .map((source) =>
+                    t(`project.workbench.liveContext.source.${source}`),
+                  )
+                  .join(" · ")
+              }}
+            </dd>
+          </div>
+          <div class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.workbench.liveContext.language") }}
+            </dt>
+            <dd data-slot="approval-live-context-language">
+              {{ liveCaptureLanguage }}
+            </dd>
+          </div>
+          <div class="flex flex-col gap-1">
+            <dt class="text-xs font-medium text-muted-foreground">
+              {{ t("project.workbench.liveContext.speakers.identify") }}
+            </dt>
+            <dd>
+              {{
+                t(
+                  liveCapture.speakers
+                    ? "project.approvalRequest.liveContext.speakersOn"
+                    : "project.approvalRequest.liveContext.speakersOff",
+                )
+              }}
+            </dd>
+          </div>
+        </dl>
+        <p class="text-muted-foreground">
+          {{ t("project.approvalRequest.liveContext.note") }}
+        </p>
       </div>
       <template v-else>
         <p v-if="approval.description" class="text-sm">
@@ -483,7 +553,9 @@ function startGuidance(): void {
               t(
                 isActivationChoice
                   ? "project.approvalRequest.activateNow"
-                  : "project.approvalRequest.approve",
+                  : liveCapture
+                    ? "project.workbench.liveContext.start"
+                    : "project.approvalRequest.approve",
               )
             }}
             <Kbd v-if="showShortcutHints" aria-hidden="true">↵</Kbd>

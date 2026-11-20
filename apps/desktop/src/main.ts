@@ -90,7 +90,11 @@ import {
 } from "./main/preferenceStore";
 import type { PineHost } from "./main/core/host";
 import { PineCore } from "./main/core/pineCore";
-import { DesktopAttention, isChineseLocale } from "./main/desktop/attention";
+import {
+  currentAppLocale,
+  DesktopAttention,
+  isChineseLocale,
+} from "./main/desktop/attention";
 import { DesktopBackground } from "./main/desktop/background";
 import { registerNativeIpc } from "./main/desktop/nativeIpc";
 import {
@@ -100,6 +104,7 @@ import {
 } from "./main/desktop/remoteKeepAwake";
 import { createLiveContext } from "./main/desktop/liveContext";
 import { answerLiveContextOperation } from "./shared/liveContextAgent";
+import { answerLiveContextCapture } from "./main/liveContextCapture";
 import {
   createRemoteKeepAwakeSetting,
   isRemoteAccessOn,
@@ -395,10 +400,22 @@ function desktopHost(): PineHost {
     },
     observeAgentEvent: (event, ownerId) => attention.observe(event, ownerId),
     liveContext: async (target, operation) =>
-      answerLiveContextOperation(
-        await liveContext.agentSource(target),
-        operation,
-      ),
+      operation.op === "increment" || operation.op === "read"
+        ? answerLiveContextOperation(
+            await liveContext.agentSource(target),
+            operation,
+          )
+        : {
+            op: "capture",
+            capture: await answerLiveContextCapture(
+              liveContext,
+              target,
+              operation,
+              {
+                uiLocale: currentAppLocale,
+              },
+            ),
+          },
     approveRemotePairing: confirmRemotePairing,
     remoteControlChanged: (status) => {
       broadcastRemoteStatus(status);

@@ -79,7 +79,10 @@ import {
   MEMORY_SAVE_TOOL_NAME,
   MEMORY_TOOL_NAMES,
 } from "@/shared/memory";
-import { READ_LIVE_TRANSCRIPT_TOOL_NAME } from "@/shared/liveContextAgent";
+import {
+  LIVE_CONTEXT_CAPTURE_TOOL_NAME,
+  READ_LIVE_TRANSCRIPT_TOOL_NAME,
+} from "@/shared/liveContextAgent";
 import type { PineToolCall } from "@/shared/sessions";
 
 export type ToolKind =
@@ -93,7 +96,7 @@ export type ToolKind =
   | "fetch"
   | "fileSearch"
   | "generic"
-  | "liveTranscript"
+  | "liveContext"
   | "media"
   | "mcp"
   | "mcpConfig"
@@ -124,7 +127,7 @@ export const TOOL_KIND_ICON: Record<ToolKind, Component> = {
   fetch: GlobeIcon,
   fileSearch: FileSearchIcon,
   generic: WrenchIcon,
-  liveTranscript: AudioLinesIcon,
+  liveContext: AudioLinesIcon,
   media: ClapperboardIcon,
   mcp: PlugIcon,
   mcpConfig: ServerCogIcon,
@@ -197,7 +200,7 @@ export const TOOL_KIND_ORDER: readonly ToolKind[] = [
   "workbenchState",
   "todo",
   "datetime",
-  "liveTranscript",
+  "liveContext",
   "media",
   "mcp",
   "mcpConfig",
@@ -307,7 +310,11 @@ export function toolKind(name: string): ToolKind {
   if (normalized === UI_LIST_MODELS_TOOL_NAME) return "model";
   if (normalized === TODO_TOOL_NAME) return "todo";
   if (normalized === DATETIME_TOOL_NAME) return "datetime";
-  if (normalized === READ_LIVE_TRANSCRIPT_TOOL_NAME) return "liveTranscript";
+  if (
+    normalized === READ_LIVE_TRANSCRIPT_TOOL_NAME ||
+    normalized === LIVE_CONTEXT_CAPTURE_TOOL_NAME
+  )
+    return "liveContext";
   if (normalized === RECALL_TOOL_NAME) return "recall";
   if ((MEMORY_TOOL_NAMES as readonly string[]).includes(normalized))
     return "memory";

@@ -1670,6 +1670,15 @@ export default {
         credentialsNote: "Les valeurs sont masquées.",
         definition: "Définition du serveur",
       },
+      liveContext: {
+        title:
+          "Pine veut démarrer le contexte en direct dans cette conversation.",
+        intro:
+          "Il transcrit ce qu’il entend sur ce Mac, et l’agent peut lire la transcription. L’audio n’est jamais enregistré.",
+        speakersOn: "Activée",
+        speakersOff: "Désactivée",
+        note: "Vous pouvez le mettre en pause ou l’arrêter à tout moment depuis la carte Contexte en direct.",
+      },
       detailsReviewerNotes: "Notes de vérification",
       approve: "Approuver",
       reject: "Refuser",
@@ -1836,9 +1845,9 @@ export default {
           active: "Consultation de l’heure {count} fois",
           complete: "Heure consultée {count} fois",
         },
-        liveTranscript: {
-          active: "Lecture du contexte en direct {count} fois",
-          complete: "Contexte en direct lu {count} fois",
+        liveContext: {
+          active: "Utilisation du contexte en direct {count} fois",
+          complete: "Contexte en direct utilisé {count} fois",
         },
         memory: {
           active: "Utilisation de la mémoire ({count} fois)",
@@ -1896,7 +1905,7 @@ export default {
         automation: "action d’automatisation",
         model: "consultation des modèles",
         datetime: "date et heure",
-        liveTranscript: "contexte en direct",
+        liveContext: "contexte en direct",
         mcpConfig: "Configuration MCP",
         memory: "mémoire",
         project: "action de projet",
@@ -2141,10 +2150,32 @@ export default {
           complete: "Date et heure consultées",
           error: "Impossible d’obtenir la date et l’heure",
         },
-        liveTranscript: {
-          running: "Lecture de la transcription du contexte en direct",
-          complete: "Transcription du contexte en direct lue",
-          error: "Impossible de lire la transcription du contexte en direct",
+        liveContext: {
+          read: {
+            running: "Lecture de la transcription du contexte en direct",
+            complete: "Transcription du contexte en direct lue",
+            error: "Impossible de lire la transcription du contexte en direct",
+          },
+          start: {
+            running: "Démarrage du contexte en direct",
+            complete: "Contexte en direct démarré",
+            error: "Le contexte en direct n’a pas démarré",
+          },
+          pause: {
+            running: "Mise en pause du contexte en direct",
+            complete: "Contexte en direct mis en pause",
+            error: "Impossible de mettre en pause le contexte en direct",
+          },
+          resume: {
+            running: "Reprise du contexte en direct",
+            complete: "Contexte en direct repris",
+            error: "Impossible de reprendre le contexte en direct",
+          },
+          stop: {
+            running: "Arrêt du contexte en direct",
+            complete: "Contexte en direct arrêté",
+            error: "Impossible d’arrêter le contexte en direct",
+          },
         },
         memory: {
           list: {

@@ -9,7 +9,10 @@ import type {
 } from "./sessions";
 import type { PineSessionMutator } from "./sessionMutators";
 import type { McpHostOperation, PineMcpChangeSummary } from "./mcp";
-import type { LiveContextHostOperation } from "./liveContextAgent";
+import type {
+  LiveContextCaptureSettings,
+  LiveContextHostOperation,
+} from "./liveContextAgent";
 import type { BackgroundTaskSnapshot } from "@pine/pi-background-tasks";
 import type {
   FilePresentationDisplay,
@@ -362,6 +365,8 @@ export type PineAgentEvent =
       explanationPending?: boolean;
       /** An MCP server change, which the card describes in plain terms. */
       mcpChange?: PineMcpChangeSummary;
+      /** Live Context about to start, which the card shows as settings. */
+      liveContextCapture?: LiveContextCaptureSettings;
     }
   | {
       /** Late reviewer explanation; without `explanation`, none is coming. */

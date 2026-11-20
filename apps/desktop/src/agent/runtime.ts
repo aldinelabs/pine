@@ -233,6 +233,7 @@ import {
   liveContextCursor,
   liveContextNoticeMessage,
 } from "./runtime/live-context";
+import { createLiveContextCaptureToolDefinition } from "./runtime/live-context-capture";
 import type {
   LiveContextHostOperation,
   LiveContextHostResult,
@@ -452,6 +453,8 @@ const APPROXIMATE_LOCATION_TIMEOUT_MS = 1_000;
 const LIVE_CONTEXT_NOTICE_TIMEOUT_MS = 1_000;
 /** `read_live_transcript` waits at most this long. */
 const LIVE_CONTEXT_READ_TIMEOUT_MS = 10_000;
+/** A start waits up to five seconds in main to report how it went. */
+const LIVE_CONTEXT_CAPTURE_TIMEOUT_MS = 15_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
   private readonly pendingApprovals = new Map<string, PendingUserApproval>();
@@ -1975,6 +1978,31 @@ export class PineAgentRuntime {
                 LIVE_CONTEXT_READ_TIMEOUT_MS,
               ),
             ),
+            createLiveContextCaptureToolDefinition({
+              call: async (operation) => {
+                const result = await this.liveContextHostCall(
+                  live,
+                  operation,
+                  LIVE_CONTEXT_CAPTURE_TIMEOUT_MS,
+                );
+                if (result.op !== "capture")
+                  throw new Error("Pine returned an unexpected Live Context.");
+                return result.capture;
+              },
+              // Starting to listen always asks, whatever the approval mode.
+              requestApproval: (request) =>
+                this.requestUserApproval(live, {
+                  trigger: "privileged-execution",
+                  ...request,
+                }),
+              sendCommand: (toolCallId, command) =>
+                this.options.emit({
+                  type: "workbench-command",
+                  sessionId: live.session.sessionId,
+                  toolCallId,
+                  command,
+                }),
+            }),
             ...createMemoryToolDefinitions({
               repository: memoryRepository,
               getApprovalMode: () => live.approvalMode,
@@ -2128,7 +2156,6 @@ export class PineAgentRuntime {
     this.syncActiveTools(live);
   }
 
-  /** Preferences › Agent › Memory, read at each run start. */
   /**
    * The session's live transcript, sliced by main. Bounded in time: a run
    * start waits on it no longer than on the location lookup.
@@ -2159,6 +2186,7 @@ export class PineAgentRuntime {
     }
   }
 
+  /** Preferences › Agent › Memory, read at each run start. */
   private applyMemorySetting(live: LiveAgentSession, enabled: boolean): void {
     if (live.memoryEnabled === enabled) return;
     live.memoryEnabled = enabled;
@@ -2487,6 +2515,9 @@ export class PineAgentRuntime {
               ? { explanationPending: true }
               : {}),
           ...(request.mcpChange ? { mcpChange: request.mcpChange } : {}),
+          ...(request.liveContextCapture
+            ? { liveContextCapture: request.liveContextCapture }
+            : {}),
           actionDigest: pending.actionDigest,
         });
       const pendingExplanation = request.pendingExplanation;

@@ -1559,6 +1559,14 @@ export default {
         credentialsNote: "值已隱藏。",
         definition: "伺服器定義",
       },
+      liveContext: {
+        title: "Pine 想在這個對話裡開始即時上下文。",
+        intro:
+          "它會在這台 Mac 上轉寫聽到的內容，智慧代理可以讀取轉寫。音訊不會被儲存。",
+        speakersOn: "開",
+        speakersOff: "關",
+        note: "你隨時可以在即時上下文卡片裡暫停或停止。",
+      },
       detailsReviewerNotes: "審查記錄",
       approve: "批准",
       reject: "拒絕",
@@ -1720,9 +1728,9 @@ export default {
           active: "正在查看 {count} 次時間",
           complete: "查看了 {count} 次時間",
         },
-        liveTranscript: {
-          active: "正在讀取 {count} 次即時上下文",
-          complete: "讀取了 {count} 次即時上下文",
+        liveContext: {
+          active: "正在使用 {count} 次即時上下文",
+          complete: "使用了 {count} 次即時上下文",
         },
         memory: {
           active: "正在使用 {count} 次記憶",
@@ -1780,7 +1788,7 @@ export default {
         automation: "自動化操作",
         model: "模型查詢",
         datetime: "日期時間",
-        liveTranscript: "即時上下文",
+        liveContext: "即時上下文",
         mcpConfig: "MCP 設定",
         memory: "記憶",
         project: "專案操作",
@@ -2016,10 +2024,32 @@ export default {
           complete: "已取得日期和時間",
           error: "無法取得日期和時間",
         },
-        liveTranscript: {
-          running: "正在讀取即時上下文轉寫",
-          complete: "已讀取即時上下文轉寫",
-          error: "無法讀取即時上下文轉寫",
+        liveContext: {
+          read: {
+            running: "正在讀取即時上下文轉寫",
+            complete: "已讀取即時上下文轉寫",
+            error: "無法讀取即時上下文轉寫",
+          },
+          start: {
+            running: "正在開始即時上下文",
+            complete: "已開始即時上下文",
+            error: "即時上下文未能開始",
+          },
+          pause: {
+            running: "正在暫停即時上下文",
+            complete: "已暫停即時上下文",
+            error: "無法暫停即時上下文",
+          },
+          resume: {
+            running: "正在繼續即時上下文",
+            complete: "已繼續即時上下文",
+            error: "無法繼續即時上下文",
+          },
+          stop: {
+            running: "正在停止即時上下文",
+            complete: "已停止即時上下文",
+            error: "無法停止即時上下文",
+          },
         },
         memory: {
           list: {

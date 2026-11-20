@@ -19,8 +19,10 @@ export type AgentWorkbenchPanel = (typeof WORKBENCH_PANELS)[number];
  */
 export const SIDE_CHAT_PANEL = "side-chat" as const;
 /**
- * The Live Context card (desktop only). Only the user opens
- * it, and, like the side chat, it is not saved with the layout yet.
+ * The Live Context card (desktop only). The user opens it from a card
+ * menu; the agent's approved `live_context_capture` start opens it too,
+ * though it is not one of the `ui_workbench_*` panels. Like the side chat,
+ * it is not saved with the layout yet.
  */
 export const LIVE_CONTEXT_PANEL = "live-context" as const;
 /**

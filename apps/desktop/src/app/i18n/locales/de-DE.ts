@@ -1676,6 +1676,14 @@ export default {
         credentialsNote: "Die Werte sind ausgeblendet.",
         definition: "Serverdefinition",
       },
+      liveContext: {
+        title: "Pine möchte in diesem Gespräch den Live-Kontext starten.",
+        intro:
+          "Er transkribiert, was dieser Mac hört, und der Agent kann das Transkript lesen. Audio wird nie gespeichert.",
+        speakersOn: "Ein",
+        speakersOff: "Aus",
+        note: "Du kannst ihn jederzeit über die Live-Kontext-Karte pausieren oder beenden.",
+      },
       detailsReviewerNotes: "Hinweise der Prüfung",
       approve: "Genehmigen",
       reject: "Ablehnen",
@@ -1843,9 +1851,9 @@ export default {
           active: "Uhrzeit wird {count}-mal abgefragt",
           complete: "Uhrzeit {count}-mal abgefragt",
         },
-        liveTranscript: {
-          active: "Live-Kontext wird {count}-mal gelesen",
-          complete: "Live-Kontext {count}-mal gelesen",
+        liveContext: {
+          active: "Live-Kontext wird {count}-mal verwendet",
+          complete: "Live-Kontext {count}-mal verwendet",
         },
         memory: {
           active: "Nutze Gedächtnis ({count}×)",
@@ -1903,7 +1911,7 @@ export default {
         automation: "Automatisierungsaktion",
         model: "Modellabfrage",
         datetime: "Datum und Uhrzeit",
-        liveTranscript: "Live-Kontext",
+        liveContext: "Live-Kontext",
         mcpConfig: "MCP-Konfiguration",
         memory: "Gedächtnis",
         project: "Projektaktion",
@@ -2147,10 +2155,32 @@ export default {
           complete: "Datum und Uhrzeit abgefragt",
           error: "Datum und Uhrzeit konnten nicht abgefragt werden",
         },
-        liveTranscript: {
-          running: "Live-Kontext-Transkript wird gelesen",
-          complete: "Live-Kontext-Transkript gelesen",
-          error: "Live-Kontext-Transkript konnte nicht gelesen werden",
+        liveContext: {
+          read: {
+            running: "Live-Kontext-Transkript wird gelesen",
+            complete: "Live-Kontext-Transkript gelesen",
+            error: "Live-Kontext-Transkript konnte nicht gelesen werden",
+          },
+          start: {
+            running: "Live-Kontext wird gestartet",
+            complete: "Live-Kontext gestartet",
+            error: "Live-Kontext wurde nicht gestartet",
+          },
+          pause: {
+            running: "Live-Kontext wird pausiert",
+            complete: "Live-Kontext pausiert",
+            error: "Live-Kontext konnte nicht pausiert werden",
+          },
+          resume: {
+            running: "Live-Kontext wird fortgesetzt",
+            complete: "Live-Kontext fortgesetzt",
+            error: "Live-Kontext konnte nicht fortgesetzt werden",
+          },
+          stop: {
+            running: "Live-Kontext wird beendet",
+            complete: "Live-Kontext beendet",
+            error: "Live-Kontext konnte nicht beendet werden",
+          },
         },
         memory: {
           list: {

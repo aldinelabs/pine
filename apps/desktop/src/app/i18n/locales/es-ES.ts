@@ -1666,6 +1666,15 @@ export default {
         credentialsNote: "Los valores están ocultos.",
         definition: "Definición del servidor",
       },
+      liveContext: {
+        title:
+          "Pine quiere iniciar el contexto en directo en esta conversación.",
+        intro:
+          "Transcribe lo que oye en este Mac y el agente puede leer la transcripción. El audio nunca se guarda.",
+        speakersOn: "Activado",
+        speakersOff: "Desactivado",
+        note: "Puedes pausarlo o detenerlo en cualquier momento desde la tarjeta de contexto en directo.",
+      },
       detailsReviewerNotes: "Notas de la revisión",
       approve: "Aprobar",
       reject: "Rechazar",
@@ -1831,9 +1840,9 @@ export default {
           active: "Consultando la hora {count} veces",
           complete: "Hora consultada {count} veces",
         },
-        liveTranscript: {
-          active: "Leyendo el contexto en directo {count} veces",
-          complete: "Contexto en directo leído {count} veces",
+        liveContext: {
+          active: "Usando el contexto en directo {count} veces",
+          complete: "Contexto en directo usado {count} veces",
         },
         memory: {
           active: "Usando la memoria {count} veces",
@@ -1891,7 +1900,7 @@ export default {
         automation: "acción de automatización",
         model: "consulta de modelos",
         datetime: "fecha y hora",
-        liveTranscript: "contexto en directo",
+        liveContext: "contexto en directo",
         mcpConfig: "Configuración de MCP",
         memory: "memoria",
         project: "acción del proyecto",
@@ -2136,10 +2145,32 @@ export default {
           complete: "Fecha y hora consultadas",
           error: "No se pudo obtener la fecha y la hora",
         },
-        liveTranscript: {
-          running: "Leyendo la transcripción del contexto en directo",
-          complete: "Transcripción del contexto en directo leída",
-          error: "No se pudo leer la transcripción del contexto en directo",
+        liveContext: {
+          read: {
+            running: "Leyendo la transcripción del contexto en directo",
+            complete: "Transcripción del contexto en directo leída",
+            error: "No se pudo leer la transcripción del contexto en directo",
+          },
+          start: {
+            running: "Iniciando el contexto en directo",
+            complete: "Contexto en directo iniciado",
+            error: "El contexto en directo no se inició",
+          },
+          pause: {
+            running: "Pausando el contexto en directo",
+            complete: "Contexto en directo en pausa",
+            error: "No se pudo pausar el contexto en directo",
+          },
+          resume: {
+            running: "Reanudando el contexto en directo",
+            complete: "Contexto en directo reanudado",
+            error: "No se pudo reanudar el contexto en directo",
+          },
+          stop: {
+            running: "Deteniendo el contexto en directo",
+            complete: "Contexto en directo detenido",
+            error: "No se pudo detener el contexto en directo",
+          },
         },
         memory: {
           list: {

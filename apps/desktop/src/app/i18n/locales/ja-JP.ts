@@ -1646,6 +1646,14 @@ export default {
         credentialsNote: "値は表示されません。",
         definition: "サーバー定義",
       },
+      liveContext: {
+        title: "Pine がこの会話でライブコンテキストを開始しようとしています。",
+        intro:
+          "この Mac で聞こえた内容を文字起こしし、エージェントがその文字起こしを読めるようになります。音声は保存されません。",
+        speakersOn: "オン",
+        speakersOff: "オフ",
+        note: "ライブコンテキストのカードからいつでも一時停止・停止できます。",
+      },
       detailsReviewerNotes: "レビューのメモ",
       approve: "承認",
       reject: "拒否",
@@ -1812,9 +1820,9 @@ export default {
           active: "時刻を {count} 回確認中",
           complete: "時刻を {count} 回確認しました",
         },
-        liveTranscript: {
-          active: "ライブコンテキストを {count} 回読み込み中",
-          complete: "ライブコンテキストを {count} 回読み込みました",
+        liveContext: {
+          active: "ライブコンテキストを {count} 回使用中",
+          complete: "ライブコンテキストを {count} 回使用しました",
         },
         memory: {
           active: "メモリを {count} 回使用中",
@@ -1872,7 +1880,7 @@ export default {
         automation: "自動化の操作",
         model: "モデルの確認",
         datetime: "日時",
-        liveTranscript: "ライブコンテキスト",
+        liveContext: "ライブコンテキスト",
         mcpConfig: "MCP 設定",
         memory: "メモリ",
         project: "プロジェクト操作",
@@ -2114,10 +2122,32 @@ export default {
           complete: "日時を取得しました",
           error: "日時を取得できませんでした",
         },
-        liveTranscript: {
-          running: "ライブコンテキストの文字起こしを読み込み中",
-          complete: "ライブコンテキストの文字起こしを読み込みました",
-          error: "ライブコンテキストの文字起こしを読み込めませんでした",
+        liveContext: {
+          read: {
+            running: "ライブコンテキストの文字起こしを読み込み中",
+            complete: "ライブコンテキストの文字起こしを読み込みました",
+            error: "ライブコンテキストの文字起こしを読み込めませんでした",
+          },
+          start: {
+            running: "ライブコンテキストを開始中",
+            complete: "ライブコンテキストを開始しました",
+            error: "ライブコンテキストを開始できませんでした",
+          },
+          pause: {
+            running: "ライブコンテキストを一時停止中",
+            complete: "ライブコンテキストを一時停止しました",
+            error: "ライブコンテキストを一時停止できませんでした",
+          },
+          resume: {
+            running: "ライブコンテキストを再開中",
+            complete: "ライブコンテキストを再開しました",
+            error: "ライブコンテキストを再開できませんでした",
+          },
+          stop: {
+            running: "ライブコンテキストを停止中",
+            complete: "ライブコンテキストを停止しました",
+            error: "ライブコンテキストを停止できませんでした",
+          },
         },
         memory: {
           list: {

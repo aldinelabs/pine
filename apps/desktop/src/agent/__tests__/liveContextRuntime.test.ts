@@ -125,11 +125,14 @@ function liveRuntime(source: () => LiveContextAgentSource | undefined) {
           ok: true,
           response: {
             kind: "live-context",
-            result: current
-              ? answerLiveContextOperation(current, request.operation)
-              : request.operation.op === "increment"
-                ? { op: "increment", increment: null }
-                : { op: "read", read: null },
+            result:
+              current &&
+              (request.operation.op === "increment" ||
+                request.operation.op === "read")
+                ? answerLiveContextOperation(current, request.operation)
+                : request.operation.op === "increment"
+                  ? { op: "increment", increment: null }
+                  : { op: "read", read: null },
           },
         });
         return;

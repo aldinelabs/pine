@@ -1633,6 +1633,14 @@ export default {
         credentialsNote: "Values are hidden.",
         definition: "Server definition",
       },
+      liveContext: {
+        title: "Pine wants to start live context in this conversation.",
+        intro:
+          "It transcribes what it hears on this Mac, and the agent can read the transcript. Audio is never saved.",
+        speakersOn: "On",
+        speakersOff: "Off",
+        note: "You can pause or stop it at any time from the Live context card.",
+      },
       detailsReviewerNotes: "Reviewer notes",
       approve: "Approve",
       reject: "Reject",
@@ -1798,9 +1806,9 @@ export default {
           active: "Checking the time {count} times",
           complete: "Checked the time {count} times",
         },
-        liveTranscript: {
-          active: "Reading the live context {count} times",
-          complete: "Read the live context {count} times",
+        liveContext: {
+          active: "Using live context {count} times",
+          complete: "Used live context {count} times",
         },
         memory: {
           active: "Using memory {count} times",
@@ -1858,7 +1866,7 @@ export default {
         automation: "automation action",
         model: "model lookup",
         datetime: "date and time",
-        liveTranscript: "live context",
+        liveContext: "live context",
         mcpConfig: "MCP configuration",
         memory: "memory",
         project: "project action",
@@ -2098,10 +2106,32 @@ export default {
           complete: "Checked the date and time",
           error: "Couldn’t get the date and time",
         },
-        liveTranscript: {
-          running: "Reading the live context transcript",
-          complete: "Read the live context transcript",
-          error: "Couldn’t read the live context transcript",
+        liveContext: {
+          read: {
+            running: "Reading the live context transcript",
+            complete: "Read the live context transcript",
+            error: "Couldn’t read the live context transcript",
+          },
+          start: {
+            running: "Starting live context",
+            complete: "Started live context",
+            error: "Live context didn’t start",
+          },
+          pause: {
+            running: "Pausing live context",
+            complete: "Paused live context",
+            error: "Couldn’t pause live context",
+          },
+          resume: {
+            running: "Resuming live context",
+            complete: "Resumed live context",
+            error: "Couldn’t resume live context",
+          },
+          stop: {
+            running: "Stopping live context",
+            complete: "Stopped live context",
+            error: "Couldn’t stop live context",
+          },
         },
         memory: {
           list: {

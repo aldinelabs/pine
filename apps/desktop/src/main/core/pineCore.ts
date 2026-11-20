@@ -963,7 +963,15 @@ export class PineCore {
                 )
               : operation.op === "increment"
                 ? { op: "increment" as const, increment: null }
-                : { op: "read" as const, read: null };
+                : operation.op === "read"
+                  ? { op: "read" as const, read: null }
+                  : {
+                      op: "capture" as const,
+                      capture: {
+                        outcome: "unavailable" as const,
+                        reason: "platform" as const,
+                      },
+                    };
           return { ok: true, response: { kind: "live-context", result } };
         }
         if (event.request.kind === "workbench-state") {

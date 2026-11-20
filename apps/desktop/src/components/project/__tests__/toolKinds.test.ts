@@ -93,8 +93,9 @@ describe("Computer Use tool kinds", () => {
     expect(toolIconForName("datetime")).toBe(ClockIcon);
   });
 
-  it("gives the live transcript tool its own kind and icon", () => {
-    expect(toolKind("read_live_transcript")).toBe("liveTranscript");
+  it("gives the live context tools their own kind and icon", () => {
+    expect(toolKind("read_live_transcript")).toBe("liveContext");
+    expect(toolKind("live_context_capture")).toBe("liveContext");
     expect(toolIconForName("read_live_transcript")).toBe(AudioLinesIcon);
   });
 

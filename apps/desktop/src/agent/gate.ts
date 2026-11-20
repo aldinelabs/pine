@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PineAgentEvent, PineAutoApprovalFailure } from "../shared/agent";
 import { REVIEW_FAILURE_MESSAGES } from "../shared/approvalReasons";
 import type { PineMcpChangeSummary } from "../shared/mcp";
+import type { LiveContextCaptureSettings } from "../shared/liveContextAgent";
 import type {
   PineApprovalDecision,
   PineApprovalExplanation,
@@ -129,6 +130,8 @@ export interface UserApprovalRequest {
   pendingExplanation?: Promise<PineApprovalExplanation | undefined>;
   /** An MCP server change, which the card describes in plain terms. */
   mcpChange?: PineMcpChangeSummary;
+  /** Live Context about to start, which the card shows as settings. */
+  liveContextCapture?: LiveContextCaptureSettings;
   signal?: AbortSignal;
 }
 

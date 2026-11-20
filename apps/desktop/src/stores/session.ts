@@ -30,6 +30,11 @@ import { attachmentMessagePreview } from "@/shared/attachments";
 import { reviewFailureCode } from "@/shared/approvalReasons";
 import type { PineMcpChangeSummary } from "@/shared/mcp";
 import {
+  LIVE_CONTEXT_SOURCES,
+  type LiveContextSource,
+} from "@/shared/liveContext";
+import type { LiveContextCaptureSettings } from "@/shared/liveContextAgent";
+import {
   parseMessageBlocks,
   progressReportText,
   transcriptRole,
@@ -103,6 +108,27 @@ export interface PinePendingApproval {
   explanationPending?: boolean;
   /** An MCP server change, which the card describes in plain terms. */
   mcpChange?: PineMcpChangeSummary;
+  /** Live Context the agent wants to start, shown as its settings. */
+  liveContextCapture?: LiveContextCaptureSettings;
+}
+
+/** Wire data can come from a replayed snapshot; keep only the expected shape. */
+function liveContextCaptureSettings(
+  value: unknown,
+): LiveContextCaptureSettings | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const { sources, locale, speakers } = value as Record<string, unknown>;
+  if (
+    !Array.isArray(sources) ||
+    typeof locale !== "string" ||
+    typeof speakers !== "boolean"
+  )
+    return undefined;
+  const known = sources.filter((source): source is LiveContextSource =>
+    (LIVE_CONTEXT_SOURCES as readonly unknown[]).includes(source),
+  );
+  if (known.length === 0) return undefined;
+  return { sources: known, locale, speakers };
 }
 
 const MCP_CHANGE_ACTIONS: ReadonlySet<unknown> = new Set([
@@ -1875,6 +1901,9 @@ export const useSessionStore = defineStore("session", () => {
         { subject?: unknown; description?: unknown } | undefined;
       const explanation = approvalExplanation(event.explanation);
       const mcpChange = mcpChangeSummary(event.mcpChange);
+      const liveContextCapture = liveContextCaptureSettings(
+        event.liveContextCapture,
+      );
       pendingApprovals.value = [
         ...pendingApprovals.value,
         {
@@ -1898,6 +1927,7 @@ export const useSessionStore = defineStore("session", () => {
               ? { explanationPending: true }
               : {}),
           ...(mcpChange ? { mcpChange } : {}),
+          ...(liveContextCapture ? { liveContextCapture } : {}),
         },
       ];
       const failure = event.autoApprovalFailure;

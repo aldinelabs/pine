@@ -120,6 +120,51 @@ describe("ProjectApprovalCard", () => {
     wrapper.unmount();
   });
 
+  it("shows what Live Context will listen to and starts it on approval", async () => {
+    const wrapper = mount(ProjectApprovalCard, {
+      props: {
+        approval: {
+          requestId: "approval-live",
+          toolCallId: "tool-live",
+          toolName: "live_context_capture",
+          trigger: "privileged-execution",
+          description:
+            "Start transcribing the audio around you into this conversation",
+          subject: "Live Context: microphone and system audio, zh-CN",
+          liveContextCapture: {
+            sources: ["mic", "system"],
+            locale: "zh-CN",
+            speakers: false,
+          },
+        },
+      },
+      global: { plugins: [createAppI18n("en-US")] },
+    });
+    const text = wrapper.text();
+    expect(text).toContain(
+      "Pine wants to start live context in this conversation.",
+    );
+    expect(
+      wrapper.get('[data-slot="approval-live-context-sources"]').text(),
+    ).toBe("Microphone · System audio");
+    expect(
+      wrapper.get('[data-slot="approval-live-context-language"]').text(),
+    ).toContain("Chinese");
+    expect(text).toContain("Off");
+    // The settings replace the sandbox notice, the summary and the details.
+    expect(text).not.toContain("native execution");
+    expect(text).not.toContain("Start transcribing");
+    expect(
+      wrapper.find('[data-slot="approval-details-trigger"]').exists(),
+    ).toBe(false);
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text().startsWith("Start"))!
+      .trigger("click");
+    expect(wrapper.emitted("respond")).toEqual([["approve", undefined]]);
+    wrapper.unmount();
+  });
+
   it("does not label ordinary manual confirmations as failures", () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: { approval },

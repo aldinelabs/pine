@@ -1623,6 +1623,14 @@ export default {
         credentialsNote: "값은 숨겨져 있습니다.",
         definition: "서버 정의",
       },
+      liveContext: {
+        title: "Pine이 이 대화에서 실시간 컨텍스트를 시작하려고 합니다.",
+        intro:
+          "이 Mac에서 들리는 내용을 기록하며, 에이전트가 그 기록을 읽을 수 있습니다. 오디오는 저장되지 않습니다.",
+        speakersOn: "켬",
+        speakersOff: "끔",
+        note: "실시간 컨텍스트 카드에서 언제든지 일시 정지하거나 중지할 수 있습니다.",
+      },
       detailsReviewerNotes: "검토 메모",
       approve: "승인",
       reject: "거부",
@@ -1788,9 +1796,9 @@ export default {
           active: "시간을 {count}회 확인하는 중",
           complete: "시간을 {count}회 확인했습니다",
         },
-        liveTranscript: {
-          active: "실시간 컨텍스트를 {count}회 읽는 중",
-          complete: "실시간 컨텍스트를 {count}회 읽었습니다",
+        liveContext: {
+          active: "실시간 컨텍스트를 {count}회 사용하는 중",
+          complete: "실시간 컨텍스트를 {count}회 사용했습니다",
         },
         memory: {
           active: "메모리를 {count}회 사용하는 중",
@@ -1848,7 +1856,7 @@ export default {
         automation: "자동화 작업",
         model: "모델 조회",
         datetime: "날짜 및 시간",
-        liveTranscript: "실시간 컨텍스트",
+        liveContext: "실시간 컨텍스트",
         mcpConfig: "MCP 구성",
         memory: "메모리",
         project: "프로젝트 작업",
@@ -2089,10 +2097,32 @@ export default {
           complete: "날짜와 시간을 가져왔습니다",
           error: "날짜와 시간을 가져오지 못했습니다",
         },
-        liveTranscript: {
-          running: "실시간 컨텍스트 기록을 읽는 중",
-          complete: "실시간 컨텍스트 기록을 읽었습니다",
-          error: "실시간 컨텍스트 기록을 읽지 못했습니다",
+        liveContext: {
+          read: {
+            running: "실시간 컨텍스트 기록을 읽는 중",
+            complete: "실시간 컨텍스트 기록을 읽었습니다",
+            error: "실시간 컨텍스트 기록을 읽지 못했습니다",
+          },
+          start: {
+            running: "실시간 컨텍스트를 시작하는 중",
+            complete: "실시간 컨텍스트를 시작했습니다",
+            error: "실시간 컨텍스트를 시작하지 못했습니다",
+          },
+          pause: {
+            running: "실시간 컨텍스트를 일시 정지하는 중",
+            complete: "실시간 컨텍스트를 일시 정지했습니다",
+            error: "실시간 컨텍스트를 일시 정지하지 못했습니다",
+          },
+          resume: {
+            running: "실시간 컨텍스트를 재개하는 중",
+            complete: "실시간 컨텍스트를 재개했습니다",
+            error: "실시간 컨텍스트를 재개하지 못했습니다",
+          },
+          stop: {
+            running: "실시간 컨텍스트를 중지하는 중",
+            complete: "실시간 컨텍스트를 중지했습니다",
+            error: "실시간 컨텍스트를 중지하지 못했습니다",
+          },
         },
         memory: {
           list: {

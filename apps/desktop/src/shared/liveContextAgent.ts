@@ -12,6 +12,7 @@ import type {
   LiveContextSpeakers,
   LiveContextState,
   LiveContextTranscript,
+  LiveContextUnavailableReason,
 } from "./liveContext";
 import {
   parseSpeakerKey,
@@ -21,6 +22,47 @@ import {
 } from "./liveContextSpeakers";
 
 export const READ_LIVE_TRANSCRIPT_TOOL_NAME = "read_live_transcript" as const;
+/** Starts, pauses, resumes or stops capture into the agent's conversation. */
+export const LIVE_CONTEXT_CAPTURE_TOOL_NAME = "live_context_capture" as const;
+
+/** What an agent-started capture listens to; the user approves exactly this. */
+export interface LiveContextCaptureSettings {
+  sources: LiveContextSource[];
+  locale: string;
+  speakers: boolean;
+}
+
+export type LiveContextCaptureOperation =
+  /** Resolves defaults and checks the capture can start, changing nothing. */
+  | {
+      op: "plan-start";
+      sources?: LiveContextSource[];
+      locale?: string;
+      speakers?: boolean;
+    }
+  /** Starts the approved capture into the asking conversation. */
+  | { op: "start"; settings: LiveContextCaptureSettings }
+  | { op: "pause" }
+  | { op: "resume" }
+  | { op: "stop" };
+
+export type LiveContextCaptureResult =
+  | { outcome: "unavailable"; reason: LiveContextUnavailableReason }
+  /** Another conversation is capturing; it is left alone. */
+  | { outcome: "elsewhere" }
+  /** Nothing is capturing into this conversation. */
+  | { outcome: "idle" }
+  /** Ready to ask the user: the settings a start would use. */
+  | { outcome: "ready"; settings: LiveContextCaptureSettings }
+  /** This conversation's capture, as it is now. */
+  | {
+      outcome: "status";
+      state: LiveContextState;
+      sources: LiveContextSource[];
+      locale?: string;
+      speakers?: boolean;
+      error?: { code: string; source?: LiveContextSource };
+    };
 
 /**
  * New transcript a notice attaches in full, about five minutes of steady
@@ -54,6 +96,7 @@ export interface LiveContextAgentLine {
 }
 
 export type LiveContextHostOperation =
+  | LiveContextCaptureOperation
   | {
       op: "increment";
       /** The last segment the model has; omitted for the first notice. */
@@ -114,6 +157,7 @@ export interface LiveContextRead {
 }
 
 export type LiveContextHostResult =
+  | { op: "capture"; capture: LiveContextCaptureResult }
   | { op: "increment"; increment: LiveContextIncrement | null }
   | { op: "read"; read: LiveContextRead | null };
 
@@ -486,9 +530,10 @@ export function readLiveContext(
   };
 }
 
+/** Answers the transcript operations; capture control is main's alone. */
 export function answerLiveContextOperation(
   source: LiveContextAgentSource,
-  operation: LiveContextHostOperation,
+  operation: Extract<LiveContextHostOperation, { op: "increment" | "read" }>,
 ): LiveContextHostResult {
   return operation.op === "increment"
     ? { op: "increment", increment: liveContextIncrement(source, operation) }

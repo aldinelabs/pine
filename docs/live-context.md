@@ -22,6 +22,7 @@
 | 决策          | 结论                                                                                    |
 | ------------- | --------------------------------------------------------------------------------------- |
 | 绑定范围      | 单会话；子会话与侧边对话默认不继承                                                      |
+| 谁能开始      | 用户在卡片里；智能体经每次都弹出的批准卡片（§7.5）                                      |
 | 并发          | 全应用一个采集；其他会话的卡片显示“另一个对话正在记录”                                  |
 | 来源          | 麦克风 + 系统音频，各自独立转写                                                         |
 | 说话人        | 默认以声道代替：mic = 我，system = 其他人；开启“识别说话人”后每个来源内部再编号（§3.4） |
@@ -151,7 +152,7 @@ apps/desktop/native/live-context/build/pine-live-context --start --sources syste
 - `src/stores/liveContext.ts`（Pinia）：全局状态、每个会话的 final 段落、采集会话的 volatile 段落、每个会话的说话人名字、合并与别名、“识别说话人”开关（默认关）；订阅 preload 事件，按 id 去重，`turns` 事件（含 `echo`）同时作用于 volatile 和 final 段落。
 - 电平：store 把 `levels` 事件存在一个非响应式数组里（只留最近 6 秒，采集结束清空），工作台卡片底部的波形用 `requestAnimationFrame` 每帧读取并画在 canvas 上，不经过 Vue 响应式。
 - `src/shared/liveContextSpeakers.ts`：说话人 key、重命名/合并的折叠、按 `turns` 切分文本，main 与 renderer 共用。
-- `src/components/workbench/WorkbenchLiveContextPanel.vue`：工作台卡片 `live-context`。和侧边对话一样只由用户打开，不进入 agent 的 `ui_workbench_*` 工具，也暂不随布局保存。
+- `src/components/workbench/WorkbenchLiveContextPanel.vue`：工作台卡片 `live-context`。用户从卡片菜单打开；智能体经批准开始采集时也会打开并高亮它（§7.5）。它不进入 agent 的 `ui_workbench_*` 工具的面板枚举，也暂不随布局保存。
 - Renderer 不接触 Node、文件系统或 helper；一切经 preload 暴露的最小 API。
 
 ### 3.4 说话人识别（diarization）
@@ -345,6 +346,20 @@ Latest:
 ### 7.4 引用到输入框
 
 卡片里选中转写文本 → “引用到输入框”，以引用块插入 composer，便于“针对这句问”。
+
+### 7.5 智能体开始与停止采集：`live_context_capture`
+
+用户说“帮我记一下这节课”时，智能体可以自己开始采集。代码：`src/agent/runtime/live-context-capture.ts`（工具）、`src/main/liveContextCapture.ts`（main 侧校验与执行）、`ProjectApprovalCard.vue`（批准卡片）。
+
+- **一个静态工具**：`live_context_capture`，参数 `{ action: "start" | "pause" | "resume" | "stop", sources?, language?, identify_speakers? }`，后三个只对 start 有意义。和 `read_live_transcript` 一样在每个普通会话里定义且始终激活，名字、描述、参数（语言枚举取自 `LIVE_CONTEXT_LOCALES`）都是常量，不随平台、采集状态或批准模式变化，因此不影响 §7.1 的前缀缓存。不可用的平台照样有这个工具，调用时返回原因。
+- **为什么不并入 `ui_workbench_*`**：那组工具只调整布局，不经批准、不经 host 往返，面板枚举也只含智能体面板；把一个会开麦克风的操作塞进去会让批准规则和参数定义都变得含混，并且要改动已有工具的定义。开始采集需要的是批准卡片和 main 的状态检查，打开卡片只是它的一个效果。读转写（`read_live_transcript`）无副作用、调用频繁，也保持独立。
+- **开始一定经过批准**：流程是 `plan-start`（main 计算默认值并检查状态）→ Pine 的批准卡片 → `start`。批准直接走 `requestUserApproval`，不经过 gate、批准模式或审批模型，所以 Let Me Review、Auto Approve、Autonomous Work、YOLO 下都同样询问；侧边对话一律拒绝；自动化运行没有这个工具。卡片标题“Pine 想在这个对话里开始实时上下文”，列出来源、语言（按界面语言显示语言名）、识别说话人开/关，主按钮为“开始”。微信等不渲染结构化卡片的地方退回到 subject 文本（`Live Context: microphone and system audio, zh-CN, speaker labels off`）。用户拒绝时什么都不开始，工具返回错误。
+- **默认值**（main 计算，智能体给出的参数优先）：来源取本次运行 Pine 里上一次采集的选择，否则麦克风 + 系统音频；语言取上一次的选择，否则界面语言（映射到支持的语言，如 `ko` → `ko-KR`，不支持时 `en-US`）；识别说话人取上一次的选择，否则关，本构建不支持时一律关。上一次的选择只记在内存里，和卡片一样不持久化。
+- **只管自己的对话**：另一个对话正在采集时，start / pause / resume / stop 都返回 “Another conversation is capturing…”，不接管、不停止它，也不弹批准卡片。本对话已经在采集时 start 直接返回当前状态，不再询问。本对话没有采集时 pause / resume / stop 返回 “isn't capturing in this conversation”。暂停、继续、停止只会让采集变少，不需要批准。
+- **校验**：worker 传来的操作在 main 再用 zod 校验一次（来源枚举、去重、1–2 个；语言必须在 `LIVE_CONTEXT_LOCALES` 中），因为真正打开麦克风的是 main。
+- **打开卡片**：批准后、开始前，工具发出 `workbench-command { kind: "open", panel: "live-context", highlight: true }`，卡片显示准备、模型下载、权限提示和控制按钮。
+- **结果**：main 开始后最多等 5 秒，直到状态离开“准备中”或出现错误，再把状态交给智能体：`Live Context is listening (microphone and system audio, zh-CN, speaker labels off).` 缺少麦克风权限时（`permission_denied`）结果说明 macOS 拒绝了哪个来源，卡片上的通知会指引到系统设置，智能体请用户允许后再开始；系统音频权限无法读取，仍由卡片的“没有系统音频”提示负责。失败、不可用、别的对话在采集、没有可停止的采集都以工具错误返回，对话里的标记显示为失败。
+- **在对话里**：标记显示“正在开始 / 已开始实时上下文”“已暂停”“已继续”“已停止”，与 `read_live_transcript` 同属“实时上下文”一类，图标为音频波形。
 
 ## 8. 工作台卡片
 

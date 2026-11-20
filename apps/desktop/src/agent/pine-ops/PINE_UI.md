@@ -325,7 +325,9 @@ From top to bottom:
      title and action buttons stay visible. Output scrolls separately and
      follows new lines unless you scroll up to read earlier output.
 3. Composer ("Session message"):
-   - Approval required card, when a tool call needs the user: Approve, Reject,
+   - Approval required card, when a tool call needs the user (starting live
+     context shows its settings and Start instead of Approve; see Live
+     context under Workbench): Approve, Reject,
      Reject with guidance (multi-line: Enter sends, Shift+Enter adds a line,
      Esc returns to the buttons). When the automatic reviewer (Auto Approve)
      sent the call to you, the card leads with the approval model's
@@ -756,10 +758,20 @@ close the card. The panels are:
   are permanently deleted and it can't be undone; while this conversation
   is capturing, the dialog adds "The capture stops first." and Delete stops
   it before deleting. The card then shows its setup row again.
+  The agent can start live context itself when asked (for example "take
+  notes of this class"): an Approval required card appears in every
+  approval mode, reading "Pine wants to start live context in this
+  conversation.", listing Sources, Language (full name) and Identify
+  speakers (On or Off), with a note that it can be paused or stopped from
+  the Live context card, and Start in place of Approve. After Start the
+  Live context card opens and pulses. The agent can pause, resume and stop
+  this conversation's capture without asking, but never another
+  conversation's; its calls show as "Started live context", "Paused live
+  context", "Resumed live context" or "Stopped live context".
   The conversation's agent sees the transcript: each message the user
   sends carries the lines finalized since the previous message (only the
   most recent part when there is a lot), with the speaker names the card
-  shows and the capture's state, and the agent can read earlier or complete ranges
+  shows, and the agent can read earlier or complete ranges
   itself, which shows in the transcript as "Read the live context
   transcript" with an audio-lines icon. Nothing shows in the conversation
   when lines are attached. Other conversations, side chats and

@@ -1555,6 +1555,14 @@ export default {
         credentialsNote: "值已隐藏。",
         definition: "服务器定义",
       },
+      liveContext: {
+        title: "Pine 想在这个对话里开始实时上下文。",
+        intro:
+          "它会在这台 Mac 上转写听到的内容，智能体可以读取转写。音频不会被保存。",
+        speakersOn: "开",
+        speakersOff: "关",
+        note: "你随时可以在实时上下文卡片里暂停或停止。",
+      },
       detailsReviewerNotes: "审查记录",
       approve: "批准",
       reject: "拒绝",
@@ -1716,9 +1724,9 @@ export default {
           active: "正在查看 {count} 次时间",
           complete: "查看了 {count} 次时间",
         },
-        liveTranscript: {
-          active: "正在读取 {count} 次实时上下文",
-          complete: "读取了 {count} 次实时上下文",
+        liveContext: {
+          active: "正在使用 {count} 次实时上下文",
+          complete: "使用了 {count} 次实时上下文",
         },
         memory: {
           active: "正在使用 {count} 次记忆",
@@ -1776,7 +1784,7 @@ export default {
         automation: "自动化操作",
         model: "模型查询",
         datetime: "日期时间",
-        liveTranscript: "实时上下文",
+        liveContext: "实时上下文",
         mcpConfig: "MCP 配置",
         memory: "记忆",
         project: "项目操作",
@@ -2012,10 +2020,32 @@ export default {
           complete: "已获取日期和时间",
           error: "无法获取日期和时间",
         },
-        liveTranscript: {
-          running: "正在读取实时上下文转写",
-          complete: "已读取实时上下文转写",
-          error: "无法读取实时上下文转写",
+        liveContext: {
+          read: {
+            running: "正在读取实时上下文转写",
+            complete: "已读取实时上下文转写",
+            error: "无法读取实时上下文转写",
+          },
+          start: {
+            running: "正在开始实时上下文",
+            complete: "已开始实时上下文",
+            error: "实时上下文未能开始",
+          },
+          pause: {
+            running: "正在暂停实时上下文",
+            complete: "已暂停实时上下文",
+            error: "无法暂停实时上下文",
+          },
+          resume: {
+            running: "正在继续实时上下文",
+            complete: "已继续实时上下文",
+            error: "无法继续实时上下文",
+          },
+          stop: {
+            running: "正在停止实时上下文",
+            complete: "已停止实时上下文",
+            error: "无法停止实时上下文",
+          },
         },
         memory: {
           list: {

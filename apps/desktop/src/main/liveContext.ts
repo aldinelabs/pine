@@ -27,7 +27,10 @@ import {
   parseTurns,
   renameSpeaker,
 } from "../shared/liveContextSpeakers";
-import type { LiveContextAgentSource } from "../shared/liveContextAgent";
+import type {
+  LiveContextAgentSource,
+  LiveContextCaptureSettings,
+} from "../shared/liveContextAgent";
 import {
   SpeakerSession,
   type SourcedLabel,
@@ -233,6 +236,8 @@ export class LiveContextService {
     LiveContextSegment
   >();
   private volatileTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The last capture's settings, which an agent-started one defaults to. */
+  private lastSettings: Partial<LiveContextCaptureSettings> = {};
 
   constructor(private readonly options: LiveContextServiceOptions) {
     this.current = this.idleStatus();
@@ -256,6 +261,11 @@ export class LiveContextService {
       speakersAvailable: this.speakersAvailable(),
       ...(lastError ? { lastError } : {}),
     };
+  }
+
+  /** What the last capture in this run of Pine listened with, if any. */
+  lastCaptureSettings(): Partial<LiveContextCaptureSettings> {
+    return { ...this.lastSettings };
   }
 
   status(): LiveContextStatus {
@@ -292,6 +302,11 @@ export class LiveContextService {
     const speakersFile = liveSpeakersPath(projectRoot, request.sessionId);
     await mkdir(path.dirname(file), { recursive: true });
     const sources = [...new Set(request.sources)];
+    this.lastSettings = {
+      sources,
+      locale: request.locale,
+      speakers: request.speakers === true,
+    };
     this.current = {
       available: true,
       state: "preparing",

@@ -40,6 +40,7 @@ import {
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
+import { LIVE_CONTEXT_CAPTURE_TOOL_NAME } from "@/shared/liveContextAgent";
 import { sessionSearchQuery } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -1189,8 +1190,27 @@ const presentation = computed(() => {
       after: `${t(`project.transcript.tools.fileSearch.${operation}.${tense}.after`)}${found}`,
     };
   }
-  if (kind === "liveTranscript") {
+  if (kind === "liveContext") {
     const tense = state === "running" || state === "error" ? state : "complete";
+    if (props.toolCall.name === LIVE_CONTEXT_CAPTURE_TOOL_NAME) {
+      const action = firstString(input, ["action"]);
+      return {
+        before: t(
+          `project.transcript.tools.liveContext.${
+            action === "pause" || action === "resume" || action === "stop"
+              ? action
+              : "start"
+          }.${tense}`,
+        ),
+        operation: undefined,
+        separator: "",
+        target: "",
+        targetMono: false,
+        purpose: undefined,
+        faviconDataUrl: undefined,
+        after: "",
+      };
+    }
     const from = firstString(input, ["from"]);
     const to = firstString(input, ["to"]);
     const target = [
@@ -1201,7 +1221,7 @@ const presentation = computed(() => {
       .filter(Boolean)
       .join(" · ");
     return {
-      before: t(`project.transcript.tools.liveTranscript.${tense}`),
+      before: t(`project.transcript.tools.liveContext.read.${tense}`),
       operation: undefined,
       separator: target ? " " : "",
       target,

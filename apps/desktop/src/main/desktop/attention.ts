@@ -33,6 +33,11 @@ export function setAppLocale(locale: unknown): void {
   if (typeof locale === "string") appLocale = locale;
 }
 
+/** Pine's interface language, else the system's. */
+export function currentAppLocale(): string {
+  return appLocale ?? app.getLocale();
+}
+
 /** Native dialogs and notifications follow Pine's language, not the system's. */
 export function isChineseLocale(): boolean {
   return (appLocale ?? app.getLocale()).toLowerCase().startsWith("zh");
