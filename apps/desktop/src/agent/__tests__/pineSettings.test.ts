@@ -249,6 +249,28 @@ describe("Pine agent settings", () => {
     });
   });
 
+  it("keeps every change when settings are saved at the same time", async () => {
+    const agentDir = await mkdtemp(
+      path.join(os.tmpdir(), "pine-concurrent-settings-"),
+    );
+    temporaryDirectories.push(agentDir);
+    await Promise.all([
+      writeToolGroupEnabled(agentDir, "shell", false),
+      writeUtilityModelSelection(agentDir, {
+        providerId: "openai",
+        modelId: "gpt-5.4-mini",
+      }),
+      writeToolGroupEnabled(agentDir, "liveContext", false),
+      writeMemoryEnabled(agentDir, false),
+      writeToolGroupEnabled(agentDir, "web", false),
+    ]);
+    await expect(readPineAgentSettings(agentDir)).resolves.toMatchObject({
+      toolGroups: { shell: false, liveContext: false, web: false },
+      utilityModel: { providerId: "openai", modelId: "gpt-5.4-mini" },
+      memoryEnabled: false,
+    });
+  });
+
   it("migrates the earlier Computer Use switch into the tool switches", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-tool-group-migration-"),

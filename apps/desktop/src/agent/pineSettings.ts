@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   isWebServerSettings,
@@ -416,15 +416,14 @@ export async function writeToolGroupEnabled(
   id: PineToolGroupId,
   enabled: boolean,
 ): Promise<Partial<PineToolGroups>> {
-  const toolGroups = {
-    ...(await readPineAgentSettings(agentDir)).toolGroups,
-    [id]: enabled,
-  };
-  // The legacy key is folded into `toolGroups` above; drop it once written.
-  await writePineAgentSettings(agentDir, {
-    toolGroups,
-    computerUseEnabled: undefined,
-  } as Partial<PineAgentSettings>);
+  let toolGroups: Partial<PineToolGroups> = {};
+  await updatePineAgentSettingsFile(agentDir, (current) => {
+    toolGroups = { ...readToolGroups(current), [id]: enabled };
+    // The legacy key is folded into `toolGroups` above; drop it once written.
+    const next: Record<string, unknown> = { ...current, toolGroups };
+    delete next.computerUseEnabled;
+    return next;
+  });
   return toolGroups;
 }
 
@@ -477,24 +476,56 @@ async function writePineAgentSettings(
   agentDir: string,
   patch: Partial<PineAgentSettings>,
 ): Promise<void> {
-  await mkdir(agentDir, { recursive: true });
+  await updatePineAgentSettingsFile(agentDir, (current) => ({
+    ...current,
+    ...patch,
+  }));
+}
+
+/** The latest pending update of each settings file, in this process. */
+const pendingSettingsUpdates = new Map<string, Promise<void>>();
+
+/**
+ * Rewrites the settings file from its current contents. Updates of one file
+ * run one after another, so two saves made at once (two switches flipped
+ * quickly, or a background model default) never drop each other's change,
+ * and the file is replaced whole, so a reader never sees it half written.
+ */
+async function updatePineAgentSettingsFile(
+  agentDir: string,
+  update: (current: Record<string, unknown>) => Record<string, unknown>,
+): Promise<void> {
   const destination = settingsPath(agentDir);
-  let current: Record<string, unknown> = {};
-  try {
-    const parsed: unknown = JSON.parse(await readFile(destination, "utf8"));
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      !Array.isArray(parsed)
-    ) {
-      current = parsed as Record<string, unknown>;
+  const previous = pendingSettingsUpdates.get(destination) ?? Promise.resolve();
+  const next = previous.then(async () => {
+    await mkdir(agentDir, { recursive: true });
+    let current: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(await readFile(destination, "utf8"));
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        current = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Recreate the settings file when it is missing or malformed.
     }
-  } catch {
-    // Recreate the settings file when it is missing or malformed.
-  }
-  await writeFile(
-    destination,
-    `${JSON.stringify({ ...current, ...patch }, null, 2)}\n`,
-    "utf8",
-  );
+    const temporary = `${destination}.${process.pid}.tmp`;
+    await writeFile(
+      temporary,
+      `${JSON.stringify(update(current), null, 2)}\n`,
+      "utf8",
+    );
+    await rename(temporary, destination);
+  });
+  // A failed update must not block the ones queued after it.
+  const settled = next.catch(() => undefined);
+  pendingSettingsUpdates.set(destination, settled);
+  void settled.then(() => {
+    if (pendingSettingsUpdates.get(destination) === settled)
+      pendingSettingsUpdates.delete(destination);
+  });
+  await next;
 }
