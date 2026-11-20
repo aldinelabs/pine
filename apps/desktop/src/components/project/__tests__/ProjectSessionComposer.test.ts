@@ -1269,9 +1269,11 @@ describe("ProjectSessionComposer", () => {
       "保持测试不变，只修改实现代码。",
     );
     expect(steer().attributes("disabled")).toBeUndefined();
-    expect(
-      wrapper.find('[data-slot="undo-prompt-optimization"]').exists(),
-    ).toBe(true);
+    // At rest Undo optimization is an even, outlined icon button.
+    const undo = wrapper.get('[data-slot="undo-prompt-optimization"]');
+    expect(undo.classes()).toEqual(
+      expect.arrayContaining(["composer-optimize-undo", "border-border"]),
+    );
     wrapper.unmount();
   });
 

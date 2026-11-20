@@ -133,7 +133,12 @@ const labelClass = computed(() =>
     :data-expanded="props.isRewriting || undefined"
   >
     <span
-      class="composer-optimize-sizer invisible flex h-8 items-center border border-transparent pr-1.5 pl-2.5"
+      :class="
+        cn(
+          'composer-optimize-sizer invisible flex h-8 items-center border border-transparent pl-2.5',
+          showsUndo ? 'pr-2.5' : 'pr-1.5',
+        )
+      "
       aria-hidden="true"
     >
       <span class="size-4" />
@@ -148,7 +153,7 @@ const labelClass = computed(() =>
         <InputGroupButton
           v-if="showsUndo"
           data-slot="undo-prompt-optimization"
-          :class="buttonClass"
+          :class="cn(buttonClass, 'composer-optimize-undo')"
           type="button"
           variant="outline"
           size="sm"
@@ -356,6 +361,20 @@ const labelClass = computed(() =>
   transition:
     background-color 200ms ease,
     color 200ms ease;
+}
+
+/* Undo optimization rests as its icon alone, so it is an even icon button
+   like the compact Optimize prompt; its label takes only what the open pill
+   still needs at the end. */
+.composer-optimize-undo {
+  padding-inline-end: 0.625rem;
+}
+
+.composer-optimize-undo
+  .composer-optimize-label-track
+  > .composer-optimize-label {
+  margin-inline-end: 0.125rem;
+  transform-origin: calc(100% + 0.125rem) 50%;
 }
 
 /* Inside the outlined button the keycap drops its own ring, so the two
