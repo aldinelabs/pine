@@ -6,7 +6,8 @@ import { MARKDOWN_IMAGE_PARAM } from "@/shared/projectFiles";
  * 1. Remote or inline-data URLs (`https:`, `data:`, `blob:`, protocol-relative)
  *    — pass through untouched.
  * 2. `file://` URLs — decoded to an absolute path.
- * 3. Absolute local paths (POSIX `/…` or Windows `C:\…` / `C:/…`) — served
+ * 3. Absolute local paths (POSIX `/…`, home-relative `~/…`, or Windows
+ *    `C:\…` / `C:/…`) — served
  *    through the scoped `pine-attachment://` protocol, whose main-process
  *    handler validates the path against attachments and granted folders.
  * 4. Relative paths — file previews carry an owner-scoped document URL.
@@ -43,6 +44,7 @@ function fileUrlToPath(src: string): string | undefined {
 function isAbsoluteLocalPath(path: string): boolean {
   return (
     (path.startsWith("/") && !path.startsWith("//")) ||
+    /^~[\\/]/.test(path) ||
     WINDOWS_ABSOLUTE_PATTERN.test(path)
   );
 }

@@ -17,6 +17,13 @@ export default {
       previous: "Zurück",
       next: "Weiter",
     },
+    image: {
+      unsupported:
+        "Dieser Bildpfad wird nicht unterstützt: Verwende einen absoluten Pfad, ~/…, einen Pfad im Projektordner oder eine Webadresse",
+      denied: "Diese Datei liegt außerhalb der Projektordner",
+      missing: "Bilddatei nicht gefunden",
+      failed: "Das Bild konnte nicht geladen werden",
+    },
     datePicker: {
       placeholder: "Datum wählen",
     },

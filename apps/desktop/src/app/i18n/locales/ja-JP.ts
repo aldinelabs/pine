@@ -17,6 +17,13 @@ export default {
       previous: "前へ",
       next: "次へ",
     },
+    image: {
+      unsupported:
+        "この画像パスには対応していません。絶対パス、~/…、プロジェクトフォルダ内のパス、またはウェブアドレスを使ってください",
+      denied: "このファイルはプロジェクトのフォルダ外にあります",
+      missing: "画像ファイルが見つかりません",
+      failed: "画像を読み込めませんでした",
+    },
     datePicker: {
       placeholder: "日付を選択",
     },

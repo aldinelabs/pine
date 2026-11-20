@@ -39,3 +39,6 @@ export function childList(value: unknown): unknown[] {
   if (Array.isArray(value)) return value.flatMap(childList);
   return value === null || value === undefined ? [] : [value];
 }
+
+/** Images in a row share it, side by side down to 8rem each, then wrap. */
+export const ROW_IMAGES = "[&>[data-iui=image]]:flex-[1_1_8rem]";

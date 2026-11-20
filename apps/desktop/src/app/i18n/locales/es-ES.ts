@@ -17,6 +17,13 @@ export default {
       previous: "Anterior",
       next: "Siguiente",
     },
+    image: {
+      unsupported:
+        "Esta ruta de imagen no es compatible: usa una ruta absoluta, ~/…, una ruta dentro de la carpeta del proyecto o una dirección web",
+      denied: "Este archivo está fuera de las carpetas del proyecto",
+      missing: "No se encontró el archivo de imagen",
+      failed: "No se pudo cargar la imagen",
+    },
     datePicker: {
       placeholder: "Elegir una fecha",
     },

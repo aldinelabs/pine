@@ -17,6 +17,13 @@ export default {
       previous: "上一项",
       next: "下一项",
     },
+    image: {
+      unsupported:
+        "不支持此图片路径：请使用绝对路径、~/…、项目文件夹内的路径或网址",
+      denied: "此文件不在项目的文件夹中",
+      missing: "找不到图片文件",
+      failed: "无法加载此图片",
+    },
     datePicker: {
       placeholder: "选择日期",
     },

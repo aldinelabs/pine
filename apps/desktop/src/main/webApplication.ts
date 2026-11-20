@@ -1,3 +1,4 @@
+import { expandHomePath } from "./homePath";
 import { webDownload } from "./webDownload";
 import { WebSubscriptions } from "./webSubscriptions";
 import {
@@ -264,7 +265,9 @@ export class WebApplication {
       });
     }
     if (url.pathname === "/api/attachment") {
-      const file = await realpath(url.searchParams.get("p") ?? "");
+      const file = await realpath(
+        expandHomePath(url.searchParams.get("p") ?? ""),
+      );
       if (!(await this.options.allowAttachment(file))) {
         try {
           await this.options.presentedPath(WEB_CLIENT_ID, { path: file });

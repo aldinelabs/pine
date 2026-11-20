@@ -24,6 +24,7 @@ import {
   writeRunInBackground,
 } from "./agent/pineSettings";
 import { ATTACHMENT_IMAGE_PROTOCOL } from "./shared/attachments";
+import { expandHomePath } from "./main/homePath";
 import {
   DEFAULT_RUN_IN_BACKGROUND,
   GET_RUN_IN_BACKGROUND_CHANNEL,
@@ -469,7 +470,7 @@ function registerAttachmentImageProtocol(): void {
     if (!requestedPath) {
       return new Response("Bad request", { status: 400 });
     }
-    const resolvedPath = path.resolve(requestedPath);
+    const resolvedPath = path.resolve(expandHomePath(requestedPath));
     if (!core?.isServableAttachmentPath(resolvedPath)) {
       return new Response("Forbidden", { status: 403 });
     }

@@ -17,6 +17,13 @@ export default {
       previous: "이전",
       next: "다음",
     },
+    image: {
+      unsupported:
+        "지원하지 않는 이미지 경로입니다. 절대 경로, ~/…, 프로젝트 폴더 안의 경로 또는 웹 주소를 사용하세요",
+      denied: "이 파일은 프로젝트 폴더 밖에 있습니다",
+      missing: "이미지 파일을 찾을 수 없습니다",
+      failed: "이미지를 불러올 수 없습니다",
+    },
     datePicker: {
       placeholder: "날짜 선택",
     },

@@ -1,5 +1,5 @@
 import { flushPromises } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mountBlock } from "./fixtures/mountBlock";
 
 describe("layout and text components", () => {
@@ -32,6 +32,34 @@ tabs = Tabs([Tab("First", [Text("x")]), Tab("Second", [Text("y")])])`,
     expect(tabList.classes()).toEqual(
       expect.arrayContaining(["max-w-full", "overflow-x-auto"]),
     );
+  });
+
+  it("sizes Images in a row and explains one that fails", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 403 }));
+    vi.stubGlobal("fetch", fetch);
+    const path = "/Users/ada/课程 资料/Lab 4/walk 1.png";
+    const wrapper = await mountBlock(
+      `root = Row([Image("${path}", "Walk"), Image("Lab 4/idle.png", "Idle")])`,
+    );
+    const row = wrapper.find('[data-iui="row"]');
+    expect(row.classes()).toContain("[&>[data-iui=image]]:flex-[1_1_8rem]");
+    const images = wrapper.findAll('[data-iui="image"]');
+    expect(images[0]?.classes()).toContain("w-full");
+
+    // No project folder to read a relative path from.
+    const unsupported = images[1]?.find("[data-iui-image-failure]");
+    expect(unsupported?.attributes("data-reason")).toBe("unsupported");
+    expect(unsupported?.attributes("title")).toContain("Lab 4/idle.png");
+
+    await images[0]?.find("img").trigger("error");
+    await flushPromises();
+    const denied = images[0]?.find("[data-iui-image-failure]");
+    expect(denied?.attributes("data-reason")).toBe("denied");
+    expect(denied?.attributes("title")).toContain(path);
+    expect(denied?.text()).toContain("outside the project's folders");
+    vi.unstubAllGlobals();
   });
 
   it("asks before a Link opens and only links web URLs", async () => {

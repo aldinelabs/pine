@@ -17,6 +17,13 @@ export default {
       previous: "Previous",
       next: "Next",
     },
+    image: {
+      unsupported:
+        "Image path isn't supported: use an absolute path, ~/…, a path in the project folder or a web address",
+      denied: "This file is outside the project's folders",
+      missing: "Image file not found",
+      failed: "The image couldn't be loaded",
+    },
     datePicker: {
       placeholder: "Pick a date",
     },

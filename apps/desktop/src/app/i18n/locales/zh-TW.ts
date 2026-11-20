@@ -17,6 +17,13 @@ export default {
       previous: "上一項",
       next: "下一項",
     },
+    image: {
+      unsupported:
+        "不支援此圖片路徑：請使用絕對路徑、~/…、專案資料夾內的路徑或網址",
+      denied: "此檔案不在專案的資料夾中",
+      missing: "找不到圖片檔案",
+      failed: "無法載入此圖片",
+    },
     datePicker: {
       placeholder: "選擇日期",
     },

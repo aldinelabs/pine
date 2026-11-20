@@ -259,7 +259,10 @@ From top to bottom:
      charts, numbered steps) and study aids (flashcards that flip when
      clicked, confetti when a goal is reached, none with reduced motion).
      A link in a block asks "Open external link?" before it opens in the
-     browser.
+     browser. An image in a block can show a web picture or a file in the
+     project's folders; one that cannot load shows a crossed-out picture
+     with the reason (for example the file is outside the project's
+     folders) and its path, also shown on hover.
      "Load earlier messages" appears at the top of long sessions. The
      Conversation outline lists the user's turns for quick jumping.
      Selecting text in the transcript shows a popover with Quote (adds it to

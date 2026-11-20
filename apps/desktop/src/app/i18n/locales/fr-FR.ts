@@ -17,6 +17,13 @@ export default {
       previous: "Précédent",
       next: "Suivant",
     },
+    image: {
+      unsupported:
+        "Ce chemin d’image n’est pas pris en charge : utilisez un chemin absolu, ~/…, un chemin dans le dossier du projet ou une adresse web",
+      denied: "Ce fichier est en dehors des dossiers du projet",
+      missing: "Fichier image introuvable",
+      failed: "Impossible de charger l’image",
+    },
     datePicker: {
       placeholder: "Choisir une date",
     },
