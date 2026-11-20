@@ -5,6 +5,11 @@
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/noto-serif-sc";
 @import "tailwindcss";
+/* Nothing uses `.container`; the scanner only picks the word up from code.
+   Its viewport breakpoints would flip mid-animation as the window resizes,
+   and any media change in this sheet (which registers @property rules)
+   restyles the whole window. */
+@source not inline("container");
 @import "tw-animate-css";
 @import "shadcn-vue/tailwind.css";
 @import "./styles/shadcn-vue.css";
