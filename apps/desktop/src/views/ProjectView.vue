@@ -43,6 +43,7 @@ import { useUpdaterStore } from "@/stores/updater";
 import { useProjectSidebarVisibilityStore } from "@/stores/projectSidebarVisibility";
 import { useFrozenWindowResize } from "@/composables/useFrozenWindowResize";
 import { useWorkbenchWindowResize } from "@/composables/useWorkbenchWindowResize";
+import { useWindowEdgeTransitionDelay } from "@/composables/useWindowEdgeTransitionDelay";
 import { useWorkbenchEvents } from "@/composables/useWorkbenchEvents";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
@@ -151,8 +152,20 @@ const frozenLayoutStyle = computed(() =>
         flex: "none",
         // Fixed sidebar containers lay out against the frozen box too.
         contain: "layout",
-        "--window-resize-delay": `${frozenResize.transitionDelay.value}ms`,
       },
+);
+// The window animation's delay goes onto the elements that follow its edge.
+const layoutRoot =
+  useTemplateRef<InstanceType<typeof SidebarProvider>>("layoutRoot");
+useWindowEdgeTransitionDelay(
+  () => {
+    const element: unknown = layoutRoot.value?.$el;
+    return element instanceof Element ? element : null;
+  },
+  () =>
+    frozenResize.frozenWidth.value === null
+      ? null
+      : frozenResize.transitionDelay.value,
 );
 
 // While the sidebar slides with the window, the content keeps its width and
@@ -397,7 +410,8 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
   <!-- Controlled without a v-model: setSidebarOpen decides when the open
        state changes, so the window can resize around it first. -->
   <SidebarProvider
-    class="relative h-full min-h-0 [&_[data-slot=sidebar-container]]:delay-(--window-resize-delay) [&_[data-slot=sidebar-container]]:duration-500 [&_[data-slot=sidebar-container]]:ease-out-expo [&_[data-slot=sidebar-gap]]:delay-(--window-resize-delay) [&_[data-slot=sidebar-gap]]:duration-500 [&_[data-slot=sidebar-gap]]:ease-out-expo"
+    ref="layoutRoot"
+    class="relative h-full min-h-0 [&_[data-slot=sidebar-container]]:duration-500 [&_[data-slot=sidebar-container]]:ease-out-expo [&_[data-slot=sidebar-gap]]:duration-500 [&_[data-slot=sidebar-gap]]:ease-out-expo"
     :style="frozenLayoutStyle"
     :open="sidebar.open"
     @update:open="setSidebarOpen"
@@ -469,10 +483,11 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
       <template #trailing>
         <div
           data-testid="project-trailing-controls"
+          data-window-edge-follower
           :class="[
             'flex items-center gap-1',
             isTrailingControlsAnimated &&
-              'transition-transform delay-(--window-resize-delay) duration-500 ease-out-expo',
+              'transition-transform duration-500 ease-out-expo',
           ]"
           :style="trailingControlsStyle"
         >
