@@ -66,8 +66,8 @@ same task more reliably.
 
 ## Browser setup
 
-Browser tools require the bundled Pine Computer Use extension. If they report
-that the extension is disconnected, call `install_pine_browser_extension`, then
-tell the user to load the returned directory once from `chrome://extensions`
-with Developer mode enabled. The extension has broad browser permissions; state
-that clearly and do not install or adopt tabs without the user's approval.
+Browser tools require the Pine browser extension. When they report that it is
+not connected, follow the Pine browser extension guide that comes with
+activation: get the user's agreement, call `install_pine_browser_extension`,
+and walk the user through loading the folder in words. Never install, enable,
+or reload the extension yourself through computer use.

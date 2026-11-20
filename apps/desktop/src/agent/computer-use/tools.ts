@@ -17,6 +17,12 @@ import type { PineApprovalMode } from "../../shared/agent";
 import type { ToolGate } from "../gate";
 import COMPUTER_USE_SKILL from "./SKILL.md?raw";
 import { ComputerUseMcpClient } from "./mcpClient";
+import {
+  browserExtensionGuide,
+  extensionDisconnectedHint,
+  revealInFileManager,
+  syncBrowserExtension,
+} from "./browserExtension";
 
 export const ACTIVATE_COMPUTER_USE_TOOL_NAME = "activate_computer_use";
 export const REQUEST_COMPUTER_USE_PERMISSIONS_TOOL_NAME =
@@ -42,6 +48,10 @@ export interface ComputerUseControllerOptions {
   /** Pine's runtime support directory; defaults to the per-platform location. */
   supportDirectory?: string;
   client?: Pick<ComputerUseMcpClient, "start" | "callTool" | "dispose">;
+  /** The extension shipped with this build; defaults to the bundle's copy. */
+  bundledExtensionDirectory?: string;
+  /** Shows the extension folder to the user; defaults to the file manager. */
+  revealDirectory?: (directory: string) => void;
 }
 
 export interface ComputerUseExtensionOptions extends ComputerUseControllerOptions {
@@ -271,7 +281,9 @@ async function runHelper(
 export class ComputerUseController {
   readonly executablePath: string;
   readonly supportDirectory: string;
-  readonly extensionDirectory = resolvePineBrowserExtensionDirectory();
+  readonly bundledExtensionDirectory: string;
+  /** The stable copy the user loads; see `syncBrowserExtension`. */
+  readonly extensionDirectory: string;
   private readonly client: Pick<
     ComputerUseMcpClient,
     "start" | "callTool" | "dispose"
@@ -285,6 +297,13 @@ export class ComputerUseController {
       options.executablePath ?? resolveComputerUseExecutable();
     this.supportDirectory =
       options.supportDirectory ?? resolveComputerUseSupportDirectory();
+    this.bundledExtensionDirectory =
+      options.bundledExtensionDirectory ??
+      resolvePineBrowserExtensionDirectory();
+    this.extensionDirectory = path.join(
+      this.supportDirectory,
+      "chrome-extension",
+    );
     this.client =
       options.client ??
       new ComputerUseMcpClient(
@@ -298,12 +317,17 @@ export class ComputerUseController {
   ): Promise<AgentToolResult<Record<string, unknown>>> {
     await this.client.start();
     await this.refreshInstalledNativeHost();
+    const extensionAvailable = this.syncExtension();
     enableTools();
+    const guide = browserExtensionGuide({
+      extensionDirectory: this.extensionDirectory,
+      available: extensionAvailable,
+    });
     return {
       content: [
         {
           type: "text",
-          text: `<computer_use_skill>\n${COMPUTER_USE_SKILL.trim()}\n</computer_use_skill>\n\nPine Computer Use is active for this session. Browser extension directory: ${this.extensionDirectory}`,
+          text: `<computer_use_skill>\n${COMPUTER_USE_SKILL.trim()}\n</computer_use_skill>\n\n<pine_browser_extension_guide>\n${guide}\n</pine_browser_extension_guide>\n\nPine Computer Use is active for this session.`,
         },
       ],
       details: {
@@ -333,7 +357,9 @@ export class ComputerUseController {
     )) as McpToolResult;
     const content = normalizedContent(raw.content);
     if (raw.isError === true) {
-      throw new Error(resultText(content) || `${name} failed.`);
+      const message = resultText(content) || `${name} failed.`;
+      const hint = extensionDisconnectedHint(message);
+      throw new Error(hint ? `${message}\n\n${hint}` : message);
     }
     return {
       content:
@@ -392,11 +418,20 @@ export class ComputerUseController {
       this.nativeHostInstallArgs(),
     );
     this.nativeHostRefreshed = true;
+    const available = this.syncExtension();
+    if (available) {
+      (this.options.revealDirectory ?? revealInFileManager)(
+        this.extensionDirectory,
+      );
+    }
+    const next = available
+      ? `The extension folder is now shown in the file manager. Guide the user to load it with Load unpacked as the Pine browser extension guide describes, without driving the browser yourself: ${this.extensionDirectory}`
+      : `This Pine build has no browser extension to load (${this.bundledExtensionDirectory} is missing); tell the user the installation looks incomplete.`;
     return {
       content: [
         {
           type: "text",
-          text: `${output}\n\nNative Messaging is registered. The user must now load this unpacked extension directory in Chrome: ${this.extensionDirectory}`,
+          text: `${output}\n\nNative Messaging is registered. ${next}`,
         },
       ],
       details: { extensionDirectory: this.extensionDirectory },
@@ -424,6 +459,21 @@ export class ComputerUseController {
       console.warn(
         `[Pine Computer Use] Could not refresh the browser bridge: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+  }
+
+  /** Refresh the stable extension copy; false when the build has none. */
+  private syncExtension(): boolean {
+    try {
+      return syncBrowserExtension(
+        this.bundledExtensionDirectory,
+        this.extensionDirectory,
+      );
+    } catch (error) {
+      console.warn(
+        `[Pine Computer Use] Could not copy the browser extension: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return existsSync(path.join(this.extensionDirectory, "manifest.json"));
     }
   }
 
@@ -570,7 +620,7 @@ function createComputerUseToolDefinitions(
     name: INSTALL_PINE_BROWSER_EXTENSION_TOOL_NAME,
     label: "Install Pine Browser Extension",
     description:
-      "Register Pine's bundled Chrome Native Messaging host. This changes user-level browser configuration and still requires the user to load the returned unpacked extension directory in Chrome.",
+      "Register Pine's Chrome Native Messaging host and show the extension folder to the user in the file manager. This changes user-level browser configuration; the user still loads the folder in Chrome themselves, guided by the Pine browser extension guide.",
     parameters: emptyParams,
     prepareArguments: () => ({}),
     executionMode: "sequential",

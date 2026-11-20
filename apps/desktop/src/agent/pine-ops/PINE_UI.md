@@ -571,7 +571,13 @@ From top to bottom:
      small Chrome window naming the site asks the user for the credentials;
      what the user types goes straight into the page and is never shown to the
      agent. A previously registered Pine browser extension is re-pointed at the
-     current Pine app automatically when Computer Use starts. The agent is
+     current Pine app automatically when Computer Use starts. The extension is
+     not installed by the agent: after its separately approved setup step,
+     Pine shows the extension folder in Finder (File Explorer on Windows) and
+     the agent tells the user how to load it from `chrome://extensions` with
+     Developer mode and Load unpacked. That folder lives in Pine's support
+     data (on macOS, `~/Library/Application Support/Pine/computer-use/chrome-extension`),
+     so it stays valid across Pine updates. The agent is
      instructed to ask before consequential actions not already authorized,
      such as payments, sending, publishing, irreversible deletion, security
      changes, or sharing sensitive information with a new recipient. This
