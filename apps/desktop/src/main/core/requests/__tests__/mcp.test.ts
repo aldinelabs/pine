@@ -12,6 +12,7 @@ const requester = {
 };
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
   );
@@ -20,6 +21,10 @@ afterEach(async () => {
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(), "pine-mcp-host-"));
   roots.push(root);
+  // The global MCP config lives under the home directory; point it at the
+  // fixture so a real ~/.config/mcp/mcp.json never mixes into the results.
+  vi.stubEnv("HOME", root);
+  vi.stubEnv("USERPROFILE", root);
   const filePath = path.join(root, ".mcp.json");
   await writeFile(
     filePath,
