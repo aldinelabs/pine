@@ -9,6 +9,66 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-11-20
+
+> **Highlights**: Live Context (Beta) transcribes a meeting or class on this Mac as context for the conversation, with speaker labels and live translation; Settings › Agent is split into Behavior and Tools, where each family of the agent's tools can be turned off; reply suggestions offer several alternatives at once.
+
+### Added
+
+#### Live Context (Beta)
+
+- **On-device transcription of meetings and classes**: on macOS 26 or later, the workbench has a new Live context card, marked Beta, that transcribes the microphone and/or system audio into text for the current conversation. Only the text is kept; audio is never saved. While it listens it shows the elapsed time and a waveform of the last few seconds, and it can be paused, resumed and stopped. One conversation captures at a time. Not available on Windows yet.
+- **Start from the new-session page**: clicking Start in the Live context card on a new session's page creates a conversation in the project the composer shows and starts transcribing into it; messages you send afterwards go to that conversation.
+- **Speaker labels**: with Identify speakers on, the transcript marks who is talking as Speaker 1, Speaker 2 and so on. The speaker models ship with the macOS app and run on this Mac, with nothing extra to download. Click a label to rename it or merge it into another speaker, or manage them all under Speakers in the card's "…" menu.
+- **Live translation**: with translation on, each finished line gets its translation underneath. The target defaults to the interface language and can be changed in the language menu; the model it uses is chosen in Settings › Models › Live translation model.
+- **The agent can read the transcript**: every message you send carries the transcript added since your previous one, and the agent can look further back on its own, so you can simply ask "what are they discussing?". Ask it to "take notes of this class" and it asks for your approval before it starts transcribing; it can then pause, resume or stop on its own.
+- **Delete live context**: Delete live context in the card's "…" menu permanently deletes the conversation's transcript, speaker names and translations.
+
+#### Computer Use
+
+- **Browser extension setup guide**: when the agent needs to connect to the browser, Pine shows the extension folder in Finder (File Explorer on Windows) and the agent walks you through turning on Developer mode and using Load unpacked in `chrome://extensions`. The folder stays valid across Pine updates.
+- **Sign-ins stay away from the agent**: when the agent hits a sign-in in one of Pine's browser tabs, a small window naming the site asks you for the credentials; what you type goes straight into the page and the agent never sees it.
+- **Key presses show the full combination**: Computer Use and webpage key press entries in the conversation show the whole key combination, for example "Pressed a key ⌘ + F".
+
+#### Conversation and composer
+
+- **Several reply suggestions**: reply suggestions now offer up to three alternatives. Press `↑` / `↓` in the empty composer to switch between them, and the key cap shows which one you are on (such as `Tab | 1/3 ↑↓`). Unused suggestions stay with the conversation, even after closing its tab or restarting Pine.
+- **Scroll to bottom button**: scrolled well up in a conversation, a Scroll to bottom button appears at the bottom right; clicking it returns to the latest content and keeps following the reply. Live context transcripts have the same button.
+- **Send without jumping to the bottom**: `⌥/Alt + Enter` sends a message without moving the conversation, so you can keep reading earlier parts while you send; `Enter` still scrolls to the new message.
+- **Optimize prompt for steering messages**: Optimize prompt also works while the agent is working, rewriting a steering message as a short, direct correction instead of a full task brief.
+- **More interactive answer components**: interactive answers gain accordions, carousels, popovers on clicked terms, code with a copy button, formulas, timelines, images, a date picker, a countdown timer, forms that flag required fields that are still empty, numbered steps and flip cards, among others, and the agent uses images more often to show screenshots and generated results. In WeChat these components arrive as text, lists and numbered options.
+
+#### Sidebar and tabs
+
+- **Session status in the sidebar**: each session's status shows to the left of its title: a breathing amber dot while it waits for your approval or answer, a small spinner while it runs, and an accent-coloured dot when a run finished while you were not looking (Unread, kept across restarts). This replaces the shield icon at the end of the row.
+- **Tabs sized to their titles**: tabs are as wide as their titles, and a title that does not fit fades out at its end instead of ending in "…". The close button appears over the end of the title on hover without pushing it aside. When space runs short, the other tabs shrink to their minimum before the tab bar scrolls.
+
+### Changed
+
+- **Optimize prompt moves to `⌘/Ctrl + Enter`**: `⌥/Alt + Enter` now sends without jumping to the bottom. In a session, Optimize prompt is an outlined button beside Send holding a `⌘↵` key, and its label opens on hover or when reached with `Tab`.
+- **Settings › Agent has two groups, Behavior and Tools**: the former Permissions, Context and Tools & privacy groups are folded into them. Tools has a switch for each of Shell commands, Web search, Computer use, Image and video generation, Artifacts and workbench, Live Context, Sessions, Projects, Skills, Automations and MCP servers, all on by default and applied from your next message. The TinyFish key is now set on the Web search row, and Computer Use works only while its Computer use switch is on.
+- **Each web page attachment is reviewed**: whenever Computer Use attaches files from this computer to a web page, an approval card lists the files, even after the task's computer control was approved (except in YOLO).
+- **Reasoning markers read "Thought for"**: finished reasoning markers in replies read "Thought for …" instead of "Worked for …".
+- **The workbench stays closed with no tab open**: closing the last tab closes the workbench, hides its button and makes `⌘/Ctrl + ⌥/Alt + B` do nothing until a tab is open again.
+- **A file's Comments card sits above Details**: for files that take comments, the right sidebar shows Comments first and Details below.
+- **The agent is choosier about memory**: it saves only what will help later, different conversations and merges it into existing notes instead of adding duplicates. Notes for this project only may keep project-specific decisions and pitfalls; notes for all projects are phrased in general terms.
+- **Installers in Pine's style**: the macOS DMG window and the Windows installer's loading screen use Pine's background and icon, and Windows Apps & features shows Pine's icon instead of Electron's.
+
+### Fixed
+
+- In dark mode, the shimmer on running sessions' titles in the sidebar and tabs is visible again.
+- PDF previews no longer stutter while you drag the workbench edge or the divider between its cards.
+- Showing or hiding a sidebar no longer drops frames during its animation.
+- WeChat remote shows costs in `.s`, `.i` and the done notice in the currency chosen in Pine instead of always in US dollars.
+- After you send a message, the conversation scrolls to it again instead of staying put with the new message below the visible area.
+- On a phone or in a narrow window, the context usage, cost and model name at the bottom of the composer no longer overlap; they collapse one by one, and the hidden details remain in the usage popover and the Model menu.
+- Switching from a file tab to another session's tab no longer flashes the workbench open.
+- With the native sidebar material, the left sidebar no longer turns black after the window narrows below 768 pixels and widens again.
+- Files the agent made were sometimes not submitted as output files, and revised versions were not resubmitted; it now submits them before it finishes and resubmits each finished revision.
+- In light mode, the `Tab` key after a reply suggestion is easier to read.
+- A row of buttons or badges in an interactive answer no longer runs past the reply and gets cut off in a narrow window or with the workbench open; it wraps instead.
+- Hovering a disabled button, such as Send with nothing typed, no longer shows a text cursor.
+
 ## [0.21.4] - 2026-11-17
 
 > **Highlights**: the composer shows what the conversation has cost, model pickers show makers' icons, and image and video models get recommendations too.
