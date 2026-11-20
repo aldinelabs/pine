@@ -3,21 +3,29 @@ import { useTemplateRef, watch } from "vue";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useSidebarGlassWidth } from "@/composables/useSidebarGlassWidth";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import UserSwitcher from "@/components/users/UserSwitcher.vue";
+import { useUsersStore } from "@/stores/users";
 import AllProjectsSessionList from "./AllProjectsSessionList.vue";
 
 const emit = defineEmits<{
   manageProjects: [];
+  manageUsers: [];
   manageSkills: [];
   manageMcp: [];
   manageMemory: [];
   manageAutomations: [];
   searchSessions: [];
 }>();
+
+const usersStore = useUsersStore();
+// Decides whether the footer exists; a web client has no users.
+void usersStore.load().catch(() => undefined);
 
 // On a phone the sidebar is a sheet over the content. It steps aside once
 // a tab opens or one of its dialogs takes over the screen.
@@ -65,6 +73,11 @@ useSidebarGlassWidth(() => {
         @manage-memory="handOff(() => emit('manageMemory'))"
       />
     </SidebarContent>
+
+    <!-- Only with several users; one user sees no footer at all. -->
+    <SidebarFooter v-if="usersStore.hasSeveralUsers" class="pt-0">
+      <UserSwitcher @manage-users="handOff(() => emit('manageUsers'))" />
+    </SidebarFooter>
 
     <SidebarRail />
   </Sidebar>

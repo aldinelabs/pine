@@ -79,6 +79,7 @@ function setup(platform = "darwin", state: TrayState = idle) {
     toggleWeChat,
     toggleKeepAwake,
     manageRemote: vi.fn(),
+    switchUser: vi.fn(),
     state: () => state,
   });
   const add = (auxiliary = false) => {

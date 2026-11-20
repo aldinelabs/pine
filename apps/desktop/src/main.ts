@@ -156,6 +156,7 @@ import {
   USER_ARGUMENT_PREFIX,
   USER_PICKER_ROUTE_HASH,
   USERS_CHANGED_CHANNEL,
+  type PineUser,
   type PineUsersState,
   type SwitchPineUserResult,
 } from "./shared/users";
@@ -248,6 +249,8 @@ let currentUserId: string | null = null;
 /** Settles with the user chosen in "Who's using Pine?". */
 let pendingUserChoice: ((userId: string) => void) | null = null;
 let userPickerWindow: BrowserWindow | null = null;
+/** The users as last read, for the tray menu, which is built synchronously. */
+let knownUsers: PineUser[] = [];
 let appUpdater: AppUpdater | null = null;
 let windowsSandboxReady = process.platform !== "win32";
 let windowsSandboxSetupPromise: Promise<boolean> | null = null;
@@ -317,6 +320,7 @@ const background = new DesktopBackground({
   toggleWeChat: () => void toggleWeChat(),
   toggleKeepAwake: () => void toggleKeepAwake(),
   manageRemote: () => openPreferencesSection("remote"),
+  switchUser: (userId) => void switchUser(userId).catch(showUserError),
   state: () => ({
     ...currentQuitBlockers(),
     quickComposerEnabled: quickComposer.isEnabled(),
@@ -324,6 +328,11 @@ const background = new DesktopBackground({
     relayRemote: core?.remote.status().enabled ?? false,
     wechatBound: core?.wechat.status().bound ?? false,
     keepAwake: remoteKeepAwake.enabled,
+    users: knownUsers.map((user) => ({
+      id: user.id,
+      name: user.name,
+      current: user.id === currentUserId,
+    })),
   }),
 });
 
@@ -671,6 +680,7 @@ ipcMain.on(PREFERENCES_REMOVE_CHANNEL, (event, key: unknown) => {
 
 async function usersState(): Promise<PineUsersState> {
   const loaded = await users.load();
+  knownUsers = loaded.users;
   return {
     users: loaded.users,
     currentUserId,
@@ -762,39 +772,49 @@ ipcMain.handle(CHOOSE_USER_CHANNEL, async (_event, request: unknown) => {
 });
 ipcMain.handle(
   SWITCH_USER_CHANNEL,
-  async (_event, request: unknown): Promise<SwitchPineUserResult> => {
-    const id = z.string().min(1).max(64).parse(request);
-    if (!core || id === currentUserId) return "cancelled";
-    const target = (await users.load()).users.find((user) => user.id === id);
-    if (!target) throw new Error("not-found: Unknown user.");
-    const blockers = currentQuitBlockers();
-    if (hasQuitBlockers(blockers)) {
-      const text = switchUserConfirmationText(
-        blockers,
-        isChineseLocale(),
-        target.name || (isChineseLocale() ? "我" : "Me"),
-      );
-      const options = {
-        type: "warning" as const,
-        ...text,
-        cancelId: 1,
-        defaultId: 0,
-        noLink: true,
-      };
-      const parent = BrowserWindow.getFocusedWindow();
-      const { response } = parent
-        ? await dialog.showMessageBox(parent, options)
-        : await dialog.showMessageBox(options);
-      if (response !== 0) return "cancelled";
-    }
-    quitConfirmed = true;
-    background.markQuitting();
-    app.relaunch({ args: relaunchArguments(process.argv.slice(1), id) });
-    await core.stop();
-    app.quit();
-    return "restarting";
-  },
+  (_event, request: unknown): Promise<SwitchPineUserResult> =>
+    switchUser(z.string().min(1).max(64).parse(request)),
 );
+
+/** Restarts Pine as another user, asking first if work would be cut off. */
+async function switchUser(id: string): Promise<SwitchPineUserResult> {
+  if (!core || id === currentUserId) return "cancelled";
+  const target = (await users.load()).users.find((user) => user.id === id);
+  if (!target) throw new Error("not-found: Unknown user.");
+  const blockers = currentQuitBlockers();
+  if (hasQuitBlockers(blockers)) {
+    const text = switchUserConfirmationText(
+      blockers,
+      isChineseLocale(),
+      target.name || (isChineseLocale() ? "我" : "Me"),
+    );
+    const options = {
+      type: "warning" as const,
+      ...text,
+      cancelId: 1,
+      defaultId: 0,
+      noLink: true,
+    };
+    const parent = BrowserWindow.getFocusedWindow();
+    const { response } = parent
+      ? await dialog.showMessageBox(parent, options)
+      : await dialog.showMessageBox(options);
+    if (response !== 0) return "cancelled";
+  }
+  quitConfirmed = true;
+  background.markQuitting();
+  app.relaunch({ args: relaunchArguments(process.argv.slice(1), id) });
+  await core.stop();
+  app.quit();
+  return "restarting";
+}
+
+function showUserError(error: unknown): void {
+  dialog.showErrorBox(
+    "Pine",
+    String(error instanceof Error ? error.message : error),
+  );
+}
 
 ipcMain.handle(
   GET_RUN_IN_BACKGROUND_CHANNEL,
@@ -1179,6 +1199,7 @@ async function initializeApp(): Promise<void> {
   );
   void users
     .markUsed(userId)
+    .then(() => usersState())
     .catch((error: unknown) =>
       console.error("Could not remember the last user.", error),
     );

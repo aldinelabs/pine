@@ -11,6 +11,8 @@ export interface TrayState extends QuitBlockers {
   wechatBound: boolean;
   /** "Keep the computer awake while remote control is on" is switched on. */
   keepAwake: boolean;
+  /** Pine's users; the menu lists them only when there are several. */
+  users?: { id: string; name: string; current: boolean }[];
 }
 
 export type TrayAction =
@@ -33,7 +35,9 @@ export type TrayMenuEntry =
       checked: boolean;
       enabled: boolean;
     }
-  | { type: "status"; label: string };
+  | { type: "status"; label: string }
+  /** Picking another user restarts Pine as them. */
+  | { type: "user"; userId: string; label: string; current: boolean };
 
 export type TrayGlyph = "trayTemplate" | "trayLight" | "trayDark";
 
@@ -73,6 +77,20 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
       action: "quick-composer",
       label: chinese ? "快速输入" : "Quick composer",
     });
+  if (state.users && state.users.length > 1) {
+    entries.push({ type: "separator" });
+    entries.push({
+      type: "status",
+      label: chinese ? "切换用户" : "Switch User",
+    });
+    for (const user of state.users)
+      entries.push({
+        type: "user",
+        userId: user.id,
+        label: user.name || (chinese ? "我" : "Me"),
+        current: user.current,
+      });
+  }
   entries.push({ type: "separator" });
   entries.push({
     type: "toggle",

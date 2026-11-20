@@ -418,6 +418,7 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
   >
     <ProjectSidebar
       @manage-projects="preferencesDialog?.open('projects')"
+      @manage-users="preferencesDialog?.open('users')"
       @manage-skills="isSkillManagerOpen = true"
       @manage-mcp="isMcpManagerOpen = true"
       @manage-memory="isMemoryManagerOpen = true"

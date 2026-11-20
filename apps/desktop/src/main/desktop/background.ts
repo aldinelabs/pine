@@ -35,6 +35,8 @@ interface DesktopBackgroundOptions {
   toggleKeepAwake(): void;
   /** Opens Pine's preferences at the Remote Control section. */
   manageRemote(): void;
+  /** Restarts Pine as another user. */
+  switchUser(userId: string): void;
   state(): TrayState;
 }
 
@@ -209,6 +211,15 @@ export class DesktopBackground {
           };
         if (entry.type === "status")
           return { label: entry.label, enabled: false };
+        if (entry.type === "user")
+          return {
+            label: entry.label,
+            type: "radio",
+            checked: entry.current,
+            click: () => {
+              if (!entry.current) this.options.switchUser(entry.userId);
+            },
+          };
         return { label: entry.label, click: handlers[entry.action] };
       },
     );

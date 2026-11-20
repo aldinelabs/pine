@@ -41,6 +41,23 @@ describe("tray menu", () => {
     });
   });
 
+  it("lists users to switch to only when there are several", () => {
+    const users = (list: { id: string; name: string; current: boolean }[]) =>
+      trayMenu({ ...idle, users: list }, false).filter(
+        (entry) => entry.type === "user",
+      );
+    expect(users([{ id: "primary", name: "Kai", current: true }])).toEqual([]);
+    expect(
+      users([
+        { id: "primary", name: "", current: true },
+        { id: "mom", name: "Mom", current: false },
+      ]),
+    ).toEqual([
+      { type: "user", userId: "primary", label: "Me", current: true },
+      { type: "user", userId: "mom", label: "Mom", current: false },
+    ]);
+  });
+
   it("offers the quick composer only while it is on", () => {
     const actions = (quickComposerEnabled: boolean) =>
       trayMenu({ ...idle, quickComposerEnabled }, false).flatMap((entry) =>

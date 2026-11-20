@@ -164,6 +164,12 @@ Session list, one collapsible group per project:
   it: {count}.").
 - Show more: reveals older sessions of the project.
 
+Footer (only with more than one user): the current user's avatar and name.
+Clicking it opens a menu headed "Using Pine as {name}" that lists the other
+users (picking one restarts Pine as them, asking first if sessions are running
+or remote control is on) and "Manage users…" (opens Pine Settings › Multiple
+users).
+
 More menu:
 
 - Automations: opens the Automations manager. A badge next to it counts unread
@@ -1172,7 +1178,9 @@ long pasted text can be attached before the conversation opens in a window.
 
 With "Keep running in the background" on, closing the last window keeps Pine in
 the menu bar (macOS) or notification area (Windows). Its menu has Open Pine,
-Quick composer, switches for Browser access, Remote Control via Aldine and
+Quick composer, with more than one user a "Switch User" list of every user
+(the current one checked; picking another restarts Pine as them), switches
+for Browser access, Remote Control via Aldine and
 "WeChat remote" (pauses or resumes receiving tasks from WeChat, the same as
 "Receive tasks from WeChat" in Settings; greyed out until a WeChat account is
 connected), a "WeChat: scan again needed" line when WeChat's login has to be
