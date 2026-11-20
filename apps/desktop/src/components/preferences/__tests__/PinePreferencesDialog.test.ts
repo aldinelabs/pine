@@ -806,11 +806,16 @@ describe("PinePreferencesDialog", () => {
     ).toBe("ze/zir");
   });
 
-  it("turns on Monet mode from General and locks the communication style", async () => {
+  it("turns on the Monet font family from Appearance only", async () => {
     installPineApi("linux");
     const { wrapper } = mountDialog();
     await openSection(wrapper, "通用");
-    const toggle = wrapper.get('[data-testid="pine-monet-mode-toggle"]');
+    expect(
+      wrapper.find('[data-testid="pine-monet-font-toggle"]').exists(),
+    ).toBe(false);
+    await openSection(wrapper, "外观");
+    expect(wrapper.text()).toContain("Monet 字体系列");
+    const toggle = wrapper.get('[data-testid="pine-monet-font-toggle"]');
 
     await toggle.trigger("click");
     await wrapper.vm.$nextTick();
@@ -831,7 +836,7 @@ describe("PinePreferencesDialog", () => {
           group.attributes("aria-labelledby") ===
           "pine-user-profile-style-label",
       );
-    expect(styleGroup?.props("disabled")).toBe(true);
+    expect(styleGroup?.props("disabled")).toBeFalsy();
   });
 
   it("applies and persists language and theme selections", async () => {

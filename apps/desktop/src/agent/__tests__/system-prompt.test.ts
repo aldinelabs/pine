@@ -84,37 +84,20 @@ describe("systemPromptWithUserProfile", () => {
     expect(prompt).toContain("balanced tone");
   });
 
-  it("appends the Monet guide and drops the style only in Monet mode", () => {
+  it("keeps the communication style when the Monet font is on", () => {
     const profile = {
+      ...createDefaultPineUserProfile(),
       communicationStyle: "warm-friendly" as const,
-      customInstructions: "",
-      customPronouns: "",
-      interactiveAnswersEnabled: true,
-      interimAnswersEnabled: true,
-      monetMode: true,
-      nickname: "",
-      personalDetails: "",
-      pronouns: "unspecified" as const,
-      technicalBackground: "general-user" as const,
-      workStyle: "collaborate" as const,
     };
-    const prompt = systemPromptWithUserProfile("base prompt", profile);
-
-    expect(prompt).toContain("### Mode: Monet");
-    expect(prompt).toContain("Monet mode is on.");
-    expect(prompt).toContain('The "not X, but Y" crutch');
-    expect(prompt).toContain("Pine's rules for tools, permissions");
-    expect(prompt).not.toContain("helpful close collaborator");
-    // Prose-only wording made replies an unbroken wall of text.
-    expect(prompt).not.toContain("Default to prose");
-    expect(prompt).toContain("Write for the eye as well as the ear.");
-
-    const off = systemPromptWithUserProfile("base prompt", {
+    const on = systemPromptWithUserProfile("base prompt", {
       ...profile,
-      monetMode: false,
+      monetMode: true,
     });
-    expect(off).not.toContain("Monet");
-    expect(off).toContain("helpful close collaborator");
+
+    // The Monet font family is interface only.
+    expect(on).toBe(systemPromptWithUserProfile("base prompt", profile));
+    expect(on).not.toContain("Monet");
+    expect(on).toContain("helpful close collaborator");
   });
 });
 

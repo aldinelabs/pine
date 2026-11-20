@@ -40,8 +40,8 @@ export interface PineUserProfile {
    */
   interimAnswersEnabled: boolean;
   /**
-   * Monet mode: Sóber's voice and the reading font. While on, it replaces the
-   * communication style.
+   * Monet font family: the serif reading font for replies, titles and
+   * headings. Interface only; it never reaches the agent.
    */
   monetMode: boolean;
   nickname: string;

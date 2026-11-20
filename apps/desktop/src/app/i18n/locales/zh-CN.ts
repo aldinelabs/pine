@@ -459,7 +459,8 @@ export default {
       "大模型会调用当前模型撰写摘要。语义化算法不调用模型，直接从对话中提取目标、文件改动、提交和简要记录，压缩更快且不消耗 Token。",
     contextCompactionRouteModel: "大模型",
     contextCompactionRouteSemantic: "语义化算法（Beta）",
-    monetMode: "Monet",
+    monetFont: "Monet 字体系列",
+    monetFontDescription: "以衬线阅读字体显示回复、会话标题和标题。",
     invertDocuments: "深色模式下反色文档",
     invertDocumentsDescription:
       "深色模式下默认反色显示 PDF、演示文稿等文档的页面",
@@ -532,7 +533,6 @@ export default {
       "语气平衡自然，不过于正式，也不过于热情；直接、诚实，不奉承、不夸大。",
     userProfileStyleWarmDescription:
       "像一起帮忙的好朋友一样说话，保持热情，并在有帮助的前提下提供情绪价值。",
-    userProfileStyleMonetNotice: "Monet 模式已开启，将取代此项设置。",
     userProfileTechLabel: "技术背景",
     userProfileTechGeneral: "一般用户",
     userProfileTechProfessional: "专业用户",

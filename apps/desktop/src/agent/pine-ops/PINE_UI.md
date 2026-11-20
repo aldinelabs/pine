@@ -967,20 +967,19 @@ the user opens themselves do not pulse.
 - Pine Settings, with sections (a phone shows the section list first):
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
-    rate, US dollars when rates are unavailable), the Monet mode switch (the
-    last item of the Interface group: Sóber's voice plus a serif reading font
-    for assistant replies, session titles, headings, input placeholders and the
-    model picker; it replaces the communication style in the user profile,
-    which is disabled while it is on, and your own messages, buttons, menus and
-    the sidebar keep the interface font), completion signal, attention
+    rate, US dollars when rates are unavailable), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
     (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
     Orange, Green, Blue, Yellow, Violet), Working glow (the light running
     along the composer's border while the agent works; on by default,
-    applies to every open window), sidebar blur (macOS), inverted documents
-    in dark mode.
+    applies to every open window), sidebar blur (macOS), Monet font family
+    (a switch, off by default: a serif reading font for assistant replies,
+    session titles, headings, input placeholders and the model picker; your
+    own messages, buttons, menus and the sidebar keep the interface font; it
+    changes only how Pine looks, not how it writes), inverted documents in
+    dark mode.
   - Models: model catalog refresh; "Pi providers (CC Switch)" (desktop app
     only): a "Use providers from Pi" switch, off by default, that adds the
     providers in Pi's models.json (as set up in Pi or CC Switch), the file's
@@ -1027,7 +1026,7 @@ the user opens themselves do not pulse.
     she/her, they/them or Custom; Custom shows a short text field for your own
     wording; Not specified by default; Pine uses them when it refers to you in
     the third person), communication style (Calm & professional, Neutral or
-    Warm & friendly; disabled while Monet mode is on), technical background,
+    Warm & friendly), technical background,
     work style (Collaborate, the default: Pine works through the task with
     you in the conversation, quotes or summarizes the parts of a file it
     discusses so you don't need the file open beside the chat, and checks in

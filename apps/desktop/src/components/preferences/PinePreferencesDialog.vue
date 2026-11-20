@@ -966,8 +966,8 @@ function updateSidebarVibrancy(value: boolean): void {
   appearanceStore.setSidebarVibrancy(value);
 }
 
-/** Monet mode is one switch for the voice and the reading font. */
-function updateMonetMode(value: boolean): void {
+/** The Monet font family lives in the profile so every window follows it. */
+function updateMonetFont(value: boolean): void {
   profileDraft.monetMode = value;
   appearanceStore.setReadingFont(value);
 }
@@ -1175,7 +1175,6 @@ defineExpose({ open });
                   :spacing="2"
                   class="w-full"
                   :model-value="profileDraft.communicationStyle"
-                  :disabled="profileDraft.monetMode"
                   aria-labelledby="pine-user-profile-style-label"
                   @update:model-value="updateCommunicationStyle"
                 >
@@ -1190,11 +1189,7 @@ defineExpose({ open });
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <FieldDescription>
-                  {{
-                    profileDraft.monetMode
-                      ? t("preferences.userProfileStyleMonetNotice")
-                      : communicationStyleDescription
-                  }}
+                  {{ communicationStyleDescription }}
                 </FieldDescription>
               </Field>
 
@@ -1374,23 +1369,6 @@ defineExpose({ open });
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                  </Field>
-
-                  <Field orientation="horizontal">
-                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <FieldTitle
-                        id="pine-monet-mode-setting"
-                        style="font-family: var(--font-reading)"
-                      >
-                        {{ t("preferences.monetMode") }}
-                      </FieldTitle>
-                    </div>
-                    <Switch
-                      data-testid="pine-monet-mode-toggle"
-                      :model-value="profileDraft.monetMode"
-                      aria-labelledby="pine-monet-mode-setting"
-                      @update:model-value="updateMonetMode"
-                    />
                   </Field>
                 </FieldGroup>
               </FieldSet>
@@ -1664,6 +1642,26 @@ defineExpose({ open });
                       :model-value="appearanceStore.sidebarVibrancy"
                       aria-labelledby="pine-sidebar-vibrancy-setting"
                       @update:model-value="updateSidebarVibrancy"
+                    />
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle
+                        id="pine-monet-font-setting"
+                        style="font-family: var(--font-reading)"
+                      >
+                        {{ t("preferences.monetFont") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.monetFontDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-monet-font-toggle"
+                      :model-value="profileDraft.monetMode"
+                      aria-labelledby="pine-monet-font-setting"
+                      @update:model-value="updateMonetFont"
                     />
                   </Field>
                 </FieldGroup>

@@ -220,7 +220,7 @@ export const useAppearanceStore = defineStore("appearance", () => {
   }
 
   /**
-   * The reading font belongs to Monet mode, which lives in the user profile.
+   * The reading font is the Monet font family, stored in the user profile.
    * The stored value only avoids a flash of the interface font while the
    * profile loads; once it is known the profile decides.
    */

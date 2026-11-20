@@ -497,7 +497,9 @@ export default {
       "「モデル」は、現在のモデルに要約を書かせます。「セマンティックアルゴリズム」はモデルを呼び出さず、会話から目標、ファイルの変更、コミット、簡単な経緯を抽出するため、圧縮が速く、トークンも消費しません。",
     contextCompactionRouteModel: "モデル",
     contextCompactionRouteSemantic: "セマンティックアルゴリズム（ベータ）",
-    monetMode: "Monet",
+    monetFont: "Monet フォントファミリー",
+    monetFontDescription:
+      "返信、セッションタイトル、見出しをセリフ体の読書用フォントで表示します。",
     invertDocuments: "ダークモードでドキュメントを反転",
     invertDocumentsDescription:
       "ダークモードで、PDF やプレゼンテーションなどのドキュメントのページを反転して開きます",
@@ -573,8 +575,6 @@ export default {
       "フォーマルすぎず大げさでもない、バランスの取れた自然なトーン。お世辞や誇張のない、率直で誠実な話し方です。",
     userProfileStyleWarmDescription:
       "頼れる親友のように話します。温かく前向きに、必要に応じて気持ちの面でも支えます。",
-    userProfileStyleMonetNotice:
-      "Monet モードがオンのため、この設定は置き換えられます。",
     userProfileTechLabel: "技術的なバックグラウンド",
     userProfileTechGeneral: "一般ユーザー",
     userProfileTechProfessional: "専門ユーザー",

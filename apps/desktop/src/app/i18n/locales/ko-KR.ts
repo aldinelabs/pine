@@ -484,7 +484,9 @@ export default {
       "'모델'은 현재 모델이 요약을 작성하게 합니다. '시맨틱 알고리즘'은 모델을 호출하지 않고 대화에서 목표, 파일 변경, 커밋, 간단한 기록을 추출하므로 압축이 더 빠르고 토큰도 사용하지 않습니다.",
     contextCompactionRouteModel: "모델",
     contextCompactionRouteSemantic: "시맨틱 알고리즘(베타)",
-    monetMode: "Monet",
+    monetFont: "Monet 글꼴",
+    monetFontDescription:
+      "답변, 세션 제목, 머리글을 세리프 읽기 글꼴로 표시합니다.",
     invertDocuments: "다크 모드에서 문서 반전",
     invertDocumentsDescription:
       "다크 모드에서 PDF, 프레젠테이션 등의 문서를 페이지를 반전하여 엽니다",
@@ -560,7 +562,6 @@ export default {
       "격식을 차리지도 과하게 들뜨지도 않은 균형 잡힌 자연스러운 어조로, 아첨이나 과장 없이 솔직하고 정직하게 말합니다.",
     userProfileStyleWarmDescription:
       "도움이 되는 좋은 친구처럼 말합니다. 따뜻하고 열정적으로 대하며 필요할 때는 정서적 지지도 건넵니다.",
-    userProfileStyleMonetNotice: "Monet 모드가 켜져 있어 이 설정을 대체합니다.",
     userProfileTechLabel: "기술 배경",
     userProfileTechGeneral: "일반 사용자",
     userProfileTechProfessional: "전문 사용자",
