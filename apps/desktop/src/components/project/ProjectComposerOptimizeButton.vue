@@ -21,9 +21,9 @@ import { cn } from "@/lib/utils";
  * gradient label, and holding Cmd/Ctrl shows its Cmd/Ctrl+Enter shortcut
  * beside it. Beside Send in a session (`inline`) it is muted like the
  * draft's project picker and rests as its icon and Cmd/Ctrl+Enter keys. On
- * hover or keyboard focus (and while optimizing) the keys fold away as the
- * label opens, growing leftwards over the text box rather than pushing it,
- * so nothing beside it moves.
+ * hover or keyboard focus (and while optimizing) the keys blur and shrink
+ * away in place, then the label sharpens in as the button widens leftwards
+ * over the text box rather than pushing it, so nothing beside it moves.
  */
 const props = withDefaults(
   defineProps<{
@@ -63,8 +63,8 @@ const label = computed(() =>
 const labelClass = computed(() =>
   cn(
     "composer-optimize-label",
-    // Inline, the label keeps its full width inside a clipping track, so
-    // it is revealed rather than cut short with an ellipsis.
+    // Inline, the label keeps its full width inside its track, so it
+    // is revealed rather than cut short with an ellipsis.
     isInline.value ? "whitespace-nowrap" : "truncate",
     isInline.value
       ? props.isRewriting
@@ -80,20 +80,17 @@ const labelClass = computed(() =>
 <template>
   <!-- Inline, the slot keeps the resting width (icon and keys) through an
        invisible copy; the button is anchored to its right edge and grows
-       leftwards out of it. -->
+       leftwards out of it. The slot's -1px end margin puts the resting keys
+       and the open pill as far from Send as Send is from the composer's
+       edge. -->
   <div
     v-if="isInline"
     data-slot="composer-optimize-slot"
-    class="composer-optimize-slot relative inline-grid shrink-0"
+    class="composer-optimize-slot relative -me-px inline-grid shrink-0"
     :data-expanded="props.isRewriting || undefined"
   >
     <span
-      :class="
-        cn(
-          'composer-optimize-sizer invisible flex h-8 items-center border border-transparent pl-2.5',
-          showsUndo ? 'pr-3' : 'pr-1.5',
-        )
-      "
+      class="composer-optimize-sizer invisible flex h-8 items-center border border-e-0 border-transparent pl-2.5"
       aria-hidden="true"
     >
       <span class="size-4" />
@@ -116,16 +113,18 @@ const labelClass = computed(() =>
           @click="emit('undo')"
         >
           <Undo2Icon data-icon="inline-start" />
-          <span class="composer-optimize-label-clip">
-            <span class="composer-optimize-label whitespace-nowrap">
-              {{ t("project.composer.undoPromptOptimization") }}
+          <span class="composer-optimize-swap">
+            <span class="composer-optimize-label-track">
+              <span class="composer-optimize-label whitespace-nowrap">
+                {{ t("project.composer.undoPromptOptimization") }}
+              </span>
             </span>
           </span>
         </InputGroupButton>
         <InputGroupButton
           v-else
           data-slot="optimize-prompt-trigger"
-          :class="cn(buttonClass, 'composer-optimize-has-keys')"
+          :class="buttonClass"
           type="button"
           variant="ghost"
           size="sm"
@@ -139,20 +138,22 @@ const labelClass = computed(() =>
             data-icon="inline-start"
             class="transition-colors duration-200 group-enabled/optimize:group-hover/optimize:text-[var(--spectrum-1)]"
           />
-          <span class="composer-optimize-label-clip">
-            <span :class="labelClass" :data-label="label">
-              {{ label }}
+          <span class="composer-optimize-swap">
+            <span class="composer-optimize-label-track">
+              <span :class="labelClass" :data-label="label">
+                {{ label }}
+              </span>
             </span>
-          </span>
-          <span
-            data-slot="composer-optimize-kbd"
-            class="composer-optimize-kbd-clip"
-            aria-hidden="true"
-          >
-            <span class="composer-optimize-rest-kbd pl-1.5">
-              <ComposerKeycap
-                ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
-              >
+            <span
+              data-slot="composer-optimize-kbd"
+              class="composer-optimize-kbd-track"
+              aria-hidden="true"
+            >
+              <span class="composer-optimize-rest-kbd pl-1.5">
+                <ComposerKeycap
+                  ><kbd class="font-sans">{{ keysLabel }}</kbd></ComposerKeycap
+                >
+              </span>
             </span>
           </span>
         </InputGroupButton>
@@ -220,99 +221,119 @@ const labelClass = computed(() =>
   grid-area: 1 / 1;
 }
 
-/* Opening swaps the keys for the label by width, each track clipping its
-   content at full size (no ellipsis) on the app's expo curve; the text
-   fades in, unblurs and settles a few pixels as its track opens. */
-.composer-optimize-label-clip,
-.composer-optimize-kbd-clip {
-  display: block;
-  overflow: hidden;
+/* Opening swaps the keys for the label. The outgoing one blurs, shrinks
+   and fades in place; just before it is gone the incoming one fades in,
+   sharpening and growing to full size, both about the same point (the
+   button's inner end), so neither moves sideways. Underneath, each track
+   eases its width open or shut on the app's expo curve, a shutting one
+   only once its content has faded, so nothing spills over the icon; the
+   tracks share one grid cell, so the button is as wide as the wider of the
+   two, and the text inside keeps its full width (no ellipsis) and is never
+   clipped. */
+.composer-optimize-swap {
+  display: grid;
+  align-items: center;
+  justify-items: end;
+}
+
+.composer-optimize-swap > * {
+  grid-area: 1 / 1;
+}
+
+.composer-optimize-label-track,
+.composer-optimize-kbd-track {
+  display: flex;
+  justify-content: flex-end;
   interpolate-size: allow-keywords;
-  transition-property: width;
-  transition-duration: 500ms;
-  transition-timing-function: var(--ease-out-expo);
+  transition: width 500ms var(--ease-out-expo);
 }
 
-.composer-optimize-label-clip {
+.composer-optimize-label-track {
   width: 0;
+  transition-delay: 120ms;
 }
 
-.composer-optimize-label-clip > .composer-optimize-label {
+/* The keys' track takes its width back at once on closing (the label's
+   still covers it), so the button only ever narrows. */
+.composer-optimize-kbd-track {
+  width: auto;
+  transition-duration: 0ms;
+}
+
+/* The label carries the open pill's end padding as a margin, so the keys
+   can rest right against the button's end. */
+.composer-optimize-label-track > .composer-optimize-label {
   display: block;
+  flex-shrink: 0;
   width: max-content;
-  padding-inline-start: 0.375rem;
+  margin-inline: 0.375rem 0.75rem;
+  transform-origin: calc(100% + 0.75rem) 50%;
+}
+
+.composer-optimize-kbd-track > * {
+  display: block;
+  flex-shrink: 0;
+  width: max-content;
+  transform-origin: 100% 50%;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-label-track {
+  width: auto;
+  transition-delay: 0ms;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-kbd-track {
+  width: 0;
+  transition-duration: 500ms;
+  transition-delay: 120ms;
+}
+
+/* Out: the label at rest, the keys while open. */
+.composer-optimize-label-track > .composer-optimize-label,
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-kbd-track
+  > * {
   opacity: 0;
-  filter: blur(2px);
-  translate: 0.25rem 0;
+  filter: blur(3px);
+  scale: 0.9;
   transition:
     color 200ms ease-out,
-    opacity 150ms ease-out,
-    filter 150ms ease-out,
-    translate 150ms ease-out;
+    opacity 140ms ease-in,
+    filter 140ms ease-in,
+    scale 140ms ease-in;
 }
 
-.composer-optimize-kbd-clip {
-  width: auto;
-}
-
-.composer-optimize-kbd-clip > * {
-  display: block;
-  width: max-content;
-  transition:
-    opacity 300ms ease-out 120ms,
-    filter 300ms ease-out 120ms;
-}
-
+/* In: the keys at rest, the label while open. */
+.composer-optimize-kbd-track > *,
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-label-clip {
-  width: auto;
-}
-
-.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-label-clip
+  .composer-optimize-label-track
   > .composer-optimize-label {
   opacity: 1;
   filter: none;
-  translate: 0 0;
+  scale: 1;
   transition:
     color 200ms ease-out,
-    opacity 300ms ease-out 80ms,
-    filter 300ms ease-out 80ms,
-    translate 500ms var(--ease-out-expo) 80ms;
-}
-
-.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-kbd-clip {
-  width: 0;
-}
-
-.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-kbd-clip
-  > * {
-  opacity: 0;
-  filter: blur(2px);
-  transition:
-    opacity 150ms ease-out,
-    filter 150ms ease-out;
+    opacity 220ms ease-out 120ms,
+    filter 300ms ease-out 120ms,
+    scale 500ms var(--ease-out-expo) 120ms;
 }
 
 /* Open, the button covers the end of the text box rather than pushing it,
-   so it takes the composer's surface (the input tint over the page). */
+   so it takes the composer's surface (the input tint over the page). It has
+   no end padding or border of its own (the label carries the padding), so
+   the resting keys sit exactly at its end. */
 .composer-optimize-inline {
-  transition-property: background-color, color, padding;
-  transition-duration: 200ms, 200ms, 500ms;
-  transition-timing-function: ease, ease, var(--ease-out-expo);
-}
-
-/* At rest there is no chrome, so the keycap keeps only a small inset from
-   Send; open, the pill takes its full end padding. */
-.composer-optimize-has-keys {
-  padding-inline-end: 0.375rem;
+  padding-inline-end: 0;
+  border-inline-end-width: 0;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 }
 
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
   .composer-optimize-inline {
-  padding-inline-end: 0.75rem;
   background:
     linear-gradient(
       color-mix(in oklab, var(--muted) 60%, transparent),
@@ -325,12 +346,13 @@ const labelClass = computed(() =>
     var(--background);
 }
 
+/* With reduced motion the two simply swap. */
 @media (prefers-reduced-motion: reduce) {
   .composer-optimize-inline,
-  .composer-optimize-label-clip,
-  .composer-optimize-kbd-clip,
+  .composer-optimize-label-track,
+  .composer-optimize-kbd-track,
   .composer-optimize-slot .composer-optimize-label,
-  .composer-optimize-kbd-clip > * {
+  .composer-optimize-kbd-track > * {
     transition: none !important;
   }
 }

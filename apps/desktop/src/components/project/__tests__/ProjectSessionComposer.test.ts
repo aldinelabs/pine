@@ -1364,22 +1364,20 @@ describe("ProjectSessionComposer", () => {
       expect.arrayContaining(["absolute", "right-0", "w-max"]),
     );
     expect(trigger.attributes("aria-label")).toBe("优化指令");
-    // The label is clipped at full width rather than truncated, and the
-    // resting keys sit in their own clipping track after it.
+    // The label keeps its full width rather than being truncated, and the
+    // resting keys share its place in their own track.
     const label = trigger.get(
-      ".composer-optimize-label-clip > .composer-optimize-label",
+      ".composer-optimize-label-track > .composer-optimize-label",
     );
     expect(label.text()).toBe("优化指令");
     expect(label.classes()).toContain("whitespace-nowrap");
     expect(label.classes()).not.toContain("truncate");
     const keys = trigger.get('[data-slot="composer-optimize-kbd"]');
-    expect(keys.classes()).toContain("composer-optimize-kbd-clip");
+    expect(keys.classes()).toContain("composer-optimize-kbd-track");
     expect(keys.attributes("aria-hidden")).toBe("true");
     expect(keys.text()).toBe("⌘↵");
-    // The keys share the reply suggestion's keycap, and at rest the button
-    // keeps only a small inset from Send.
+    // The keys share the reply suggestion's keycap.
     expect(keys.findComponent(ComposerKeycap).exists()).toBe(true);
-    expect(trigger.classes()).toContain("composer-optimize-has-keys");
     expect(slot.attributes("data-expanded")).toBeUndefined();
 
     // While optimizing it stays open to show progress.
