@@ -5,8 +5,14 @@ import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { InputGroupButton } from "@/components/ui/input-group";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useModifierHold } from "@/composables/useModifierHold";
+import { useShortcutHints } from "@/composables/useShortcutHints";
 import { cn } from "@/lib/utils";
 
 /**
@@ -15,7 +21,9 @@ import { cn } from "@/lib/utils";
  * gradient label, and holding Cmd/Ctrl shows its Cmd/Ctrl+Enter shortcut
  * beside it. Beside Send in a session (`inline`) it is muted like the
  * draft's project picker, and holding Cmd/Ctrl swaps its icon for the
- * shortcut.
+ * shortcut. Inline it rests as an icon and slides its label out leftwards
+ * on hover or keyboard focus (and while optimizing), over the text box
+ * rather than pushing it, so nothing beside it moves.
  */
 const props = withDefaults(
   defineProps<{
@@ -30,20 +38,18 @@ const emit = defineEmits<{ optimize: []; undo: [] }>();
 
 const { t } = useI18n();
 const isInline = computed(() => props.placement === "inline");
-const ButtonComponent = computed(() =>
-  isInline.value ? InputGroupButton : Button,
-);
 const buttonClass = computed(() =>
   // Inline, the spectrum shows only on hover, so the button stays quiet
   // beside Send until it is reached for. Its text stays muted on hover so
   // the spectrum can fade over it and back without a flash of foreground.
   isInline.value
-    ? "composer-optimize-inline group/optimize min-w-0 text-muted-foreground hover:text-muted-foreground"
+    ? "composer-optimize-inline group/optimize absolute inset-y-0 right-0 my-auto w-max gap-0 text-muted-foreground hover:text-muted-foreground"
     : // Below the composer, a running optimization keeps its flowing label
       // at full strength; the button is still disabled.
       cn("min-w-0", props.isRewriting && "disabled:opacity-100"),
 );
 const modifierHeld = useModifierHold();
+const showShortcutHints = useShortcutHints();
 const isMac = (window.pine?.platform ?? "darwin") === "darwin";
 const modLabel = isMac ? "⌘" : "Ctrl";
 const keyShortcut = isMac ? "Meta+Enter" : "Control+Enter";
@@ -55,7 +61,8 @@ const label = computed(() =>
 );
 const labelClass = computed(() =>
   cn(
-    "composer-optimize-label truncate",
+    "composer-optimize-label",
+    isInline.value ? "whitespace-nowrap" : "truncate",
     isInline.value
       ? props.isRewriting
         ? "shimmer"
@@ -68,9 +75,82 @@ const labelClass = computed(() =>
 </script>
 
 <template>
-  <div class="relative flex min-w-0 shrink items-center">
-    <component
-      :is="ButtonComponent"
+  <!-- Inline, the slot holds the icon's width; the button is anchored to
+       its right edge and grows leftwards out of it. -->
+  <div
+    v-if="isInline"
+    data-slot="composer-optimize-slot"
+    class="composer-optimize-slot relative h-8 w-10 shrink-0"
+    :data-expanded="props.isRewriting || undefined"
+  >
+    <Tooltip>
+      <TooltipTrigger as-child>
+        <InputGroupButton
+          v-if="showsUndo"
+          data-slot="undo-prompt-optimization"
+          :class="buttonClass"
+          type="button"
+          variant="ghost"
+          size="sm"
+          :aria-label="t('project.composer.undoPromptOptimization')"
+          @click="emit('undo')"
+        >
+          <Undo2Icon data-icon="inline-start" />
+          <span class="composer-optimize-reveal">
+            <span class="composer-optimize-reveal-clip">
+              <span class="composer-optimize-label whitespace-nowrap">
+                {{ t("project.composer.undoPromptOptimization") }}
+              </span>
+            </span>
+          </span>
+        </InputGroupButton>
+        <InputGroupButton
+          v-else
+          data-slot="optimize-prompt-trigger"
+          :class="buttonClass"
+          type="button"
+          variant="ghost"
+          size="sm"
+          :disabled="!props.canRewrite"
+          :aria-busy="props.isRewriting || undefined"
+          :aria-label="t('project.composer.optimizePrompt')"
+          :aria-keyshortcuts="keyShortcut"
+          @click="emit('optimize')"
+        >
+          <KbdGroup v-if="modifierHeld" aria-hidden="true">
+            <Kbd>{{ modLabel }}</Kbd>
+            <Kbd>↵</Kbd>
+          </KbdGroup>
+          <SparklesIcon
+            v-else
+            data-icon="inline-start"
+            class="transition-colors duration-200 group-enabled/optimize:group-hover/optimize:text-[var(--spectrum-1)]"
+          />
+          <span class="composer-optimize-reveal">
+            <span class="composer-optimize-reveal-clip">
+              <span :class="labelClass" :data-label="label">
+                {{ label }}
+              </span>
+            </span>
+          </span>
+        </InputGroupButton>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <template v-if="showsUndo">
+          {{ t("project.composer.undoPromptOptimization") }}
+        </template>
+        <template v-else>
+          {{ label }}
+          <KbdGroup v-if="showShortcutHints" aria-hidden="true">
+            <Kbd>{{ modLabel }}</Kbd>
+            <Kbd>↵</Kbd>
+          </KbdGroup>
+        </template>
+      </TooltipContent>
+    </Tooltip>
+  </div>
+  <div v-else class="relative flex min-w-0 shrink items-center">
+    <Button
       v-if="showsUndo"
       data-slot="undo-prompt-optimization"
       :class="buttonClass"
@@ -84,9 +164,8 @@ const labelClass = computed(() =>
       <span class="composer-optimize-label truncate">
         {{ t("project.composer.undoPromptOptimization") }}
       </span>
-    </component>
-    <component
-      :is="ButtonComponent"
+    </Button>
+    <Button
       v-else
       data-slot="optimize-prompt-trigger"
       :class="buttonClass"
@@ -99,25 +178,13 @@ const labelClass = computed(() =>
       :aria-keyshortcuts="keyShortcut"
       @click="emit('optimize')"
     >
-      <KbdGroup v-if="isInline && modifierHeld" aria-hidden="true">
-        <Kbd>{{ modLabel }}</Kbd>
-        <Kbd>↵</Kbd>
-      </KbdGroup>
-      <SparklesIcon
-        v-else
-        data-icon="inline-start"
-        :class="
-          isInline
-            ? 'transition-colors duration-200 group-enabled/optimize:group-hover/optimize:text-[var(--spectrum-1)]'
-            : 'text-[var(--spectrum-1)]'
-        "
-      />
+      <SparklesIcon data-icon="inline-start" class="text-[var(--spectrum-1)]" />
       <span :class="labelClass" :data-label="label">
         {{ label }}
       </span>
-    </component>
+    </Button>
     <ModifierShortcut
-      v-if="!isInline && !showsUndo"
+      v-if="!showsUndo"
       class="pointer-events-none absolute left-full ml-1"
       key-label="↵"
     />
@@ -125,6 +192,61 @@ const labelClass = computed(() =>
 </template>
 
 <style scoped>
+/* The inline label opens by its grid track from nothing to its own width,
+   on the app's expo curve; the button's right edge stays put beside Send. */
+.composer-optimize-reveal {
+  display: grid;
+  grid-template-columns: 0fr;
+  opacity: 0;
+  transition-property: grid-template-columns, opacity;
+  transition-duration: 500ms;
+  transition-timing-function: var(--ease-out-expo);
+}
+
+.composer-optimize-reveal-clip {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.composer-optimize-reveal-clip > .composer-optimize-label {
+  display: block;
+  padding-inline-start: 0.375rem;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-reveal {
+  grid-template-columns: 1fr;
+  opacity: 1;
+}
+
+/* Open, the button covers the end of the text box rather than pushing it,
+   so it takes the composer's surface (the input tint over the page). */
+.composer-optimize-inline {
+  transition-property: background-color, color;
+  transition-duration: 200ms;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-inline {
+  background:
+    linear-gradient(
+      color-mix(in oklab, var(--muted) 60%, transparent),
+      color-mix(in oklab, var(--muted) 60%, transparent)
+    ),
+    linear-gradient(
+      color-mix(in oklab, var(--input) 50%, transparent),
+      color-mix(in oklab, var(--input) 50%, transparent)
+    ),
+    var(--background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-optimize-reveal,
+  .composer-optimize-inline {
+    transition: none;
+  }
+}
+
 /* The spectrum copy of the inline label sits over the muted text and fades
    in on hover while the muted text fades out, both ways. */
 .composer-optimize-hover-spectrum {

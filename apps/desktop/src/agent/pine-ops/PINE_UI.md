@@ -388,10 +388,15 @@ From top to bottom:
      session it is a sparkles button with its label in a peach-to-blue
      gradient, right of the approval mode; holding Cmd/Ctrl shows the
      shortcut beside it. Once the session has started it sits left of the
-     action button while the agent is not working, in muted grey like a new
-     session's project picker, taking the gradient on hover; holding
-     Cmd/Ctrl swaps its sparkles icon
-     for the "⌘ ↵" (Ctrl ↵) keys. The
+     action button while the agent is not working, as just its sparkles icon
+     in muted grey like a new session's project picker. Hovering it or
+     reaching it with Tab slides its label out to the left (over the end of
+     the text box, without moving anything) in the gradient; it stays open
+     while optimizing and closes again when the pointer or focus leaves. Its
+     tooltip shows "Optimize prompt ⌘ ↵". In a narrow composer (a phone or
+     narrow window) it stays an icon and only the tooltip names it. Undo
+     optimization behaves the same way. Holding Cmd/Ctrl swaps its sparkles
+     icon for the "⌘ ↵" (Ctrl ↵) keys. The
      prompt optimization model rewrites what was typed into a clearer, more
      specific prompt, following prompt-writing best practices, and keeps
      the same language. It also reads the project's name and folders, the
