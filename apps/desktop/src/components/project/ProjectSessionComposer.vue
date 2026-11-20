@@ -83,6 +83,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useCollapseTransition } from "@/composables/useCollapseTransition";
+import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { useModifierHold } from "@/composables/useModifierHold";
 import ProjectComposerOptimizeButton from "@/components/project/ProjectComposerOptimizeButton.vue";
 import { useShortcutHints } from "@/composables/useShortcutHints";
@@ -821,6 +822,44 @@ const replySuggestionPosition = computed(() => {
 });
 
 /*
+ * The count makes room beside Tab and blurs in, and eases to its new width
+ * as "1" becomes "1/3", so the keycap grows rather than jumps.
+ */
+const prefersReducedMotion = () =>
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+const countRoom = useCollapseTransition("width");
+const replySuggestionCountTransition = {
+  onEnter: (element: Element, done: () => void) =>
+    prefersReducedMotion() ? done() : countRoom.onEnter(element, done),
+  onLeave: (element: Element, done: () => void) =>
+    prefersReducedMotion() ? done() : countRoom.onLeave(element, done),
+};
+const replySuggestionCount = ref<HTMLElement | null>(null);
+let countWidth = 0;
+watch(
+  () => replySuggestionPosition.value,
+  () => {
+    countWidth = replySuggestionCount.value?.getBoundingClientRect().width ?? 0;
+  },
+  { flush: "pre" },
+);
+watch(
+  () => replySuggestionPosition.value,
+  () => {
+    const element = replySuggestionCount.value;
+    if (!element || !countWidth || typeof element.animate !== "function")
+      return;
+    const width = element.getBoundingClientRect().width;
+    if (Math.abs(width - countWidth) < 0.5 || prefersReducedMotion()) return;
+    element.animate([{ width: `${countWidth}px` }, { width: `${width}px` }], {
+      duration: DURATION_MS,
+      easing: EASE_OUT_EXPO,
+    });
+  },
+  { flush: "post" },
+);
+
+/*
  * The unused alternatives are kept with the session, tied to the assistant
  * message they answer, so reopening the session shows them again without
  * asking the model. Sending, a newer turn, a rewind or a compaction makes
@@ -1515,24 +1554,39 @@ function handleRootSubmit(event: Event): void {
                     <span class="min-w-0 truncate" aria-hidden="true">{{
                       replySuggestion
                     }}</span>
-                    <!-- On the light composer surface the default key fill
-                         nearly matches it; a white keycap with a hairline
-                         ring reads as a key. Dark keeps the default. -->
-                    <Kbd
+                    <!-- One keycap: "Tab", then, with several alternatives,
+                         "2/3 ↑↓" ("2 ↑↓" while more stream in) behind a
+                         hairline. The keys stay <kbd> segments. On the light
+                         composer surface the default key fill nearly matches
+                         it; a white cap with a hairline ring reads as a key.
+                         Dark keeps the default. -->
+                    <span
                       data-slot="reply-suggestion-key"
-                      class="shrink-0 ring-1 ring-foreground/10 in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
+                      class="inline-flex h-5 shrink-0 items-center gap-1.5 rounded-lg bg-muted px-1.5 font-sans text-xs font-medium text-muted-foreground ring-1 ring-foreground/10 select-none in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
                       aria-hidden="true"
-                      >Tab</Kbd
                     >
-                    <!-- Which alternative shows: "2/3" once all are in, "2"
-                         while more stream in. Same keycap as Tab. -->
-                    <Kbd
-                      v-if="replySuggestionPosition"
-                      data-slot="reply-suggestion-alternatives"
-                      class="shrink-0 tabular-nums ring-1 ring-foreground/10 in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
-                      aria-hidden="true"
-                      >{{ replySuggestionPosition }} ↑↓</Kbd
-                    >
+                      <kbd class="font-sans">Tab</kbd>
+                      <Transition
+                        :css="false"
+                        @enter="replySuggestionCountTransition.onEnter"
+                        @leave="replySuggestionCountTransition.onLeave"
+                      >
+                        <span
+                          v-if="replySuggestionPosition"
+                          data-slot="reply-suggestion-alternatives"
+                          class="inline-flex shrink-0 items-center gap-1.5"
+                        >
+                          <span class="h-3 w-px bg-foreground/15" />
+                          <span
+                            ref="replySuggestionCount"
+                            data-slot="reply-suggestion-position"
+                            class="inline-block overflow-hidden text-center whitespace-nowrap tabular-nums"
+                            >{{ replySuggestionPosition }}</span
+                          >
+                          <kbd class="font-sans">↑↓</kbd>
+                        </span>
+                      </Transition>
+                    </span>
                     <span :id="replySuggestionId" class="sr-only">
                       {{ replySuggestion }} —
                       {{ t("project.composer.acceptReplySuggestion") }}

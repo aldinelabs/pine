@@ -1642,6 +1642,31 @@ describe("ProjectSessionComposer", () => {
   });
 
   describe("reply alternatives", () => {
+    function keycap(wrapper: ReturnType<typeof mountComposer>): string {
+      const cap = wrapper.find('[data-slot="reply-suggestion-key"]');
+      if (!cap.exists()) return "";
+      // One capsule whose keys stay <kbd> segments.
+      return cap
+        .findAll('kbd, [data-slot="reply-suggestion-position"]')
+        .map((segment) => segment.text())
+        .join(" ");
+    }
+
+    it("shows the count inside the Tab keycap, behind a hairline", async () => {
+      const c = await streamingComposer();
+      await c.finish(["一", "二", "三"]);
+      const cap = c.wrapper.get('[data-slot="reply-suggestion-key"]');
+      expect(cap.findAll("kbd").map((key) => key.text())).toEqual([
+        "Tab",
+        "↑↓",
+      ]);
+      expect(cap.findAll('[data-slot="kbd"]')).toHaveLength(0);
+      expect(
+        c.wrapper.findAll('[data-slot="reply-suggestion"] > [aria-hidden]'),
+      ).toHaveLength(2);
+      c.wrapper.unmount();
+    });
+
     const conversation = [
       {
         id: "m1",
@@ -1712,8 +1737,8 @@ describe("ProjectSessionComposer", () => {
       };
       const shown = () =>
         wrapper.find('[data-slot="reply-suggestion"] span').text();
-      const badge = () =>
-        wrapper.find('[data-slot="reply-suggestion-alternatives"]');
+      // The keycap's segments as read: "Tab", or "Tab 2/3 ↑↓".
+      const badge = () => keycap(wrapper);
       return {
         wrapper,
         textarea,
@@ -1743,27 +1768,27 @@ describe("ProjectSessionComposer", () => {
       );
       await c.stream(["按日期排序"]);
       expect(c.shown()).toBe("按日期排序");
-      expect(c.badge().text()).toBe("1 ↑↓");
+      expect(c.badge()).toBe("Tab 1 ↑↓");
       // Another request's alternatives are not ours.
       await c.stream(["别的"], "other");
       await c.stream(["按日期排序", "按名称排序"]);
       expect(c.shown()).toBe("按日期排序");
-      expect(c.badge().text()).toBe("1 ↑↓");
+      expect(c.badge()).toBe("Tab 1 ↑↓");
       expect(await c.press("ArrowDown")).toBe(true);
       expect(c.shown()).toBe("按名称排序");
-      expect(c.badge().text()).toBe("2 ↑↓");
+      expect(c.badge()).toBe("Tab 2 ↑↓");
 
       await c.finish(["按日期排序", "按名称排序", "先别动"]);
       // The shown alternative stays put as the set completes.
       expect(c.shown()).toBe("按名称排序");
-      expect(c.badge().text()).toBe("2/3 ↑↓");
+      expect(c.badge()).toBe("Tab 2/3 ↑↓");
       expect(c.keep).toHaveBeenLastCalledWith("session-1", {
         alternatives: ["按日期排序", "按名称排序", "先别动"],
         index: 1,
       });
       await c.press("ArrowDown");
       await c.press("ArrowDown");
-      expect(c.badge().text()).toBe("1/3 ↑↓");
+      expect(c.badge()).toBe("Tab 1/3 ↑↓");
       await c.press("ArrowUp");
       expect(c.shown()).toBe("先别动");
 
@@ -1794,7 +1819,7 @@ describe("ProjectSessionComposer", () => {
       const c = await streamingComposer();
       await c.finish(["只有一个"]);
       expect(c.shown()).toBe("只有一个");
-      expect(c.badge().exists()).toBe(false);
+      expect(c.badge()).toBe("Tab");
       expect(await c.press("ArrowDown")).toBe(false);
       c.wrapper.unmount();
     });
@@ -1811,7 +1836,7 @@ describe("ProjectSessionComposer", () => {
       await c.textarea.setValue("");
       // Back to the alternative that showed, at once.
       expect(c.shown()).toBe("二");
-      expect(c.badge().text()).toBe("2/2 ↑↓");
+      expect(c.badge()).toBe("Tab 2/2 ↑↓");
       expect(c.textarea.classes()).not.toContain(
         "session-composer-input--suggestion-fades",
       );
@@ -1823,7 +1848,7 @@ describe("ProjectSessionComposer", () => {
       await c.stream(["一", "二"]);
       await c.fail();
       expect(c.shown()).toBe("一");
-      expect(c.badge().text()).toBe("1/2 ↑↓");
+      expect(c.badge()).toBe("Tab 1/2 ↑↓");
       expect(c.keep).toHaveBeenLastCalledWith("session-1", {
         alternatives: ["一", "二"],
         index: 0,
@@ -1895,9 +1920,7 @@ describe("ProjectSessionComposer", () => {
       expect(wrapper.get('[data-slot="reply-suggestion"] span').text()).toBe(
         "二",
       );
-      expect(
-        wrapper.get('[data-slot="reply-suggestion-alternatives"]').text(),
-      ).toBe("2/2 ↑↓");
+      expect(keycap(wrapper)).toBe("Tab 2/2 ↑↓");
       expect(suggestReply).not.toHaveBeenCalled();
       wrapper.unmount();
     });
