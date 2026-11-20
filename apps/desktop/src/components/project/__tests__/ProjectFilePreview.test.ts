@@ -1044,7 +1044,7 @@ describe("ProjectFilePreview", () => {
       .mockResolvedValue({ attachments: [attachment] });
     await flushPromises();
     const button = () => wrapper.get('[data-action="send-to-tab"]');
-    expect(button().attributes("data-variant")).toBe("secondary");
+    expect(button().attributes("data-variant")).toBe("outline");
     expect(button().text()).toBe("Send to tab…");
 
     const annotations = usePreviewAnnotationsStore();
@@ -1065,7 +1065,7 @@ describe("ProjectFilePreview", () => {
         version: "1",
       });
     await flushPromises();
-    expect(button().attributes("data-variant")).toBe("secondary");
+    expect(button().attributes("data-variant")).toBe("outline");
     expect(button().text()).toBe("Send to tab…");
 
     await button().trigger("click");

@@ -1201,7 +1201,7 @@ function clearAnnotations(): void {
           <DropdownMenuTrigger as-child>
             <Button
               data-action="send-to-tab"
-              variant="secondary"
+              variant="outline"
               :disabled="isSending"
               @pointerdown.prevent="updateSelection"
             >
