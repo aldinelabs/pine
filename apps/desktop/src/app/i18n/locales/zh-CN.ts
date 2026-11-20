@@ -1459,6 +1459,10 @@ export default {
         "请在 设置 › 模型 中检查指令优化模型后重试。",
       undoPromptOptimization: "撤销优化",
       acceptReplySuggestion: "按 Tab 采用建议",
+      replySuggestionAlternative:
+        "第 {position} 个建议，共 {count} 个，按上下方向键切换",
+      replySuggestionAlternativeStreaming:
+        "第 {position} 个建议，更多建议生成中，按上下方向键切换",
       addAttachment: "添加附件",
       addFile: "添加文件",
       addFolder: "添加文件夹",

@@ -19,7 +19,15 @@ import {
 } from "@lucide/vue";
 import { useEventListener } from "@vueuse/core";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  useId,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import ModelCapabilities from "@/components/models/ModelCapabilities.vue";
@@ -110,6 +118,7 @@ import {
   type PromptRewriteContext,
 } from "@/shared/promptRewrite";
 import { withoutRelayPrefix } from "@/shared/sessions";
+import { onSessionEvent } from "@/client/sessionEvents";
 import { useSessionStore } from "@/stores/session";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
@@ -760,12 +769,22 @@ async function rewritePrompt(): Promise<void> {
  * in and uses it up. Typing hides it without using it up, so emptying the
  * box shows it again until the next run.
  *
+ * The model offers a few alternatives in one request. They stream in: the
+ * first replaces the placeholder as soon as it is complete, the others join
+ * as they finish, and ↑/↓ in the empty box steps through them.
+ *
  * Only a suggestion that arrives over a visible placeholder fades: the
  * placeholder fades out, then the suggestion fades in. When it comes back
  * after typing, the placeholder was hidden by the text, so the suggestion
  * returns at once and the placeholder never shows in between.
  */
-const replySuggestion = ref("");
+const replySuggestions = ref<string[]>([]);
+const replySuggestionIndex = ref(0);
+/** False while alternatives are still streaming in. */
+const replySuggestionsComplete = ref(true);
+const replySuggestion = computed(
+  () => replySuggestions.value[replySuggestionIndex.value] ?? "",
+);
 let suggestionRun = 0;
 // v-model holds back the text while an input method composes it, so the
 // composition itself has to hide the suggestion.
@@ -782,44 +801,80 @@ const showsReplySuggestion = computed(
 );
 const replySuggestionId = `${messageId}-suggestion`;
 const replySuggestionFades = ref(false);
-watch(replySuggestion, (suggestion) => {
+watch(replySuggestion, (suggestion, previous) => {
+  // Stepping to another alternative is not an arrival.
+  if (previous) return;
   replySuggestionFades.value =
     suggestion.length > 0 && message.value === "" && !isComposingText.value;
 });
 watch(showsReplySuggestion, (shows) => {
   if (!shows) replySuggestionFades.value = false;
 });
+/** "2/3" once every alternative is in, "2" while more may come. */
+const replySuggestionPosition = computed(() => {
+  const count = replySuggestions.value.length;
+  if (replySuggestionsComplete.value && count < 2) return "";
+  const position = replySuggestionIndex.value + 1;
+  return replySuggestionsComplete.value
+    ? `${position}/${count}`
+    : `${position}`;
+});
 
 /*
- * The unused suggestion is kept with the session, tied to the assistant
- * message it answers, so reopening the session shows it again without
+ * The unused alternatives are kept with the session, tied to the assistant
+ * message they answer, so reopening the session shows them again without
  * asking the model. Sending, a newer turn, a rewind or a compaction makes
- * the kept one stale on its own; Tab and turning suggestions off drop it.
- * Only the first kept value after the session opens is restored: once this
- * composer has asked for, used or dropped one, it decides for itself.
+ * the kept ones stale on their own; Tab and turning suggestions off drop
+ * them. Only the first kept value after the session opens is restored:
+ * once this composer has asked for, used or dropped one, it decides.
  */
 const keptReplySuggestion = computed(() =>
   props.sessionId && appearanceStore.replySuggestions
-    ? (useSessionStore().replySuggestionFor(props.sessionId) ?? "")
-    : "",
+    ? useSessionStore().replySuggestionFor(props.sessionId)
+    : undefined,
 );
 let replySuggestionSettled = false;
 
+function showReplySuggestions(alternatives: readonly string[]): void {
+  const shown = replySuggestion.value;
+  replySuggestions.value = [...alternatives];
+  // Stay on the shown alternative if it is still there.
+  const index = shown ? alternatives.indexOf(shown) : -1;
+  replySuggestionIndex.value = index < 0 ? 0 : index;
+}
+
 function restoreReplySuggestion(): void {
+  const kept = keptReplySuggestion.value;
   if (
     replySuggestionSettled ||
     props.isRunning ||
-    replySuggestion.value ||
-    !keptReplySuggestion.value
+    replySuggestions.value.length ||
+    !kept?.alternatives.length
   )
     return;
   replySuggestionSettled = true;
-  replySuggestion.value = keptReplySuggestion.value;
+  replySuggestionsComplete.value = true;
+  replySuggestions.value = [...kept.alternatives];
+  replySuggestionIndex.value = Math.min(
+    Math.max(kept.index, 0),
+    kept.alternatives.length - 1,
+  );
 }
 
-function keepReplySuggestion(suggestion: string | null): void {
+let keepIndexTimer: ReturnType<typeof setTimeout> | undefined;
+
+function keepReplySuggestion(drop = false): void {
+  clearTimeout(keepIndexTimer);
+  keepIndexTimer = undefined;
   const sessionId = props.sessionId;
   if (!sessionId) return;
+  const suggestion =
+    drop || !replySuggestions.value.length
+      ? null
+      : {
+          alternatives: [...replySuggestions.value],
+          index: replySuggestionIndex.value,
+        };
   useSessionStore()
     .setReplySuggestion(sessionId, suggestion)
     .catch(() => {
@@ -827,29 +882,85 @@ function keepReplySuggestion(suggestion: string | null): void {
     });
 }
 
+/** The request still streaming alternatives, so it can be stopped. */
+let streamingRequestId: string | undefined;
+
+function stopReplySuggestionStream(): void {
+  const requestId = streamingRequestId;
+  streamingRequestId = undefined;
+  if (requestId)
+    window.pine.cancelReplySuggestion?.({ requestId }).catch(() => {
+      // It ends on its own soon after.
+    });
+}
+
 async function requestReplySuggestion(): Promise<void> {
+  stopReplySuggestionStream();
   const run = ++suggestionRun;
   replySuggestionSettled = true;
-  replySuggestion.value = "";
-  if (!props.sessionId || !appearanceStore.replySuggestions) return;
+  replySuggestions.value = [];
+  replySuggestionIndex.value = 0;
+  replySuggestionsComplete.value = true;
+  const sessionId = props.sessionId;
+  if (!sessionId || !appearanceStore.replySuggestions) return;
   const context = conversationContext();
   if (!context.conversation?.length || !window.pine.suggestReply) return;
+  const requestId = `${Math.random().toString(36).slice(2)}-${run}`;
+  const current = () => run === suggestionRun && !props.isRunning;
+  streamingRequestId = requestId;
+  replySuggestionsComplete.value = false;
+  const stopListening = onSessionEvent((event) => {
+    if (
+      event.type === "reply-suggestions" &&
+      event.requestId === requestId &&
+      current()
+    )
+      showReplySuggestions(event.suggestions);
+  });
   try {
-    const { suggestion } = await window.pine.suggestReply({ context });
-    if (run === suggestionRun && !props.isRunning) {
-      replySuggestion.value = suggestion;
-      if (suggestion) keepReplySuggestion(suggestion);
-    }
+    const { suggestions } = await window.pine.suggestReply({
+      context,
+      sessionId,
+      requestId,
+    });
+    if (current()) showReplySuggestions(suggestions);
   } catch {
-    // A suggestion is optional; the placeholder simply stays.
+    // A suggestion is optional; whatever streamed in already stays.
+  } finally {
+    stopListening();
+    if (streamingRequestId === requestId) streamingRequestId = undefined;
+    if (run === suggestionRun) {
+      replySuggestionsComplete.value = true;
+      if (replySuggestions.value.length && !props.isRunning)
+        keepReplySuggestion();
+    }
   }
 }
 
 function clearReplySuggestion(): void {
+  stopReplySuggestionStream();
   suggestionRun++;
-  replySuggestion.value = "";
+  replySuggestions.value = [];
+  replySuggestionIndex.value = 0;
+  replySuggestionsComplete.value = true;
 }
 
+/** Steps through the alternatives with ↑/↓, wrapping around. */
+function stepReplySuggestion(step: 1 | -1): void {
+  const count = replySuggestions.value.length;
+  if (count < 2) return;
+  replySuggestionIndex.value =
+    (replySuggestionIndex.value + step + count) % count;
+  // Only a finished set is kept; a still-streaming one is kept when done.
+  if (!replySuggestionsComplete.value) return;
+  clearTimeout(keepIndexTimer);
+  keepIndexTimer = setTimeout(() => keepReplySuggestion(), 800);
+}
+
+// Typing stops the stream; what is complete stays for an emptied box.
+watch(message, (text) => {
+  if (text) stopReplySuggestionStream();
+});
 watch(
   () => props.isRunning,
   (running, wasRunning) => {
@@ -860,6 +971,7 @@ watch(
 watch(
   () => props.sessionId,
   () => {
+    if (keepIndexTimer) keepReplySuggestion();
     clearReplySuggestion();
     replySuggestionSettled = false;
     restoreReplySuggestion();
@@ -872,14 +984,18 @@ watch(
     if (enabled) return;
     clearReplySuggestion();
     replySuggestionSettled = true;
-    keepReplySuggestion(null);
+    keepReplySuggestion(true);
   },
 );
+onBeforeUnmount(() => {
+  if (keepIndexTimer) keepReplySuggestion();
+  stopReplySuggestionStream();
+});
 
 function acceptReplySuggestion(): void {
   const suggestion = replySuggestion.value;
   clearReplySuggestion();
-  keepReplySuggestion(null);
+  keepReplySuggestion(true);
   message.value = suggestion;
   void nextTick(() => {
     const textarea = messageInput.value?.$el;
@@ -1109,6 +1225,22 @@ function handleKeydown(event: KeyboardEvent): void {
   ) {
     event.preventDefault();
     acceptReplySuggestion();
+    return;
+  }
+  // ↑/↓ step through the alternatives only while one shows: the box is
+  // empty, nothing is being composed and no project chooser is open.
+  if (
+    (event.key === "ArrowUp" || event.key === "ArrowDown") &&
+    showsReplySuggestion.value &&
+    replySuggestions.value.length > 1 &&
+    !event.shiftKey &&
+    !event.altKey &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.isComposing
+  ) {
+    event.preventDefault();
+    stepReplySuggestion(event.key === "ArrowDown" ? 1 : -1);
     return;
   }
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
@@ -1392,9 +1524,32 @@ function handleRootSubmit(event: Event): void {
                       aria-hidden="true"
                       >Tab</Kbd
                     >
+                    <!-- Which alternative shows: "2/3" once all are in, "2"
+                         while more stream in. Same keycap as Tab. -->
+                    <Kbd
+                      v-if="replySuggestionPosition"
+                      data-slot="reply-suggestion-alternatives"
+                      class="shrink-0 tabular-nums ring-1 ring-foreground/10 in-data-[slot=input-group]:bg-background dark:ring-0 dark:in-data-[slot=input-group]:bg-input"
+                      aria-hidden="true"
+                      >{{ replySuggestionPosition }} ↑↓</Kbd
+                    >
                     <span :id="replySuggestionId" class="sr-only">
                       {{ replySuggestion }} —
                       {{ t("project.composer.acceptReplySuggestion") }}
+                      <template v-if="replySuggestionPosition">
+                        —
+                        {{
+                          replySuggestionsComplete
+                            ? t("project.composer.replySuggestionAlternative", {
+                                position: replySuggestionIndex + 1,
+                                count: replySuggestions.length,
+                              })
+                            : t(
+                                "project.composer.replySuggestionAlternativeStreaming",
+                                { position: replySuggestionIndex + 1 },
+                              )
+                        }}
+                      </template>
                     </span>
                   </div>
                 </Transition>

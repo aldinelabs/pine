@@ -1,3 +1,4 @@
+import type { KeptReplySuggestion } from "../shared/sessions";
 import {
   PINE_TITLE_SUGGESTION_REPLY_ENTRY,
   PINE_USER_TITLE_ENTRY,
@@ -1015,7 +1016,7 @@ export class ProjectSessionService {
   /** Keeps or drops the composer's reply suggestion while closed. */
   async setReplySuggestion(
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): Promise<PineSessionSummary> {
     const metadata = await this.findSession(sessionId);
     if (!metadata) throw new Error("Session not found in the active project.");

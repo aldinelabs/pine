@@ -205,7 +205,14 @@ async function handleRequest(request: AgentWorkerRequest): Promise<void> {
       );
       break;
     case "prompts:suggest-reply":
-      result = await runtime.suggestReply(request.agentDir, request.context);
+      result = await runtime.suggestReply(
+        request.agentDir,
+        request.context,
+        request.stream,
+      );
+      break;
+    case "prompts:cancel-suggest-reply":
+      result = runtime.cancelReplySuggestion(request.requestId);
       break;
     case "prompts:rewrite":
       result = await runtime.rewritePrompt(

@@ -16,6 +16,7 @@ import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
 import {
   REWRITE_PROMPT_CHANNEL,
   SUGGEST_REPLY_CHANNEL,
+  CANCEL_REPLY_SUGGESTION_CHANNEL,
 } from "../shared/promptRewrite";
 import { GET_APP_VERSION_CHANNEL } from "../shared/window";
 import {
@@ -218,6 +219,7 @@ export function createWebChannels(
     [models.SELECT_LIVE_TRANSLATION_MODEL_CHANNEL, command("none")],
     [REWRITE_PROMPT_CHANNEL, command("none")],
     [SUGGEST_REPLY_CHANNEL, command("none")],
+    [CANCEL_REPLY_SUGGESTION_CHANNEL, command("none")],
     [models.ADD_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.UPDATE_CUSTOM_MODEL_CHANNEL, command("none")],
     [models.DELETE_CUSTOM_MODEL_CHANNEL, command("none")],

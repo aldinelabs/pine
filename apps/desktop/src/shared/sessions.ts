@@ -89,13 +89,30 @@ export const PINE_REPLY_SUGGESTION_ENTRY = "pine.reply-suggestion" as const;
 export const SET_REPLY_SUGGESTION_CHANNEL =
   "sessions:set-reply-suggestion" as const;
 
+/** Reply alternatives kept with a session and the one the composer shows. */
+export interface KeptReplySuggestion {
+  alternatives: string[];
+  index: number;
+}
+
 export interface SetReplySuggestionRequest extends ProjectSessionReference {
-  /** The suggestion to keep, or null to drop the kept one. */
-  suggestion: string | null;
+  /** The alternatives to keep, or null to drop the kept ones. */
+  suggestion: KeptReplySuggestion | null;
 }
 
 export interface SetReplySuggestionResult {
   session: PineSessionSummary;
+}
+
+/**
+ * Stored entry data. `text` is the shown alternative, which is all that
+ * entries written before alternatives existed hold.
+ */
+interface ReplySuggestionEntryData {
+  text: string | null;
+  alternatives?: string[];
+  index?: number;
+  messageId?: string;
 }
 
 interface ReplySuggestionBranchEntry {
@@ -116,36 +133,83 @@ function endsConversationTurn(entry: ReplySuggestionBranchEntry): boolean {
   );
 }
 
+/** Non-empty, distinct alternatives with the index kept in range. */
+export function normalizeKeptReplySuggestion(
+  value: KeptReplySuggestion | null | undefined,
+): KeptReplySuggestion | undefined {
+  if (!value) return undefined;
+  const alternatives = [
+    ...new Set(
+      value.alternatives.filter(
+        (text): text is string => typeof text === "string" && !!text.trim(),
+      ),
+    ),
+  ];
+  if (!alternatives.length) return undefined;
+  const index = Number.isInteger(value.index) ? value.index : 0;
+  return {
+    alternatives,
+    index: Math.min(Math.max(index, 0), alternatives.length - 1),
+  };
+}
+
+function keptFromEntryData(data: unknown): KeptReplySuggestion | undefined {
+  if (typeof data !== "object" || data === null) return undefined;
+  const { text, alternatives, index } = data as Record<string, unknown>;
+  if (Array.isArray(alternatives))
+    return normalizeKeptReplySuggestion({
+      alternatives: alternatives as string[],
+      index: typeof index === "number" ? index : 0,
+    });
+  // A single suggestion, as older entries store it.
+  return typeof text === "string" && text
+    ? { alternatives: [text], index: 0 }
+    : undefined;
+}
+
+function sameKept(
+  a: KeptReplySuggestion | undefined,
+  b: KeptReplySuggestion | undefined,
+): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.index === b.index &&
+    a.alternatives.length === b.alternatives.length &&
+    a.alternatives.every((text, index) => text === b.alternatives[index])
+  );
+}
+
 /**
- * The reply suggestion kept for the end of this branch. It stays valid only
- * while the assistant message it was made for is still the last message:
- * a sent message, a newer turn, a rewind or a compaction leaves it behind.
+ * The reply alternatives kept for the end of this branch. They stay valid
+ * only while the assistant message they were made for is still the last
+ * message: a sent message, a newer turn, a rewind or a compaction leaves
+ * them behind.
  */
 export function replySuggestionFromBranch(
   branch: readonly ReplySuggestionBranchEntry[],
-): string | undefined {
-  let suggestion: { text: string | null; messageId?: unknown } | undefined;
+): KeptReplySuggestion | undefined {
+  let found = false;
+  let kept: KeptReplySuggestion | undefined;
+  let messageId: unknown;
   for (let index = branch.length - 1; index >= 0; index -= 1) {
     const entry = branch[index];
     if (
-      !suggestion &&
+      !found &&
       entry.type === "custom" &&
       entry.customType === PINE_REPLY_SUGGESTION_ENTRY
     ) {
-      const data = entry.data as
-        { text?: unknown; messageId?: unknown } | undefined;
-      suggestion = {
-        text: typeof data?.text === "string" && data.text ? data.text : null,
-        messageId: data?.messageId,
-      };
+      found = true;
+      kept = keptFromEntryData(entry.data);
+      messageId = (entry.data as { messageId?: unknown } | undefined)
+        ?.messageId;
       continue;
     }
     if (!endsConversationTurn(entry)) continue;
-    if (!suggestion?.text) return undefined;
+    if (!kept) return undefined;
     return entry.type === "message" &&
       entry.message?.role === "assistant" &&
-      entry.id === suggestion.messageId
-      ? suggestion.text
+      entry.id === messageId
+      ? kept
       : undefined;
   }
   return undefined;
@@ -154,32 +218,37 @@ export function replySuggestionFromBranch(
 /**
  * The entry data that keeps `suggestion` for this branch, or undefined when
  * nothing needs writing: the branch does not end with an assistant message,
- * or the kept suggestion already matches.
+ * or the kept alternatives already match.
  */
 export function replySuggestionEntryData(
   branch: readonly ReplySuggestionBranchEntry[],
-  suggestion: string | null,
-): { text: string | null; messageId?: string } | undefined {
-  const text = suggestion?.trim() ? suggestion : null;
+  suggestion: KeptReplySuggestion | null,
+): ReplySuggestionEntryData | undefined {
+  const next = normalizeKeptReplySuggestion(suggestion);
   const kept = replySuggestionFromBranch(branch);
-  if (text === (kept ?? null)) return undefined;
-  if (text === null) return { text: null };
+  if (sameKept(next, kept)) return undefined;
+  if (!next) return { text: null };
   for (let index = branch.length - 1; index >= 0; index -= 1) {
     const entry = branch[index];
     if (!endsConversationTurn(entry)) continue;
     return entry.type === "message" &&
       entry.message?.role === "assistant" &&
       typeof entry.id === "string"
-      ? { text, messageId: entry.id }
+      ? {
+          text: next.alternatives[next.index],
+          alternatives: next.alternatives,
+          index: next.index,
+          messageId: entry.id,
+        }
       : undefined;
   }
   return undefined;
 }
 
-/** The kept reply suggestion as a session summary field. */
+/** The kept reply alternatives as a session summary field. */
 export function replySuggestionField(
   branch: readonly ReplySuggestionBranchEntry[],
-): { replySuggestion?: string } {
+): { replySuggestion?: KeptReplySuggestion } {
   const suggestion = replySuggestionFromBranch(branch);
   return suggestion ? { replySuggestion: suggestion } : {};
 }
@@ -649,10 +718,10 @@ export interface PineSessionSummary {
    */
   titleSuggestion?: string;
   /**
-   * The unused reply suggestion for the session's last assistant message,
+   * The unused reply alternatives for the session's last assistant message,
    * shown again in the empty composer when the session reopens.
    */
-  replySuggestion?: string;
+  replySuggestion?: KeptReplySuggestion;
   updatedAt: string;
 }
 

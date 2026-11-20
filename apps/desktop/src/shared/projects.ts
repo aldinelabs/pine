@@ -118,6 +118,7 @@ import type {
   RewritePromptResult,
   SuggestReplyRequest,
   SuggestReplyResult,
+  CancelReplySuggestionRequest,
 } from "./promptRewrite";
 import type { PineWindowApi } from "./window";
 import type { PineBackgroundApi } from "./background";
@@ -661,6 +662,10 @@ export interface PineDesktopApi
   ) => Promise<RewritePromptResult>;
   /** The user's likely next message, for the composer to suggest. */
   suggestReply: (request: SuggestReplyRequest) => Promise<SuggestReplyResult>;
+  /** Stops a streaming reply suggestion early. */
+  cancelReplySuggestion: (
+    request: CancelReplySuggestionRequest,
+  ) => Promise<{ cancelled: boolean }>;
   selectImageModel: (
     request: SelectImageModelRequest,
   ) => Promise<{ updated: boolean }>;

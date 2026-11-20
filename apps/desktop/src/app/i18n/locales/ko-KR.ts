@@ -1519,6 +1519,10 @@ export default {
         "설정 › 모델에서 프롬프트 최적화 모델을 확인한 뒤 다시 시도하세요.",
       undoPromptOptimization: "최적화 실행 취소",
       acceptReplySuggestion: "Tab 키로 제안 사용",
+      replySuggestionAlternative:
+        "제안 {position}/{count}, 위아래 화살표 키로 전환",
+      replySuggestionAlternativeStreaming:
+        "제안 {position}, 다른 제안 생성 중, 위아래 화살표 키로 전환",
       addAttachment: "첨부 파일 추가",
       addFile: "파일 추가",
       addFolder: "폴더 추가",

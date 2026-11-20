@@ -217,7 +217,13 @@ export const ReplyTitleSuggestionRequestSchema =
   });
 export const SetReplySuggestionRequestSchema =
   ProjectSessionRequestSchema.extend({
-    suggestion: z.string().max(4000).nullable(),
+    suggestion: z
+      .object({
+        alternatives: z.array(z.string().max(4000)).min(1).max(8),
+        index: z.number().int().min(0).max(7),
+      })
+      .strict()
+      .nullable(),
   });
 export const LoadSessionMessagesRequestSchema = z.object({
   // History cursors are opaque, versioned strings derived from stable entry
@@ -470,7 +476,14 @@ const PromptRewriteContextSchema = z
   })
   .strict();
 export const SuggestReplyRequestSchema = z
-  .object({ context: PromptRewriteContextSchema })
+  .object({
+    context: PromptRewriteContextSchema,
+    sessionId: z.string().trim().min(1).max(200).optional(),
+    requestId: z.string().trim().min(1).max(64).optional(),
+  })
+  .strict();
+export const CancelReplySuggestionRequestSchema = z
+  .object({ requestId: z.string().trim().min(1).max(64) })
   .strict();
 export const RewritePromptRequestSchema = z
   .object({

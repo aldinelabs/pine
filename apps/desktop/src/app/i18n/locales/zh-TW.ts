@@ -1463,6 +1463,10 @@ export default {
         "請在 設定 › 模型 中檢查指令最佳化模型後重試。",
       undoPromptOptimization: "復原最佳化",
       acceptReplySuggestion: "按 Tab 採用建議",
+      replySuggestionAlternative:
+        "第 {position} 個建議，共 {count} 個，按上下方向鍵切換",
+      replySuggestionAlternativeStreaming:
+        "第 {position} 個建議，更多建議產生中，按上下方向鍵切換",
       addAttachment: "新增附件",
       addFile: "新增檔案",
       addFolder: "新增資料夾",

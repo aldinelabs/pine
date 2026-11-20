@@ -1393,7 +1393,7 @@ describe("ProjectSessionComposer", () => {
   it("suggests a reply after the agent answers and fills it in with Tab", async () => {
     const suggestReply = vi
       .fn()
-      .mockResolvedValue({ suggestion: "再按日期排序" });
+      .mockResolvedValue({ suggestions: ["再按日期排序"] });
     const wrapper = mountComposer(
       { sessionId: "session-1", isRunning: true, isActive: true },
       "high",
@@ -1428,6 +1428,8 @@ describe("ProjectSessionComposer", () => {
         ],
         conversationTrimmed: false,
       },
+      sessionId: "session-1",
+      requestId: expect.any(String),
     });
     const suggestion = wrapper.get('[data-slot="reply-suggestion"]');
     expect(suggestion.text()).toContain("再按日期排序");
@@ -1464,7 +1466,7 @@ describe("ProjectSessionComposer", () => {
       { sessionId: "session-1", isRunning: true },
       "high",
       "zh-CN",
-      { suggestReply: vi.fn().mockResolvedValue({ suggestion: "继续" }) },
+      { suggestReply: vi.fn().mockResolvedValue({ suggestions: ["继续"] }) },
     );
     useSessionStore().stateFor("session-1").messages = [
       {
@@ -1500,10 +1502,12 @@ describe("ProjectSessionComposer", () => {
   });
 
   it("fades the suggestion in only over a visible placeholder", async () => {
-    let resolveSuggestion: (value: { suggestion: string }) => void = () => {};
+    let resolveSuggestion: (value: {
+      suggestions: string[];
+    }) => void = () => {};
     const suggestReply = vi.fn(
       () =>
-        new Promise<{ suggestion: string }>((resolve) => {
+        new Promise<{ suggestions: string[] }>((resolve) => {
           resolveSuggestion = resolve;
         }),
     );
@@ -1528,7 +1532,7 @@ describe("ProjectSessionComposer", () => {
 
     // Arriving over the placeholder: the placeholder fades out first.
     await wrapper.setProps({ isRunning: false });
-    resolveSuggestion({ suggestion: "继续" });
+    resolveSuggestion({ suggestions: ["继续"] });
     await flushPromises();
     expect(suggestion().exists()).toBe(true);
     expect(textarea.classes()).toContain(fades);
@@ -1554,7 +1558,7 @@ describe("ProjectSessionComposer", () => {
     await wrapper.setProps({ isRunning: true });
     await wrapper.setProps({ isRunning: false });
     await textarea.setValue("草稿");
-    resolveSuggestion({ suggestion: "再来" });
+    resolveSuggestion({ suggestions: ["再来"] });
     await flushPromises();
     await textarea.setValue("");
     expect(suggestion().text()).toContain("再来");
@@ -1567,7 +1571,7 @@ describe("ProjectSessionComposer", () => {
       { sessionId: "session-1", isRunning: true },
       "high",
       "zh-CN",
-      { suggestReply: vi.fn().mockResolvedValue({ suggestion: "继续" }) },
+      { suggestReply: vi.fn().mockResolvedValue({ suggestions: ["继续"] }) },
     );
     const sessionStore = useSessionStore();
     sessionStore.stateFor("session-1").messages = [
@@ -1584,7 +1588,10 @@ describe("ProjectSessionComposer", () => {
       .mockResolvedValue(undefined);
     await wrapper.setProps({ isRunning: false });
     await flushPromises();
-    expect(keep).toHaveBeenCalledWith("session-1", "继续");
+    expect(keep).toHaveBeenCalledWith("session-1", {
+      alternatives: ["继续"],
+      index: 0,
+    });
 
     // Tab uses it up, also in the session's data.
     await wrapper.get("textarea").trigger("keydown", { key: "Tab" });
@@ -1593,7 +1600,7 @@ describe("ProjectSessionComposer", () => {
   });
 
   it("restores a kept suggestion without asking the model again", async () => {
-    const suggestReply = vi.fn().mockResolvedValue({ suggestion: "新的" });
+    const suggestReply = vi.fn().mockResolvedValue({ suggestions: ["新的"] });
     const wrapper = mountComposer(
       { sessionId: "session-1", isRunning: false },
       "high",
@@ -1604,7 +1611,9 @@ describe("ProjectSessionComposer", () => {
     const kept = vi
       .spyOn(sessionStore, "replySuggestionFor")
       .mockImplementation((sessionId) =>
-        sessionId === "session-1" ? "按日期排序" : undefined,
+        sessionId === "session-1"
+          ? { alternatives: ["按日期排序"], index: 0 }
+          : undefined,
       );
     const keep = vi
       .spyOn(sessionStore, "setReplySuggestion")
@@ -1632,8 +1641,270 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
+  describe("reply alternatives", () => {
+    const conversation = [
+      {
+        id: "m1",
+        createdAt: "2026-11-17T00:00:00.000Z",
+        role: "user" as const,
+        status: "complete" as const,
+        blocks: [{ type: "text" as const, text: "整理 docs" }],
+      },
+    ];
+
+    async function streamingComposer() {
+      const listeners: ((event: unknown) => void)[] = [];
+      let finish: (value: { suggestions: string[] }) => void = () => {};
+      let fail: (error: Error) => void = () => {};
+      const suggestReply = vi.fn(
+        () =>
+          new Promise<{ suggestions: string[] }>((resolve, reject) => {
+            finish = resolve;
+            fail = reject;
+          }),
+      );
+      const cancelReplySuggestion = vi
+        .fn()
+        .mockResolvedValue({ cancelled: true });
+      const wrapper = mountComposer(
+        { sessionId: "session-1", isRunning: true },
+        "high",
+        "zh-CN",
+        {
+          suggestReply,
+          cancelReplySuggestion,
+          onSessionEvent: (listener: (event: unknown) => void) => {
+            listeners.push(listener);
+            return () => listeners.splice(listeners.indexOf(listener), 1);
+          },
+        },
+      );
+      useSessionStore().stateFor("session-1").messages = conversation;
+      const keep = vi
+        .spyOn(useSessionStore(), "setReplySuggestion")
+        .mockResolvedValue(undefined);
+      await wrapper.setProps({ isRunning: false });
+      await flushPromises();
+      const requestId = (
+        suggestReply.mock.calls[0] as unknown as [{ requestId: string }]
+      )[0].requestId;
+      const stream = async (suggestions: string[], id = requestId) => {
+        for (const listener of [...listeners])
+          listener({
+            type: "reply-suggestions",
+            sessionId: "session-1",
+            requestId: id,
+            suggestions,
+          });
+        await flushPromises();
+      };
+      const textarea = wrapper.get("textarea");
+      const press = async (key: string, init: KeyboardEventInit = {}) => {
+        const event = new KeyboardEvent("keydown", {
+          key,
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        });
+        textarea.element.dispatchEvent(event);
+        await flushPromises();
+        return event.defaultPrevented;
+      };
+      const shown = () =>
+        wrapper.find('[data-slot="reply-suggestion"] span').text();
+      const badge = () =>
+        wrapper.find('[data-slot="reply-suggestion-alternatives"]');
+      return {
+        wrapper,
+        textarea,
+        stream,
+        press,
+        shown,
+        badge,
+        keep,
+        requestId,
+        cancelReplySuggestion,
+        finish: async (suggestions: string[]) => {
+          finish({ suggestions });
+          await flushPromises();
+        },
+        fail: async () => {
+          fail(new Error("model down"));
+          await flushPromises();
+        },
+      };
+    }
+
+    it("streams alternatives in and steps through them with the arrows", async () => {
+      const c = await streamingComposer();
+      // Nothing until the first alternative is complete.
+      expect(c.wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(
+        false,
+      );
+      await c.stream(["按日期排序"]);
+      expect(c.shown()).toBe("按日期排序");
+      expect(c.badge().text()).toBe("1 ↑↓");
+      // Another request's alternatives are not ours.
+      await c.stream(["别的"], "other");
+      await c.stream(["按日期排序", "按名称排序"]);
+      expect(c.shown()).toBe("按日期排序");
+      expect(c.badge().text()).toBe("1 ↑↓");
+      expect(await c.press("ArrowDown")).toBe(true);
+      expect(c.shown()).toBe("按名称排序");
+      expect(c.badge().text()).toBe("2 ↑↓");
+
+      await c.finish(["按日期排序", "按名称排序", "先别动"]);
+      // The shown alternative stays put as the set completes.
+      expect(c.shown()).toBe("按名称排序");
+      expect(c.badge().text()).toBe("2/3 ↑↓");
+      expect(c.keep).toHaveBeenLastCalledWith("session-1", {
+        alternatives: ["按日期排序", "按名称排序", "先别动"],
+        index: 1,
+      });
+      await c.press("ArrowDown");
+      await c.press("ArrowDown");
+      expect(c.badge().text()).toBe("1/3 ↑↓");
+      await c.press("ArrowUp");
+      expect(c.shown()).toBe("先别动");
+
+      // Tab takes the shown alternative and uses them all up.
+      await c.press("Tab");
+      expect((c.textarea.element as HTMLTextAreaElement).value).toBe("先别动");
+      expect(c.keep).toHaveBeenLastCalledWith("session-1", null);
+      c.wrapper.unmount();
+    });
+
+    it("keeps the arrows for the text box and other keys otherwise", async () => {
+      const c = await streamingComposer();
+      await c.finish(["一", "二"]);
+      expect(await c.press("ArrowUp", { shiftKey: true })).toBe(false);
+      expect(await c.press("ArrowDown", { metaKey: true })).toBe(false);
+      expect(await c.press("ArrowDown", { altKey: true })).toBe(false);
+      expect(await c.press("ArrowDown", { isComposing: true })).toBe(false);
+      expect(c.shown()).toBe("一");
+      // With text in the box the arrows move the caret as usual.
+      await c.textarea.setValue("自己写");
+      expect(await c.press("ArrowUp")).toBe(false);
+      await c.textarea.setValue("");
+      expect(c.shown()).toBe("一");
+      c.wrapper.unmount();
+    });
+
+    it("hides the badge for a single alternative", async () => {
+      const c = await streamingComposer();
+      await c.finish(["只有一个"]);
+      expect(c.shown()).toBe("只有一个");
+      expect(c.badge().exists()).toBe(false);
+      expect(await c.press("ArrowDown")).toBe(false);
+      c.wrapper.unmount();
+    });
+
+    it("stops the stream on typing and keeps what was complete", async () => {
+      const c = await streamingComposer();
+      await c.stream(["一", "二"]);
+      await c.press("ArrowDown");
+      await c.textarea.setValue("我");
+      expect(c.cancelReplySuggestion).toHaveBeenCalledWith({
+        requestId: c.requestId,
+      });
+      await c.finish(["一", "二"]);
+      await c.textarea.setValue("");
+      // Back to the alternative that showed, at once.
+      expect(c.shown()).toBe("二");
+      expect(c.badge().text()).toBe("2/2 ↑↓");
+      expect(c.textarea.classes()).not.toContain(
+        "session-composer-input--suggestion-fades",
+      );
+      c.wrapper.unmount();
+    });
+
+    it("keeps completed alternatives when generation fails midway", async () => {
+      const c = await streamingComposer();
+      await c.stream(["一", "二"]);
+      await c.fail();
+      expect(c.shown()).toBe("一");
+      expect(c.badge().text()).toBe("1/2 ↑↓");
+      expect(c.keep).toHaveBeenLastCalledWith("session-1", {
+        alternatives: ["一", "二"],
+        index: 0,
+      });
+      c.wrapper.unmount();
+    });
+
+    it("stops the stream when a message is sent or the session changes", async () => {
+      const sent = await streamingComposer();
+      await sent.stream(["一"]);
+      await sent.wrapper.setProps({ isRunning: true });
+      expect(sent.cancelReplySuggestion).toHaveBeenCalledWith({
+        requestId: sent.requestId,
+      });
+      await sent.finish(["一", "二"]);
+      expect(sent.wrapper.find('[data-slot="reply-suggestion"]').exists()).toBe(
+        false,
+      );
+      sent.wrapper.unmount();
+
+      const switched = await streamingComposer();
+      await switched.stream(["一"]);
+      await switched.wrapper.setProps({ sessionId: "session-2" });
+      expect(switched.cancelReplySuggestion).toHaveBeenCalledWith({
+        requestId: switched.requestId,
+      });
+      await switched.stream(["一", "二"]);
+      expect(
+        switched.wrapper.find('[data-slot="reply-suggestion"]').exists(),
+      ).toBe(false);
+      switched.wrapper.unmount();
+    });
+
+    it("keeps the shown alternative a moment after stepping", async () => {
+      vi.useFakeTimers();
+      try {
+        const c = await streamingComposer();
+        await c.finish(["一", "二", "三"]);
+        await c.press("ArrowUp");
+        await c.press("ArrowUp");
+        expect(c.keep).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(800);
+        expect(c.keep).toHaveBeenCalledTimes(2);
+        expect(c.keep).toHaveBeenLastCalledWith("session-1", {
+          alternatives: ["一", "二", "三"],
+          index: 1,
+        });
+        c.wrapper.unmount();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("restores kept alternatives at the one that showed", async () => {
+      const suggestReply = vi.fn();
+      const wrapper = mountComposer(
+        { sessionId: "session-1", isRunning: false },
+        "high",
+        "zh-CN",
+        { suggestReply },
+      );
+      vi.spyOn(useSessionStore(), "replySuggestionFor").mockReturnValue({
+        alternatives: ["一", "二"],
+        index: 1,
+      });
+      await wrapper.setProps({ sessionId: "session-2" });
+      await wrapper.setProps({ sessionId: "session-1" });
+      await flushPromises();
+      expect(wrapper.get('[data-slot="reply-suggestion"] span').text()).toBe(
+        "二",
+      );
+      expect(
+        wrapper.get('[data-slot="reply-suggestion-alternatives"]').text(),
+      ).toBe("2/2 ↑↓");
+      expect(suggestReply).not.toHaveBeenCalled();
+      wrapper.unmount();
+    });
+  });
+
   it("does not ask for a suggestion while reply suggestions are off", async () => {
-    const suggestReply = vi.fn().mockResolvedValue({ suggestion: "继续" });
+    const suggestReply = vi.fn().mockResolvedValue({ suggestions: ["继续"] });
     const wrapper = mountComposer(
       { sessionId: "session-1", isRunning: true },
       "high",

@@ -1,5 +1,7 @@
 export const REWRITE_PROMPT_CHANNEL = "prompts:rewrite" as const;
 export const SUGGEST_REPLY_CHANNEL = "prompts:suggest-reply" as const;
+export const CANCEL_REPLY_SUGGESTION_CHANNEL =
+  "prompts:cancel-suggest-reply" as const;
 
 /** The longest reply suggestion the composer shows. */
 export const MAX_REPLY_SUGGESTION_LENGTH = 200;
@@ -59,14 +61,31 @@ export interface RewritePromptResult {
   prompt: string;
 }
 
-/** Asks for the user's likely next message once the agent has replied. */
+/**
+ * Asks for the user's likely next messages once the agent has replied. With
+ * a session and request id, each alternative streams to the session's
+ * window as a `reply-suggestions` event as soon as it is complete.
+ */
 export interface SuggestReplyRequest {
   context: PromptRewriteContext;
+  sessionId?: string;
+  requestId?: string;
 }
 
 export interface SuggestReplyResult {
-  /** Empty when there is no natural next message. */
-  suggestion: string;
+  /** Distinct alternatives, most likely first; empty when there is none. */
+  suggestions: string[];
+}
+
+/** Where the agent streams a request's reply alternatives. */
+export interface ReplySuggestionStreamTarget {
+  sessionId: string;
+  requestId: string;
+}
+
+/** Stops a streaming suggestion; what is complete so far is returned. */
+export interface CancelReplySuggestionRequest {
+  requestId: string;
 }
 
 export const PROMPT_REWRITE_LIMITS = {

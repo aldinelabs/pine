@@ -308,6 +308,13 @@ export type PineAgentEvent =
       summary: PineSessionSummary;
     }
   | {
+      /** Every reply alternative completed so far for one request. */
+      type: "reply-suggestions";
+      sessionId: string;
+      requestId: string;
+      suggestions: string[];
+    }
+  | {
       type: "context-usage";
       sessionId: string;
       /** Estimated context tokens, or null when unknown (e.g. right after

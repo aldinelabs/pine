@@ -4,6 +4,7 @@ import {
   parseMessageBlocks,
   PINE_REPLY_SUGGESTION_ENTRY,
   progressReportText,
+  normalizeKeptReplySuggestion,
   replySuggestionEntryData,
   replySuggestionField,
   replySuggestionFromBranch,
@@ -137,33 +138,74 @@ describe("reply suggestion entries", () => {
     id,
     message: { role: "assistant" },
   });
-  const kept = (text: string | null, messageId?: string) => ({
+  // An entry as Pine writes it now, or as older versions wrote it (text only).
+  const kept = (
+    alternatives: string[] | null,
+    index = 0,
+    messageId?: string,
+  ) => ({
     type: "custom",
-    id: `s-${text}`,
+    id: `s-${alternatives?.join()}`,
+    customType: PINE_REPLY_SUGGESTION_ENTRY,
+    data: alternatives
+      ? { text: alternatives[index], alternatives, index, messageId }
+      : { text: null },
+  });
+  const legacy = (text: string, messageId: string) => ({
+    type: "custom",
+    id: "legacy",
     customType: PINE_REPLY_SUGGESTION_ENTRY,
     data: { text, messageId },
   });
+  const three = { alternatives: ["继续", "换个思路", "先解释"], index: 1 };
 
-  it("keeps the suggestion for the last assistant message", () => {
+  it("keeps every alternative and the shown one for the last assistant message", () => {
     const branch = [user("u1"), assistant("a1")];
-    const data = replySuggestionEntryData(branch, "继续");
-    expect(data).toEqual({ text: "继续", messageId: "a1" });
+    expect(replySuggestionEntryData(branch, three)).toEqual({
+      text: "换个思路",
+      alternatives: ["继续", "换个思路", "先解释"],
+      index: 1,
+      messageId: "a1",
+    });
     const withKept = [
       ...branch,
       { type: "custom", id: "t", customType: "pine.approval-mode", data: {} },
-      kept("继续", "a1"),
+      kept(three.alternatives, 1, "a1"),
       { type: "custom_message", id: "n" },
     ];
-    expect(replySuggestionFromBranch(withKept)).toBe("继续");
-    expect(replySuggestionField(withKept)).toEqual({
-      replySuggestion: "继续",
-    });
-    // Writing the same one again is a no-op.
-    expect(replySuggestionEntryData(withKept, "继续")).toBeUndefined();
+    expect(replySuggestionFromBranch(withKept)).toEqual(three);
+    expect(replySuggestionField(withKept)).toEqual({ replySuggestion: three });
+    // Writing the same set again is a no-op; another shown one is not.
+    expect(replySuggestionEntryData(withKept, three)).toBeUndefined();
+    expect(
+      replySuggestionEntryData(withKept, { ...three, index: 2 }),
+    ).toMatchObject({ text: "先解释", index: 2 });
   });
 
-  it("drops it once used, sent past, answered again, rewound or compacted", () => {
-    const base = [user("u1"), assistant("a1"), kept("继续", "a1")];
+  it("reads a single suggestion written before alternatives existed", () => {
+    expect(
+      replySuggestionFromBranch([
+        user("u1"),
+        assistant("a1"),
+        legacy("继续", "a1"),
+      ]),
+    ).toEqual({ alternatives: ["继续"], index: 0 });
+  });
+
+  it("cleans up what it keeps", () => {
+    expect(
+      normalizeKeptReplySuggestion({
+        alternatives: ["a", " ", "a", "b"],
+        index: 9,
+      }),
+    ).toEqual({ alternatives: ["a", "b"], index: 1 });
+    expect(
+      normalizeKeptReplySuggestion({ alternatives: [" "], index: 0 }),
+    ).toBeUndefined();
+  });
+
+  it("drops them once used, sent past, answered again, rewound or compacted", () => {
+    const base = [user("u1"), assistant("a1"), kept(["继续"], 0, "a1")];
     expect(replySuggestionFromBranch([...base, kept(null)])).toBeUndefined();
     expect(replySuggestionFromBranch([...base, user("u2")])).toBeUndefined();
     expect(
@@ -177,28 +219,28 @@ describe("reply suggestion entries", () => {
     ).toBeUndefined();
     // Rewound to the user message: the kept entry is off the branch.
     expect(replySuggestionFromBranch([user("u1")])).toBeUndefined();
-    // A suggestion written after the user had already sent the next message
-    // names an older assistant message and does not count.
+    // Written after the user had already sent the next message, it names an
+    // older assistant message and does not count.
     expect(
       replySuggestionFromBranch([
         user("u1"),
         assistant("a1"),
         user("u2"),
-        kept("继续", "a1"),
+        kept(["继续"], 0, "a1"),
       ]),
     ).toBeUndefined();
     expect(replySuggestionField([...base, kept(null)])).toEqual({});
   });
 
   it("writes nothing unless the branch ends with an assistant message", () => {
-    expect(replySuggestionEntryData([user("u1")], "继续")).toBeUndefined();
-    expect(replySuggestionEntryData([], "继续")).toBeUndefined();
+    expect(replySuggestionEntryData([user("u1")], three)).toBeUndefined();
+    expect(replySuggestionEntryData([], three)).toBeUndefined();
     expect(
       replySuggestionEntryData([user("u1"), assistant("a1")], null),
     ).toBeUndefined();
     expect(
       replySuggestionEntryData(
-        [user("u1"), assistant("a1"), kept("继续", "a1")],
+        [user("u1"), assistant("a1"), legacy("继续", "a1")],
         null,
       ),
     ).toEqual({ text: null });

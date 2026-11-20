@@ -1561,6 +1561,10 @@ export default {
         "Prüfe das Modell für Prompt-Optimierung unter Einstellungen › Modelle und versuche es erneut.",
       undoPromptOptimization: "Optimierung rückgängig machen",
       acceptReplySuggestion: "Mit Tab den Vorschlag übernehmen",
+      replySuggestionAlternative:
+        "Vorschlag {position} von {count}, mit Pfeil nach oben oder unten wechseln",
+      replySuggestionAlternativeStreaming:
+        "Vorschlag {position}, weitere folgen, mit Pfeil nach oben oder unten wechseln",
       addAttachment: "Anhang hinzufügen",
       addFile: "Datei hinzufügen",
       addFolder: "Ordner hinzufügen",

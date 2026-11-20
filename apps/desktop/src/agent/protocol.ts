@@ -1,4 +1,8 @@
-import type { PromptRewriteContext } from "../shared/promptRewrite";
+import type { KeptReplySuggestion } from "../shared/sessions";
+import type {
+  PromptRewriteContext,
+  ReplySuggestionStreamTarget,
+} from "../shared/promptRewrite";
 import type {
   LiveTranslationRequest,
   LiveTranslationResult,
@@ -290,7 +294,7 @@ export type AgentWorkerRequest =
       id: string;
       type: "session:set-reply-suggestion";
       sessionId: string;
-      suggestion: string | null;
+      suggestion: KeptReplySuggestion | null;
     }
   | {
       id: string;
@@ -444,6 +448,12 @@ export type AgentWorkerRequest =
       type: "prompts:suggest-reply";
       agentDir: string;
       context: PromptRewriteContext;
+      stream?: ReplySuggestionStreamTarget;
+    }
+  | {
+      id: string;
+      type: "prompts:cancel-suggest-reply";
+      requestId: string;
     }
   | {
       id: string;
@@ -545,7 +555,7 @@ export type AgentWorkerResult =
   | { delivered: boolean }
   | { updated: boolean }
   | { prompt: string }
-  | { suggestion: string }
+  | { suggestions: string[] }
   | LiveTranslationResult
   | AgentWorkerMutateResult;
 

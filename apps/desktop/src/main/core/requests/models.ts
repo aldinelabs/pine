@@ -31,6 +31,7 @@ import {
 import {
   REWRITE_PROMPT_CHANNEL,
   SUGGEST_REPLY_CHANNEL,
+  CANCEL_REPLY_SUGGESTION_CHANNEL,
   type RewritePromptResult,
   type SuggestReplyResult,
 } from "../../../shared/promptRewrite";
@@ -52,6 +53,7 @@ import {
   SelectLiveTranslationModelRequestSchema,
   RewritePromptRequestSchema,
   SuggestReplyRequestSchema,
+  CancelReplySuggestionRequestSchema,
   SelectUtilityModelRequestSchema,
   UpdateCustomModelRequestSchema,
   UpdateCustomProviderRequestSchema,
@@ -238,8 +240,19 @@ export function registerModelRequests(core: PineCore): void {
 
   core.handle(
     SUGGEST_REPLY_CHANNEL,
-    (_context, request: unknown): Promise<SuggestReplyResult> =>
-      core.runtimes.suggestReply(SuggestReplyRequestSchema.parse(request)),
+    (context, request: unknown): Promise<SuggestReplyResult> =>
+      core.runtimes.suggestReply(
+        SuggestReplyRequestSchema.parse(request),
+        context.clientId,
+      ),
+  );
+
+  core.handle(
+    CANCEL_REPLY_SUGGESTION_CHANNEL,
+    (_context, request: unknown): Promise<{ cancelled: boolean }> =>
+      core.runtimes.cancelReplySuggestion(
+        CancelReplySuggestionRequestSchema.parse(request),
+      ),
   );
 
   core.handle(

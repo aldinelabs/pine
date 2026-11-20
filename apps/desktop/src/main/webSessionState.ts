@@ -206,6 +206,7 @@ function retainedKey(event: PineSessionEvent): string | null {
     case "message-start":
     case "message-end":
     case "message-update":
+    case "reply-suggestions":
     case "questionnaire-decided":
     case "approval-explanation":
     case "workbench-state-request":

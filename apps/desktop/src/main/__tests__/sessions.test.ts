@@ -209,11 +209,15 @@ describe("ProjectSessionService", () => {
     const service = await ProjectSessionService.create(options);
 
     try {
-      const kept = await service.setReplySuggestion(sessionId, "By date too");
-      expect(kept.replySuggestion).toBe("By date too");
+      const alternatives = {
+        alternatives: ["By date too", "Undo it"],
+        index: 1,
+      };
+      const kept = await service.setReplySuggestion(sessionId, alternatives);
+      expect(kept.replySuggestion).toEqual(alternatives);
       expect(
         replySuggestionFromBranch(SessionManager.open(sessionFile).getBranch()),
-      ).toBe("By date too");
+      ).toEqual(alternatives);
 
       const used = await service.setReplySuggestion(sessionId, null);
       expect(used.replySuggestion).toBeUndefined();

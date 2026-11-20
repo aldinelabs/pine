@@ -1,3 +1,4 @@
+import type { KeptReplySuggestion } from "@/shared/sessions";
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { computed, reactive, ref, shallowRef, toRefs } from "vue";
 import { toast } from "vue-sonner";
@@ -1688,7 +1689,9 @@ export const useSessionStore = defineStore("session", () => {
   }
 
   /** The reply suggestion kept with a session, if it is still unused. */
-  function replySuggestionFor(sessionId: string): string | undefined {
+  function replySuggestionFor(
+    sessionId: string,
+  ): KeptReplySuggestion | undefined {
     if (activeSession.value?.id === sessionId)
       return activeSession.value.replySuggestion;
     return (
@@ -1702,7 +1705,7 @@ export const useSessionStore = defineStore("session", () => {
   /** Keeps a reply suggestion with the session, or drops it (null). */
   async function setReplySuggestion(
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): Promise<PineSessionSummary | undefined> {
     if (!window.pine.setReplySuggestion) return undefined;
     const projectId = projectOf(sessionId);

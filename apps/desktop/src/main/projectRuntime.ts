@@ -1,3 +1,4 @@
+import type { KeptReplySuggestion } from "../shared/sessions";
 import type {
   ProjectEntryReference,
   ProjectFileOperation,
@@ -46,6 +47,7 @@ import type {
   RewritePromptRequest,
   RewritePromptResult,
   SuggestReplyRequest,
+  CancelReplySuggestionRequest,
   SuggestReplyResult,
 } from "../shared/promptRewrite";
 import type {
@@ -846,7 +848,7 @@ export class ProjectRuntimeRegistry {
     webContentsId: number,
     projectId: string,
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const live = runtime.liveSessions.get(sessionId);
@@ -1298,8 +1300,26 @@ export class ProjectRuntimeRegistry {
     return this.agentHost.translateLiveContext(this.agentDir, request);
   }
 
-  suggestReply(request: SuggestReplyRequest): Promise<SuggestReplyResult> {
-    return this.agentHost.suggestReply(this.agentDir, request.context);
+  /** Streams to the session only when the asking window controls it. */
+  suggestReply(
+    request: SuggestReplyRequest,
+    clientId?: number,
+  ): Promise<SuggestReplyResult> {
+    const { sessionId, requestId } = request;
+    const stream =
+      sessionId &&
+      requestId &&
+      clientId !== undefined &&
+      this.controllerOfSession(sessionId) === clientId
+        ? { sessionId, requestId }
+        : undefined;
+    return this.agentHost.suggestReply(this.agentDir, request.context, stream);
+  }
+
+  cancelReplySuggestion(
+    request: CancelReplySuggestionRequest,
+  ): Promise<{ cancelled: boolean }> {
+    return this.agentHost.cancelReplySuggestion(request.requestId);
   }
 
   rewritePrompt(request: RewritePromptRequest): Promise<RewritePromptResult> {

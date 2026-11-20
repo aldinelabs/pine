@@ -1537,6 +1537,9 @@ export default {
         "設定 › モデル で指示最適化モデルを確認して、もう一度お試しください。",
       undoPromptOptimization: "最適化を元に戻す",
       acceptReplySuggestion: "Tab キーで提案を採用",
+      replySuggestionAlternative: "候補 {position}/{count}、上下キーで切り替え",
+      replySuggestionAlternativeStreaming:
+        "候補 {position}、ほかの候補を生成中、上下キーで切り替え",
       addAttachment: "添付ファイルを追加",
       addFile: "ファイルを追加",
       addFolder: "フォルダを追加",

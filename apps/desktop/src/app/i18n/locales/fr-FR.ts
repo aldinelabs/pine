@@ -1557,6 +1557,10 @@ export default {
         "Vérifiez le modèle d'optimisation des prompts dans Réglages › Modèles, puis réessayez.",
       undoPromptOptimization: "Annuler l'optimisation",
       acceptReplySuggestion: "Appuyez sur Tab pour utiliser la suggestion",
+      replySuggestionAlternative:
+        "Suggestion {position} sur {count}, appuyez sur Haut ou Bas pour changer",
+      replySuggestionAlternativeStreaming:
+        "Suggestion {position}, d’autres arrivent, appuyez sur Haut ou Bas pour changer",
       addAttachment: "Ajouter une pièce jointe",
       addFile: "Ajouter un fichier",
       addFolder: "Ajouter un dossier",

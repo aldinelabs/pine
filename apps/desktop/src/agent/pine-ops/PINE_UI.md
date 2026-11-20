@@ -410,18 +410,26 @@ From top to bottom:
      not available while the agent is working. Attachments and quotes are
      kept as they are.
    - Reply suggestion: when the agent finishes answering in a session, the
-     prompt optimization model suggests the user's likely next message from
-     the conversation. Once the placeholder has faded out, it fades in at
-     the same place, in the same grey, followed by a "Tab" key; Tab puts it
-     in the text box and uses it up. Any typing, including text an input
-     method is still composing, replaces it at once; if the text box is
-     emptied without using Tab, it comes back at once, without the
-     placeholder showing in between, until a new run starts. An unused
-     suggestion is kept with the conversation: closing its tab or quitting
-     Pine and reopening it later shows the same suggestion again, until the
-     user sends a message, uses it with Tab, or the conversation changes
-     (a newer reply, a rewind or a compaction). It can be
-     turned off with Reply suggestions in Pine Settings › Agent.
+     prompt optimization model suggests up to three different next messages
+     the user might send, most likely first. As soon as the first is
+     written, it fades in where the placeholder was (after the placeholder
+     fades out), in the same grey, followed by a "Tab" key; the others join
+     as they are written. While more may still come, a second key next to
+     Tab reads "1 ↑↓"; once all are in it reads "1/3 ↑↓" with the shown
+     one's number, and it is hidden when there is only one. In the empty,
+     focused text box, ↑ and ↓ switch to the previous and next suggestion,
+     wrapping around. Tab puts the shown suggestion in the text box and uses
+     them all up. Any typing, including text an input method is still
+     composing, replaces it at once and stops further suggestions from
+     arriving; if the text box is emptied without using Tab, the same
+     suggestion comes back at once, without the placeholder showing in
+     between, until a new run starts. If generating fails partway, the
+     suggestions written so far stay. Unused suggestions are kept with the
+     conversation: closing its tab or quitting Pine and reopening it later
+     shows them again, at the one that was showing, until the user sends a
+     message, uses one with Tab, or the conversation changes (a newer
+     reply, a rewind or a compaction). They can be turned off with Reply
+     suggestions in Pine Settings › Agent.
    - While the agent is working, a thin light runs clockwise along the text
      box's border, in the project's accent color (or, with "Pine Default",
      the Pine default color theme from Appearance settings; grey for
@@ -1086,6 +1094,8 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
   fields)
 - Mod+I: open the composer's model menu (outside other text fields)
 - Tab in an empty composer showing a reply suggestion: use the suggestion
+- ↑/↓ in an empty composer showing several reply suggestions: show the
+  previous/next suggestion
 - Composer text box: Enter sends and scrolls the conversation smoothly to
   the new message; Option+Enter (Alt+Enter) sends without moving the
   conversation; Shift+Enter starts a new line

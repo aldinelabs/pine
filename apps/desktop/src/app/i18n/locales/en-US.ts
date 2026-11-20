@@ -1527,6 +1527,10 @@ export default {
         "Check the prompt optimization model in Settings › Models, then try again.",
       undoPromptOptimization: "Undo optimization",
       acceptReplySuggestion: "Press Tab to use the suggestion",
+      replySuggestionAlternative:
+        "Alternative {position} of {count}, press Up or Down to switch",
+      replySuggestionAlternativeStreaming:
+        "Alternative {position}, more are coming, press Up or Down to switch",
       addAttachment: "Add attachment",
       addFile: "Add file",
       addFolder: "Add folder",

@@ -1,4 +1,8 @@
-import type { PromptRewriteContext } from "../shared/promptRewrite";
+import type { KeptReplySuggestion } from "../shared/sessions";
+import type {
+  PromptRewriteContext,
+  ReplySuggestionStreamTarget,
+} from "../shared/promptRewrite";
 import type {
   LiveTranslationRequest,
   LiveTranslationResult,
@@ -125,7 +129,7 @@ export interface AgentHost {
   ): Promise<AgentWorkerSessionResult>;
   setReplySuggestion(
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): Promise<AgentWorkerSessionResult>;
   notifySession(
     sessionId: string,
@@ -206,7 +210,9 @@ export interface AgentHost {
   suggestReply(
     agentDir: string,
     context: PromptRewriteContext,
-  ): Promise<{ suggestion: string }>;
+    stream?: ReplySuggestionStreamTarget,
+  ): Promise<{ suggestions: string[] }>;
+  cancelReplySuggestion(requestId: string): Promise<{ cancelled: boolean }>;
   translateLiveContext(
     agentDir: string,
     request: LiveTranslationRequest,
@@ -401,7 +407,7 @@ export class AgentProcessHost implements AgentHost {
 
   setReplySuggestion(
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): Promise<AgentWorkerSessionResult> {
     return this.request({
       type: "session:set-reply-suggestion",
@@ -592,8 +598,18 @@ export class AgentProcessHost implements AgentHost {
   suggestReply(
     agentDir: string,
     context: PromptRewriteContext,
-  ): Promise<{ suggestion: string }> {
-    return this.request({ type: "prompts:suggest-reply", agentDir, context });
+    stream?: ReplySuggestionStreamTarget,
+  ): Promise<{ suggestions: string[] }> {
+    return this.request({
+      type: "prompts:suggest-reply",
+      agentDir,
+      context,
+      ...(stream ? { stream } : {}),
+    });
+  }
+
+  cancelReplySuggestion(requestId: string): Promise<{ cancelled: boolean }> {
+    return this.request({ type: "prompts:cancel-suggest-reply", requestId });
   }
 
   translateLiveContext(

@@ -1536,6 +1536,10 @@ export default {
         "Проверьте модель оптимизации запросов в разделе Настройки › Модели и повторите попытку.",
       undoPromptOptimization: "Отменить улучшение",
       acceptReplySuggestion: "Нажмите Tab, чтобы использовать подсказку",
+      replySuggestionAlternative:
+        "Вариант {position} из {count}, стрелки вверх и вниз переключают",
+      replySuggestionAlternativeStreaming:
+        "Вариант {position}, другие ещё появляются, стрелки вверх и вниз переключают",
       addAttachment: "Добавить вложение",
       addFile: "Добавить файл",
       addFolder: "Добавить папку",

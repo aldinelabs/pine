@@ -1,6 +1,8 @@
+import type { KeptReplySuggestion } from "../shared/sessions";
 import {
   MAX_REPLY_SUGGESTION_LENGTH,
   type PromptRewriteContext,
+  type ReplySuggestionStreamTarget,
 } from "../shared/promptRewrite";
 import {
   PINE_SESSION_NOTICE_TYPE,
@@ -324,7 +326,8 @@ import {
   REPLY_SUGGESTION_MAX_TOKENS,
   REPLY_SUGGESTION_TIMEOUT_MS,
   replySuggestionContext,
-  replySuggestionFromAssistantMessage,
+  REPLY_SUGGESTION_COUNT,
+  collectReplySuggestions,
   rewrittenPromptFromAssistantMessage,
 } from "./runtime/prompt-rewrite";
 import {
@@ -468,6 +471,7 @@ const LIVE_CONTEXT_READ_TIMEOUT_MS = 10_000;
 const LIVE_CONTEXT_CAPTURE_TIMEOUT_MS = 15_000;
 export class PineAgentRuntime {
   private readonly liveSessions = new Map<string, LiveAgentSession>();
+  private readonly replySuggestionRequests = new Map<string, AbortController>();
   private readonly pendingApprovals = new Map<string, PendingUserApproval>();
   private readonly pendingQuestionnaires = new Map<
     string,
@@ -1152,7 +1156,7 @@ export class PineAgentRuntime {
   /** Keeps the composer's reply suggestion, or drops it once used. */
   setReplySuggestion(
     sessionId: string,
-    suggestion: string | null,
+    suggestion: KeptReplySuggestion | null,
   ): AgentWorkerSessionResult {
     const session = this.getSession(sessionId).session;
     const data = replySuggestionEntryData(
@@ -1467,41 +1471,74 @@ export class PineAgentRuntime {
    * Suggests the user's next message with the prompt rewrite model; empty
    * when no model is set up or the model has nothing to suggest.
    */
+  /**
+   * Asks the prompt rewrite model for a few distinct next messages. Each
+   * alternative is read as soon as its tag closes and, with a stream target,
+   * sent to the session at once. A failure or a cancel keeps what is done.
+   */
   async suggestReply(
     agentDir: string,
     context: PromptRewriteContext,
-  ): Promise<{ suggestion: string }> {
-    if (!context.conversation?.length) return { suggestion: "" };
-    const modelRuntime = await this.getModelRuntime(agentDir);
-    const model = await this.modelService.promptRewriteModel(
-      agentDir,
-      modelRuntime,
-    );
-    if (!model) return { suggestion: "" };
-    const signal = AbortSignal.timeout(REPLY_SUGGESTION_TIMEOUT_MS);
-    const options = {
-      ...judgeStreamOptions(model, signal),
-      maxTokens: REPLY_SUGGESTION_MAX_TOKENS,
-    };
-    let final: AssistantMessage | undefined;
-    for await (const event of modelRuntime.stream(
-      model,
-      replySuggestionContext(context),
-      options,
-    )) {
-      if (event.type === "done") final = event.message;
-      else if (event.type === "error")
-        throw new Error(
-          event.error.errorMessage ?? "The model could not suggest a reply.",
-        );
+    stream?: ReplySuggestionStreamTarget,
+  ): Promise<{ suggestions: string[] }> {
+    if (!context.conversation?.length) return { suggestions: [] };
+    // Registered first, so a cancel during the model lookup still lands.
+    const cancel = new AbortController();
+    if (stream) {
+      this.replySuggestionRequests.get(stream.requestId)?.abort();
+      this.replySuggestionRequests.set(stream.requestId, cancel);
     }
-    return {
-      suggestion: replySuggestionFromAssistantMessage(
-        final,
-        MAX_REPLY_SUGGESTION_LENGTH,
-      ),
-    };
+    try {
+      const modelRuntime = await this.getModelRuntime(agentDir);
+      const model = await this.modelService.promptRewriteModel(
+        agentDir,
+        modelRuntime,
+      );
+      if (!model || cancel.signal.aborted) return { suggestions: [] };
+      const signal = AbortSignal.any([
+        cancel.signal,
+        AbortSignal.timeout(REPLY_SUGGESTION_TIMEOUT_MS),
+      ]);
+      const options = {
+        ...judgeStreamOptions(model, signal),
+        maxTokens: REPLY_SUGGESTION_MAX_TOKENS,
+      };
+      const suggestions = await collectReplySuggestions(
+        modelRuntime.stream(model, replySuggestionContext(context), options),
+        {
+          maxItems: REPLY_SUGGESTION_COUNT,
+          maxLength: MAX_REPLY_SUGGESTION_LENGTH,
+          cancelled: () => cancel.signal.aborted,
+          onProgress: (suggestions) => {
+            if (!stream) return;
+            this.options.emit({
+              type: "reply-suggestions",
+              sessionId: stream.sessionId,
+              requestId: stream.requestId,
+              suggestions,
+            });
+          },
+        },
+      );
+      return { suggestions };
+    } finally {
+      if (
+        stream &&
+        this.replySuggestionRequests.get(stream.requestId) === cancel
+      )
+        this.replySuggestionRequests.delete(stream.requestId);
+    }
   }
+
+  /** Stops a streaming suggestion; its request returns what is complete. */
+  cancelReplySuggestion(requestId: string): { cancelled: boolean } {
+    const cancel = this.replySuggestionRequests.get(requestId);
+    if (!cancel) return { cancelled: false };
+    cancel.abort();
+    this.replySuggestionRequests.delete(requestId);
+    return { cancelled: true };
+  }
+
   selectVideoModel(
     agentDir: string,
     selection: PineVideoModelSelection,

@@ -1,4 +1,8 @@
-import type { AssistantMessage, Context } from "@earendil-works/pi-ai";
+import type {
+  AssistantMessage,
+  AssistantMessageEvent,
+  Context,
+} from "@earendil-works/pi-ai";
 import type { PromptRewriteContext } from "../../shared/promptRewrite";
 
 export const PROMPT_REWRITE_TIMEOUT_MS = 90_000;
@@ -137,13 +141,17 @@ export const REPLY_SUGGESTION_MAX_TOKENS = 1_024;
 
 const SUGGESTION_TAG = "reply";
 
+/** How many alternatives one suggestion request asks for. */
+export const REPLY_SUGGESTION_COUNT = 3;
+
 /**
  * Predicts the user's next message to Pine's agent from the conversation so
- * far, so the composer can offer it as a suggestion to accept with Tab.
+ * far, so the composer can offer it as a suggestion to accept with Tab. The
+ * prompt never varies, so providers can cache it.
  */
-export const REPLY_SUGGESTION_SYSTEM_PROMPT = `You suggest what the user will most likely send next to Pine, an AI agent working on their computer, given the conversation so far. Write it as the user, in the language the user writes in, as one short message of a single sentence. If the agent asked a question or offered options, answer it the way the user most plausibly would; otherwise suggest the natural next step. If there is no sensible next message, reply with an empty tag.
+export const REPLY_SUGGESTION_SYSTEM_PROMPT = `You suggest what the user will most likely send next to Pine, an AI agent working on their computer, given the conversation so far. Offer up to ${REPLY_SUGGESTION_COUNT} different next messages, most likely first. Write each as the user, in the language the user writes in, as one short sentence. Make them differ in intent, such as going on, changing course or asking about something, rather than rewording one idea. If the agent asked a question or offered options, answer it the way the user most plausibly would first. If there is no sensible next message, reply with nothing.
 
-Reply with the suggested message only, wrapped in <${SUGGESTION_TAG}> and </${SUGGESTION_TAG}>.`;
+Put each message on its own line, wrapped in <${SUGGESTION_TAG}> and </${SUGGESTION_TAG}>, and write nothing else.`;
 
 export function replySuggestionContext(context: PromptRewriteContext): Context {
   const background = promptRewriteBackground(context);
@@ -159,30 +167,133 @@ export function replySuggestionContext(context: PromptRewriteContext): Context {
   };
 }
 
-/** The suggestion as one line, or "" when the model offered none. */
-export function replySuggestionFromAssistantMessage(
-  message: AssistantMessage | undefined,
-  maxLength: number,
-): string {
-  if (!message) return "";
-  const text = message.content
-    .flatMap((part) => (part.type === "text" ? [part.text] : []))
-    .join("");
-  const open = `<${SUGGESTION_TAG}>`;
-  const close = `</${SUGGESTION_TAG}>`;
-  const start = text.indexOf(open);
-  const body =
-    start < 0
-      ? text
-      : text.slice(
-          start + open.length,
-          text.indexOf(close, start) < 0
-            ? undefined
-            : text.indexOf(close, start),
+const OPEN_TAG = `<${SUGGESTION_TAG}>`;
+const CLOSE_TAG = `</${SUGGESTION_TAG}>`;
+
+/** Compares alternatives without case, spacing or punctuation. */
+function alternativeKey(text: string): string {
+  return text.toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "");
+}
+
+function nearlySame(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [short, long] = a.length < b.length ? [a, b] : [b, a];
+  return long.includes(short) && short.length / long.length >= 0.8;
+}
+
+/**
+ * Reads reply alternatives out of a streamed answer. An alternative counts
+ * only once its closing tag has arrived, so a half-written one never shows.
+ * Text outside the tags is ignored; empty, near-identical and surplus
+ * alternatives are dropped.
+ */
+export class ReplySuggestionStream {
+  private pending = "";
+  private text = "";
+  private readonly items: string[] = [];
+  private readonly keys: string[] = [];
+
+  constructor(
+    private readonly maxItems: number,
+    private readonly maxLength: number,
+  ) {}
+
+  get suggestions(): readonly string[] {
+    return this.items;
+  }
+
+  /** Adds streamed text; true when an alternative was completed. */
+  push(delta: string): boolean {
+    this.text += delta;
+    this.pending += delta;
+    let added = false;
+    for (;;) {
+      const open = this.pending.indexOf(OPEN_TAG);
+      if (open < 0) {
+        // Keep what could still become an opening tag.
+        this.pending = this.pending.slice(
+          Math.max(0, this.pending.length - (OPEN_TAG.length - 1)),
         );
-  const line = body.replace(/\s+/g, " ").trim();
-  if (!line) return "";
-  return line.length > maxLength
-    ? `${line.slice(0, maxLength - 1).trimEnd()}…`
-    : line;
+        return added;
+      }
+      const close = this.pending.indexOf(CLOSE_TAG, open + OPEN_TAG.length);
+      if (close < 0) {
+        this.pending = this.pending.slice(open);
+        return added;
+      }
+      // With a stray opening tag inside, the last one starts the body.
+      const bodyStart =
+        this.pending.lastIndexOf(OPEN_TAG, close - OPEN_TAG.length) +
+        OPEN_TAG.length;
+      if (this.add(this.pending.slice(bodyStart, close))) added = true;
+      this.pending = this.pending.slice(close + CLOSE_TAG.length);
+    }
+  }
+
+  /**
+   * Ends the answer. Only a reply the model finished may complete an
+   * unclosed last tag, or, without any tags, offer its lines.
+   */
+  finish(complete: boolean): boolean {
+    if (!complete) return false;
+    if (this.pending.startsWith(OPEN_TAG))
+      return this.add(this.pending.slice(OPEN_TAG.length));
+    if (this.text.includes(OPEN_TAG)) return false;
+    let added = false;
+    for (const line of this.text.split("\n"))
+      if (this.add(line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/u, ""))) added = true;
+    return added;
+  }
+
+  private add(raw: string): boolean {
+    if (this.items.length >= this.maxItems) return false;
+    const line = raw.replace(/\s+/g, " ").trim();
+    if (!line) return false;
+    const key = alternativeKey(line);
+    if (!key || this.keys.some((other) => nearlySame(other, key))) return false;
+    this.keys.push(key);
+    this.items.push(
+      line.length > this.maxLength
+        ? `${line.slice(0, this.maxLength - 1).trimEnd()}…`
+        : line,
+    );
+    return true;
+  }
+}
+
+/**
+ * Reads a streamed suggestion answer, reporting every alternative set as an
+ * alternative completes. A failure or a cancel keeps what is complete; only
+ * a failure with nothing to show throws.
+ */
+export async function collectReplySuggestions(
+  events: AsyncIterable<AssistantMessageEvent>,
+  options: {
+    maxItems: number;
+    maxLength: number;
+    cancelled: () => boolean;
+    onProgress: (suggestions: string[]) => void;
+  },
+): Promise<string[]> {
+  const parser = new ReplySuggestionStream(options.maxItems, options.maxLength);
+  let failure: string | undefined;
+  try {
+    for await (const event of events) {
+      if (event.type === "text_delta") {
+        if (parser.push(event.delta) && !options.cancelled())
+          options.onProgress([...parser.suggestions]);
+      } else if (event.type === "done") {
+        parser.finish(event.reason === "stop");
+      } else if (event.type === "error") {
+        failure =
+          event.error.errorMessage ?? "The model could not suggest a reply.";
+        break;
+      }
+    }
+  } catch (error) {
+    failure = error instanceof Error ? error.message : String(error);
+  }
+  if (failure && !parser.suggestions.length && !options.cancelled())
+    throw new Error(failure);
+  return [...parser.suggestions];
 }
