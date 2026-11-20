@@ -125,7 +125,8 @@ const workbench = useWorkbenchStore();
 watch(
   () => {
     const tab = activeContentTab.value;
-    if (tab?.kind !== "session") return undefined;
+    if (!tab) return null;
+    if (tab.kind !== "session") return undefined;
     return tab.state === "bound" ? tab.sessionId : DRAFT_WORKBENCH_KEY;
   },
   (key) => workbench.setFrontSession(key),

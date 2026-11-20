@@ -1441,7 +1441,6 @@ export default {
         closeTab: "關閉標籤頁",
         newWindow: "建立新視窗",
         toggleSidebar: "開關左側欄",
-        toggleWorkbench: "開關工作臺",
       },
     },
     composer: {

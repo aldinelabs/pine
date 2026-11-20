@@ -1531,7 +1531,6 @@ export default {
         closeTab: "Cerrar pestaña",
         newWindow: "Nueva ventana",
         toggleSidebar: "Mostrar u ocultar la barra lateral izquierda",
-        toggleWorkbench: "Mostrar u ocultar el panel de trabajo",
       },
     },
     composer: {

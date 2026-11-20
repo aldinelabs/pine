@@ -12,7 +12,7 @@ import {
 } from "@/shared/projects";
 import { useProjectStore } from "@/stores/project";
 import { useUpdaterStore } from "@/stores/updater";
-import { useWorkbenchStore } from "@/stores/workbench";
+import { DRAFT_WORKBENCH_KEY, useWorkbenchStore } from "@/stores/workbench";
 import {
   PROJECT_SIDEBAR_VISIBILITY_STORAGE_KEY,
   useProjectSidebarVisibilityStore,
@@ -249,6 +249,43 @@ it("opens the workbench beside the conversation and widens the window for it", a
     width: 400,
   });
   expect(toggle.attributes("aria-pressed")).toBe("false");
+  wrapper.unmount();
+});
+
+it("keeps the workbench toggle's slot but hides and disables it with no tab open", async () => {
+  const planWindowResize = vi.fn().mockResolvedValue(0);
+  const { wrapper } = await mountView(
+    vi.fn().mockResolvedValue(undefined),
+    "darwin",
+    { planWindowResize },
+  );
+  await flushPromises();
+  const workbench = useWorkbenchStore();
+  const toggle = wrapper.get('[data-testid="project-workbench-toggle"]');
+
+  workbench.setFrontSession(null);
+  await flushPromises();
+  expect(toggle.classes()).toContain("invisible");
+  expect(toggle.attributes("disabled")).toBeDefined();
+
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "∫",
+      code: "KeyB",
+      metaKey: true,
+      altKey: true,
+    }),
+  );
+  await flushPromises();
+  expect(workbench.activeLayout.open).toBe(false);
+  expect(planWindowResize).not.toHaveBeenCalledWith(
+    expect.objectContaining({ kind: "set-workbench", open: true }),
+  );
+
+  workbench.setFrontSession(DRAFT_WORKBENCH_KEY);
+  await flushPromises();
+  expect(toggle.classes()).not.toContain("invisible");
+  expect(toggle.attributes("disabled")).toBeUndefined();
   wrapper.unmount();
 });
 

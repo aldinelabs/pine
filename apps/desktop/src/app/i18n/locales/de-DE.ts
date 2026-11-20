@@ -1537,7 +1537,6 @@ export default {
         closeTab: "Tab schließen",
         newWindow: "Neues Fenster",
         toggleSidebar: "Linke Seitenleiste ein-/ausblenden",
-        toggleWorkbench: "Arbeitsbereich ein-/ausblenden",
       },
     },
     composer: {

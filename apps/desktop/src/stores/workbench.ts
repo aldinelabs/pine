@@ -121,11 +121,16 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   /**
-   * The session of the tab in front (`DRAFT_WORKBENCH_KEY` for a draft), or
-   * `undefined` for a file tab; the content tabs report it as soon as the
-   * front tab changes, before the session store has resumed that session.
+   * The session of the tab in front (`DRAFT_WORKBENCH_KEY` for a draft),
+   * `undefined` for a file tab, or `null` when no tab is open; the content
+   * tabs report it as soon as the front tab changes, before the session store
+   * has resumed that session.
    */
-  const frontSession = ref<string>();
+  const frontSession = ref<string | null>();
+  /** The tab in front came to an empty content area. */
+  const leftTabless = ref(false);
+  /** With no tab open, the column has nothing to show and stays closed. */
+  const isTabless = computed(() => frontSession.value === null);
   /** The file tab that last left the front. */
   const departedFile = ref<string>();
 
@@ -137,7 +142,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     // to the session still active would flash its column open or shut.
     if (
       departedFile.value !== undefined &&
-      frontSession.value !== undefined &&
+      typeof frontSession.value === "string" &&
       frontSession.value !== session
     )
       return `${FILE_KEY_PREFIX}${departedFile.value}`;
@@ -149,6 +154,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     () => sessionStore.activeSession?.id,
     () => {
       departedFile.value = undefined;
+      leftTabless.value = false;
     },
     { flush: "sync" },
   );
@@ -185,7 +191,17 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     return startsCollapsed ? { ...inherited, open: false } : inherited;
   }
 
-  const activeLayout = computed(() => layoutFor(activeKey.value));
+  const activeLayout = computed(() => {
+    const layout = layoutFor(activeKey.value);
+    // A tab opening in an empty content area keeps the column closed until
+    // its session is the active one, as when leaving a file tab.
+    const waiting =
+      leftTabless.value &&
+      typeof frontSession.value === "string" &&
+      frontSession.value !==
+        (sessionStore.activeSession?.id ?? DRAFT_WORKBENCH_KEY);
+    return isTabless.value || waiting ? { ...layout, open: false } : layout;
+  });
 
   /** A split drag changed the layouts without writing them yet. */
   let unsaved = false;
@@ -309,6 +325,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   function toggle(): void {
+    if (isTabless.value) return;
     setOpen(!activeLayout.value.open);
   }
 
@@ -410,10 +427,15 @@ export const useWorkbenchStore = defineStore("workbench", () => {
   }
 
   /** The tab in front changed; see `frontSession`. */
-  function setFrontSession(key: string | undefined): void {
+  function setFrontSession(key: string | null | undefined): void {
+    // Holds change before the new front does, so a watcher never reads a
+    // mix of the two.
+    if (key !== null) {
+      leftTabless.value = frontSession.value === null;
+      // Between session tabs the column waits on the session it shows.
+      if (!activeFile.value) departedFile.value = undefined;
+    }
     frontSession.value = key;
-    // Between session tabs the column waits on the session it shows.
-    if (!activeFile.value) departedFile.value = undefined;
   }
 
   function isFileOpen(tabId: string): boolean {
@@ -450,6 +472,7 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     isClosing,
     isFileOpen,
     isResizing,
+    isTabless,
     width,
     apply,
     clearPreview,

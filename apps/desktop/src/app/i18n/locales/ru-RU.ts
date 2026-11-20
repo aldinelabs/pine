@@ -1513,7 +1513,6 @@ export default {
         closeTab: "Закрыть вкладку",
         newWindow: "Новое окно",
         toggleSidebar: "Показать или скрыть левую боковую панель",
-        toggleWorkbench: "Показать или скрыть рабочую панель",
       },
     },
     composer: {

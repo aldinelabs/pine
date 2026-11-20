@@ -11,7 +11,6 @@ const showShortcutHints = useShortcutHints();
 // the modifier label follows the host platform.
 const isMac = computed(() => (window.pine?.platform ?? "darwin") === "darwin");
 const modifier = computed(() => (isMac.value ? "⌘" : "Ctrl"));
-const alt = computed(() => (isMac.value ? "⌥" : "Alt"));
 
 interface ShortcutRow {
   keys: string[];
@@ -23,10 +22,6 @@ const rows = computed<ShortcutRow[]>(() => [
   { keys: ["W"], label: t("project.contentTabs.shortcuts.closeTab") },
   { keys: ["⇧", "N"], label: t("project.contentTabs.shortcuts.newWindow") },
   { keys: ["B"], label: t("project.contentTabs.shortcuts.toggleSidebar") },
-  {
-    keys: [alt.value, "B"],
-    label: t("project.contentTabs.shortcuts.toggleWorkbench"),
-  },
 ]);
 </script>
 

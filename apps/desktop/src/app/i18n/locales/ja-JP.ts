@@ -1514,7 +1514,6 @@ export default {
         closeTab: "タブを閉じる",
         newWindow: "新規ウィンドウ",
         toggleSidebar: "左サイドバーを切り替え",
-        toggleWorkbench: "ワークベンチを切り替え",
       },
     },
     composer: {

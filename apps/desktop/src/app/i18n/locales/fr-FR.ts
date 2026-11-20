@@ -1534,7 +1534,6 @@ export default {
         closeTab: "Fermer l'onglet",
         newWindow: "Nouvelle fenêtre",
         toggleSidebar: "Afficher ou masquer la barre latérale gauche",
-        toggleWorkbench: "Afficher ou masquer l'espace de travail",
       },
     },
     composer: {

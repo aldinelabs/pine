@@ -93,6 +93,7 @@ window
 
 - Toggle left sidebar: shows or hides the left sidebar.
 - Toggle workbench: shows or hides the workbench; pressed while it is open.
+  Hidden while no tab is open, since the workbench has nothing to show then.
 - Pine Settings (gear): opens the Pine Settings dialog (Mod+,); holding
   Cmd/Ctrl shows the shortcut below the gear.
 
@@ -170,7 +171,10 @@ Tab bar ("Open content"):
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
   computers. The workbench header has the same button.
-- With no tabs open the area shows "No tabs open" and the shortcut hints.
+- With no tabs open the area shows "No tabs open" and the shortcut hints
+  (new tab, close tab, new window, toggle left sidebar). The workbench closes
+  with the last tab and cannot be opened until a tab is open again; the next
+  tab brings back its own workbench.
 
 #### Session tab
 
@@ -1098,7 +1102,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - Mod+1 … Mod+8: jump to that tab; Mod+9: the last tab
 - Mod+Alt+Left / Right or Mod+[ / Mod+]: previous / next tab
 - Mod+B: toggle left sidebar
-- Mod+Alt+B: toggle workbench
+- Mod+Alt+B: toggle workbench (does nothing while no tab is open)
 - Mod+,: Pine Settings
 - Mod+K: search sessions
 - Mod+P: Pine Settings › Projects

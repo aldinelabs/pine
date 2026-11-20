@@ -1437,7 +1437,6 @@ export default {
         closeTab: "关闭标签页",
         newWindow: "创建新窗口",
         toggleSidebar: "开关左侧栏",
-        toggleWorkbench: "开关工作台",
       },
     },
     composer: {

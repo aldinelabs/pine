@@ -336,3 +336,51 @@ it("returns from a file tab to its own session's column", () => {
   store.setFrontSession("session-b");
   expect(store.activeKey).toBe("session-a");
 });
+
+it("keeps the column closed while no tab is open", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  store.setOpen(true, "session-a");
+  store.setOpen(false, "session-b");
+  sessionStore.activeSession = { id: "session-a" } as PineSessionSummary;
+  store.setFrontSession("session-a");
+  expect(store.activeLayout.open).toBe(true);
+
+  const opened: boolean[] = [];
+  const stop = watch(
+    () => store.activeLayout.open,
+    (open) => opened.push(open),
+    { flush: "sync" },
+  );
+  // The last tab closes: the column closes and cannot be toggled open.
+  store.setFrontSession(null);
+  expect(store.isTabless).toBe(true);
+  store.toggle();
+  expect(store.activeLayout.open).toBe(false);
+  expect(store.layoutFor("session-a").open).toBe(true);
+
+  // Session B's tab opens before the session store has resumed it.
+  store.setFrontSession("session-b");
+  expect(store.activeLayout.open).toBe(false);
+  sessionStore.activeSession = { id: "session-b" } as PineSessionSummary;
+  stop();
+
+  expect(opened).toEqual([false]);
+  expect(store.isTabless).toBe(false);
+});
+
+it("restores a tab's own column when it reopens from no tabs", () => {
+  const store = useWorkbenchStore();
+  const sessionStore = useSessionStore();
+  store.setOpen(true, "session-a");
+  sessionStore.activeSession = { id: "session-a" } as PineSessionSummary;
+  store.setFrontSession(null);
+  expect(store.activeLayout.open).toBe(false);
+
+  store.setFrontSession("session-a");
+  expect(store.activeLayout.open).toBe(true);
+
+  // Later switches between session tabs are not held closed.
+  store.setFrontSession("session-b");
+  expect(store.activeLayout.open).toBe(true);
+});

@@ -1505,7 +1505,6 @@ export default {
         closeTab: "Close tab",
         newWindow: "New window",
         toggleSidebar: "Toggle left sidebar",
-        toggleWorkbench: "Toggle workbench",
       },
     },
     composer: {

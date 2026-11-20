@@ -1496,7 +1496,6 @@ export default {
         closeTab: "탭 닫기",
         newWindow: "새 창",
         toggleSidebar: "왼쪽 사이드바 전환",
-        toggleWorkbench: "작업대 전환",
       },
     },
     composer: {
