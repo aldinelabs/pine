@@ -1027,12 +1027,13 @@ the user opens themselves do not pulse.
     wording; Not specified by default; Pine uses them when it refers to you in
     the third person), communication style (Calm & professional, Neutral or
     Warm & friendly), technical background,
-    work style (Collaborate, the default: Pine works through the task with
-    you in the conversation, quotes or summarizes the parts of a file it
-    discusses so you don't need the file open beside the chat, and checks in
-    on your decisions; Full takeover: Pine drives the task end to end, refers
-    to files and sections briefly and reports the results; automations always
-    run as Full takeover), Aldine methodology (a switch with a Beta badge,
+    work style (Full takeover, the default: Pine drives the task itself and
+    quotes or summarizes the parts of a file it discusses, so you can follow
+    its conclusions and changes without opening the file beside the chat;
+    Collaborate: Pine assumes you have the file open, points to sections,
+    paragraphs or line numbers instead of repeating them, keeps you in the
+    loop and asks before key decisions; automations always run as Full
+    takeover), Aldine methodology (a switch with a Beta badge,
     on by default: Pine talks like a clear-headed dialogue partner, candid,
     specific and light on pleasantries; it shapes how Pine thinks, asks and
     disagrees, while the communication style sets the tone and the work style

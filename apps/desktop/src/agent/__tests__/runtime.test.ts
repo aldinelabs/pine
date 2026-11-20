@@ -2327,17 +2327,17 @@ describe("PineAgentRuntime", () => {
       const collaborate = encoded(workStyleSystemPrompt("collaborate"));
       const takeover = encoded(workStyleSystemPrompt("takeover"));
 
-      // No saved profile: collaborate, in the leading system prompt.
+      // No saved profile: full takeover, in the leading system prompt.
       await session.prompt("First.");
       expect(requests[0][0]).toContain('"role":"system"');
-      expect(requests[0][0]).toContain(collaborate);
+      expect(requests[0][0]).toContain(takeover);
       // The Aldine methodology is on by default.
       expect(requests[0][0]).toContain(methodology);
-      expect(requests[0].join("")).not.toContain(takeover);
+      expect(requests[0].join("")).not.toContain(collaborate);
 
       await writePineUserProfile(location.agentDir, {
         ...createDefaultPineUserProfile(),
-        workStyle: "takeover",
+        workStyle: "collaborate",
       });
       await session.prompt("Second.");
       // The earlier prefix is kept; the switch arrives as a system update.
@@ -2345,21 +2345,21 @@ describe("PineAgentRuntime", () => {
       const update = requests[1]
         .slice(requests[0].length)
         .find((message) => message.includes('"role":"system"'));
-      expect(update).toContain(takeover);
+      expect(update).toContain(collaborate);
 
       // Unchanged on the next run: nothing new for the system prompt.
       await session.prompt("Third.");
       expect(
         requests[2]
           .slice(requests[1].length)
-          .filter((message) => message.includes(takeover)),
+          .filter((message) => message.includes(collaborate)),
       ).toEqual([]);
 
       // Switching the methodology off removes it with an update at the end;
       // switching it back on adds the same text again.
       await writePineUserProfile(location.agentDir, {
         ...createDefaultPineUserProfile(),
-        workStyle: "takeover",
+        workStyle: "collaborate",
         aldineMethodologyEnabled: false,
       });
       await session.prompt("Fourth.");
@@ -2371,7 +2371,7 @@ describe("PineAgentRuntime", () => {
 
       await writePineUserProfile(location.agentDir, {
         ...createDefaultPineUserProfile(),
-        workStyle: "takeover",
+        workStyle: "collaborate",
       });
       await session.prompt("Fifth.");
       expect(requests[4].slice(0, requests[3].length)).toEqual(requests[3]);

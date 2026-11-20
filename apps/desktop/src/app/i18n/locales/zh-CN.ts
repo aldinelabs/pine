@@ -544,9 +544,9 @@ export default {
     userProfileWorkStyleCollaborate: "协作",
     userProfileWorkStyleTakeover: "全接管",
     userProfileWorkStyleCollaborateDescription:
-      "Pine 在对话中与你一起推进，讨论文件内容时直接引用或概括相关段落，你无需另开文件对照，并在需要你决定时征求意见。",
+      "假定你在旁边开着工作文件，Pine 会指出章节、段落或行号而不重复内容，让你随时掌握进展，并在关键决定前征求你的意见。",
     userProfileWorkStyleTakeoverDescription:
-      "Pine 端到端地推进任务，简要指称文件和章节，完成后汇报结果。",
+      "Pine 自行推进任务，讨论文件内容时直接引用或概括相关段落，结论和改动自成一体，你无需另开文件对照。",
     aldineMethodology: "Aldine 方法论",
     aldineMethodologyDescription:
       "让 Pine 像一位清醒的对话伙伴：坦诚、具体、少客套。",

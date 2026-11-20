@@ -6,13 +6,14 @@ export type PineCommunicationStyle =
 export type PineTechnicalBackground = "general-user" | "professional-user";
 
 /**
- * Who drives the work. Collaborate: the user follows along in the conversation
- * and decides as Pine goes. Takeover: Pine runs the task end to end and
- * reports back.
+ * Who drives the work. Takeover (the default): Pine drives the task and makes
+ * every reply self-contained, so the user never needs the file open beside the
+ * chat. Collaborate: the user has the file open, so Pine points to locations
+ * and asks before key decisions.
  */
-export const PINE_WORK_STYLES = ["collaborate", "takeover"] as const;
+export const PINE_WORK_STYLES = ["takeover", "collaborate"] as const;
 export type PineWorkStyle = (typeof PINE_WORK_STYLES)[number];
-export const DEFAULT_PINE_WORK_STYLE: PineWorkStyle = "collaborate";
+export const DEFAULT_PINE_WORK_STYLE: PineWorkStyle = "takeover";
 
 /**
  * How Pine refers to the user. The values are language independent; the

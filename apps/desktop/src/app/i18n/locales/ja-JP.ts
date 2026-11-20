@@ -586,9 +586,9 @@ export default {
     userProfileWorkStyleCollaborate: "協働",
     userProfileWorkStyleTakeover: "フル委任",
     userProfileWorkStyleCollaborateDescription:
-      "Pine は会話の中であなたと一緒に作業を進め、ファイルの内容に触れるときは該当箇所を引用または要約するので、ファイルを横に開いておく必要はありません。判断が必要な場面では確認します。",
+      "作業ファイルを横に開いている前提で、Pine は内容を繰り返さずにセクション・段落・行番号で場所を示し、進捗を共有しながら、重要な判断の前に確認します。",
     userProfileWorkStyleTakeoverDescription:
-      "Pine がタスクを最後まで進め、ファイルやセクションは簡潔に参照し、結果を報告します。",
+      "Pine が自らタスクを進め、ファイルの内容に触れるときは該当箇所を引用または要約します。結論や変更はそれだけで理解できるので、ファイルを横に開いて照らし合わせる必要はありません。",
     aldineMethodology: "Aldine メソドロジー",
     aldineMethodologyDescription:
       "Pine が冷静な対話相手として話します。率直で具体的、社交辞令は控えめです。",

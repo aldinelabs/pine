@@ -588,9 +588,9 @@ export default {
     userProfileWorkStyleCollaborate: "Colaborar",
     userProfileWorkStyleTakeover: "Control total",
     userProfileWorkStyleCollaborateDescription:
-      "Pine avanza contigo en la conversación, cita o resume las partes del archivo que comenta para que no necesites tenerlo abierto y te consulta en las decisiones que te corresponden.",
+      "Pine da por hecho que tienes el archivo abierto junto al chat, señala secciones, párrafos o números de línea en lugar de repetirlos, te mantiene al tanto y te consulta antes de las decisiones clave.",
     userProfileWorkStyleTakeoverDescription:
-      "Pine lleva la tarea de principio a fin, se refiere a archivos y secciones de forma breve e informa de los resultados.",
+      "Pine lleva la tarea por sí mismo y cita o resume las partes del archivo que comenta, para que entiendas sus conclusiones y cambios sin abrir el archivo.",
     aldineMethodology: "Metodología Aldine",
     aldineMethodologyDescription:
       "Pine conversa como un interlocutor lúcido: franco, concreto y con pocas cortesías.",

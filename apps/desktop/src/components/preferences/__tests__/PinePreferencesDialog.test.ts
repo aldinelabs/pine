@@ -671,8 +671,8 @@ describe("PinePreferencesDialog", () => {
     // Neutral is the default style.
     expect(styleGroup?.props("modelValue")).toBe("neutral");
     expect(backgroundGroup?.props("modelValue")).toBe("general-user");
-    // Collaborate is the default work style.
-    expect(workStyleGroup?.props("modelValue")).toBe("collaborate");
+    // Full takeover is the default work style.
+    expect(workStyleGroup?.props("modelValue")).toBe("takeover");
     expect(wrapper.text()).toContain("无需另开文件对照");
 
     await nickname.setValue("  小 Pine  ");
@@ -684,7 +684,7 @@ describe("PinePreferencesDialog", () => {
       .setValue("先给出结论，再解释关键原因。");
     styleGroup?.vm.$emit("update:modelValue", "calm-professional");
     backgroundGroup?.vm.$emit("update:modelValue", "professional-user");
-    workStyleGroup?.vm.$emit("update:modelValue", "takeover");
+    workStyleGroup?.vm.$emit("update:modelValue", "collaborate");
     await wrapper.vm.$nextTick();
 
     await vi.waitFor(() =>
@@ -699,7 +699,7 @@ describe("PinePreferencesDialog", () => {
         personalDetails: "正在学习桌面应用开发",
         pronouns: "unspecified",
         technicalBackground: "professional-user",
-        workStyle: "takeover",
+        workStyle: "collaborate",
         aldineMethodologyEnabled: true,
       }),
     );

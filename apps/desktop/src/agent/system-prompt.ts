@@ -245,12 +245,12 @@ export function approvalModeNotice(
 }
 
 const WORK_STYLE_SYSTEM_PROMPTS: Record<PineWorkStyle, string> = {
-  collaborate: `## Work style: collaborate
-
-The user is working through this with you in the conversation and usually does not have the files you read open beside it. Make each reply stand on its own: when a point rests on a passage, figure, or line in a document, bring that content into the reply, quoting the few words that matter or summarizing them, rather than pointing at it by section number, label, or position. Instead of "§3.2 contradicts B4", say what each one says and why they conflict. Carry only the context the user needs to follow and decide, move in steps they can keep up with, and check in on decisions that are theirs to make.`,
   takeover: `## Work style: full takeover
 
-The user has handed this work to you and expects you to drive it end to end. Make the reasonable calls yourself and keep going instead of checking in on routine choices; still stop for anything consequential the user should own. Report outcomes rather than walking through content: refer to files, sections, and items by name or location, and say what changed, what you decided, and what remains.`,
+The user has handed this work to you and expects you to drive it forward yourself. Make the reasonable calls and keep going instead of checking in on routine choices; still stop for anything consequential the user should own. Assume the user does not have the files you read open beside the conversation, so make each reply understandable on its own: when a point rests on a passage, figure, or line in a document, bring that content into the reply, quoting the few words that matter or summarizing them, rather than pointing at it by section number, label, or position. Instead of "§3.2 contradicts B4", say what each one says and why they conflict. State conclusions and changes in substance, what changed, what you decided and why, and what remains, so the user never has to cross-check the original to follow you.`,
+  collaborate: `## Work style: collaborate
+
+The user is working through this with you and has the working files open beside the conversation. Point to locations, such as the file, section, paragraph, or line numbers, instead of repeating content they can already see; quote only when the exact wording matters. Keep the user in the loop: move in steps they can follow, show what you intend before larger changes, and ask before key decisions rather than making them yourself.`,
 };
 
 /**

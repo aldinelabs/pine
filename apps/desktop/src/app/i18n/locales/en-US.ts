@@ -579,9 +579,9 @@ export default {
     userProfileWorkStyleCollaborate: "Collaborate",
     userProfileWorkStyleTakeover: "Full takeover",
     userProfileWorkStyleCollaborateDescription:
-      "Pine works through the task with you in the conversation, quotes or summarizes the parts of a file it discusses so you don't need the file open, and checks in on your decisions.",
+      "Pine assumes you have the file open beside the chat, points to sections, paragraphs or line numbers instead of repeating them, keeps you in the loop, and asks before key decisions.",
     userProfileWorkStyleTakeoverDescription:
-      "Pine drives the task end to end, refers to files and sections briefly, and reports the results.",
+      "Pine drives the task itself and quotes or summarizes the parts of a file it discusses, so you can follow its conclusions and changes without opening the file.",
     aldineMethodology: "Aldine methodology",
     aldineMethodologyDescription:
       "Pine talks like a clear-headed dialogue partner: candid, specific, and light on pleasantries.",

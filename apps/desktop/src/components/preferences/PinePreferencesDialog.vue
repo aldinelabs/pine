@@ -1236,11 +1236,11 @@ defineExpose({ open });
                   data-testid="pine-user-profile-work-style"
                   @update:model-value="updateWorkStyle"
                 >
-                  <ToggleGroupItem value="collaborate" class="flex-1">
-                    {{ t("preferences.userProfileWorkStyleCollaborate") }}
-                  </ToggleGroupItem>
                   <ToggleGroupItem value="takeover" class="flex-1">
                     {{ t("preferences.userProfileWorkStyleTakeover") }}
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="collaborate" class="flex-1">
+                    {{ t("preferences.userProfileWorkStyleCollaborate") }}
                   </ToggleGroupItem>
                 </ToggleGroup>
                 <FieldDescription>

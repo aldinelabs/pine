@@ -36,16 +36,16 @@ describe("pronouns in the user profile", () => {
 });
 
 describe("work style in the user profile", () => {
-  it("defaults to collaborate", () => {
-    expect(createDefaultPineUserProfile().workStyle).toBe("collaborate");
+  it("defaults to full takeover", () => {
+    expect(createDefaultPineUserProfile().workStyle).toBe("takeover");
   });
 
-  it("normalizes an unknown style to collaborate", () => {
+  it("normalizes an unknown style to full takeover", () => {
     const profile = {
       ...createDefaultPineUserProfile(),
       workStyle: "boss",
     } as unknown as PineUserProfile;
-    expect(normalizePineUserProfile(profile).workStyle).toBe("collaborate");
+    expect(normalizePineUserProfile(profile).workStyle).toBe("takeover");
     expect(isPineWorkStyle("takeover")).toBe(true);
     expect(isPineWorkStyle("boss")).toBe(false);
   });

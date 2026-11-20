@@ -221,19 +221,23 @@ describe("approvalModeNotice", () => {
 });
 
 describe("workStyleSystemPrompt", () => {
-  it("asks for self-contained replies when collaborating", () => {
-    const prompt = workStyleSystemPrompt("collaborate");
-
-    expect(prompt).toContain("## Work style: collaborate");
-    expect(prompt).toContain("bring that content into the reply");
-    expect(prompt).not.toContain("end to end");
-  });
-
-  it("lets Pine drive and report when taking over", () => {
+  it("lets Pine drive with self-contained replies when taking over", () => {
     const prompt = workStyleSystemPrompt("takeover");
 
     expect(prompt).toContain("## Work style: full takeover");
-    expect(prompt).toContain("Report outcomes");
+    expect(prompt).toContain("drive it forward yourself");
+    expect(prompt).toContain("does not have the files you read open");
+    expect(prompt).toContain("bring that content into the reply");
+    expect(prompt).not.toContain("line numbers");
+  });
+
+  it("points to locations and asks first when collaborating", () => {
+    const prompt = workStyleSystemPrompt("collaborate");
+
+    expect(prompt).toContain("## Work style: collaborate");
+    expect(prompt).toContain("has the working files open");
+    expect(prompt).toContain("line numbers");
+    expect(prompt).toContain("ask before key decisions");
     expect(prompt).not.toContain("bring that content into the reply");
   });
 

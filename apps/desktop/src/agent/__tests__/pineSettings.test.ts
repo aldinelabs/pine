@@ -420,7 +420,7 @@ describe("Pine agent settings", () => {
       personalDetails: "Enjoys learning by doing.",
       pronouns: "custom",
       technicalBackground: "general-user",
-      workStyle: "takeover",
+      workStyle: "collaborate",
       aldineMethodologyEnabled: true,
     });
 
@@ -440,7 +440,7 @@ describe("Pine agent settings", () => {
         personalDetails: "Enjoys learning by doing.",
         pronouns: "custom",
         technicalBackground: "general-user",
-        workStyle: "takeover",
+        workStyle: "collaborate",
         aldineMethodologyEnabled: true,
       },
     });
@@ -506,7 +506,7 @@ describe("Pine agent settings", () => {
       monetMode: false,
       pronouns: "unspecified",
       technicalBackground: "general-user",
-      workStyle: "collaborate",
+      workStyle: "takeover",
       aldineMethodologyEnabled: true,
     });
   });
@@ -535,7 +535,7 @@ describe("Pine agent settings", () => {
       customPronouns: "",
       interimAnswersEnabled: true,
       pronouns: "unspecified",
-      workStyle: "collaborate",
+      workStyle: "takeover",
       aldineMethodologyEnabled: true,
     });
   });
@@ -566,7 +566,7 @@ describe("Pine agent settings", () => {
       customPronouns: "",
       interimAnswersEnabled: true,
       pronouns: "unspecified",
-      workStyle: "collaborate",
+      workStyle: "takeover",
       aldineMethodologyEnabled: true,
     });
   });
@@ -595,12 +595,12 @@ describe("Pine agent settings", () => {
     expect((await readPineAgentSettings(agentDir)).userProfile).toEqual({
       ...userProfile,
       interimAnswersEnabled: true,
-      workStyle: "collaborate",
+      workStyle: "takeover",
       aldineMethodologyEnabled: true,
     });
   });
 
-  it("defaults the work style to collaborate and keeps a saved one", async () => {
+  it("defaults the work style to full takeover and keeps a saved one", async () => {
     const agentDir = await mkdtemp(
       path.join(os.tmpdir(), "pine-agent-settings-work-style-"),
     );
@@ -613,7 +613,7 @@ describe("Pine agent settings", () => {
 
     await writeFile(settingsPath, JSON.stringify({ userProfile }));
     expect((await readPineAgentSettings(agentDir)).userProfile?.workStyle).toBe(
-      "collaborate",
+      "takeover",
     );
 
     await writeFile(
@@ -627,11 +627,11 @@ describe("Pine agent settings", () => {
     await writeFile(
       settingsPath,
       JSON.stringify({
-        userProfile: { ...userProfile, workStyle: "takeover" },
+        userProfile: { ...userProfile, workStyle: "collaborate" },
       }),
     );
     expect((await readPineAgentSettings(agentDir)).userProfile?.workStyle).toBe(
-      "takeover",
+      "collaborate",
     );
   });
 
