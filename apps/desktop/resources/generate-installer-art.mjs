@@ -130,45 +130,25 @@ function dmgBackground() {
 </svg>`;
 }
 
-// Squirrel shows the GIF in a borderless window while it installs; an
-// indeterminate bar eased like the app's --ease-out-expo stands in for progress.
-const GIF = { width: 360, height: 220, frames: 48, delay: 3 };
+// Squirrel shows the GIF in a borderless window while it installs. The spinner
+// is shadcn-vue's Spinner: lucide's loader-circle at 16 px, turning once a
+// second at a constant speed like Tailwind's animate-spin.
+const GIF = { width: 360, height: 220, frames: 25, delay: 4 };
 
 function loadingFrame() {
   return `${base}
 <style>
   body {
     background: ${COLORS.surface};
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
     box-shadow: inset 0 0 0 1px ${COLORS.border};
   }
-  .caption { margin-top: 12px; color: ${COLORS.muted}; font-size: 12px; font-weight: 450; }
-  .track {
-    position: relative; overflow: hidden; margin-top: 22px;
-    width: 120px; height: 3px; border-radius: 999px; background: ${COLORS.border};
-  }
-  .bar {
-    position: absolute; top: 0; bottom: 0; width: 40px; border-radius: 999px;
-    background: ${COLORS.foreground};
-  }
+  .spinner { display: block; width: 16px; height: 16px; color: ${COLORS.muted}; }
 </style>
-${cobrand(16)}
-<div class="caption">Installing…</div>
-<div class="track"><div class="bar"></div></div>`;
-}
-
-function easeOutExpo(t) {
-  // cubic-bezier(0.16, 1, 0.3, 1), solved for x = t.
-  const curve = (a, b, s) =>
-    3 * a * s * (1 - s) ** 2 + 3 * b * s ** 2 * (1 - s) + s ** 3;
-  let low = 0;
-  let high = 1;
-  for (let step = 0; step < 30; step += 1) {
-    const middle = (low + high) / 2;
-    if (curve(0.16, 0.3, middle) < t) low = middle;
-    else high = middle;
-  }
-  return curve(1, 1, (low + high) / 2);
+${lockup(18)}
+<svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+</svg>`;
 }
 
 mkdirSync(output, { recursive: true });
@@ -203,12 +183,11 @@ try {
   });
   const frames = [];
   for (let index = 0; index < GIF.frames; index += 1) {
-    // The bar sweeps the track, then the loop rests briefly off-track.
-    const travel = Math.min(1, index / (GIF.frames * 0.8));
-    const left = -40 + easeOutExpo(travel) * 160;
-    await page.evaluate((x) => {
-      document.querySelector(".bar").style.left = `${x}px`;
-    }, left);
+    const angle = (360 * index) / GIF.frames;
+    await page.evaluate((degrees) => {
+      document.querySelector(".spinner").style.transform =
+        `rotate(${degrees}deg)`;
+    }, angle);
     const png = await page.screenshot();
     const pixels = await page.evaluate(async (data) => {
       const image = new Image();

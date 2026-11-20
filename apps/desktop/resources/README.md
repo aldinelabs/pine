@@ -32,8 +32,9 @@ Google Chrome through Playwright: `bun apps/desktop/resources/generate-web-icons
 
 `installer/` holds the macOS DMG window background (`dmg-background.png` and
 `@2x`, which appdmg merges into a Retina TIFF) and the GIF Squirrel shows while
-it installs on Windows. Both read "Pine by Aldine" over the app's olive muted
-surface, with Pine's lockup proportioned like Aldine's. `dmg-layout.json` is
+it installs on Windows, over the app's olive muted surface. The DMG reads
+"Pine by Aldine", with Pine's lockup proportioned like Aldine's; the GIF shows
+Pine's lockup above shadcn-vue's spinner. `dmg-layout.json` is
 the DMG window and icon layout shared with `forge.config.ts`. Finder draws dark
 icon labels over a light background in both appearances, and nothing sits in
 the bottom 66 pt, where a user's path and status bars may cover the window.
