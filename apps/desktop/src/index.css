@@ -273,6 +273,8 @@
   --window-titlebar-controls-width: 3rem;
   /* Extra trailing project actions (right sidebar toggle plus gap). */
   --window-titlebar-trailing-actions-width: 2rem;
+  /* Trailing room left when the right sidebar toggle is gone (no tabs). */
+  --window-titlebar-trailing-end-width: 0rem;
   --window-titlebar-height: calc(
     var(--window-titlebar-control-height) +
       var(--window-titlebar-padding-block) +
@@ -385,6 +387,8 @@
   );
   /* Titlebar end padding, right sidebar toggle and gap before the tabs. */
   --window-titlebar-trailing-actions-width: 3rem;
+  /* Titlebar end padding alone. */
+  --window-titlebar-trailing-end-width: 0.75rem;
 }
 
 /* A browser tab draws no window controls of its own. */

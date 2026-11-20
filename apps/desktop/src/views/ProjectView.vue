@@ -491,18 +491,36 @@ onKeyStroke(Object.keys(sidebarShortcuts), (event) => {
           ]"
           :style="trailingControlsStyle"
         >
-          <Button
-            data-testid="project-workbench-toggle"
-            variant="ghost"
-            size="icon-sm"
-            :class="workbench.isTabless && 'invisible'"
-            :disabled="workbench.isTabless"
-            :aria-label="t('project.workbench.toggle')"
-            :aria-pressed="workbench.activeLayout.open"
-            @click="workbench.toggle()"
+          <!-- With no tab open the workbench has nothing to show: its toggle
+               folds away, taking the gap beside it, and comes back with a
+               tab. -->
+          <div
+            data-slot="project-workbench-toggle-slot"
+            :data-state="workbench.isTabless ? 'collapsed' : 'expanded'"
+            :inert="workbench.isTabless"
+            :class="[
+              'flex shrink-0 justify-end transition-[width,margin,opacity] duration-500 ease-out-expo motion-reduce:transition-none',
+              workbench.isTabless
+                ? 'pointer-events-none w-0 overflow-hidden opacity-0 not-last:-me-1'
+                : 'w-7',
+            ]"
           >
-            <PanelRight aria-hidden="true" />
-          </Button>
+            <Button
+              data-testid="project-workbench-toggle"
+              variant="ghost"
+              size="icon-sm"
+              :class="[
+                'shrink-0 transition-transform duration-500 ease-out-expo motion-reduce:transition-none',
+                workbench.isTabless && 'scale-75',
+              ]"
+              :disabled="workbench.isTabless"
+              :aria-label="t('project.workbench.toggle')"
+              :aria-pressed="workbench.activeLayout.open"
+              @click="workbench.toggle()"
+            >
+              <PanelRight aria-hidden="true" />
+            </Button>
+          </div>
           <PinePreferencesDialog
             v-if="!isWindowsPlatform"
             ref="preferencesDialog"

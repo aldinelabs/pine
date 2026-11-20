@@ -252,7 +252,7 @@ it("opens the workbench beside the conversation and widens the window for it", a
   wrapper.unmount();
 });
 
-it("keeps the workbench toggle's slot but hides and disables it with no tab open", async () => {
+it("folds the workbench toggle out of the title bar with no tab open", async () => {
   const planWindowResize = vi.fn().mockResolvedValue(0);
   const { wrapper } = await mountView(
     vi.fn().mockResolvedValue(undefined),
@@ -262,10 +262,13 @@ it("keeps the workbench toggle's slot but hides and disables it with no tab open
   await flushPromises();
   const workbench = useWorkbenchStore();
   const toggle = wrapper.get('[data-testid="project-workbench-toggle"]');
+  const slot = wrapper.get('[data-slot="project-workbench-toggle-slot"]');
 
   workbench.setFrontSession(null);
   await flushPromises();
-  expect(toggle.classes()).toContain("invisible");
+  expect(slot.attributes("data-state")).toBe("collapsed");
+  expect(slot.classes()).toContain("w-0");
+  expect(slot.attributes("inert")).toBeDefined();
   expect(toggle.attributes("disabled")).toBeDefined();
 
   window.dispatchEvent(
@@ -284,7 +287,9 @@ it("keeps the workbench toggle's slot but hides and disables it with no tab open
 
   workbench.setFrontSession(DRAFT_WORKBENCH_KEY);
   await flushPromises();
-  expect(toggle.classes()).not.toContain("invisible");
+  expect(slot.attributes("data-state")).toBe("expanded");
+  expect(slot.classes()).not.toContain("w-0");
+  expect(slot.attributes("inert")).toBeUndefined();
   expect(toggle.attributes("disabled")).toBeUndefined();
   wrapper.unmount();
 });

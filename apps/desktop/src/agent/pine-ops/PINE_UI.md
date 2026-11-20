@@ -93,7 +93,8 @@ window
 
 - Toggle left sidebar: shows or hides the left sidebar.
 - Toggle workbench: shows or hides the workbench; pressed while it is open.
-  Hidden while no tab is open, since the workbench has nothing to show then.
+  While no tab is open it folds out of the title bar, since the workbench has
+  nothing to show then, and comes back when a tab opens.
 - Pine Settings (gear): opens the Pine Settings dialog (Mod+,); holding
   Cmd/Ctrl shows the shortcut below the gear.
 

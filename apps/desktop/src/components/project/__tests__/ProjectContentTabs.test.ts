@@ -17,7 +17,7 @@ import type { PineSessionSummary } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 import { useContentTabsStore } from "@/stores/contentTabs";
-import { useWorkbenchStore } from "@/stores/workbench";
+import { DRAFT_WORKBENCH_KEY, useWorkbenchStore } from "@/stores/workbench";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import {
   CONTENT_TAB_DRAG_TYPE,
@@ -387,6 +387,28 @@ describe("ProjectContentTabs", () => {
     workbench.setClosing(true);
     await nextTick();
     expect(titlebar()).toContain(reserved);
+    wrapper.unmount();
+  });
+
+  it("closes the trailing gap the workbench toggle leaves with no tab open", async () => {
+    const { wrapper } = await mountTabs();
+    const workbench = useWorkbenchStore();
+    const titlebar = () =>
+      wrapper.get('[data-slot="project-content-tabs-titlebar"]').classes();
+    const withToggle =
+      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]";
+    const withoutToggle =
+      "pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-end-width))]";
+
+    workbench.setFrontSession(null);
+    await nextTick();
+    expect(titlebar()).toContain(withoutToggle);
+    expect(titlebar()).not.toContain(withToggle);
+
+    workbench.setFrontSession(DRAFT_WORKBENCH_KEY);
+    await nextTick();
+    expect(titlebar()).toContain(withToggle);
+    expect(titlebar()).not.toContain(withoutToggle);
     wrapper.unmount();
   });
 

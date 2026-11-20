@@ -699,9 +699,13 @@ watch(activeSession, (session) => {
       data-window-edge-follower
       :class="
         cn(
-          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] duration-500 ease-out-expo',
+          'window-drag pointer-events-auto relative z-30 flex h-[var(--window-titlebar-height)] shrink-0 items-center gap-2 pr-3 pl-3 transition-[padding] duration-500 ease-out-expo motion-reduce:transition-none',
+          // With no tab open the workbench toggle leaves the title bar, so
+          // the trailing actions close up to the controls that remain.
           shouldReserveTrailingControlsSpace &&
-            'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]',
+            (workbench.isTabless
+              ? 'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-end-width))]'
+              : 'pr-[calc(var(--window-titlebar-controls-width)+var(--window-titlebar-trailing-actions-width))]'),
           shouldReserveWindowControlsSpace &&
             'pl-[calc(var(--window-titlebar-leading-offset)+var(--window-titlebar-leading-extra)+var(--window-titlebar-control-height)+0.75rem)]',
         )
