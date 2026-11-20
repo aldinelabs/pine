@@ -1,16 +1,19 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { preferenceStorage } from "@/lib/preferenceStorage";
+import { CURRENCY_PREFERENCE_KEY } from "@/shared/preferenceStorage";
 import {
   PINE_CURRENCIES,
-  currencyForLocales,
-  currencyForRegion,
+  currencySymbol,
+  displayCurrency,
+  formatCurrency,
   isPineCurrency,
+  preferredCurrency,
   type PineCurrency,
   type PineExchangeRates,
 } from "@/shared/currency";
 
-export const CURRENCY_STORAGE_KEY = "pine.currency";
+export const CURRENCY_STORAGE_KEY = CURRENCY_PREFERENCE_KEY;
 export type CurrencyPreference = "auto" | PineCurrency;
 
 function readPreference(): CurrencyPreference {
@@ -33,26 +36,20 @@ export const useCurrencyStore = defineStore("currency", () => {
   const systemRegion = ref<string | null>(null);
   let loadPromise: Promise<void> | null = null;
 
-  const systemCurrency = computed(
-    () =>
-      currencyForRegion(systemRegion.value) ??
-      currencyForLocales(
-        typeof navigator === "undefined" ? undefined : navigator.languages,
-      ),
+  const systemCurrency = computed(() =>
+    preferredCurrency(
+      null,
+      systemRegion.value,
+      typeof navigator === "undefined" ? undefined : navigator.languages,
+    ),
   );
   const wanted = computed<PineCurrency>(() =>
     preference.value === "auto" ? systemCurrency.value : preference.value,
   );
+  const display = computed(() => displayCurrency(wanted.value, rates.value));
   /** What amounts are actually shown in right now. */
-  const currency = computed<PineCurrency>(() =>
-    rate(wanted.value) === null ? "USD" : wanted.value,
-  );
-  const rateValue = computed(() => rate(currency.value) ?? 1);
-
-  function rate(code: PineCurrency): number | null {
-    if (code === "USD") return 1;
-    return rates.value?.rates[code] ?? null;
-  }
+  const currency = computed<PineCurrency>(() => display.value.currency);
+  const rateValue = computed(() => display.value.rate);
 
   function load(): Promise<void> {
     if (rates.value) return Promise.resolve();
@@ -95,38 +92,14 @@ export const useCurrencyStore = defineStore("currency", () => {
     fractionDigits?: number,
     { narrow = false }: { narrow?: boolean } = {},
   ): string {
-    const amount = fromUsd(usd);
-    const digits =
-      fractionDigits ?? (currency.value === "USD" || amount < 100 ? 4 : 2);
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: "currency",
-        currency: currency.value,
-        currencyDisplay: narrow ? "narrowSymbol" : "symbol",
-        minimumFractionDigits: Math.min(digits, 2),
-        maximumFractionDigits: digits,
-      }).format(amount);
-    } catch {
-      return `${amount.toFixed(digits)} ${currency.value}`;
-    }
+    return formatCurrency(fromUsd(usd), currency.value, {
+      ...(fractionDigits === undefined ? {} : { fractionDigits }),
+      narrow,
+    });
   }
 
   /** The symbol alone ("$", "¥"), for an input prefix. */
-  const symbol = computed(() => {
-    try {
-      return (
-        new Intl.NumberFormat(undefined, {
-          style: "currency",
-          currency: currency.value,
-          currencyDisplay: "narrowSymbol",
-        })
-          .formatToParts(0)
-          .find((part) => part.type === "currency")?.value ?? currency.value
-      );
-    } catch {
-      return currency.value;
-    }
-  });
+  const symbol = computed(() => currencySymbol(currency.value));
 
   return {
     preference,

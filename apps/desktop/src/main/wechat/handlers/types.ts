@@ -41,7 +41,11 @@ export interface CommandContext {
   readonly core: WeChatCorePorts;
   readonly host: Pick<
     WeChatHostPorts,
-    "version" | "computerName" | "notify" | "localAutomationApprovals"
+    | "version"
+    | "computerName"
+    | "notify"
+    | "localAutomationApprovals"
+    | "currency"
   >;
   readonly store: WeChatStateStore;
   readonly sessions: SessionDirectory;

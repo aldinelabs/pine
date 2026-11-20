@@ -9,6 +9,7 @@ import type {
 import { parseCommand } from "../../parseCommand";
 import type { ApprovalAsk, ConfirmAsk, ParsedCommand } from "../../types";
 import {
+  createFakeHost,
   createTestContext,
   summary,
   W,
@@ -347,6 +348,27 @@ describe(".usage and .todo", () => {
     expect(result.text).toContain("25%");
     expect(result.text).toContain("$0.42");
     expect(result.text).toContain("12 messages");
+  });
+
+  it("shows the cost in the currency chosen in Pine", async () => {
+    const ctx = setup({
+      host: createFakeHost({
+        currency: () => ({ currency: "CNY", rate: 7.2 }),
+      }),
+    });
+    await ctx.store.flush();
+    const session = ctx.fake.core.runtimes.live.get("s1");
+    if (session)
+      session.contextUsage = {
+        tokens: 50_000,
+        contextWindow: 200_000,
+        percent: 25,
+        cost: 0.5,
+        cacheHitRate: 0.8,
+      };
+    const result = await run(ctx, ".i");
+    expect(result.text).toContain("¥3.60");
+    expect(result.text).not.toContain("$");
   });
 
   it("lists the todos without deleted ones", async () => {

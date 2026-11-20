@@ -40,6 +40,12 @@ import {
   type PineApprovalMode,
   type PineApprovalTrigger,
 } from "../../shared/agent";
+import {
+  USD_DISPLAY,
+  currencySymbol,
+  formatCurrency,
+  type DisplayCurrency,
+} from "../../shared/currency";
 import type { PineMcpChangeSummary } from "../../shared/mcp";
 import type { PineThinkingLevel } from "../../shared/models";
 import type { PineApprovalReasonCode } from "../../shared/sessions";
@@ -371,10 +377,24 @@ function rows<T>(items: readonly T[]): readonly T[] {
   return items.slice(0, PAGE_ROWS);
 }
 
-function cost(usd: number): string {
-  if (!Number.isFinite(usd) || usd < 0) return "$?";
-  if (usd > 0 && usd < 0.01) return "<$0.01";
-  return `$${usd.toFixed(2)}`;
+/**
+ * A USD cost in the currency chosen in Pine's preferences, through the same
+ * formatter as the desktop UI: two decimals and the bare symbol, since a
+ * reply line is short. Undefined `usd` is an unknown cost.
+ */
+function cost(
+  lang: L,
+  usd: number | undefined,
+  { currency, rate }: DisplayCurrency = USD_DISPLAY,
+): string {
+  const locale = lang === "zh" ? "zh-CN" : "en-US";
+  const amount = usd === undefined ? Number.NaN : usd * rate;
+  if (!Number.isFinite(amount) || amount < 0)
+    return `${currencySymbol(currency, locale)}?`;
+  const options = { fractionDigits: 2, narrow: true, locale };
+  if (amount > 0 && amount < 0.01)
+    return `<${formatCurrency(0.01, currency, options)}`;
+  return formatCurrency(amount, currency, options);
 }
 
 function tokens(count: number): string {
@@ -1040,6 +1060,8 @@ export interface ReplyData {
     todos?: { done: number; total: number };
     contextPercent?: number;
     costUsd?: number;
+    /** What `costUsd` is shown in; USD when absent. */
+    currency?: DisplayCurrency;
     asks: AskSummary[];
     /** Other tracked sessions that are running or waiting; at most 5 are shown. */
     others: {
@@ -1164,6 +1186,8 @@ export interface ReplyData {
     contextPercent?: number;
     cacheHitPercent?: number;
     costUsd?: number;
+    /** What `costUsd` is shown in; USD when absent. */
+    currency?: DisplayCurrency;
     count: number;
   };
   "R-USAGE-NONE": undefined;
@@ -1308,6 +1332,8 @@ export interface ReplyData {
     at: SessionRef;
     durationMs?: number;
     costUsd?: number;
+    /** What `costUsd` is shown in; USD when absent. */
+    currency?: DisplayCurrency;
     /** The final reply, Markdown. */
     text: string;
     files: number;
@@ -1426,7 +1452,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
           `Context ${percent(data.contextPercent)}%`,
         ),
       );
-    if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
+    if (data.costUsd !== undefined)
+      facts.push(cost(lang, data.costUsd, data.currency));
     const asks = data.asks.map((ask) => item(ask.number, askWhat(lang, ask)));
     const others = data.others.slice(0, 5).map((other) => {
       const mark =
@@ -1997,7 +2024,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
           `cache hit ${percent(data.cacheHitPercent)}%`,
         ),
       );
-    const spent = data.costUsd === undefined ? "$?" : cost(data.costUsd);
+    const spent = cost(lang, data.costUsd, data.currency);
     return blocks(
       headLine(data.at),
       lines(
@@ -2612,7 +2639,8 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     const facts = [pick(lang, "完成", "Done")];
     if (data.durationMs !== undefined)
       facts.push(formatDuration(data.durationMs, lang));
-    if (data.costUsd !== undefined) facts.push(cost(data.costUsd));
+    if (data.costUsd !== undefined)
+      facts.push(cost(lang, data.costUsd, data.currency));
     // The pre-slice keeps the work bounded on a very long reply.
     const { text: excerpt, cut } = cutMarkdown(
       agentMarkdown(data.text.slice(0, DONE_EXCERPT_MAX * 4), lang, {

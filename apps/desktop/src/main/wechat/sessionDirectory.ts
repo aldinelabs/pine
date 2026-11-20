@@ -187,7 +187,7 @@ export interface SessionDirectoryDeps {
   core: WeChatCorePorts;
   host: Pick<
     WeChatHostPorts,
-    "notify" | "locale" | "dataDirectory" | "agentDirectory"
+    "notify" | "locale" | "dataDirectory" | "agentDirectory" | "currency"
   >;
   store: WeChatStateStore;
   asks: AskBook;
@@ -954,7 +954,7 @@ export class SessionDirectory {
             ? { durationMs: result.durationMs }
             : {}),
           ...(result.cost !== undefined && result.cost > 0
-            ? { costUsd: result.cost }
+            ? { costUsd: result.cost, currency: this.deps.host.currency?.() }
             : {}),
           text: result.text,
           files: result.files,

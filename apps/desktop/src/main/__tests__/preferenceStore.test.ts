@@ -31,6 +31,14 @@ describe("PreferenceStore", () => {
     });
   });
 
+  it("reads one value, never an inherited property", () => {
+    const store = new PreferenceStore(fileInTemporaryDirectory());
+    store.set("pine.currency", "CNY");
+    expect(store.get("pine.currency")).toBe("CNY");
+    expect(store.get("pine.missing")).toBeUndefined();
+    expect(store.get("constructor")).toBeUndefined();
+  });
+
   it("ignores keys outside the pine namespace and non-string values", () => {
     const file = fileInTemporaryDirectory();
     const store = new PreferenceStore(file);

@@ -1688,3 +1688,50 @@ describe("reviewer explanations on approval cards", () => {
     ).toContain("风险：不可撤销");
   });
 });
+
+describe("costs", () => {
+  const cny = { currency: "CNY", rate: 7.2 } as const;
+
+  it("shows costs in the currency chosen in Pine", () => {
+    const status = render("R-STATUS", "zh", {
+      ...SAMPLES["R-STATUS"],
+      costUsd: 0.5,
+      currency: cny,
+    });
+    expect(status).toContain("¥3.60");
+    expect(status).not.toContain("$");
+    expect(
+      render("T-DONE", "en", {
+        ...SAMPLES["T-DONE"],
+        costUsd: 2,
+        currency: cny,
+      }),
+    ).toContain("¥14.40");
+    expect(
+      render("R-USAGE", "en", {
+        ...SAMPLES["R-USAGE"],
+        costUsd: 0.25,
+        currency: { currency: "EUR", rate: 0.9 },
+      }),
+    ).toContain("€0.23");
+  });
+
+  it("keeps USD when no currency is given", () => {
+    expect(render("T-DONE", "zh", SAMPLES["T-DONE"])).toContain("$0.12");
+  });
+
+  it("marks tiny and unknown costs in the chosen currency", () => {
+    expect(
+      render("T-DONE", "en", {
+        ...SAMPLES["T-DONE"],
+        costUsd: 0.0001,
+        currency: cny,
+      }),
+    ).toContain("<¥0.01");
+    const usage = { ...SAMPLES["R-USAGE"] };
+    delete usage.costUsd;
+    expect(render("R-USAGE", "en", { ...usage, currency: cny })).toContain(
+      "¥?",
+    );
+  });
+});

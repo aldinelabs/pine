@@ -133,7 +133,9 @@ export const metaHandlers: CommandHandlers = {
         ...(usage?.percent !== undefined && usage.percent !== null
           ? { contextPercent: usage.percent }
           : {}),
-        ...(usage && usage.cost > 0 ? { costUsd: usage.cost } : {}),
+        ...(usage && usage.cost > 0
+          ? { costUsd: usage.cost, currency: ctx.host.currency?.() }
+          : {}),
         asks: view.asks.map((ask) => askSummary(ask)),
         others,
       }),

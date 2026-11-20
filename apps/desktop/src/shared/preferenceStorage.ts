@@ -6,6 +6,8 @@ export const PREFERENCES_CHANGED_CHANNEL = "preferences:changed" as const;
 
 /** Renderer UI preferences all live under this key prefix. */
 export const PREFERENCE_KEY_PREFIX = "pine.";
+/** The currency costs are shown in; absent means "follow the system". */
+export const CURRENCY_PREFERENCE_KEY = "pine.currency";
 /** The light round the composer while the agent works. */
 export const COMPOSER_GLOW_PREFERENCE_KEY = "pine.composer-glow";
 /** The composer suggesting a reply after the agent answers. */

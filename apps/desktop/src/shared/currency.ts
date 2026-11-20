@@ -146,3 +146,86 @@ export function currencyForLocales(
   }
   return "USD";
 }
+
+/** The currency amounts are shown in and how many of it one US dollar buys. */
+export interface DisplayCurrency {
+  currency: PineCurrency;
+  rate: number;
+}
+
+export const USD_DISPLAY: DisplayCurrency = { currency: "USD", rate: 1 };
+
+/**
+ * The currency the user wants costs in: the stored preference, or with none
+ * ("auto") the currency of the system region, then of the system languages.
+ */
+export function preferredCurrency(
+  preference: string | null | undefined,
+  systemRegion: string | null | undefined,
+  locales: readonly string[] | undefined,
+): PineCurrency {
+  if (isPineCurrency(preference)) return preference;
+  return currencyForRegion(systemRegion) ?? currencyForLocales(locales);
+}
+
+/**
+ * What amounts are actually shown in: the wanted currency at the latest
+ * rate, or USD while there is no rate for it.
+ */
+export function displayCurrency(
+  wanted: PineCurrency,
+  rates: PineExchangeRates | null | undefined,
+): DisplayCurrency {
+  if (wanted === "USD") return USD_DISPLAY;
+  const rate = rates?.rates[wanted];
+  return rate === undefined ? USD_DISPLAY : { currency: wanted, rate };
+}
+
+export interface FormatCurrencyOptions {
+  /** Fraction digits; by default 4 for USD and small amounts, else 2. */
+  fractionDigits?: number;
+  /** The bare symbol ("¥" rather than "CN¥") where space is tight. */
+  narrow?: boolean;
+  /** Formatting locale; the system's by default. */
+  locale?: string;
+}
+
+/** Formats an amount that is already in `currency`. */
+export function formatCurrency(
+  amount: number,
+  currency: PineCurrency,
+  { fractionDigits, narrow = false, locale }: FormatCurrencyOptions = {},
+): string {
+  const digits = fractionDigits ?? (currency === "USD" || amount < 100 ? 4 : 2);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      currencyDisplay: narrow ? "narrowSymbol" : "symbol",
+      minimumFractionDigits: Math.min(digits, 2),
+      maximumFractionDigits: digits,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(digits)} ${currency}`;
+  }
+}
+
+/** The symbol alone ("$", "¥"). */
+export function currencySymbol(
+  currency: PineCurrency,
+  locale?: string,
+): string {
+  try {
+    return (
+      new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol",
+      })
+        .formatToParts(0)
+        .find((part) => part.type === "currency")?.value ?? currency
+    );
+  } catch {
+    return currency;
+  }
+}

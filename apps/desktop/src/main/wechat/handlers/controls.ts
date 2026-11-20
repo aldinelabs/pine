@@ -616,6 +616,7 @@ async function usage(ctx: CommandContext): Promise<CommandResult> {
         ? { cacheHitPercent: usageData.cacheHitRate * 100 }
         : {}),
       ...(usageData ? { costUsd: usageData.cost } : {}),
+      currency: ctx.host.currency?.(),
       count: summary?.messageCount ?? 0,
     }),
   );

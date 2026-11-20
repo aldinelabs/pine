@@ -45,6 +45,10 @@ export class PreferenceStore {
     );
   }
 
+  get(key: string): string | undefined {
+    return Object.hasOwn(this.values, key) ? this.values[key] : undefined;
+  }
+
   snapshot(): Record<string, string> {
     return { ...this.values };
   }

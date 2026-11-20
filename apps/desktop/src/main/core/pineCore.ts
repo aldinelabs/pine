@@ -53,6 +53,11 @@ import { ApproximateLocationService } from "../approximateLocation";
 import { FilePreviewWatcherRegistry } from "../filePreviewWatcher";
 import { ModelMetadataService } from "../modelMetadata";
 import { ExchangeRateService } from "../exchangeRates";
+import {
+  displayCurrency,
+  preferredCurrency,
+  type DisplayCurrency,
+} from "../../shared/currency";
 import { ModelRecommendationService } from "../modelRecommendations";
 import { PresentedFileRegistry } from "../presentedFiles";
 import { ProjectFileWatcherRegistry } from "../projectFileWatcher";
@@ -404,6 +409,7 @@ export class PineCore {
         version: host.version,
         computerName: hostname().replace(/\.local$/, ""),
         locale: () => host.locale?.() ?? "en-US",
+        currency: () => this.displayCurrency(),
         fetch: (url, init) => host.fetch(url, init),
         credentialStorage: host.credentialStorage,
         dataDirectory: host.dataDirectory,
@@ -425,6 +431,22 @@ export class PineCore {
 
   handle(channel: string, handler: PineRequestHandler): void {
     this.router.register(channel, handler);
+  }
+
+  /**
+   * The currency costs are shown in outside the renderer (WeChat replies):
+   * the preference set in Pine, at the latest cached rate, or USD while
+   * there is none yet, like the renderer's currency store.
+   */
+  displayCurrency(): DisplayCurrency {
+    const wanted = preferredCurrency(
+      this.host.currencyPreference?.(),
+      this.host.systemRegion,
+      [Intl.DateTimeFormat().resolvedOptions().locale],
+    );
+    // Fetches or refreshes the rates for the next reply; cheap while cached.
+    if (wanted !== "USD") void this.exchangeRates.get().catch(() => {});
+    return displayCurrency(wanted, this.exchangeRates.latest());
   }
 
   location(): ApproximateLocationService {

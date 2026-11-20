@@ -32,6 +32,16 @@ describe("ExchangeRateService", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it("serves the cached rates synchronously, null before any", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockImplementation(() => Promise.resolve(rateResponse()));
+    const service = new ExchangeRateService({ fetch });
+    expect(service.latest()).toBeNull();
+    await service.get();
+    expect(service.latest()?.rates.CNY).toBe(7.1);
+  });
+
   it("returns null when the first fetch fails and keeps old rates later", async () => {
     let now = 1_000;
     const fetch = vi

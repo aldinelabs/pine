@@ -73,6 +73,11 @@ export interface PineHost {
   automationsChanged?(event: AutomationsChangedEvent): void;
   /** The interface language, for notifications and run prompts. */
   locale?(): "en-US" | "zh-CN";
+  /**
+   * The currency chosen in Pine's preferences (a currency code), or
+   * undefined to follow the system. Without it, costs follow the system.
+   */
+  currencyPreference?(): string | undefined;
   /** WeChat remote's binding, pause state or settings changed. */
   wechatChanged?(status: WeChatStatus): void;
   /** Shows something WeChat remote did or needs at the OS level. */

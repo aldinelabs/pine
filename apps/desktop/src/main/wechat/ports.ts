@@ -1,6 +1,7 @@
 // What the WeChat bridge needs from Pine's core and from the host it runs
 // in (desktop app or headless server). Kept free of Electron so the server
 // build can include the bridge.
+import type { DisplayCurrency } from "../../shared/currency";
 import type {
   PineApprovalMode,
   PineAgentEvent,
@@ -59,6 +60,8 @@ export interface WeChatHostPorts {
   version: string;
   computerName: string;
   locale?: () => "en-US" | "zh-CN";
+  /** The currency costs are shown in, per Pine's preferences; USD without it. */
+  currency?: () => DisplayCurrency;
   fetch: (url: string, init?: RequestInit) => Promise<Response>;
   /** Encrypts the sealed blob: the system keychain on the desktop, a 0600 file on the server. */
   credentialStorage: TinyFishSafeStorage;

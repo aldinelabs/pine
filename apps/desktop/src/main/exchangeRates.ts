@@ -47,6 +47,11 @@ export class ExchangeRateService {
     this.url = options.url ?? EXCHANGE_RATES_URL;
   }
 
+  /** The last good rates without waiting; null until a refresh succeeded. */
+  latest(): PineExchangeRates | null {
+    return this.cached;
+  }
+
   get(): Promise<PineExchangeRates | null> {
     if (this.now() < this.expiresAt) return Promise.resolve(this.cached);
     if (this.pending) return this.pending;

@@ -31,6 +31,7 @@ import {
   SET_RUN_IN_BACKGROUND_CHANNEL,
 } from "./shared/background";
 import {
+  CURRENCY_PREFERENCE_KEY,
   PREFERENCES_REMOVE_CHANNEL,
   PREFERENCES_SET_CHANNEL,
   PREFERENCES_SNAPSHOT_CHANNEL,
@@ -436,6 +437,7 @@ function desktopHost(): PineHost {
           window.webContents.send(AUTOMATIONS_CHANGED_CHANNEL, event);
     },
     locale: automationLocale,
+    currencyPreference: () => preferenceStore.get(CURRENCY_PREFERENCE_KEY),
     wechatChanged: (status) => {
       broadcastWeChatStatus(status);
       remoteKeepAwake.refresh();
