@@ -24,6 +24,8 @@ export const LIVE_CONTEXT_CREATE_SESSION_CHANNEL =
 export const LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL =
   "live-context:open-privacy-settings" as const;
 export const LIVE_CONTEXT_DELETE_CHANNEL = "live-context:delete" as const;
+export const LIVE_CONTEXT_TRANSLATION_CHANNEL =
+  "live-context:translation" as const;
 
 /** Desktop IPC only; never on the shared router, so browsers and phones cannot listen. */
 export const LIVE_CONTEXT_REQUEST_CHANNELS = [
@@ -38,6 +40,7 @@ export const LIVE_CONTEXT_REQUEST_CHANNELS = [
   LIVE_CONTEXT_CREATE_SESSION_CHANNEL,
   LIVE_CONTEXT_OPEN_PRIVACY_SETTINGS_CHANNEL,
   LIVE_CONTEXT_DELETE_CHANNEL,
+  LIVE_CONTEXT_TRANSLATION_CHANNEL,
 ] as const;
 
 /**
@@ -60,6 +63,48 @@ export const LIVE_CONTEXT_LOCALES = [
   "de-DE",
   "es-ES",
 ] as const;
+
+/** Languages final segments can be translated into: Pine's own. */
+export const LIVE_CONTEXT_TRANSLATION_LANGUAGES = [
+  "zh-CN",
+  "zh-TW",
+  "en-US",
+  "ja-JP",
+  "ko-KR",
+  "fr-FR",
+  "de-DE",
+  "es-ES",
+  "ru-RU",
+] as const;
+
+/**
+ * The language a locale is written in, for telling whether translating
+ * would change anything: Chinese counts by script (zh-CN and zh-TW
+ * differ), Cantonese apart from both, everything else by language.
+ */
+export function writtenLanguage(locale: string): string {
+  const [language = "", region = ""] = locale.toLowerCase().split("-");
+  if (language === "zh")
+    return ["tw", "hk", "mo", "hant"].includes(region) ? "zh-hant" : "zh-hans";
+  return language;
+}
+
+/** Translating `source` speech into `target` would change nothing. */
+export function sameWrittenLanguage(source: string, target: string): boolean {
+  return writtenLanguage(source) === writtenLanguage(target);
+}
+
+/**
+ * Why translation is not running for the capture: no model to translate
+ * with, or the model kept failing (transcription goes on either way).
+ */
+export type LiveContextTranslationError = "no_model" | "failed";
+
+export interface LiveContextTranslationStatus {
+  /** The language final segments are translated into. */
+  language: string;
+  error?: LiveContextTranslationError;
+}
 
 export type LiveContextUnavailableReason =
   /** Not macOS 26 or later. */
@@ -109,6 +154,8 @@ export interface LiveContextStatus {
   speakersDegraded?: "reduced" | "paused";
   /** The system source has heard nothing for a while: access may be off. */
   systemSilent?: boolean;
+  /** The capture translates its final segments. */
+  translation?: LiveContextTranslationStatus;
   lastError?: LiveContextError;
 }
 
@@ -162,10 +209,17 @@ export interface LiveContextSpeakers {
   aliases?: Partial<Record<LiveContextSpeakerKey, LiveContextSpeakerKey>>;
 }
 
+/** Translations of final segments, by language, then by segment id. */
+export type LiveContextTranslations = Partial<
+  Record<string, Record<string, string>>
+>;
+
 export interface LiveContextTranscript {
   /** Final segments, oldest first, with their latest labels. */
   segments: LiveContextSegment[];
   speakers: LiveContextSpeakers;
+  /** Only those still matching their segment's text. */
+  translations?: LiveContextTranslations;
 }
 
 export interface LiveContextTarget {
@@ -180,6 +234,13 @@ export interface LiveContextStartRequest extends LiveContextTarget {
   speakers?: boolean;
   /** "About N people", if the user knows. */
   expectedSpeakers?: number;
+  /** Translate final segments into this language. */
+  translation?: string;
+}
+
+export interface LiveContextTranslationRequest extends LiveContextTarget {
+  /** The language to translate into; null stops translating. */
+  language: string | null;
 }
 
 export interface LiveContextRenameSpeakerRequest extends LiveContextTarget {
@@ -218,6 +279,17 @@ export type LiveContextEvent =
       echo?: boolean;
     }
   | { kind: "speakers"; sessionId: string; speakers: LiveContextSpeakers }
+  /**
+   * Segments translated, or (`pending`) every segment still waiting for
+   * its translation, so an empty list means none is.
+   */
+  | {
+      kind: "translation";
+      sessionId: string;
+      language: string;
+      translations: Record<string, string>;
+      pending?: string[];
+    }
   /** The session's transcript and speakers were deleted. */
   | { kind: "deleted"; sessionId: string };
 
@@ -240,6 +312,13 @@ export interface PineLiveContextApi {
    * first when it is the one capturing. Cannot be undone.
    */
   deleteTranscript(target: LiveContextTarget): Promise<LiveContextStatus>;
+  /**
+   * Starts or stops translating the capture's final segments; nothing
+   * happens unless the session is the one capturing.
+   */
+  setTranslation(
+    request: LiveContextTranslationRequest,
+  ): Promise<LiveContextStatus>;
   subscribe(listener: (event: LiveContextEvent) => void): () => void;
   /**
    * Opens the System Settings privacy pane that lets Pine hear this source:

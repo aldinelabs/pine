@@ -328,6 +328,16 @@ import {
   rewrittenPromptFromAssistantMessage,
 } from "./runtime/prompt-rewrite";
 import {
+  LIVE_TRANSLATION_MAX_TOKENS,
+  LIVE_TRANSLATION_TIMEOUT_MS,
+  liveTranslationContext,
+  liveTranslationsFromAssistantMessage,
+} from "./runtime/live-translation";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../shared/liveTranslation";
+import {
   MAX_GENERATED_TITLE_LENGTH,
   TITLE_TOOL,
   normalizeGeneratedTitle,
@@ -1407,6 +1417,50 @@ export class PineAgentRuntime {
     const rewritten = rewrittenPromptFromAssistantMessage(final);
     if (!rewritten) throw new Error("The model returned an empty prompt.");
     return { prompt: rewritten };
+  }
+
+  /**
+   * Translates Live Context segments with the live translation model (else
+   * the title model). Says so instead of throwing when there is no model,
+   * so the capture can stop asking.
+   */
+  async translateLiveContext(
+    agentDir: string,
+    request: LiveTranslationRequest,
+  ): Promise<LiveTranslationResult> {
+    if (!request.segments.length) return { translations: [] };
+    const modelRuntime = await this.getModelRuntime(agentDir);
+    const model = await this.modelService.liveTranslationModel(
+      agentDir,
+      modelRuntime,
+    );
+    if (!model) return { error: "no_model" };
+    const signal = AbortSignal.timeout(LIVE_TRANSLATION_TIMEOUT_MS);
+    const options = {
+      ...judgeStreamOptions(model, signal),
+      maxTokens: Math.min(
+        model.maxTokens || Infinity,
+        LIVE_TRANSLATION_MAX_TOKENS,
+      ),
+    };
+    let final: AssistantMessage | undefined;
+    for await (const event of modelRuntime.stream(
+      model,
+      liveTranslationContext(request),
+      options,
+    )) {
+      if (event.type === "done") final = event.message;
+      else if (event.type === "error")
+        throw new Error(
+          event.error.errorMessage ?? "The model could not translate.",
+        );
+    }
+    return {
+      translations: liveTranslationsFromAssistantMessage(
+        final,
+        request.segments.length,
+      ),
+    };
   }
 
   /**

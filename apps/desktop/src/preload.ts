@@ -30,6 +30,7 @@ import {
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
+  LIVE_CONTEXT_TRANSLATION_CHANNEL,
   type LiveContextEvent,
 } from "./shared/liveContext";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
@@ -164,6 +165,8 @@ const pineApi: PineDesktopApi = {
       ipcRenderer.invoke(LIVE_CONTEXT_MERGE_SPEAKERS_CHANNEL, request),
     deleteTranscript: (target) =>
       ipcRenderer.invoke(LIVE_CONTEXT_DELETE_CHANNEL, target),
+    setTranslation: (request) =>
+      ipcRenderer.invoke(LIVE_CONTEXT_TRANSLATION_CHANNEL, request),
     createSession: (request) =>
       ipcRenderer.invoke(LIVE_CONTEXT_CREATE_SESSION_CHANNEL, request),
     openPrivacySettings: (source) =>

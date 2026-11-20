@@ -1,4 +1,8 @@
 import type { PromptRewriteContext } from "../shared/promptRewrite";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../shared/liveTranslation";
 import { randomUUID } from "node:crypto";
 import type { PiProvidersStatus } from "../shared/piProviders";
 import type { McpStatusSnapshot } from "pi-mcp-adapter";
@@ -203,6 +207,10 @@ export interface AgentHost {
     agentDir: string,
     context: PromptRewriteContext,
   ): Promise<{ suggestion: string }>;
+  translateLiveContext(
+    agentDir: string,
+    request: LiveTranslationRequest,
+  ): Promise<LiveTranslationResult>;
   selectImageModel(
     agentDir: string,
     selection: PineImageModelSelection,
@@ -586,6 +594,13 @@ export class AgentProcessHost implements AgentHost {
     context: PromptRewriteContext,
   ): Promise<{ suggestion: string }> {
     return this.request({ type: "prompts:suggest-reply", agentDir, context });
+  }
+
+  translateLiveContext(
+    agentDir: string,
+    request: LiveTranslationRequest,
+  ): Promise<LiveTranslationResult> {
+    return this.request({ type: "live-context:translate", agentDir, request });
   }
 
   selectImageModel(

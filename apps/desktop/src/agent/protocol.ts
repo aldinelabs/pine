@@ -1,5 +1,9 @@
 import type { PromptRewriteContext } from "../shared/promptRewrite";
 import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../shared/liveTranslation";
+import type {
   PineAgentEvent,
   PineApprovalMode,
   PineMessageRewriteTarget,
@@ -443,6 +447,12 @@ export type AgentWorkerRequest =
     }
   | {
       id: string;
+      type: "live-context:translate";
+      agentDir: string;
+      request: LiveTranslationRequest;
+    }
+  | {
+      id: string;
       type: "models:select-image";
       agentDir: string;
       selection: PineImageModelSelection;
@@ -536,6 +546,7 @@ export type AgentWorkerResult =
   | { updated: boolean }
   | { prompt: string }
   | { suggestion: string }
+  | LiveTranslationResult
   | AgentWorkerMutateResult;
 
 /** The mutators that changed the session; already-applied ones are skipped. */

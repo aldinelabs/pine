@@ -8,7 +8,10 @@ import type {
   LiveContextSource,
   LiveContextStatus,
 } from "@/shared/liveContext";
-import { useLiveContextStore } from "../liveContext";
+import {
+  LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY,
+  useLiveContextStore,
+} from "../liveContext";
 
 const TARGET = {
   projectId: "00000000-0000-4000-8000-000000000001",
@@ -62,6 +65,10 @@ describe("useLiveContextStore", () => {
       deleteTranscript: vi.fn().mockResolvedValue({
         ...listening,
         state: "idle",
+      }),
+      setTranslation: vi.fn().mockResolvedValue({
+        ...listening,
+        translation: { language: "fr-FR" },
       }),
       subscribe: vi.fn((listener: (event: LiveContextEvent) => void) => {
         emit = listener;
@@ -296,5 +303,95 @@ describe("useLiveContextStore", () => {
     await store.load(TARGET);
     emit({ kind: "deleted", sessionId: TARGET.sessionId });
     expect(store.segmentsOf(TARGET.sessionId)).toEqual([]);
+  });
+
+  describe("translation", () => {
+    beforeEach(() => window.localStorage.clear());
+
+    it("keeps the translation choice for later windows", async () => {
+      const store = useLiveContextStore();
+      expect(store.translation).toEqual({ enabled: false });
+      store.translation = { enabled: true, language: "ja-JP" };
+      await flushPromises();
+      expect(
+        JSON.parse(
+          window.localStorage.getItem(
+            LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY,
+          ) ?? "",
+        ),
+      ).toEqual({ enabled: true, language: "ja-JP" });
+
+      setActivePinia(createPinia());
+      expect(useLiveContextStore().translation).toEqual({
+        enabled: true,
+        language: "ja-JP",
+      });
+    });
+
+    it("ignores a stored language Pine cannot translate into", () => {
+      window.localStorage.setItem(
+        LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY,
+        JSON.stringify({ enabled: true, language: "xx-YY" }),
+      );
+      expect(useLiveContextStore().translation).toEqual({ enabled: true });
+    });
+
+    it("asks the capture to translate and follows what is pending", async () => {
+      const store = useLiveContextStore();
+      await store.start(TARGET, ["mic"], "en-US", "fr-FR");
+      expect(api.start).toHaveBeenCalledWith(
+        expect.objectContaining({ translation: "fr-FR" }),
+      );
+
+      emit({
+        kind: "translation",
+        sessionId: TARGET.sessionId,
+        language: "fr-FR",
+        translations: {},
+        pending: ["a", "b"],
+      });
+      expect([...store.pendingTranslationsOf(TARGET.sessionId)]).toEqual([
+        "a",
+        "b",
+      ]);
+      emit({
+        kind: "translation",
+        sessionId: TARGET.sessionId,
+        language: "fr-FR",
+        translations: { a: "Bonjour" },
+      });
+      expect(store.translationsOf(TARGET.sessionId, "fr-FR")).toEqual({
+        a: "Bonjour",
+      });
+      expect([...store.pendingTranslationsOf(TARGET.sessionId)]).toEqual(["b"]);
+
+      emit({ kind: "status", status: { ...listening, state: "idle" } });
+      expect(store.pendingTranslationsOf(TARGET.sessionId).size).toBe(0);
+      expect(store.translationsOf(TARGET.sessionId, "fr-FR")).toEqual({
+        a: "Bonjour",
+      });
+    });
+
+    it("loads saved translations and drops them with the transcript", async () => {
+      api.transcript.mockResolvedValue({
+        segments: [segment("saved", true, "old")],
+        speakers: { names: {}, merges: {} },
+        translations: { "de-DE": { old: "gespeichert" } },
+      });
+      const store = useLiveContextStore();
+      await store.load(TARGET);
+      expect(store.translationsOf(TARGET.sessionId, "de-DE")).toEqual({
+        old: "gespeichert",
+      });
+      await store.setTranslation(TARGET, "fr-FR");
+      expect(api.setTranslation).toHaveBeenCalledWith({
+        ...TARGET,
+        language: "fr-FR",
+      });
+      expect(store.status.translation).toEqual({ language: "fr-FR" });
+
+      await store.deleteTranscript(TARGET);
+      expect(store.translationsOf(TARGET.sessionId, "de-DE")).toEqual({});
+    });
   });
 });

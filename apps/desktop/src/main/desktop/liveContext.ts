@@ -17,6 +17,8 @@ import {
   LIVE_CONTEXT_STATUS_CHANNEL,
   LIVE_CONTEXT_STOP_CHANNEL,
   LIVE_CONTEXT_TRANSCRIPT_CHANNEL,
+  LIVE_CONTEXT_TRANSLATION_CHANNEL,
+  LIVE_CONTEXT_TRANSLATION_LANGUAGES,
   type LiveContextEvent,
   type LiveContextUnavailableReason,
 } from "../../shared/liveContext";
@@ -26,6 +28,10 @@ import {
 } from "../../shared/liveContextSpeakers";
 import type { PineApprovalMode } from "../../shared/agent";
 import type { PineSessionSummary } from "../../shared/sessions";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../../shared/liveTranslation";
 import { LiveContextService } from "../liveContext";
 import {
   bundledSpeakerModels,
@@ -83,6 +89,10 @@ const startSchema = targetSchema.extend({
     .regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)
     .max(35),
   speakers: z.boolean().optional(),
+  translation: z.enum(LIVE_CONTEXT_TRANSLATION_LANGUAGES).optional(),
+});
+const translationSchema = targetSchema.extend({
+  language: z.enum(LIVE_CONTEXT_TRANSLATION_LANGUAGES).nullable(),
 });
 const createSessionSchema = z.object({
   projectId: z.uuid(),
@@ -115,6 +125,8 @@ export function createLiveContext(options: {
     projectId: string,
     approvalMode?: PineApprovalMode,
   ): Promise<PineSessionSummary>;
+  /** Calls the live translation model in the agent process. */
+  translate(request: LiveTranslationRequest): Promise<LiveTranslationResult>;
 }): LiveContextService {
   const service = new LiveContextService({
     unavailableReason,
@@ -127,6 +139,7 @@ export function createLiveContext(options: {
     },
     projectRoot: (projectId) => options.projectRoot(projectId),
     emit: broadcast,
+    translate: (request) => options.translate(request),
     speakers: {
       available: () => speakerModels() !== undefined,
       models: () => {
@@ -157,6 +170,9 @@ export function createLiveContext(options: {
   );
   ipcMain.handle(LIVE_CONTEXT_DELETE_CHANNEL, (_event, request: unknown) =>
     service.deleteTranscript(targetSchema.parse(request)),
+  );
+  ipcMain.handle(LIVE_CONTEXT_TRANSLATION_CHANNEL, (_event, request: unknown) =>
+    service.setTranslation(translationSchema.parse(request)),
   );
   ipcMain.handle(
     LIVE_CONTEXT_RENAME_SPEAKER_CHANNEL,

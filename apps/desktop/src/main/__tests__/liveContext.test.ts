@@ -7,11 +7,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeFloat16 } from "../liveContextDiarizer";
 import type { LiveContextEvent } from "../../shared/liveContext";
 import { LIVE_CONTEXT_SPEAKER_NAME_MAX } from "../../shared/liveContextSpeakers";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../../shared/liveTranslation";
 import {
   deleteLiveTranscript,
   LiveContextService,
   liveTranscriptPath,
   liveSpeakersPath,
+  liveTranslationsPath,
+  readTranslations,
+  textHash,
   readSpeakerRecords,
   readTranscript,
   type LiveContextHelperProcess,
@@ -383,6 +390,267 @@ describe("LiveContextService", () => {
       sessionId: "session-1",
     });
     expect(helper.commands.some(({ type }) => type === "stop")).toBe(false);
+  });
+
+  describe("translation", () => {
+    const target = { projectId: PROJECT_ID, sessionId: "session-1" };
+    let requests: LiveTranslationRequest[];
+    let reply: (
+      request: LiveTranslationRequest,
+    ) => Promise<LiveTranslationResult>;
+
+    beforeEach(() => {
+      requests = [];
+      reply = (request) =>
+        Promise.resolve({
+          translations: request.segments.map((text) => `fr:${text}`),
+        });
+      service.dispose();
+      service = new LiveContextService({
+        unavailableReason: () => null,
+        spawnHelper: () => {
+          helper = new FakeHelper();
+          return helper;
+        },
+        projectRoot: () => root,
+        emit: (event) => events.push(event),
+        volatileIntervalMs: 1,
+        stopTimeoutMs: 50,
+        translate: (request) => {
+          requests.push(request);
+          return reply(request);
+        },
+        translationTiming: { settleMs: 5, maxWaitMs: 20, minIntervalMs: 0 },
+      });
+    });
+
+    async function listen(translation?: string): Promise<void> {
+      await service.start({
+        ...target,
+        sources: ["mic"],
+        locale: "en-US",
+        ...(translation ? { translation } : {}),
+      });
+      helper.write({
+        type: "status",
+        state: "listening",
+        startedAt: 1_000_000,
+        sources: ["mic"],
+        locale: "en-US",
+      });
+      await tick();
+    }
+
+    function say(id: string, text: string, final = true): void {
+      helper.write({
+        type: "segment",
+        id,
+        source: "mic",
+        t0: 0,
+        t1: 10,
+        text,
+        final,
+      });
+    }
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+
+    it("translates final segments only, in a batch, and keeps them", async () => {
+      await listen("fr-FR");
+      expect(service.status().translation).toEqual({ language: "fr-FR" });
+      say("mic-0", "Hello every", false);
+      say("mic-0", "Hello everyone.");
+      say("mic-1", "Let's start", false);
+      say("mic-1", "Let's start.");
+      say("mic-2", "Still talk", false);
+      await tick();
+      await settle();
+
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toMatchObject({
+        language: "fr-FR",
+        sourceLanguage: "en-US",
+        segments: ["Hello everyone.", "Let's start."],
+      });
+      const ids = events.flatMap((event) =>
+        event.kind === "segment" && event.segment.final
+          ? [event.segment.id]
+          : [],
+      );
+      expect(
+        events.filter((event) => event.kind === "translation").at(-1),
+      ).toEqual({
+        kind: "translation",
+        sessionId: "session-1",
+        language: "fr-FR",
+        translations: {},
+        pending: [],
+      });
+      const saved = await service.transcript(target);
+      expect(saved.translations).toEqual({
+        "fr-FR": {
+          [ids[0]]: "fr:Hello everyone.",
+          [ids[1]]: "fr:Let's start.",
+        },
+      });
+      const file = await readFile(
+        liveTranslationsPath(root, "session-1"),
+        "utf8",
+      );
+      expect(
+        file
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line)),
+      ).toEqual([
+        {
+          v: 1,
+          id: ids[0],
+          lang: "fr-FR",
+          hash: textHash("Hello everyone."),
+          text: "fr:Hello everyone.",
+        },
+        {
+          v: 1,
+          id: ids[1],
+          lang: "fr-FR",
+          hash: textHash("Let's start."),
+          text: "fr:Let's start.",
+        },
+      ]);
+    });
+
+    it("does not translate again when speakers change", async () => {
+      await listen("fr-FR");
+      say("mic-0", "Hello everyone.");
+      await tick();
+      await settle();
+      await service.mergeSpeakers({ ...target, from: "mic-2", into: "mic-1" });
+      await service.renameSpeaker({ ...target, speaker: "mic-1", name: "Ana" });
+      await settle();
+      expect(requests).toHaveLength(1);
+    });
+
+    it("never translates into the language spoken", async () => {
+      await listen("en-US");
+      say("mic-0", "Hello everyone.");
+      await tick();
+      await settle();
+      expect(requests).toHaveLength(0);
+      expect(service.status().translation).toBeUndefined();
+    });
+
+    it("stops on Stop: a late reply is not kept", async () => {
+      let resolve: (result: LiveTranslationResult) => void = () => undefined;
+      reply = () => new Promise((done) => (resolve = done));
+      await listen("fr-FR");
+      say("mic-0", "Hello everyone.");
+      await tick();
+      await settle();
+      expect(requests).toHaveLength(1);
+      await service.stop();
+      resolve({ translations: ["fr:Hello everyone."] });
+      await settle();
+      expect((await service.transcript(target)).translations).toBeUndefined();
+      expect(service.status().translation).toBeUndefined();
+    });
+
+    it("turns on mid-capture, catching up on recent segments, and off again", async () => {
+      await listen();
+      say("mic-0", "Hello everyone.");
+      say("mic-1", "Let's start.");
+      await tick();
+      await settle();
+      expect(requests).toHaveLength(0);
+
+      service.setTranslation({ ...target, language: "de-DE" });
+      expect(service.status().translation).toEqual({ language: "de-DE" });
+      await settle();
+      expect(requests[0]?.segments).toEqual([
+        "Hello everyone.",
+        "Let's start.",
+      ]);
+
+      service.setTranslation({ ...target, language: null });
+      expect(service.status().translation).toBeUndefined();
+      say("mic-2", "Next item.");
+      await tick();
+      await settle();
+      expect(requests).toHaveLength(1);
+      // Another conversation's request changes nothing here.
+      service.setTranslation({
+        sessionId: "session-2",
+        projectId: PROJECT_ID,
+        language: "de-DE",
+      });
+      expect(service.status().translation).toBeUndefined();
+    });
+
+    it("reports a missing model and keeps transcribing", async () => {
+      reply = () => Promise.resolve({ error: "no_model" });
+      await listen("fr-FR");
+      say("mic-0", "Hello everyone.");
+      await tick();
+      await settle();
+      expect(service.status()).toMatchObject({
+        state: "listening",
+        translation: { language: "fr-FR", error: "no_model" },
+      });
+      say("mic-1", "Let's start.");
+      await tick();
+      expect((await service.transcript(target)).segments).toHaveLength(2);
+    });
+
+    it("deletes the translations with the transcript", async () => {
+      await listen("fr-FR");
+      say("mic-0", "Hello everyone.");
+      await tick();
+      await settle();
+      const file = liveTranslationsPath(root, "session-1");
+      await expect(readFile(file, "utf8")).resolves.toContain("fr:");
+      await service.deleteTranscript(target);
+      await expect(readFile(file, "utf8")).rejects.toThrow();
+    });
+
+    it("shows only translations that match their segment's text", () => {
+      const segments = [
+        {
+          id: "a",
+          source: "mic" as const,
+          start: 0,
+          end: 1,
+          text: "One",
+          final: true,
+        },
+        {
+          id: "b",
+          source: "mic" as const,
+          start: 1,
+          end: 2,
+          text: "Two",
+          final: true,
+        },
+      ];
+      const record = (id: string, text: string, translation: string) =>
+        JSON.stringify({
+          v: 1,
+          id,
+          lang: "fr-FR",
+          hash: textHash(text),
+          text: translation,
+        });
+      expect(
+        readTranslations(
+          [
+            record("a", "One", "Un"),
+            record("b", "Too", "Trop"),
+            "{broken",
+            record("a", "One", "Un !"),
+          ].join("\n"),
+          segments,
+        ),
+      ).toEqual({ "fr-FR": { a: "Un !" } });
+    });
   });
 
   describe("speaker labels", () => {

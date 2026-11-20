@@ -16,9 +16,17 @@ import {
   type LiveContextStatus,
   type LiveContextTarget,
   type LiveContextTranscript,
+  type LiveContextTranslationError,
+  type LiveContextTranslationRequest,
+  type LiveContextTranslations,
   type LiveContextTurn,
   type LiveContextUnavailableReason,
+  sameWrittenLanguage,
 } from "../shared/liveContext";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../shared/liveTranslation";
 import {
   aliasSpeaker,
   emptySpeakers,
@@ -37,6 +45,11 @@ import {
   type SpeakerRecord,
 } from "./liveContextDiarizer";
 import type { SpeakerModelPaths } from "./liveContextSpeakerModels";
+import {
+  LiveTranslator,
+  type LiveTranslatedSegment,
+  type LiveTranslatorTiming,
+} from "./liveContextTranslation";
 
 /** The helper process, as much of a ChildProcess as the service uses. */
 export interface LiveContextHelperProcess {
@@ -66,7 +79,13 @@ export interface LiveContextServiceOptions {
     /** The bundled models' paths. */
     models(): SpeakerModelPaths;
   };
+  /** Translation with the live translation model; without it, none. */
+  translate?(request: LiveTranslationRequest): Promise<LiveTranslationResult>;
+  translationTiming?: Partial<LiveTranslatorTiming>;
 }
+
+/** Turning translation on also translates this many recent segments. */
+export const LIVE_TRANSLATION_BACKFILL = 20;
 
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const TRANSCRIPT_VERSION = 1;
@@ -97,12 +116,74 @@ export function liveSpeakersPath(
   return path.join(projectRoot, "live-context", `${sessionId}.speakers.jsonl`);
 }
 
+/**
+ * Translations of the session's final segments, one record per segment and
+ * language with a hash of the text it translates, so a changed text is
+ * never shown with an old translation. Deleted with the session.
+ */
+export function liveTranslationsPath(
+  projectRoot: string,
+  sessionId: string,
+): string {
+  if (!SESSION_ID.test(sessionId)) throw new Error("Invalid session id.");
+  return path.join(
+    projectRoot,
+    "live-context",
+    `${sessionId}.translations.jsonl`,
+  );
+}
+
 export async function deleteLiveTranscript(
   projectRoot: string,
   sessionId: string,
 ): Promise<void> {
   await rm(liveTranscriptPath(projectRoot, sessionId), { force: true });
   await rm(liveSpeakersPath(projectRoot, sessionId), { force: true });
+  await rm(liveTranslationsPath(projectRoot, sessionId), { force: true });
+}
+
+/** A short hash of a segment's text (FNV-1a, 32 bits, hex). */
+export function textHash(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * The translations file's records that still match their segment's text,
+ * by language and segment id; a later record for the same segment and
+ * language wins. Damaged lines are skipped.
+ */
+export function readTranslations(
+  text: string,
+  segments: readonly LiveContextSegment[],
+): LiveContextTranslations {
+  const hashes = new Map(
+    segments.map((segment) => [segment.id, textHash(segment.text.trim())]),
+  );
+  const result: Record<string, Record<string, string>> = {};
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    let value: Record<string, unknown>;
+    try {
+      value = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (
+      typeof value.id !== "string" ||
+      typeof value.lang !== "string" ||
+      typeof value.hash !== "string" ||
+      typeof value.text !== "string" ||
+      hashes.get(value.id) !== value.hash
+    )
+      continue;
+    (result[value.lang] ??= {})[value.id] = value.text;
+  }
+  return result;
 }
 
 function isSource(value: unknown): value is LiveContextSource {
@@ -217,6 +298,9 @@ interface Capture {
   /** Speaker clustering, when this capture labels speakers. */
   speakers?: SpeakerSession;
   speakersFile: string;
+  translationsFile: string;
+  /** Translating final segments, when the user turned it on. */
+  translator?: LiveTranslator;
 }
 
 /**
@@ -228,7 +312,8 @@ interface Capture {
 export class LiveContextService {
   private capture: Capture | undefined;
   /** Set while speaker labels get ready before the helper starts. */
-  private starting: { target: LiveContextTarget } | undefined;
+  private starting:
+    { target: LiveContextTarget; translation?: string } | undefined;
   private current: LiveContextStatus;
   private writes: Promise<void> = Promise.resolve();
   private readonly pendingVolatile = new Map<
@@ -320,8 +405,12 @@ export class LiveContextService {
     // without them and says so.
     let speakers: Record<string, unknown> | undefined;
     let session: SpeakerSession | undefined;
+    let translation = request.translation;
     if (request.speakers && this.options.speakers && this.speakersAvailable()) {
-      const token = { target };
+      const token: { target: LiveContextTarget; translation?: string } = {
+        target,
+        ...(translation ? { translation } : {}),
+      };
       this.starting = token;
       this.options.emit({ kind: "status", status: this.status() });
       try {
@@ -347,6 +436,8 @@ export class LiveContextService {
       // Stopped meanwhile.
       if (this.starting !== token) return this.status();
       this.starting = undefined;
+      // Turned on or off meanwhile.
+      translation = token.translation;
     }
 
     const helper = this.options.spawnHelper();
@@ -365,6 +456,7 @@ export class LiveContextService {
       saved: new Set(),
       pendingTurns: new Map(),
       speakersFile,
+      translationsFile: liveTranslationsPath(projectRoot, request.sessionId),
       ...(session && speakers ? { speakers: session } : {}),
     };
     this.capture = capture;
@@ -377,6 +469,7 @@ export class LiveContextService {
     helper.stderr.on("data", () => undefined);
     helper.stdin.on("error", () => undefined);
 
+    if (translation) this.startTranslation(capture, translation);
     this.options.emit({ kind: "status", status: this.status() });
     this.send({
       type: "start",
@@ -407,6 +500,8 @@ export class LiveContextService {
     }
     const capture = this.capture;
     if (!capture) return this.status();
+    // What is still waiting stays untranslated.
+    this.stopTranslation(capture);
     this.update({ state: "stopping" });
     this.send({ type: "stop" });
     capture.helper.stdin.end();
@@ -422,12 +517,159 @@ export class LiveContextService {
 
   async transcript(target: LiveContextTarget): Promise<LiveContextTranscript> {
     await this.writes;
-    return this.readTranscriptFile(
-      liveTranscriptPath(
-        this.options.projectRoot(target.projectId),
-        target.sessionId,
-      ),
+    const projectRoot = this.options.projectRoot(target.projectId);
+    const transcript = await this.readTranscriptFile(
+      liveTranscriptPath(projectRoot, target.sessionId),
     );
+    const translations = await this.readTranslationsFile(
+      liveTranslationsPath(projectRoot, target.sessionId),
+      transcript.segments,
+    );
+    return Object.keys(translations).length
+      ? { ...transcript, translations }
+      : transcript;
+  }
+
+  private async readTranslationsFile(
+    file: string,
+    segments: readonly LiveContextSegment[],
+  ): Promise<LiveContextTranslations> {
+    try {
+      return readTranslations(await readFile(file, "utf8"), segments);
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Starts or stops translating the capture's final segments. Only the
+   * session capturing (or about to) is affected; the panel keeps the
+   * choice for the next capture itself.
+   */
+  setTranslation(request: LiveContextTranslationRequest): LiveContextStatus {
+    if (this.starting?.target.sessionId === request.sessionId) {
+      if (request.language) this.starting.translation = request.language;
+      else delete this.starting.translation;
+      return this.status();
+    }
+    const capture = this.capture;
+    if (capture?.target.sessionId !== request.sessionId) return this.status();
+    if (capture.translator?.language === request.language) return this.status();
+    this.stopTranslation(capture);
+    if (request.language) this.startTranslation(capture, request.language);
+    this.options.emit({ kind: "status", status: this.status() });
+    return this.status();
+  }
+
+  private startTranslation(capture: Capture, language: string): void {
+    const { options } = this;
+    const sourceLanguage = this.current.locale;
+    // Nothing to translate into the language already spoken.
+    if (
+      !options.translate ||
+      (sourceLanguage && sameWrittenLanguage(sourceLanguage, language))
+    )
+      return;
+    const sessionId = capture.target.sessionId;
+    const translator: LiveTranslator = new LiveTranslator({
+      language,
+      ...(sourceLanguage ? { sourceLanguage } : {}),
+      translate: (request) =>
+        options.translate?.(request) ?? Promise.resolve({ translations: [] }),
+      ...(this.options.translationTiming
+        ? { timing: this.options.translationTiming }
+        : {}),
+      translated: (segments) => {
+        if (capture.translator !== translator) return;
+        this.saveTranslations(capture, language, segments);
+        this.options.emit({
+          kind: "translation",
+          sessionId,
+          language,
+          translations: Object.fromEntries(
+            segments.map(({ id, translation }) => [id, translation]),
+          ),
+        });
+      },
+      pending: (ids) =>
+        this.options.emit({
+          kind: "translation",
+          sessionId,
+          language,
+          translations: {},
+          pending: ids,
+        }),
+      error: (error) => {
+        if (capture.translator !== translator) return;
+        this.setTranslationError(language, error);
+      },
+    });
+    capture.translator = translator;
+    this.current.translation = { language };
+    void this.backfillTranslation(capture, translator);
+  }
+
+  private setTranslationError(
+    language: string,
+    error: LiveContextTranslationError | undefined,
+  ): void {
+    this.update({
+      translation: { language, ...(error ? { error } : {}) },
+    });
+  }
+
+  private stopTranslation(capture: Capture): void {
+    const translator = capture.translator;
+    if (!translator) return;
+    capture.translator = undefined;
+    translator.cancel();
+    this.current.translation = undefined;
+  }
+
+  /**
+   * Turning translation on mid-conversation translates what was just said
+   * too: the latest final segments not translated yet, as one catch-up.
+   */
+  private async backfillTranslation(
+    capture: Capture,
+    translator: LiveTranslator,
+  ): Promise<void> {
+    await this.writes;
+    if (capture.translator !== translator) return;
+    const { segments } = await this.readTranscriptFile(capture.file);
+    const done =
+      (await this.readTranslationsFile(capture.translationsFile, segments))[
+        translator.language
+      ] ?? {};
+    if (capture.translator !== translator) return;
+    const missing = segments
+      .filter((segment) => segment.text.trim() && !done[segment.id])
+      .slice(-LIVE_TRANSLATION_BACKFILL);
+    if (missing.length) translator.add(missing);
+  }
+
+  private saveTranslations(
+    capture: Capture,
+    language: string,
+    segments: readonly LiveTranslatedSegment[],
+  ): void {
+    const text = segments
+      .map(
+        ({ id, text, translation }) =>
+          `${JSON.stringify({
+            v: TRANSCRIPT_VERSION,
+            id,
+            lang: language,
+            hash: textHash(text),
+            text: translation,
+          })}\n`,
+      )
+      .join("");
+    this.writes = this.writes
+      .then(() => appendFile(capture.translationsFile, text))
+      .catch((error: unknown) =>
+        console.error("Failed to save Live Context translations.", error),
+      );
   }
 
   /**
@@ -657,6 +899,7 @@ export class LiveContextService {
   dispose(): void {
     const capture = this.capture;
     if (!capture) return;
+    capture.translator?.cancel();
     capture.helper.stdin.end();
     capture.helper.kill();
   }
@@ -672,6 +915,7 @@ export class LiveContextService {
     code: number | null,
   ): void {
     if (this.capture?.helper !== helper) return;
+    this.stopTranslation(this.capture);
     this.flushVolatile();
     this.finishSpeakers(this.capture);
     const unexpected = this.current.state !== "stopping" && code !== 0;
@@ -846,6 +1090,8 @@ export class LiveContextService {
     this.options.emit({ kind: "segment", sessionId, segment });
     if (!segment.text) return;
     capture.saved.add(segment.id);
+    // Only final text is translated, after it is saved.
+    capture.translator?.add([segment]);
     this.append(capture, {
       id: segment.id,
       source: segment.source,

@@ -92,6 +92,10 @@ import {
   sideChatsDirectory,
 } from "./sideChats";
 import { deleteLiveTranscript } from "./liveContext";
+import type {
+  LiveTranslationRequest,
+  LiveTranslationResult,
+} from "../shared/liveTranslation";
 import {
   isSideChatAnchor,
   type OpenSideChatRequest,
@@ -1285,6 +1289,13 @@ export class ProjectRuntimeRegistry {
     request: SelectLiveTranslationModelRequest,
   ): Promise<{ updated: boolean }> {
     return this.agentHost.selectLiveTranslationModel(this.agentDir, request);
+  }
+
+  /** Live Context translation, with the live translation model. */
+  translateLiveContext(
+    request: LiveTranslationRequest,
+  ): Promise<LiveTranslationResult> {
+    return this.agentHost.translateLiveContext(this.agentDir, request);
   }
 
   suggestReply(request: SuggestReplyRequest): Promise<SuggestReplyResult> {

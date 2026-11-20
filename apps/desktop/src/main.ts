@@ -713,6 +713,10 @@ const liveContext = createLiveContext({
       approvalMode,
     );
   },
+  translate: (request) => {
+    if (!core) throw new Error("Pine is still starting.");
+    return core.runtimes.translateLiveContext(request);
+  },
 });
 
 /** A section asked for before the window's renderer could listen. */

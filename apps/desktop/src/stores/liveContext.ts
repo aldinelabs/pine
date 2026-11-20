@@ -1,7 +1,9 @@
 import { defineStore } from "pinia";
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
+import { preferenceStorage } from "@/lib/preferenceStorage";
 import {
   IDLE_LIVE_CONTEXT_STATUS,
+  LIVE_CONTEXT_TRANSLATION_LANGUAGES,
   type LiveContextEvent,
   type LiveContextLevels,
   type LiveContextSegment,
@@ -10,6 +12,7 @@ import {
   type LiveContextSpeakers,
   type LiveContextStatus,
   type LiveContextTarget,
+  type LiveContextTranslations,
   type LiveContextTurn,
 } from "@/shared/liveContext";
 import { emptySpeakers } from "@/shared/liveContextSpeakers";
@@ -22,6 +25,40 @@ export interface LiveContextLevelSample {
 
 /** Levels kept for the waveform: a little over its few seconds. */
 export const LIVE_CONTEXT_LEVEL_HISTORY_MS = 6000;
+
+/** Whether captures translate, and into which language. */
+export const LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY =
+  "pine.live-context-translation";
+
+export interface LiveContextTranslationPreference {
+  enabled: boolean;
+  /** Unset: the language Pine's interface speaks. */
+  language?: string;
+}
+
+function isTranslationLanguage(value: unknown): value is string {
+  return LIVE_CONTEXT_TRANSLATION_LANGUAGES.some(
+    (language) => language === value,
+  );
+}
+
+function readTranslationPreference(): LiveContextTranslationPreference {
+  try {
+    const stored = preferenceStorage.getItem(
+      LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY,
+    );
+    if (!stored) return { enabled: false };
+    const value = JSON.parse(stored) as Record<string, unknown>;
+    return {
+      enabled: value.enabled === true,
+      ...(isTranslationLanguage(value.language)
+        ? { language: value.language }
+        : {}),
+    };
+  } catch {
+    return { enabled: false };
+  }
+}
 
 /**
  * The app-wide Live Context capture and the transcripts of the sessions the
@@ -40,6 +77,39 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   const speakers = reactive(new Map<string, LiveContextSpeakers>());
   /** Whether the next capture labels speakers; off until the user opts in. */
   const identifySpeakers = ref(false);
+  /** Translating final segments; off until the user turns it on. */
+  const translation = ref<LiveContextTranslationPreference>(
+    readTranslationPreference(),
+  );
+  watch(
+    translation,
+    (value) => {
+      try {
+        preferenceStorage.setItem(
+          LIVE_CONTEXT_TRANSLATION_PREFERENCE_KEY,
+          JSON.stringify(value),
+        );
+      } catch {
+        // Not kept; it still applies in this window.
+      }
+    },
+    { deep: true },
+  );
+  /** Translations per session, by language and segment id. */
+  const translations = reactive(new Map<string, LiveContextTranslations>());
+  /** Segments of the capturing session waiting for their translation. */
+  const pendingTranslations = reactive(new Map<string, Set<string>>());
+
+  function addTranslations(
+    sessionId: string,
+    language: string,
+    entries: Record<string, string>,
+  ): void {
+    if (!Object.keys(entries).length) return;
+    const bySession = translations.get(sessionId) ?? {};
+    bySession[language] = { ...bySession[language], ...entries };
+    translations.set(sessionId, bySession);
+  }
 
   const available = computed(() => Boolean(api) && status.value.available);
   const isCapturing = computed(() => status.value.state !== "idle");
@@ -125,7 +195,18 @@ export const useLiveContextStore = defineStore("liveContext", () => {
       if (event.status.state === "idle") {
         volatile.clear();
         levelSamples.length = 0;
+        pendingTranslations.clear();
       }
+      return;
+    }
+    if (event.kind === "translation") {
+      addTranslations(event.sessionId, event.language, event.translations);
+      // Pending lists come whole; a translation takes its own segment out.
+      if (event.pending)
+        pendingTranslations.set(event.sessionId, new Set(event.pending));
+      else
+        for (const id of Object.keys(event.translations))
+          pendingTranslations.get(event.sessionId)?.delete(id);
       return;
     }
     if (event.kind === "turns") {
@@ -183,6 +264,38 @@ export const useLiveContextStore = defineStore("liveContext", () => {
       ...live.filter(({ id }) => !ids.has(id)),
     ]);
     speakers.set(target.sessionId, saved.speakers);
+    for (const [language, entries] of Object.entries(saved.translations ?? {}))
+      if (entries) {
+        // Translations that arrived while reading are newer.
+        const live = translations.get(target.sessionId)?.[language] ?? {};
+        addTranslations(target.sessionId, language, { ...entries, ...live });
+      }
+  }
+
+  /** The session's translations into `language`, by segment id. */
+  function translationsOf(
+    sessionId: string,
+    language: string,
+  ): Record<string, string> {
+    return translations.get(sessionId)?.[language] ?? {};
+  }
+
+  /** Segments waiting for a translation, in the capturing session. */
+  function pendingTranslationsOf(sessionId: string): ReadonlySet<string> {
+    return pendingTranslations.get(sessionId) ?? new Set();
+  }
+
+  /**
+   * Starts or stops translating the session's capture (no-op when it is not
+   * the one capturing); the preference is the caller's to change.
+   */
+  async function setTranslation(
+    target: LiveContextTarget,
+    language: string | null,
+  ): Promise<void> {
+    if (!api) return;
+    if (!language) pendingTranslations.delete(target.sessionId);
+    setStatus(await api.setTranslation({ ...target, language }));
   }
 
   function segmentsOf(sessionId: string): LiveContextSegment[] {
@@ -227,6 +340,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     target: LiveContextTarget,
     sources: LiveContextSource[],
     locale: string,
+    /** Translate final segments into this language. */
+    translateTo?: string,
   ): Promise<void> {
     if (!api) return;
     if (!transcripts.has(target.sessionId))
@@ -239,6 +354,7 @@ export const useLiveContextStore = defineStore("liveContext", () => {
         sources: [...sources],
         locale,
         speakers: identifySpeakers.value && status.value.speakersAvailable,
+        ...(translateTo ? { translation: translateTo } : {}),
       }),
     );
   }
@@ -259,6 +375,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   function forget(sessionId: string): void {
     if (transcripts.has(sessionId)) transcripts.set(sessionId, []);
     speakers.delete(sessionId);
+    translations.delete(sessionId);
+    pendingTranslations.delete(sessionId);
   }
 
   /**
@@ -280,6 +398,10 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     available,
     isCapturing,
     identifySpeakers,
+    translation,
+    translationsOf,
+    pendingTranslationsOf,
+    setTranslation,
     load,
     segmentsOf,
     speakersOf,
