@@ -117,8 +117,8 @@ Session list, one collapsible group per project:
   in this folder".
 - Session item: click to open it in a tab. The indent to the left of each
   title, under the project icon, shows the session's status (sub-sessions
-  too), inside the row's highlight: an amber dot inside a ring, with a soft
-  ping, while the session waits on the user ("Waiting for your approval" or
+  too), inside the row's highlight: a breathing amber dot (still when reduced
+  motion is on) while the session waits on the user ("Waiting for your approval" or
   "Waiting for your answer"); otherwise a small accent-coloured spinner while
   it runs (a still ring when reduced motion is on); otherwise an
   accent-coloured dot when a run finished while the user was not looking at

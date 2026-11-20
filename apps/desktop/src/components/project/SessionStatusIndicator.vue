@@ -4,11 +4,10 @@ import { EASE_OUT_EXPO } from "@/lib/motion";
 /**
  * A session's status in the sidebar's left column, under the project icon:
  * a spinning arc while it runs, a dot while it has output the user has not
- * seen, and an amber dot inside a ring, with a soft ping, while it waits on
- * the user (an approval or an answer). The same circles draw every state, so
- * one morphs into the next: finishing contracts the arc into the dot,
- * stopping for the user closes the arc into the dot while the ring opens
- * around it. Purely visual: the row carries the words.
+ * seen, and a breathing amber dot while it waits on the user (an approval or
+ * an answer). One circle draws every state, so one morphs into the next:
+ * finishing or stopping for the user contracts the arc into the dot. Purely
+ * visual: the row carries the words.
  */
 defineProps<{
   status: "approval" | "answer" | "running" | "unread" | "idle";
@@ -28,14 +27,6 @@ const MORPH_DURATION = "350ms";
       viewBox="0 0 12 12"
       class="session-status-spin size-3 overflow-visible"
     >
-      <circle
-        class="session-status-halo"
-        cx="6"
-        cy="6"
-        r="4.75"
-        fill="none"
-        stroke="currentColor"
-      />
       <circle
         class="session-status-track"
         cx="6"
@@ -100,8 +91,7 @@ const MORPH_DURATION = "350ms";
   stroke-dasharray: 30 70;
 }
 
-/* A faint ring under the running arc, and the solid ring around a waiting
-   dot: the shape, not only the colour, tells waiting from unread. */
+/* A faint ring under the running arc; it closes with the arc. */
 .session-status-track {
   opacity: 0;
   r: 1.5px;
@@ -116,24 +106,10 @@ const MORPH_DURATION = "350ms";
   r: 4.25px;
 }
 
+/* Breathing, not only amber, tells waiting on the user from unread. */
 .session-status:is([data-status="approval"], [data-status="answer"])
-  .session-status-track {
-  opacity: 1;
-  r: 5px;
-  stroke-width: 1px;
-}
-
-/* A soft ping out of the ring while the session waits on the user. */
-.session-status-halo {
-  opacity: 0;
-  stroke-width: 1px;
-  transform-origin: center;
-  transform-box: fill-box;
-}
-
-.session-status:is([data-status="approval"], [data-status="answer"])
-  .session-status-halo {
-  animation: session-status-ping 1800ms ease-out infinite;
+  .session-status-mark {
+  animation: session-status-breathe 1600ms ease-in-out infinite;
 }
 
 @keyframes session-status-spin {
@@ -142,15 +118,9 @@ const MORPH_DURATION = "350ms";
   }
 }
 
-@keyframes session-status-ping {
-  0% {
-    opacity: 0.5;
-    scale: 1;
-  }
-  60%,
-  100% {
-    opacity: 0;
-    scale: 1.6;
+@keyframes session-status-breathe {
+  50% {
+    opacity: 0.3;
   }
 }
 
@@ -163,7 +133,7 @@ const MORPH_DURATION = "350ms";
 
   .session-status-spin,
   .session-status:is([data-status="approval"], [data-status="answer"])
-    .session-status-halo {
+    .session-status-mark {
     animation: none;
   }
 
