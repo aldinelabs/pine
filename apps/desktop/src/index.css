@@ -221,6 +221,34 @@
   --attention-flash-iteration-count: 1;
 }
 
+/*
+ * shadcn-vue's dark `shimmer` sweeps a highlight brightened towards white.
+ * Sidebar and tab titles in dark mode are already near white (L ≈ 0.99), so
+ * the highlight matched the text and the sweep could not be seen. Text above
+ * L 0.85 instead fades under the highlight, as every text does in light mode;
+ * dimmer text (tool-call labels and other muted text) keeps the upstream
+ * brightening. The `clamp()` term is 0 or 1 on either side of L 0.85.
+ */
+@utility shimmer {
+  @variant dark {
+    --_highlight: var(
+      --shimmer-color,
+      oklch(
+        from currentColor
+          calc(
+            max(0.8, l + 0.4) * (1 - clamp(0, (l - 0.85) * 1000, 1)) + l *
+              clamp(0, (l - 0.85) * 1000, 1)
+          )
+          c h /
+          calc(
+            (alpha + 0.4) * (1 - clamp(0, (l - 0.85) * 1000, 1)) + alpha * 0.2 *
+              clamp(0, (l - 0.85) * 1000, 1)
+          )
+      )
+    );
+  }
+}
+
 /* Olive token values are the source palette for project theme derivation. */
 :root {
   --session-composer-max-width: 48rem;
