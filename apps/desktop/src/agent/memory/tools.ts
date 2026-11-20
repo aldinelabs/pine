@@ -33,7 +33,7 @@ const scopeSchema = Type.Union(
   [Type.Literal("project"), Type.Literal("global")],
   {
     description:
-      "project: applies to this project. global: applies to every project.",
+      "project: applies to this project and may be specific to it (in No Project, only to Pine's temporary workspace). global: applies to every project; phrase it so it is reusable anywhere.",
   },
 );
 const nameSchema = Type.String({
@@ -198,9 +198,9 @@ export function createMemoryToolDefinitions(
       name: MEMORY_SAVE_TOOL_NAME,
       label: "Save Memory",
       description:
-        "Save a long-term memory note that future sessions will see. Save only what will help in future, different conversations, phrased at the level where it is reusable. Saving under an existing name and scope replaces that note, which is how a note is corrected or a related fact merged in.",
+        "Save a long-term memory note that future sessions will see. Save only what will help in future, different conversations. Project notes may be specific to this project; phrase global notes at the level where they are reused. Saving under an existing name and scope replaces that note, which is how a note is corrected or a related fact merged in.",
       promptSnippet:
-        "Save a durable, generalized fact that future, different conversations would need and could not read from the project itself",
+        "Save a durable fact that future, different conversations would need and could not read from the project itself, in the scope where it applies",
       parameters: saveParams,
       prepareArguments: (args) => args as Static<typeof saveParams>,
       executionMode: "sequential",
