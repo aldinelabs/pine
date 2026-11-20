@@ -433,7 +433,7 @@ export default {
       reading: "읽기",
       modelCatalog: "모델 카탈로그",
       modelRoles: "전용 모델",
-      harness: "하네스 기능",
+      harness: "동작",
       tools: "도구",
     },
     sectionsLabel: "설정 섹션",

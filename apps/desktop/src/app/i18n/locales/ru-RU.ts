@@ -439,7 +439,7 @@ export default {
       reading: "Чтение",
       modelCatalog: "Каталог моделей",
       modelRoles: "Специализированные модели",
-      harness: "Функции оболочки",
+      harness: "Поведение",
       tools: "Инструменты",
     },
     sectionsLabel: "Разделы настроек",

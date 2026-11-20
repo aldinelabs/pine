@@ -411,7 +411,7 @@ export default {
       reading: "閱讀",
       modelCatalog: "模型目錄",
       modelRoles: "專用模型",
-      harness: "Harness 特性",
+      harness: "行為",
       tools: "工具",
     },
     sectionsLabel: "設定分類",

@@ -446,7 +446,7 @@ export default {
       reading: "読みやすさ",
       modelCatalog: "モデルカタログ",
       modelRoles: "専用モデル",
-      harness: "ハーネス機能",
+      harness: "動作",
       tools: "ツール",
     },
     sectionsLabel: "設定のセクション",

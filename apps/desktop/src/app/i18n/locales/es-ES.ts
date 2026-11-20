@@ -445,7 +445,7 @@ export default {
       reading: "Lectura",
       modelCatalog: "Catálogo de modelos",
       modelRoles: "Modelos especializados",
-      harness: "Funciones del arnés",
+      harness: "Comportamiento",
       tools: "Herramientas",
     },
     sectionsLabel: "Secciones de ajustes",

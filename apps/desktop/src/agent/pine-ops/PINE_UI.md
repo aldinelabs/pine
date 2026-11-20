@@ -931,7 +931,7 @@ the user opens themselves do not pulse.
     its translation is on; without one it uses the title generation model),
     image generation model, video generation model, Decisions model.
   - Agent, in two titled groups:
-    - Harness features: Interactive answers switch (enabled by default;
+    - Behavior: Interactive answers switch (enabled by default;
       in WeChat an interactive answer arrives as text, lists and tables; its
       buttons, or the options of a block's only picker, are numbered and the
       user answers by replying with the number; other controls work only in

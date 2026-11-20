@@ -438,7 +438,7 @@ export default {
       reading: "Reading",
       modelCatalog: "Model catalog",
       modelRoles: "Specialized models",
-      harness: "Harness features",
+      harness: "Behavior",
       tools: "Tools",
     },
     sectionsLabel: "Settings sections",

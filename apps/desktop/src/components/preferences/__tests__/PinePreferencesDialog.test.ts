@@ -476,7 +476,7 @@ describe("PinePreferencesDialog", () => {
     const { wrapper } = mountDialog();
     await openSection(wrapper, "智能体");
     const legends = wrapper.findAll("legend").map((legend) => legend.text());
-    expect(legends).toEqual(["Harness 特性", "工具"]);
+    expect(legends).toEqual(["行为", "工具"]);
     const sets = wrapper.findAll("fieldset");
     // Approval and compaction sit directly under harness features.
     expect(sets[0].text()).toContain("向 AI 提供大致位置");

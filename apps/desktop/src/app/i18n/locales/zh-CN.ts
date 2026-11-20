@@ -408,7 +408,7 @@ export default {
       reading: "阅读",
       modelCatalog: "模型目录",
       modelRoles: "专用模型",
-      harness: "Harness 特性",
+      harness: "行为",
       tools: "工具",
     },
     sectionsLabel: "设置分类",
