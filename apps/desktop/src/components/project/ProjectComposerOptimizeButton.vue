@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { SparklesIcon, Undo2Icon } from "@lucide/vue";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
 import { InputGroupButton } from "@/components/ui/input-group";
@@ -60,6 +60,33 @@ const label = computed(() =>
     ? t("project.composer.optimizingPrompt")
     : t("project.composer.optimizePrompt"),
 );
+/**
+ * The swap area eases between the keys' and the label's widths, which lie
+ * over it without taking room; they are measured as they change (language,
+ * "Optimizing…", the compact layout hiding them).
+ */
+const swap = ref<HTMLElement | null>(null);
+function measureSwap(area: HTMLElement): void {
+  for (const [track, name] of [
+    [".composer-optimize-label-track", "--composer-optimize-label-width"],
+    [".composer-optimize-kbd-track", "--composer-optimize-keys-width"],
+  ] as const) {
+    const width = area.querySelector<HTMLElement>(track)?.offsetWidth ?? 0;
+    area.style.setProperty(name, `${width}px`);
+  }
+}
+watch(
+  swap,
+  (area, _previous, onCleanup) => {
+    if (!area) return;
+    measureSwap(area);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => measureSwap(area));
+    for (const track of area.children) observer.observe(track);
+    onCleanup(() => observer.disconnect());
+  },
+  { flush: "post" },
+);
 const labelClass = computed(() =>
   cn(
     "composer-optimize-label",
@@ -113,7 +140,7 @@ const labelClass = computed(() =>
           @click="emit('undo')"
         >
           <Undo2Icon data-icon="inline-start" />
-          <span class="composer-optimize-swap">
+          <span ref="swap" class="composer-optimize-swap">
             <span class="composer-optimize-label-track">
               <span class="composer-optimize-label whitespace-nowrap">
                 {{ t("project.composer.undoPromptOptimization") }}
@@ -138,7 +165,7 @@ const labelClass = computed(() =>
             data-icon="inline-start"
             class="transition-colors duration-200 group-enabled/optimize:group-hover/optimize:text-[var(--spectrum-1)]"
           />
-          <span class="composer-optimize-swap">
+          <span ref="swap" class="composer-optimize-swap">
             <span class="composer-optimize-label-track">
               <span :class="labelClass" :data-label="label">
                 {{ label }}
@@ -224,57 +251,17 @@ const labelClass = computed(() =>
 /* Opening swaps the keys for the label. The outgoing one blurs, shrinks
    and fades in place; just before it is gone the incoming one fades in,
    sharpening and growing to full size, both about the same point (the
-   button's inner end), so neither moves sideways. Underneath, each track
-   eases its width open or shut on the app's expo curve, a shutting one
-   only once its content has faded, so nothing spills over the icon; the
-   tracks share one grid cell, so the button is as wide as the wider of the
-   two, and the text inside keeps its full width (no ellipsis) and is never
-   clipped. */
+   button's inner end), so neither moves sideways. Both lie over the end of
+   the swap area without taking room, so the text keeps its full width (no
+   ellipsis) and is never clipped; the area itself eases between their
+   measured widths on the app's expo curve, the whole way in both
+   directions. Closing waits a moment for the label to fade, so it never
+   spills over the icon. */
 .composer-optimize-swap {
-  display: grid;
-  align-items: center;
-  justify-items: end;
-}
-
-.composer-optimize-swap > * {
-  grid-area: 1 / 1;
-}
-
-.composer-optimize-label-track,
-.composer-optimize-kbd-track {
-  display: flex;
-  justify-content: flex-end;
-  interpolate-size: allow-keywords;
-  transition: width 500ms var(--ease-out-expo);
-}
-
-.composer-optimize-label-track {
-  width: 0;
-  transition-delay: 120ms;
-}
-
-/* The keys' track takes its width back at once on closing (the label's
-   still covers it), so the button only ever narrows. */
-.composer-optimize-kbd-track {
-  width: auto;
-  transition-duration: 0ms;
-}
-
-/* The label carries the open pill's end padding as a margin, so the keys
-   can rest right against the button's end. */
-.composer-optimize-label-track > .composer-optimize-label {
-  display: block;
-  flex-shrink: 0;
-  width: max-content;
-  margin-inline: 0.375rem 0.75rem;
-  transform-origin: calc(100% + 0.75rem) 50%;
-}
-
-.composer-optimize-kbd-track > .composer-optimize-rest-kbd {
-  display: block;
-  flex-shrink: 0;
-  width: max-content;
-  transform-origin: 100% 50%;
+  position: relative;
+  align-self: stretch;
+  width: var(--composer-optimize-keys-width, 0px);
+  transition: width 500ms var(--ease-out-expo) 60ms;
 }
 
 /* Every rule below the `:has()` names its target by class, never `*`:
@@ -283,16 +270,33 @@ const labelClass = computed(() =>
    whole window sits under the sidebar wrapper's) restyle its entire
    subtree, which stutters every animation while a reply streams. */
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-label-track {
-  width: auto;
+  .composer-optimize-swap {
+  width: var(--composer-optimize-label-width, 0px);
   transition-delay: 0ms;
 }
 
-.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-kbd-track {
-  width: 0;
-  transition-duration: 500ms;
-  transition-delay: 120ms;
+.composer-optimize-label-track,
+.composer-optimize-kbd-track {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* The label carries the open pill's end padding as a margin, so the keys
+   can rest right against the button's end. */
+.composer-optimize-label-track > .composer-optimize-label {
+  display: block;
+  width: max-content;
+  margin-inline: 0.375rem 0.75rem;
+  transform-origin: calc(100% + 0.75rem) 50%;
+}
+
+.composer-optimize-kbd-track > .composer-optimize-rest-kbd {
+  display: block;
+  width: max-content;
+  transform-origin: 100% 50%;
 }
 
 /* Out: the label at rest, the keys while open. */
@@ -305,9 +309,9 @@ const labelClass = computed(() =>
   scale: 0.9;
   transition:
     color 200ms ease-out,
-    opacity 140ms ease-in,
-    filter 140ms ease-in,
-    scale 140ms ease-in;
+    opacity 100ms ease-out,
+    filter 100ms ease-out,
+    scale 100ms ease-out;
 }
 
 /* In: the keys at rest, the label while open. */
@@ -320,9 +324,9 @@ const labelClass = computed(() =>
   scale: 1;
   transition:
     color 200ms ease-out,
-    opacity 220ms ease-out 120ms,
-    filter 300ms ease-out 120ms,
-    scale 500ms var(--ease-out-expo) 120ms;
+    opacity 220ms ease-out 100ms,
+    filter 300ms ease-out 100ms,
+    scale 500ms var(--ease-out-expo) 100ms;
 }
 
 /* Open, the button covers the end of the text box rather than pushing it,
@@ -354,8 +358,7 @@ const labelClass = computed(() =>
 /* With reduced motion the two simply swap. */
 @media (prefers-reduced-motion: reduce) {
   .composer-optimize-inline,
-  .composer-optimize-label-track,
-  .composer-optimize-kbd-track,
+  .composer-optimize-swap,
   .composer-optimize-slot .composer-optimize-label,
   .composer-optimize-kbd-track > .composer-optimize-rest-kbd {
     transition: none !important;
