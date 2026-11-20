@@ -2106,7 +2106,8 @@ function handleRootSubmit(event: Event): void {
   }
 
   .session-composer-approval-label,
-  .session-composer-row :deep(.composer-optimize-label) {
+  .session-composer-row :deep(.composer-optimize-label),
+  .session-composer-row :deep(.composer-optimize-rest-kbd) {
     display: none;
   }
 }

@@ -1343,27 +1343,38 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
-  it("rests Optimize prompt as an icon beside Send that opens leftwards", async () => {
+  it("rests Optimize prompt as its icon and keys, opening its label leftwards", async () => {
     const rewritePrompt = vi.fn(() => new Promise(() => undefined));
     const wrapper = mountComposer({ sessionId: "session-1" }, "high", "zh-CN", {
       rewritePrompt,
     });
     const slot = wrapper.get('[data-slot="composer-optimize-slot"]');
-    // The slot keeps the icon's width; the button is anchored to its right
-    // edge and its label sits in a track that opens on hover or focus.
+    // An invisible copy of the resting icon and keys sizes the slot; the
+    // button is anchored to its right edge and grows leftwards over the text.
     expect(slot.classes()).toEqual(
-      expect.arrayContaining(["relative", "w-10", "shrink-0"]),
+      expect.arrayContaining(["relative", "inline-grid", "shrink-0"]),
     );
+    const sizer = slot.get(".composer-optimize-sizer");
+    expect(sizer.attributes("aria-hidden")).toBe("true");
+    expect(sizer.classes()).toContain("invisible");
+    expect(sizer.text()).toBe("⌘↵");
     const trigger = slot.get('[data-slot="optimize-prompt-trigger"]');
     expect(trigger.classes()).toEqual(
       expect.arrayContaining(["absolute", "right-0", "w-max"]),
     );
     expect(trigger.attributes("aria-label")).toBe("优化指令");
-    expect(
-      trigger.get(".composer-optimize-reveal .composer-optimize-label").text(),
-    ).toBe("优化指令");
-    // Its tooltip names it and its shortcut.
-    expect(slot.text()).toContain("↵");
+    // The label is clipped at full width rather than truncated, and the
+    // resting keys sit in their own clipping track after it.
+    const label = trigger.get(
+      ".composer-optimize-label-clip > .composer-optimize-label",
+    );
+    expect(label.text()).toBe("优化指令");
+    expect(label.classes()).toContain("whitespace-nowrap");
+    expect(label.classes()).not.toContain("truncate");
+    const keys = trigger.get('[data-slot="composer-optimize-kbd"]');
+    expect(keys.classes()).toContain("composer-optimize-kbd-clip");
+    expect(keys.attributes("aria-hidden")).toBe("true");
+    expect(keys.text()).toBe("⌘↵");
     expect(slot.attributes("data-expanded")).toBeUndefined();
 
     // While optimizing it stays open to show progress.

@@ -11,7 +11,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
-import { useModifierHold } from "@/composables/useModifierHold";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import { cn } from "@/lib/utils";
 
@@ -20,10 +19,10 @@ import { cn } from "@/lib/utils";
  * rewrite. Below a draft's input (`footer`) it has a sparkles icon and a
  * gradient label, and holding Cmd/Ctrl shows its Cmd/Ctrl+Enter shortcut
  * beside it. Beside Send in a session (`inline`) it is muted like the
- * draft's project picker, and holding Cmd/Ctrl swaps its icon for the
- * shortcut. Inline it rests as an icon and slides its label out leftwards
- * on hover or keyboard focus (and while optimizing), over the text box
- * rather than pushing it, so nothing beside it moves.
+ * draft's project picker and rests as its icon and Cmd/Ctrl+Enter keys. On
+ * hover or keyboard focus (and while optimizing) the keys fold away as the
+ * label opens, growing leftwards over the text box rather than pushing it,
+ * so nothing beside it moves.
  */
 const props = withDefaults(
   defineProps<{
@@ -48,7 +47,6 @@ const buttonClass = computed(() =>
       // at full strength; the button is still disabled.
       cn("min-w-0", props.isRewriting && "disabled:opacity-100"),
 );
-const modifierHeld = useModifierHold();
 const showShortcutHints = useShortcutHints();
 const isMac = (window.pine?.platform ?? "darwin") === "darwin";
 const modLabel = isMac ? "⌘" : "Ctrl";
@@ -62,6 +60,8 @@ const label = computed(() =>
 const labelClass = computed(() =>
   cn(
     "composer-optimize-label",
+    // Inline, the label keeps its full width inside a clipping track, so
+    // it is revealed rather than cut short with an ellipsis.
     isInline.value ? "whitespace-nowrap" : "truncate",
     isInline.value
       ? props.isRewriting
@@ -75,14 +75,27 @@ const labelClass = computed(() =>
 </script>
 
 <template>
-  <!-- Inline, the slot holds the icon's width; the button is anchored to
-       its right edge and grows leftwards out of it. -->
+  <!-- Inline, the slot keeps the resting width (icon and keys) through an
+       invisible copy; the button is anchored to its right edge and grows
+       leftwards out of it. -->
   <div
     v-if="isInline"
     data-slot="composer-optimize-slot"
-    class="composer-optimize-slot relative h-8 w-10 shrink-0"
+    class="composer-optimize-slot relative inline-grid shrink-0"
     :data-expanded="props.isRewriting || undefined"
   >
+    <span
+      class="composer-optimize-sizer invisible flex h-8 items-center border border-transparent pr-3 pl-2.5"
+      aria-hidden="true"
+    >
+      <span class="size-4" />
+      <span v-if="!showsUndo" class="composer-optimize-rest-kbd pl-1.5">
+        <Kbd
+          ><span>{{ modLabel }}</span
+          ><span>↵</span></Kbd
+        >
+      </span>
+    </span>
     <Tooltip>
       <TooltipTrigger as-child>
         <InputGroupButton
@@ -96,11 +109,9 @@ const labelClass = computed(() =>
           @click="emit('undo')"
         >
           <Undo2Icon data-icon="inline-start" />
-          <span class="composer-optimize-reveal">
-            <span class="composer-optimize-reveal-clip">
-              <span class="composer-optimize-label whitespace-nowrap">
-                {{ t("project.composer.undoPromptOptimization") }}
-              </span>
+          <span class="composer-optimize-label-clip">
+            <span class="composer-optimize-label whitespace-nowrap">
+              {{ t("project.composer.undoPromptOptimization") }}
             </span>
           </span>
         </InputGroupButton>
@@ -117,20 +128,25 @@ const labelClass = computed(() =>
           :aria-keyshortcuts="keyShortcut"
           @click="emit('optimize')"
         >
-          <KbdGroup v-if="modifierHeld" aria-hidden="true">
-            <Kbd>{{ modLabel }}</Kbd>
-            <Kbd>↵</Kbd>
-          </KbdGroup>
           <SparklesIcon
-            v-else
             data-icon="inline-start"
             class="transition-colors duration-200 group-enabled/optimize:group-hover/optimize:text-[var(--spectrum-1)]"
           />
-          <span class="composer-optimize-reveal">
-            <span class="composer-optimize-reveal-clip">
-              <span :class="labelClass" :data-label="label">
-                {{ label }}
-              </span>
+          <span class="composer-optimize-label-clip">
+            <span :class="labelClass" :data-label="label">
+              {{ label }}
+            </span>
+          </span>
+          <span
+            data-slot="composer-optimize-kbd"
+            class="composer-optimize-kbd-clip"
+            aria-hidden="true"
+          >
+            <span class="composer-optimize-rest-kbd pl-1.5">
+              <Kbd
+                ><span>{{ modLabel }}</span
+                ><span>↵</span></Kbd
+              >
             </span>
           </span>
         </InputGroupButton>
@@ -192,31 +208,99 @@ const labelClass = computed(() =>
 </template>
 
 <style scoped>
-/* The inline label opens by its grid track from nothing to its own width,
-   on the app's expo curve; the button's right edge stays put beside Send. */
-.composer-optimize-reveal {
-  display: grid;
-  grid-template-columns: 0fr;
-  opacity: 0;
-  transition-property: grid-template-columns, opacity;
+/* The sizer and the button share one grid cell; the sizer sets the
+   slot's resting width, the button sits on top at its right edge. */
+.composer-optimize-slot > * {
+  grid-area: 1 / 1;
+}
+
+/* Opening swaps the keys for the label by width, each track clipping its
+   content at full size (no ellipsis) on the app's expo curve; the text
+   fades in, unblurs and settles a few pixels as its track opens. */
+.composer-optimize-label-clip,
+.composer-optimize-kbd-clip {
+  display: block;
+  overflow: hidden;
+  interpolate-size: allow-keywords;
+  transition-property: width;
   transition-duration: 500ms;
   transition-timing-function: var(--ease-out-expo);
 }
 
-.composer-optimize-reveal-clip {
-  min-width: 0;
-  overflow: hidden;
+.composer-optimize-label-clip {
+  width: 0;
 }
 
-.composer-optimize-reveal-clip > .composer-optimize-label {
+.composer-optimize-label-clip > .composer-optimize-label {
   display: block;
+  width: max-content;
   padding-inline-start: 0.375rem;
+  opacity: 0;
+  filter: blur(2px);
+  translate: 0.25rem 0;
+  transition:
+    color 200ms ease-out,
+    opacity 150ms ease-out,
+    filter 150ms ease-out,
+    translate 150ms ease-out;
+}
+
+.composer-optimize-kbd-clip {
+  width: auto;
+}
+
+.composer-optimize-kbd-clip > * {
+  display: block;
+  width: max-content;
+  transition:
+    opacity 300ms ease-out 120ms,
+    filter 300ms ease-out 120ms;
 }
 
 .composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
-  .composer-optimize-reveal {
-  grid-template-columns: 1fr;
+  .composer-optimize-label-clip {
+  width: auto;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-label-clip
+  > .composer-optimize-label {
   opacity: 1;
+  filter: none;
+  translate: 0 0;
+  transition:
+    color 200ms ease-out,
+    opacity 300ms ease-out 80ms,
+    filter 300ms ease-out 80ms,
+    translate 500ms var(--ease-out-expo) 80ms;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-kbd-clip {
+  width: 0;
+}
+
+.composer-optimize-slot:is(:hover, :has(:focus-visible), [data-expanded])
+  .composer-optimize-kbd-clip
+  > * {
+  opacity: 0;
+  filter: blur(2px);
+  transition:
+    opacity 150ms ease-out,
+    filter 150ms ease-out;
+}
+
+/* Keys in the composer read as keycaps: white with a hairline ring on the
+   light surface, the default fill in dark, like the reply suggestion's
+   Tab key. */
+.composer-optimize-rest-kbd :deep([data-slot="kbd"]) {
+  background-color: var(--background);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+:global(.dark) .composer-optimize-rest-kbd :deep([data-slot="kbd"]) {
+  background-color: var(--input);
+  box-shadow: none;
 }
 
 /* Open, the button covers the end of the text box rather than pushing it,
@@ -241,9 +325,12 @@ const labelClass = computed(() =>
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .composer-optimize-reveal,
-  .composer-optimize-inline {
-    transition: none;
+  .composer-optimize-inline,
+  .composer-optimize-label-clip,
+  .composer-optimize-kbd-clip,
+  .composer-optimize-slot .composer-optimize-label,
+  .composer-optimize-kbd-clip > * {
+    transition: none !important;
   }
 }
 
@@ -258,8 +345,6 @@ const labelClass = computed(() =>
   content: attr(data-label);
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   background-image: linear-gradient(
     90deg,
