@@ -9,6 +9,48 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-22
+
+> **Highlights**: Illustrated guides explain Pine's features, opened from buttons in menus, settings and managers or from the Guides overview in the sidebar, with one-time tips where a feature first appears; Settings gains an About page with open-source licenses; artifacts can be filed into folders; the quick composer can send in the background and notify you when the answer is ready.
+
+### Added
+
+#### Guides
+
+- **Illustrated guides**: Animated pictures and plain-language steps explain tool calls and approvals, context and tokens, models and providers, reasoning effort, steering and stopping, projects and folder access, memory, sub-sessions, the workbench, work style and Aldine methodology, Skills, MCP servers and automations, plus "Working well with an agent". They open from the approval mode menu, the model menu, the Context usage popover and a button beside the Automations, Skills, MCP servers and Memory titles; the question marks beside the approval path and context compaction settings open one-page guides comparing the options. Guides are written in Simplified Chinese and English.
+- **Guides overview**: Guides in the sidebar's More menu lists every guide by topic; a guide opens on top of the list and closing it returns there.
+- **One-time tips**: The first time you meet an approval card, a context compaction, Artifacts, sub-sessions, an automation run, memory, a Skill, an MCP tool, a stop or staged steering, a short tip with "Show me" and "Got it" appears beside it, and never again once dismissed. Settings › General › One-time tips › Show again brings them back.
+- **Explanations when something is blocked**: A tool call blocked by the approval model or the sandbox offers "Why was this blocked?" in its details, and the cost limit notice offers "Learn why"; both open the guide step that explains it.
+- **The agent can open guides**: When you're unsure how a feature works, the agent can open the relevant guide at the right step for you; the conversation shows "Opened the “…” guide".
+- **Hide guide buttons**: Guide buttons in Settings › General, on by default, hides every guide button and one-time tip in every window when turned off.
+
+#### Settings
+
+- **About page**: Settings ends with About: Pine's version, links to the documentation, source code, release notes and issue reporting, Check for updates, Pine's AGPL license and the open-source software Pine ships or adapted, searchable by name or license, with each entry opening its project page in the browser.
+
+#### Workbench and files
+
+- **Artifacts in folders**: The agent can file artifacts into folders (such as "Reports/Week 1"), and the workbench Artifacts list shows them as a collapsible tree whose open folders are remembered per session. Folders only group the list and never move files; earlier artifacts stay at the top level. Added, moved and removed files fold smoothly in and out.
+- **Drag artifacts out**: Files in the Artifacts list can be dragged like file tree entries, into the composer, the file tree, or onto the desktop and other apps.
+- **Context menu on images and videos**: Right-clicking an image or video shows the system menu with Copy Image, Save As…, Copy File Path or Copy Address, Show in Finder and, on macOS, Share.
+
+#### Quick composer and windows
+
+- **Send from the quick composer in the background**: `⌃/Ctrl + Enter` (`Alt + Enter` on Windows and Linux) in the quick composer hides it at once and starts the conversation in the background without bringing a Pine window forward. When the answer is ready or fails, a system notification tells you, even with "Signal when work is done" set to Off; clicking it opens the conversation.
+- **Close the window with `⌘/Ctrl + Shift + W`**: It works the same as the window's close button.
+
+### Changed
+
+- **The quick composer's context holds its place and has a ×**: As soon as the quick composer appears, a grey placeholder holds the context strip's place and the screenshot and app name fill it in where it stands; the × at its right end removes the context, and removing it while it is still being captured discards the capture.
+- **Tool parameters and results shown as JSON**: Tool call details no longer flatten parameters into rows like `files[0].path`; they show indented, syntax-highlighted JSON with long lines wrapped, and results that are themselves JSON show the same way, while plain text and Markdown results are unchanged.
+
+### Fixed
+
+- Images the agent saved in the project's temporary folder now show in interactive answers and open from tool calls instead of failing to load.
+- Switching sections in Settings now starts the new section at its top instead of keeping the previous section's scroll position.
+- Picking or creating a Skill in the Skills manager now starts the editor at its top instead of keeping the previous Skill's scroll position.
+- The empty Skills and MCP servers managers no longer repeat the dialog's own buttons in their empty space.
+
 ## [0.23.0] - 2026-11-20
 
 > **Highlights**: Several people can now have their own Pine on one computer and pick who's using it at launch; Work style and the Aldine methodology (Beta) set how Pine drives a task and how it talks; the agent can choose a sub-session's model and stop other sessions, and asks you first after you stop a sub-session yourself; Monet now only changes the font.
