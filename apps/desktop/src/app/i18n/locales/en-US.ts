@@ -3327,6 +3327,21 @@ export default {
     projectFoldersGuide: "How folder access works",
     learnWhy: "Learn why",
     whyBlocked: "Why was this blocked?",
+    hintShowGuide: "Show me",
+    hintDismiss: "Got it",
+    hints: {
+      approvalCard: "First approval? See when Pine asks you, and why.",
+      compaction:
+        "Pine just compacted the context: earlier messages became a summary, and the full history is still kept.",
+      artifacts:
+        "Files Pine delivers land here. They can be grouped, keep their versions and drag straight out.",
+      subSessions:
+        "Sub-sessions work in parallel and tell their parent when they're done.",
+    },
+    firstUseHints: "One-time tips",
+    firstUseHintsDescription:
+      "Short tips the first time you see an approval, a compaction, an artifact or a sub-session.",
+    firstUseHintsReset: "Show again",
     guides: "Guides",
     guidesDescription:
       "Short illustrated guides to what Pine can do and how to get the most from it.",

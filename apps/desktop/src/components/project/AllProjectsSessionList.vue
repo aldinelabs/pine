@@ -59,6 +59,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import ProjectDeleteDialog from "@/components/project/ProjectDeleteDialog.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import { SESSION_TREE_ROW_CLASS } from "@/components/project/sessionTreeRow";
@@ -174,10 +175,11 @@ const projectGroups = computed(() => {
         if (!children.length || !historyStore.isOpen(session.id)) return [row];
         return [
           row,
-          ...children.map((child) => ({
+          ...children.map((child, index) => ({
             session: child,
             depth: 1,
             subSessionCount: 0,
+            lastSubSession: index === children.length - 1,
           })),
         ];
       });
@@ -334,6 +336,8 @@ interface SessionRow {
   /** 1 for a sub-session under the session that started it. */
   depth: number;
   subSessionCount: number;
+  /** The last sub-session under its parent, where the one-time hint goes. */
+  lastSubSession?: boolean;
 }
 
 function parentOfSession(
@@ -998,50 +1002,65 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                             <SidebarMenuSub
                               class="mr-0 translate-x-0 border-l-0 pr-0"
                             >
-                              <SessionHistoryItem
+                              <template
                                 v-for="{
                                   session,
                                   depth,
                                   subSessionCount,
+                                  lastSubSession,
                                   motion,
                                 } in displayRows(folder.group.id, folder.rows)"
                                 :key="session.id"
-                                :groups="depth ? [] : group.groups"
-                                :depth="depth"
-                                :sub-session-count="subSessionCount"
-                                :motion="motion"
-                                :expanded="historyStore.isOpen(session.id)"
-                                @toggle="
-                                  historyStore.setOpen(
-                                    session.id,
-                                    !historyStore.isOpen(session.id),
-                                  )
-                                "
-                                :is-active="session.id === activeSessionId"
-                                :session="session"
-                                :title="sessionTitle(session)"
-                                @dragstart="startDrag($event, session)"
-                                @open="openSession(session)"
-                                @rename="
-                                  withProject(session, () => {
-                                    sessionPendingRename = session;
-                                    isRenameDialogOpen = true;
-                                  })
-                                "
-                                @export="
-                                  withProject(
-                                    session,
-                                    () => void exportSession(session.id),
-                                  )
-                                "
-                                @move="moveSession(session, $event)"
-                                @delete="
-                                  withProject(session, () => {
-                                    sessionPendingDelete = session;
-                                    isDeleteDialogOpen = true;
-                                  })
-                                "
-                              />
+                              >
+                                <SessionHistoryItem
+                                  :groups="depth ? [] : group.groups"
+                                  :depth="depth"
+                                  :sub-session-count="subSessionCount"
+                                  :motion="motion"
+                                  :expanded="historyStore.isOpen(session.id)"
+                                  @toggle="
+                                    historyStore.setOpen(
+                                      session.id,
+                                      !historyStore.isOpen(session.id),
+                                    )
+                                  "
+                                  :is-active="session.id === activeSessionId"
+                                  :session="session"
+                                  :title="sessionTitle(session)"
+                                  @dragstart="startDrag($event, session)"
+                                  @open="openSession(session)"
+                                  @rename="
+                                    withProject(session, () => {
+                                      sessionPendingRename = session;
+                                      isRenameDialogOpen = true;
+                                    })
+                                  "
+                                  @export="
+                                    withProject(
+                                      session,
+                                      () => void exportSession(session.id),
+                                    )
+                                  "
+                                  @move="moveSession(session, $event)"
+                                  @delete="
+                                    withProject(session, () => {
+                                      sessionPendingDelete = session;
+                                      isDeleteDialogOpen = true;
+                                    })
+                                  "
+                                />
+                                <SidebarMenuSubItem
+                                  v-if="lastSubSession && motion !== 'leave'"
+                                  data-slot="sub-sessions-hint"
+                                >
+                                  <FirstUseHint
+                                    id="sub-sessions"
+                                    class="my-1 text-xs"
+                                    :text="t('help.hints.subSessions')"
+                                    :guide="{ topic: 'sub-sessions' }"
+                                  />
+                                </SidebarMenuSubItem>
+                              </template>
                               <SidebarMenuSubItem v-if="!folder.rows.length">
                                 <SidebarMenuSubButton
                                   as="button"
@@ -1055,50 +1074,65 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                           </CollapsibleContent>
                         </SidebarMenuSubItem>
                       </Collapsible>
-                      <SessionHistoryItem
+                      <template
                         v-for="{
                           session,
                           depth,
                           subSessionCount,
+                          lastSubSession,
                           motion,
                         } in displayRows(group.project.id, group.visible)"
                         :key="session.id"
-                        :groups="depth ? [] : group.groups"
-                        :depth="depth"
-                        :sub-session-count="subSessionCount"
-                        :motion="motion"
-                        :expanded="historyStore.isOpen(session.id)"
-                        @toggle="
-                          historyStore.setOpen(
-                            session.id,
-                            !historyStore.isOpen(session.id),
-                          )
-                        "
-                        :is-active="session.id === activeSessionId"
-                        :session="session"
-                        :title="sessionTitle(session)"
-                        @dragstart="startDrag($event, session)"
-                        @open="openSession(session)"
-                        @rename="
-                          withProject(session, () => {
-                            sessionPendingRename = session;
-                            isRenameDialogOpen = true;
-                          })
-                        "
-                        @export="
-                          withProject(
-                            session,
-                            () => void exportSession(session.id),
-                          )
-                        "
-                        @move="moveSession(session, $event)"
-                        @delete="
-                          withProject(session, () => {
-                            sessionPendingDelete = session;
-                            isDeleteDialogOpen = true;
-                          })
-                        "
-                      />
+                      >
+                        <SessionHistoryItem
+                          :groups="depth ? [] : group.groups"
+                          :depth="depth"
+                          :sub-session-count="subSessionCount"
+                          :motion="motion"
+                          :expanded="historyStore.isOpen(session.id)"
+                          @toggle="
+                            historyStore.setOpen(
+                              session.id,
+                              !historyStore.isOpen(session.id),
+                            )
+                          "
+                          :is-active="session.id === activeSessionId"
+                          :session="session"
+                          :title="sessionTitle(session)"
+                          @dragstart="startDrag($event, session)"
+                          @open="openSession(session)"
+                          @rename="
+                            withProject(session, () => {
+                              sessionPendingRename = session;
+                              isRenameDialogOpen = true;
+                            })
+                          "
+                          @export="
+                            withProject(
+                              session,
+                              () => void exportSession(session.id),
+                            )
+                          "
+                          @move="moveSession(session, $event)"
+                          @delete="
+                            withProject(session, () => {
+                              sessionPendingDelete = session;
+                              isDeleteDialogOpen = true;
+                            })
+                          "
+                        />
+                        <SidebarMenuSubItem
+                          v-if="lastSubSession && motion !== 'leave'"
+                          data-slot="sub-sessions-hint"
+                        >
+                          <FirstUseHint
+                            id="sub-sessions"
+                            class="my-1 text-xs"
+                            :text="t('help.hints.subSessions')"
+                            :guide="{ topic: 'sub-sessions' }"
+                          />
+                        </SidebarMenuSubItem>
+                      </template>
                       <SidebarMenuSubItem v-if="group.hasMore">
                         <SidebarMenuSubButton
                           as="button"

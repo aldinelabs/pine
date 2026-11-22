@@ -3421,6 +3421,21 @@ export default {
     projectFoldersGuide: "So funktioniert der Ordnerzugriff",
     learnWhy: "Warum?",
     whyBlocked: "Warum wurde das blockiert?",
+    hintShowGuide: "Anleitung ansehen",
+    hintDismiss: "Verstanden",
+    hints: {
+      approvalCard: "Erste Freigabe? Sehen Sie, wann Pine nachfragt und warum.",
+      compaction:
+        "Pine hat den Kontext gerade verdichtet: Ältere Nachrichten wurden zusammengefasst, der vollständige Verlauf bleibt erhalten.",
+      artifacts:
+        "Hier landen die Dateien, die Pine liefert. Sie lassen sich gruppieren, behalten ihre Versionen und lassen sich direkt herausziehen.",
+      subSessions:
+        "Untersitzungen arbeiten parallel und melden sich bei ihrer übergeordneten Sitzung, wenn sie fertig sind.",
+    },
+    firstUseHints: "Einmalige Hinweise",
+    firstUseHintsDescription:
+      "Kurze Hinweise, wenn Sie zum ersten Mal eine Freigabe, eine Verdichtung, ein Ergebnis oder eine Untersitzung sehen.",
+    firstUseHintsReset: "Erneut anzeigen",
     guides: "Anleitungen",
     guidesDescription:
       "Kurze, bebilderte Anleitungen dazu, was Pine kann und wie Sie am meisten herausholen.",

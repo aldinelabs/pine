@@ -3366,6 +3366,22 @@ export default {
     projectFoldersGuide: "フォルダーのアクセス権のしくみ",
     learnWhy: "理由を見る",
     whyBlocked: "なぜ止められた？",
+    hintShowGuide: "ガイドを見る",
+    hintDismiss: "了解",
+    hints: {
+      approvalCard:
+        "初めての承認ですか？Pine がいつ確認を求めるのかを見てみましょう。",
+      compaction:
+        "Pine がコンテキストを圧縮しました。以前の会話は要約になり、履歴はすべて保存されています。",
+      artifacts:
+        "Pine が納品したファイルはここに並びます。フォルダー分け、版の確認、そのままドラッグでの持ち出しができます。",
+      subSessions:
+        "サブセッションは並行して作業し、終わると親セッションに知らせます。",
+    },
+    firstUseHints: "初回のヒント",
+    firstUseHintsDescription:
+      "承認、圧縮、成果物、サブセッションに初めて出会ったときに短いヒントを表示します。",
+    firstUseHintsReset: "もう一度表示",
     guides: "ガイド",
     guidesDescription:
       "Pine にできることと、うまく使うコツを図解で手短に紹介します。",

@@ -64,6 +64,16 @@ click.
   works" in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
   overlays). Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
+- One-time tip: a muted bar with a lightbulb, one line of text, "Show me"
+  (opens the related guide) and "Got it", shown where a feature first
+  appears until either button is clicked, then never again for that user:
+  at the top of the first approval card ("First approval? See when Pine
+  asks you, and why.", opens the approval card step), below a completed
+  compaction marker (opens the compaction step), at the top of the
+  Artifacts list once it has files (opens the Artifacts step) and in the
+  sidebar below a session's last sub-session (opens "Sub-sessions"). Each
+  tip shows in one place at a time. Guide buttons off hides them all;
+  Pine Settings › General › One-time tips › Show again brings them back.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
@@ -1025,8 +1035,10 @@ the user opens themselves do not pulse.
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
     rate, US dollars when rates are unavailable), Guide buttons (on by
-    default; off hides every button and menu item that opens a guide, in
-    every open window), completion signal, attention
+    default; off hides every button and menu item that opens a guide, and
+    the one-time tips, in every open window), One-time tips (shown while
+    Guide buttons is on; Show again, enabled once a tip was dismissed,
+    shows them all again), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme

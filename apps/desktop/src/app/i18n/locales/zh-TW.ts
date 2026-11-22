@@ -3205,6 +3205,20 @@ export default {
     projectFoldersGuide: "資料夾權限怎麼設",
     learnWhy: "了解原因",
     whyBlocked: "為什麼被攔下？",
+    hintShowGuide: "看看教學",
+    hintDismiss: "知道了",
+    hints: {
+      approvalCard: "第一次審批？看看 Pine 什麼時候會來問你。",
+      compaction:
+        "Pine 剛壓縮了上下文：較早的對話變成了摘要，完整的歷史仍然保存著。",
+      artifacts:
+        "Pine 交付的檔案會放在這裡，可以歸類、回看版本，也能直接拖出去。",
+      subSessions: "子會話會並行工作，完成後通知主會話。",
+    },
+    firstUseHints: "一次性提示",
+    firstUseHintsDescription:
+      "第一次遇到審批、上下文壓縮、產出檔案和子會話時，顯示一則簡短提示。",
+    firstUseHintsReset: "重新顯示",
     guides: "指南",
     guidesDescription: "用圖文簡單講講 Pine 能做什麼，以及怎麼用得更好。",
     groups: {

@@ -8,6 +8,7 @@ import {
 } from "@lucide/vue";
 import ApprovalAttribution from "@/components/project/ApprovalAttribution.vue";
 import ApprovalGuidanceComposer from "@/components/approval/ApprovalGuidanceComposer.vue";
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -185,6 +186,13 @@ function startGuidance(): void {
 
 <template>
   <Card class="max-h-[min(28rem,60dvh)] min-h-0">
+    <!-- 8px from the card's edges, so its radius is the card's less 8px. -->
+    <FirstUseHint
+      id="approval-card"
+      class="mx-2 -mt-3 shrink-0"
+      :text="t('help.hints.approvalCard')"
+      :guide="{ topic: 'approval-modes', step: 2 }"
+    />
     <CardHeader class="shrink-0">
       <CardTitle>{{ t("project.approvalRequest.title") }}</CardTitle>
       <CardDescription v-if="approval.autoApprovalFailure || !explainedView">

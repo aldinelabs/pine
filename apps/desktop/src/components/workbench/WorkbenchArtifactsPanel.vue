@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import {
   AppWindowIcon,
   ChevronRightIcon,
@@ -505,7 +506,17 @@ async function submitDialog(): Promise<void> {
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
-    <SidebarMenu v-else class="px-(--workbench-inset) pb-(--workbench-inset)">
+    <FirstUseHint
+      v-if="artifacts.length > 0"
+      id="artifacts"
+      class="mx-(--workbench-inset) mb-1.5 shrink-0"
+      :text="t('help.hints.artifacts')"
+      :guide="{ topic: 'workbench', step: 1 }"
+    />
+    <SidebarMenu
+      v-if="artifacts.length > 0"
+      class="px-(--workbench-inset) pb-(--workbench-inset)"
+    >
       <template v-for="row in rows" :key="row.key">
         <SidebarMenuItem
           v-if="row.kind === 'folder'"

@@ -3200,6 +3200,20 @@ export default {
     projectFoldersGuide: "文件夹权限怎么设",
     learnWhy: "了解原因",
     whyBlocked: "为什么被拦下？",
+    hintShowGuide: "看看教程",
+    hintDismiss: "知道了",
+    hints: {
+      approvalCard: "第一次审批？看看 Pine 什么时候会来问你。",
+      compaction:
+        "Pine 刚压缩了上下文：较早的对话变成了摘要，完整的历史仍然保存着。",
+      artifacts:
+        "Pine 交付的文件会放在这里，可以归类、回看版本，也能直接拖出去。",
+      subSessions: "子会话会并行工作，完成后通知主会话。",
+    },
+    firstUseHints: "一次性提示",
+    firstUseHintsDescription:
+      "第一次遇到审批、上下文压缩、产出文件和子会话时，显示一条简短提示。",
+    firstUseHintsReset: "重新显示",
     guides: "指南",
     guidesDescription: "用图文简单讲讲 Pine 能做什么，以及怎么用得更好。",
     groups: {

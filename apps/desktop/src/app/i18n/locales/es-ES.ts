@@ -3398,6 +3398,22 @@ export default {
     projectFoldersGuide: "Cómo funciona el acceso a carpetas",
     learnWhy: "Ver por qué",
     whyBlocked: "¿Por qué se bloqueó?",
+    hintShowGuide: "Ver la guía",
+    hintDismiss: "Entendido",
+    hints: {
+      approvalCard:
+        "¿Primera aprobación? Mira cuándo te pregunta Pine y por qué.",
+      compaction:
+        "Pine acaba de compactar el contexto: los mensajes anteriores se resumieron y el historial completo se conserva.",
+      artifacts:
+        "Aquí llegan los archivos que entrega Pine. Se pueden agrupar, conservan sus versiones y se arrastran directamente fuera.",
+      subSessions:
+        "Las subsesiones trabajan en paralelo y avisan a su sesión principal al terminar.",
+    },
+    firstUseHints: "Consejos de primera vez",
+    firstUseHintsDescription:
+      "Consejos breves la primera vez que ves una aprobación, una compactación, un archivo entregado o una subsesión.",
+    firstUseHintsReset: "Volver a mostrar",
     guides: "Guías",
     guidesDescription:
       "Guías breves e ilustradas sobre lo que Pine puede hacer y cómo sacarle el máximo partido.",
