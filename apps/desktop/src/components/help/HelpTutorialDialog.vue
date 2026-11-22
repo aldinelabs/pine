@@ -181,12 +181,12 @@ function onKeydown(event: KeyboardEvent): void {
                the gaps stay equal while the current dot stretches and the
                others slide aside. The negative margin lines the first dot
                up with the text. -->
-          <div class="-ms-1.5 flex items-center" data-slot="help-steps">
+          <div class="-ms-1 flex items-center" data-slot="help-steps">
             <button
               v-for="index in stepCount"
               :key="index"
               type="button"
-              class="focus-visible:ring-ring/50 flex h-6 items-center rounded-full px-1.5 outline-none focus-visible:ring-3"
+              class="focus-visible:ring-ring/50 flex h-6 items-center rounded-full px-1 outline-none focus-visible:ring-3"
               :aria-label="t('help.goToStep', { step: index })"
               :aria-current="index - 1 === step ? 'step' : undefined"
               @click="goTo(index - 1)"
