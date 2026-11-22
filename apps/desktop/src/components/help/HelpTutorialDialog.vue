@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LightbulbIcon, TriangleAlertIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, watch } from "vue";
+import { computed, nextTick, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { resolveHelpTopic } from "@/app/help";
 import type { AppLocale } from "@/app/i18n";
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PHONE_FULLSCREEN_DIALOG } from "@/lib/dialogLayout";
+import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 import { useHelpStore } from "@/stores/help";
 import { HELP_ILLUSTRATIONS } from "./illustrations";
@@ -44,6 +45,42 @@ const illustration = computed(() =>
 watch([topicId, stepCount], () => {
   if (stepCount.value && step.value >= stepCount.value)
     step.value = stepCount.value - 1;
+});
+
+/**
+ * Steps differ in length, so the dialog glides to the next step's height on
+ * the app's curve instead of jumping. The step's text is already in place;
+ * only the box's height moves (clipped by its overflow). A step changed
+ * mid-glide carries on from the height on screen.
+ */
+const illustrationElement = useTemplateRef<HTMLElement>("illustrationElement");
+let heightGlide: Animation | null = null;
+
+watch(step, async () => {
+  const box = illustrationElement.value?.closest<HTMLElement>(
+    "[data-slot=dialog-content]",
+  );
+  if (!box || typeof box.animate !== "function") return;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  // Runs before the DOM updates: the height on screen, mid-glide included.
+  const from = box.offsetHeight;
+  heightGlide?.cancel();
+  heightGlide = null;
+  await nextTick();
+  const to = box.offsetHeight;
+  if (from === to) return;
+  const glide = box.animate([{ height: `${from}px` }, { height: `${to}px` }], {
+    duration: DURATION_MS,
+    easing: EASE_OUT_EXPO,
+  });
+  heightGlide = glide;
+  glide.addEventListener(
+    "finish",
+    () => {
+      if (heightGlide === glide) heightGlide = null;
+    },
+    { once: true },
+  );
 });
 
 const open = computed({
@@ -94,6 +131,7 @@ function onKeydown(event: KeyboardEvent): void {
     >
       <template v-if="topic && current">
         <div
+          ref="illustrationElement"
           data-slot="help-illustration"
           class="bg-muted/60 relative flex h-52 shrink-0 items-center justify-center overflow-hidden"
           aria-hidden="true"
@@ -116,6 +154,7 @@ function onKeydown(event: KeyboardEvent): void {
           class="flex-1"
           edge-inset="0rem"
           content-inset="1.5rem"
+          viewport-class="scroll-fade-y"
           content-class="flex flex-col gap-3 ps-6 pt-5 pb-2"
         >
           <DialogDescription class="text-muted-foreground text-xs">
