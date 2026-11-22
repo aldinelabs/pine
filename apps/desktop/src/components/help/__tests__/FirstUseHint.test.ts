@@ -48,7 +48,7 @@ describe("FirstUseHint", () => {
     expect(wrapper.findAll('[data-slot="first-use-hint"]')).toHaveLength(1);
   });
 
-  it("shows one hint at a time, keeping the one on screen", async () => {
+  it("shows each hint on its own, alongside others", async () => {
     const later = ref(false);
     const wrapper = mount(
       defineComponent({
@@ -72,10 +72,9 @@ describe("FirstUseHint", () => {
       wrapper
         .findAll('[data-slot="first-use-hint"]')
         .map((hint) => hint.attributes("data-hint"));
-    // The hint already on screen stays; the new moment waits its turn.
-    expect(shownHints()).toEqual(["approval-card"]);
+    expect(shownHints()).toEqual(["approval-card", "stopped"]);
     await wrapper
-      .get('[data-testid="first-use-hint-dismiss"]')
+      .get('[data-hint="approval-card"] [data-testid="first-use-hint-dismiss"]')
       .trigger("click");
     await flushPromises();
     expect(shownHints()).toEqual(["stopped"]);

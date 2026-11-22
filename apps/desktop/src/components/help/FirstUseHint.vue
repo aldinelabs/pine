@@ -14,7 +14,8 @@ import { useHelpStore } from "@/stores/help";
 /**
  * A one-time hint: one line of text with Show me and Got it, set into the
  * interface right where a feature first appears. Either button dismisses it
- * for good. A window shows one hint at a time (see the store).
+ * for good. Where its moment appears several times, only the first place
+ * shows it (see the store).
  */
 const props = defineProps<{
   id: FirstUseHintId;
@@ -31,7 +32,7 @@ const holder = Symbol(props.id);
 hints.claim(props.id, holder);
 onBeforeUnmount(() => hints.release(holder));
 
-const isShown = computed(() => hints.shows(holder));
+const isShown = computed(() => hints.shows(props.id, holder));
 
 function showGuide(): void {
   hints.dismiss(props.id);

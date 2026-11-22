@@ -85,9 +85,9 @@ click.
   - below a "Stopped" marker ("Stopped. Changes so far are kept; just say
     what's next."; the stopping step of "Steering and stopping");
   - below staged steering messages while they wait (the steering step).
-    A window shows one tip at a time: the one on screen keeps its place until
-    it is dismissed or its place goes away (for example another conversation
-    is opened), then the newest waiting one appears. Guide buttons off hides them all; Pine Settings ›
+    Each tip shows on its own, whatever other tips are on screen; where its
+    moment appears several times (for example two approval cards in one
+    conversation), only the first place shows it. Guide buttons off hides them all; Pine Settings ›
     General › One-time tips › Show again brings them back.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a

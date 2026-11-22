@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { computed, ref, watchEffect } from "vue";
+import { computed, ref } from "vue";
 import {
   preferenceStorage,
   subscribePreference,
@@ -51,9 +51,9 @@ function readDismissed(): Set<FirstUseHintId> {
  * first approval card, compaction, artifact, sub-session) until the user
  * dismisses it or opens its guide. Dismissals live in the user's
  * preferences, so they survive restarts and reach every window. Guide
- * buttons off hides them all. Only one hint shows at a time in a window:
- * the one on screen keeps its place until it is dismissed or goes, then
- * the newest waiting moment takes over.
+ * buttons off hides them all. Each hint shows on its own, whatever other
+ * hints are on screen; a moment that appears in several places shows its
+ * hint only at the first.
  */
 export const useFirstUseHintsStore = defineStore("first-use-hints", () => {
   const appearance = useAppearanceStore();
@@ -64,17 +64,6 @@ export const useFirstUseHintsStore = defineStore("first-use-hints", () => {
 
   /** Every place that could show a hint now, in the order they appeared. */
   const claimants = ref<readonly { id: FirstUseHintId; holder: symbol }[]>([]);
-  /** The one place showing a hint; it keeps it until dismissed or gone. */
-  const active = ref<symbol | null>(null);
-
-  watchEffect(() => {
-    const waiting = claimants.value.filter((claimant) =>
-      isAvailable(claimant.id),
-    );
-    if (waiting.some((claimant) => claimant.holder === active.value)) return;
-    // The newest moment wins: it is the one the user just ran into.
-    active.value = waiting.at(-1)?.holder ?? null;
-  });
 
   const hasDismissed = computed(() => dismissed.value.size > 0);
 
@@ -82,9 +71,16 @@ export const useFirstUseHintsStore = defineStore("first-use-hints", () => {
     return appearance.helpGuides && !dismissed.value.has(id);
   }
 
-  /** Whether `holder` is the place that shows its hint right now. */
-  function shows(holder: symbol): boolean {
-    return active.value === holder;
+  /**
+   * Whether `holder` shows its hint: the hint is still available, and this
+   * is the first place it appeared, so a moment seen several times (two
+   * approval cards in one conversation) shows it once.
+   */
+  function shows(id: FirstUseHintId, holder: symbol): boolean {
+    if (!isAvailable(id)) return false;
+    return (
+      claimants.value.find((claimant) => claimant.id === id)?.holder === holder
+    );
   }
 
   function claim(id: FirstUseHintId, holder: symbol): void {
