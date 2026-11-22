@@ -41,11 +41,14 @@ const modes = [
      the four modes. -->
 <template>
   <div class="flex w-full max-w-md flex-col gap-4 px-4">
-    <div class="grid grid-cols-4 gap-2">
+    <!-- Inset by the end icons' width plus their gap (1rem + 0.5rem) and
+         without column gaps, so each column's centre sits exactly over its
+         stop on the track below (12.5%, 37.5%, 62.5%, 87.5%). -->
+    <div class="grid grid-cols-4 px-6">
       <div
         v-for="(mode, index) in modes"
         :key="mode.label"
-        class="help-mode flex flex-col items-center gap-1.5 text-center"
+        class="help-mode flex min-w-0 flex-col items-center gap-1.5 px-1 text-center"
         :style="{ animationDelay: `${index * 1.5}s` }"
       >
         <div
