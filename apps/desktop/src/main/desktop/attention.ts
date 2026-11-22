@@ -1,7 +1,12 @@
 import { app, BrowserWindow, Notification } from "electron";
 import { COMPLETION_SOUND_EVENT_CHANNEL } from "../../shared/preferences";
+import {
+  REVEAL_QUICK_COMPOSER_SESSION_CHANNEL,
+  type QuickComposerRevealSession,
+} from "../../shared/quickComposer";
 import type { PineAgentEvent } from "../../shared/agent";
 import {
+  backgroundReplyNotificationBody,
   approvalNotificationActions,
   approvalNotificationBody,
   replyNotificationBody,
@@ -12,10 +17,13 @@ import {
   type PineCompletedRun,
 } from "../completionSignal";
 import type { PineCore } from "../core/pineCore";
+import { BackgroundReplies } from "../backgroundReplies";
 
 const SESSION_NOTIFICATION_BODY_LIMIT = 280;
 
 interface SessionNotificationOptions {
+  /** Clicking also has the window show the session. */
+  reveal?: boolean;
   /** Button labels; macOS and Windows show them on the notification. */
   actions?: string[];
   onAction?: (actionIndex: number) => void;
@@ -55,6 +63,7 @@ export class DesktopAttention {
   /** macOS dock bounce id for the pending approval attention request. */
   private approvalBounceId: number | null = null;
   private readonly completionSignals = new CompletionSignalTracker();
+  private readonly backgroundReplies = new BackgroundReplies();
 
   constructor(
     private readonly core: () => PineCore,
@@ -63,20 +72,36 @@ export class DesktopAttention {
     ) => BrowserWindow | undefined,
   ) {}
 
+  /**
+   * The session answers a message sent from the quick composer in the
+   * background, which the user asked to be told about.
+   */
+  watchReply(sessionId: string): void {
+    this.backgroundReplies.watch(sessionId);
+  }
+
   observe(event: PineAgentEvent, ownerId: number | undefined): void {
     if (ownerId === undefined) {
       this.completionSignals.forget(event.sessionId);
+      this.backgroundReplies.forget(event.sessionId);
       return;
     }
     const core = this.core();
     const completedRun = this.completionSignals.observe(event);
-    if (completedRun && core.completionSignalMode !== "off") {
+    const backgroundReply = this.backgroundReplies.observe(event, completedRun);
+    // Told even with completion signals off: nothing else shows it.
+    if (backgroundReply)
+      this.signalBackgroundReply(
+        ownerId,
+        backgroundReply.sessionId,
+        backgroundReplyNotificationBody(backgroundReply, isChineseLocale()),
+      );
+    else if (completedRun && core.completionSignalMode !== "off")
       this.signalCompletedRun(completedRun, ownerId);
-      if (core.completionSignalMode === "notification-sound")
-        this.ownerWindow(ownerId)?.webContents.send(
-          COMPLETION_SOUND_EVENT_CHANNEL,
-        );
-    }
+    if (completedRun && core.completionSignalMode === "notification-sound")
+      this.ownerWindow(ownerId)?.webContents.send(
+        COMPLETION_SOUND_EVENT_CHANNEL,
+      );
     if (event.type === "approval-request") {
       const chinese = isChineseLocale();
       this.requestApprovalAttention(ownerId, event.sessionId, {
@@ -178,6 +203,10 @@ export class DesktopAttention {
       if (window.isMinimized()) window.restore();
       window.show();
       window.focus();
+      if (options.reveal) {
+        const reveal: QuickComposerRevealSession = { sessionId };
+        window.webContents.send(REVEAL_QUICK_COMPOSER_SESSION_CHANNEL, reveal);
+      }
     });
     const { onAction } = options;
     if (onAction)
@@ -250,6 +279,24 @@ export class DesktopAttention {
         error,
       );
     }
+  }
+
+  /**
+   * Tells how a message sent from the quick composer in the background came
+   * out. Its window may be hidden, so clicking shows it at that session.
+   * As with any finished run, nothing shows while the user is looking at
+   * that window.
+   */
+  private signalBackgroundReply(
+    ownerId: number,
+    sessionId: string,
+    body: string,
+  ): void {
+    const window = this.ownerWindow(ownerId);
+    if (!window || (window.isVisible() && window.isFocused())) return;
+    this.showSessionNotification(window, sessionId, body, { reveal: true });
+    if (process.platform === "darwin") app.dock?.bounce("informational");
+    else if (process.platform === "win32") window.flashFrame(true);
   }
 
   /**

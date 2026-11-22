@@ -327,10 +327,13 @@ import {
   SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
   SUBMIT_QUICK_COMPOSER_CHANNEL,
   TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  REVEAL_QUICK_COMPOSER_SESSION_CHANNEL,
+  WATCH_QUICK_COMPOSER_REPLY_CHANNEL,
   type QuickComposerContext,
   type QuickComposerHandoff,
   type QuickComposerPermission,
   type QuickComposerRect,
+  type QuickComposerRevealSession,
   type QuickComposerShown,
   type SetQuickComposerRequest,
   type SetQuickComposerResult,
@@ -741,6 +744,20 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       transport.on(DELIVER_QUICK_COMPOSER_CHANNEL, handler);
       return () =>
         transport.removeListener(DELIVER_QUICK_COMPOSER_CHANNEL, handler);
+    },
+    watchQuickComposerReply: (sessionId: string): Promise<void> =>
+      transport.invoke(WATCH_QUICK_COMPOSER_REPLY_CHANNEL, sessionId),
+    onQuickComposerRevealSession: (
+      listener: (reveal: QuickComposerRevealSession) => void,
+    ) => {
+      const handler = (_event: unknown, reveal: QuickComposerRevealSession) =>
+        listener(reveal);
+      transport.on(REVEAL_QUICK_COMPOSER_SESSION_CHANNEL, handler);
+      return () =>
+        transport.removeListener(
+          REVEAL_QUICK_COMPOSER_SESSION_CHANNEL,
+          handler,
+        );
     },
     getUserProfile: (): Promise<PineUserProfile> =>
       transport.invoke(GET_USER_PROFILE_CHANNEL),

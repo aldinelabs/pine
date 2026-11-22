@@ -164,7 +164,10 @@ const emit = defineEmits<{
    * `holdView`: sent with Option/Alt+Enter, the transcript stays where it
    * is instead of scrolling to the new turn.
    */
-  submit: [message: string, options?: { holdView?: boolean }];
+  submit: [
+    message: string,
+    options?: { holdView?: boolean; background?: boolean },
+  ];
 }>();
 
 const props = withDefaults(
@@ -187,6 +190,11 @@ const props = withDefaults(
      * rows, as when a hidden panel resets.
      */
     rowsAnimate?: boolean;
+    /**
+     * The floating composer: Control+Enter on macOS, Alt+Enter elsewhere,
+     * sends in the background in place of sending without scrolling.
+     */
+    backgroundSend?: boolean;
     /** Authoring a "Create with Pine" draft turns on with its first message. */
     authoring?: readonly PineAuthoringTarget[];
     /**
@@ -421,8 +429,10 @@ const modifierHeld = useModifierHold();
 const menuShortcutTransition = useCollapseTransition("width");
 const modifierLabel =
   (window.pine?.platform ?? "darwin") === "darwin" ? "⌘" : "Ctrl";
-const altKeyLabel =
-  (window.pine?.platform ?? "darwin") === "darwin" ? "⌥" : "Alt";
+const isMacPlatform = (window.pine?.platform ?? "darwin") === "darwin";
+const altKeyLabel = isMacPlatform ? "⌥" : "Alt";
+/** The key that, with Enter, sends from the floating composer in the background. */
+const backgroundSendKeyLabel = isMacPlatform ? "⌃" : "Alt";
 useEventListener(window, "keydown", (event: KeyboardEvent) => {
   const menu = menuShortcuts[event.key.toLowerCase()];
   if (
@@ -1126,7 +1136,10 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
   cancelRewrite();
 });
 
-function submitMessage(options?: { holdView?: boolean }): void {
+function submitMessage(options?: {
+  holdView?: boolean;
+  background?: boolean;
+}): void {
   if (isRewriting.value) return;
   const normalizedMessage = message.value.trim();
   if (
@@ -1140,7 +1153,8 @@ function submitMessage(options?: { holdView?: boolean }): void {
     attachments.value,
     serializeQuoteMessage(quotes.value, normalizedMessage),
   );
-  if (options?.holdView) emit("submit", serialized, { holdView: true });
+  if (options?.background) emit("submit", serialized, { background: true });
+  else if (options?.holdView) emit("submit", serialized, { holdView: true });
   else emit("submit", serialized);
   attachments.value = [];
   quotes.value = [];
@@ -1321,6 +1335,18 @@ function caretAtEnd(event: KeyboardEvent): boolean {
   return textarea.selectionStart === end && textarea.selectionEnd === end;
 }
 
+/**
+ * Control+Enter on macOS, where ⌘+Enter keeps optimizing the prompt;
+ * elsewhere Ctrl+Enter is that shortcut, so Alt+Enter, which the floating
+ * composer has no transcript to hold for.
+ */
+function isBackgroundSendChord(event: KeyboardEvent): boolean {
+  if (event.shiftKey || event.metaKey) return false;
+  return isMacPlatform
+    ? event.ctrlKey && !event.altKey
+    : event.altKey && !event.ctrlKey;
+}
+
 function handleKeydown(event: KeyboardEvent): void {
   if (isMentioning.value) {
     handleChooserKeydown(event);
@@ -1373,6 +1399,10 @@ function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
 
   event.preventDefault();
+  if (props.backgroundSend && isBackgroundSendChord(event)) {
+    submitMessage({ background: true });
+    return;
+  }
   // Enter sends and scrolls to the new turn; Option/Alt+Enter sends without
   // moving the transcript; Cmd/Ctrl+Enter optimizes the prompt instead.
   if (event.metaKey || event.ctrlKey) {
@@ -1809,15 +1839,26 @@ function handleRootSubmit(event: Event): void {
                           : t("project.composer.send")
                       }}</span>
                       <Kbd class="justify-self-end" aria-hidden="true">↵</Kbd>
-                      <span class="opacity-70">{{
-                        isSteering
-                          ? t("project.composer.steerWithoutScrolling")
-                          : t("project.composer.sendWithoutScrolling")
-                      }}</span>
-                      <KbdGroup class="justify-self-end" aria-hidden="true">
-                        <Kbd>{{ altKeyLabel }}</Kbd>
-                        <Kbd>↵</Kbd>
-                      </KbdGroup>
+                      <template v-if="backgroundSend">
+                        <span class="opacity-70">{{
+                          t("project.composer.sendInBackground")
+                        }}</span>
+                        <KbdGroup class="justify-self-end" aria-hidden="true">
+                          <Kbd>{{ backgroundSendKeyLabel }}</Kbd>
+                          <Kbd>↵</Kbd>
+                        </KbdGroup>
+                      </template>
+                      <template v-else>
+                        <span class="opacity-70">{{
+                          isSteering
+                            ? t("project.composer.steerWithoutScrolling")
+                            : t("project.composer.sendWithoutScrolling")
+                        }}</span>
+                        <KbdGroup class="justify-self-end" aria-hidden="true">
+                          <Kbd>{{ altKeyLabel }}</Kbd>
+                          <Kbd>↵</Kbd>
+                        </KbdGroup>
+                      </template>
                     </span>
                     <template v-else>
                       {{

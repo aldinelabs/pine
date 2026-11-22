@@ -15,6 +15,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  BACKGROUND_CONTEXT_WAIT_MS,
   COLLAPSED_WINDOW_WIDTH,
   QUICK_COMPOSER_BOTTOM_GAP,
   QuickComposerController,
@@ -394,6 +395,66 @@ describe("QuickComposerController", () => {
     expect(panel.visible).toBe(false);
   });
 
+  it("sends in the background: the panel goes at once and the window stays hidden", async () => {
+    controller.show();
+    const [target] = handoffWindows as [FakeWindow];
+    const taken = controller.takeHandoff(target.webContents as never);
+
+    expect(controller.submit({ ...request, background: true })).toBeNull();
+    expect(panel.visible).toBe(false);
+    await expect(taken).resolves.toEqual({
+      message: "Hello",
+      approvalMode: "auto-approve",
+      projectId: "tmp",
+      context: [],
+      background: true,
+    });
+    vi.runAllTimers();
+    expect(target.visible).toBe(false);
+    expect(controller.isAuxiliary(target as unknown as BrowserWindow)).toBe(
+      false,
+    );
+    // The next showing prepares a window of its own.
+    controller.show();
+    expect(handoffWindows).toHaveLength(2);
+    // The hidden window answering is the user's, and survives the composer.
+    controller.dispose();
+    expect(target.destroy).not.toHaveBeenCalled();
+    expect(handoffWindows[1]?.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a background window that has not asked for its message yet", () => {
+    controller.show();
+    controller.submit({ ...request, background: true });
+    const [target] = handoffWindows as [FakeWindow];
+    controller.dispose();
+    expect(target.destroy).not.toHaveBeenCalled();
+  });
+
+  it("sends in the background to the window that holds its project, without focusing it", () => {
+    const owner = fakeWindow({ x: 0, y: 0, width: 1200, height: 800 });
+    const delivered: unknown[] = [];
+    const routed = new QuickComposerController({
+      createPanel: (bounds) => {
+        panel = fakeWindow(bounds);
+        return panel as unknown as BrowserWindow;
+      },
+      createHandoffWindow: (bounds) =>
+        fakeWindow(bounds) as unknown as BrowserWindow,
+      ownerWindow: () => owner as unknown as BrowserWindow,
+      deliver: (window, handoff) => delivered.push([window, handoff]),
+    });
+    routed.warmUp();
+    panel.emit("ready-to-show");
+    routed.show();
+    routed.submit({ ...request, projectId: "held", background: true });
+    expect(panel.visible).toBe(false);
+    expect(delivered).toEqual([
+      [owner, expect.objectContaining({ projectId: "held", background: true })],
+    ]);
+    expect(owner.show).not.toHaveBeenCalled();
+  });
+
   it("keeps a message sent before the window asks for it", async () => {
     controller.show();
     controller.submit(request);
@@ -564,6 +625,47 @@ describe("QuickComposerController", () => {
       controller.dismissContext();
       vi.advanceTimersByTime(600);
       expect(captures).toHaveLength(0);
+    });
+
+    it("waits in the background for context still being captured", async () => {
+      controller.show();
+      const [target] = handoffWindows as [FakeWindow];
+      const taken = controller.takeHandoff(target.webContents as never);
+      // Sent before the entrance ends: the capture starts at once.
+      controller.submit({ ...request, withContext: true, background: true });
+      expect(panel.visible).toBe(false);
+      expect(captures).toHaveLength(1);
+      captures[0]?.(captured);
+      await expect(taken).resolves.toMatchObject({
+        context: captured.attachments,
+        background: true,
+      });
+      expect(sentContexts()).toEqual([]);
+      expect(discarded).toEqual([]);
+    });
+
+    it("sends in the background without context that takes too long", async () => {
+      controller.show();
+      vi.advanceTimersByTime(600);
+      const [target] = handoffWindows as [FakeWindow];
+      const taken = controller.takeHandoff(target.webContents as never);
+      controller.submit({ ...request, withContext: true, background: true });
+      vi.advanceTimersByTime(BACKGROUND_CONTEXT_WAIT_MS);
+      await expect(taken).resolves.toMatchObject({ context: [] });
+      // What comes afterwards was never sent, so it is deleted.
+      captures[0]?.(captured);
+      await vi.waitFor(() => expect(discarded).toEqual([captured.attachments]));
+    });
+
+    it("sends context already captured with a background message", async () => {
+      await showAndCapture();
+      const [target] = handoffWindows as [FakeWindow];
+      const taken = controller.takeHandoff(target.webContents as never);
+      controller.submit({ ...request, withContext: true, background: true });
+      await expect(taken).resolves.toMatchObject({
+        context: captured.attachments,
+      });
+      expect(discarded).toEqual([]);
     });
 
     it("deletes a capture that finishes after the panel closed", async () => {

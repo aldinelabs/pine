@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   approvalNotificationActions,
+  backgroundReplyNotificationBody,
   approvalNotificationBody,
   questionnaireNotificationBody,
   replyNotificationBody,
@@ -74,5 +75,19 @@ describe("attention notifications", () => {
         "## Done\n\n**Fixed** the `parser`, see [docs](https://x.dev).\n- one\n- two",
       ),
     ).toBe("Done Fixed the parser, see docs. one two");
+  });
+  it("shows a background answer, or says it failed", () => {
+    expect(
+      backgroundReplyNotificationBody(
+        { kind: "answered", text: "**Yes**, it is." },
+        false,
+      ),
+    ).toBe("Yes, it is.");
+    expect(
+      backgroundReplyNotificationBody({ kind: "answered", text: "" }, true),
+    ).toBe("Pine 已回答。");
+    expect(backgroundReplyNotificationBody({ kind: "failed" }, false)).toMatch(
+      /couldn’t finish/,
+    );
   });
 });

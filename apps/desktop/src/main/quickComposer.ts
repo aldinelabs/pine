@@ -36,6 +36,11 @@ const ENTRANCE_FRAME_MS = 16;
 const HANDOFF_FADE_MS = 300;
 /** Then the panel and its glass fade out over the window. */
 const HANDOFF_FADE_OUT_MS = 250;
+/**
+ * A message sent in the background waits this long for context still being
+ * captured, then goes without it.
+ */
+export const BACKGROUND_CONTEXT_WAIT_MS = 5000;
 /** How far inside the window the grown glass stays. */
 const HANDOFF_GLASS_INSET = 1;
 /** A window's corner radius when the system does not say. */
@@ -123,6 +128,8 @@ interface HandoffWindow {
   /** The floating composer on screen, in screen coordinates. */
   composerRect: QuickComposerRect | null;
   timeout: ReturnType<typeof setTimeout> | null;
+  /** Answers a message in the background; it stays when the composer goes. */
+  kept: boolean;
 }
 
 export interface QuickComposerWindows {
@@ -330,6 +337,7 @@ export class QuickComposerController {
   submit(request: SubmitQuickComposerRequest): number | null | undefined {
     const panel = this.panel;
     if (!panel || panel.isDestroyed()) return undefined;
+    if (request.background) return this.submitInBackground(request, panel);
     const handoff: QuickComposerHandoff = {
       message: request.message,
       approvalMode: request.approvalMode,
@@ -372,6 +380,80 @@ export class QuickComposerController {
     return radius;
   }
 
+  /**
+   * Hides the panel at once and has the conversation start out of sight:
+   * in the window that holds the project, or in the prepared window, which
+   * stays hidden. Context still being captured is waited for, since the
+   * user saw its place and kept it.
+   */
+  private submitInBackground(
+    request: SubmitQuickComposerRequest,
+    panel: BrowserWindow,
+  ): null {
+    const ready =
+      request.withContext && this.context?.shownId === this.shownId
+        ? this.context.attachments
+        : null;
+    if (ready) this.context = null;
+    const capturing =
+      request.withContext && !ready ? this.startCapture() : null;
+    // Taken over here, so the panel's own handling leaves it alone.
+    if (capturing) this.inFlight = null;
+    const owner = this.windows.ownerWindow?.(request.projectId);
+    const deliver = this.windows.deliver;
+    // Taken now, so the next showing prepares a window of its own.
+    const target = owner && deliver ? null : this.prepare(panel.getBounds());
+    if (target) {
+      this.prepared = null;
+      target.kept = true;
+    }
+    this.hide();
+    const send = (context: PineAttachment[]) => {
+      const handoff: QuickComposerHandoff = {
+        message: request.message,
+        approvalMode: request.approvalMode,
+        projectId: request.projectId,
+        context,
+        background: true,
+      };
+      if (owner && deliver) {
+        if (!owner.isDestroyed()) deliver(owner, handoff);
+      } else if (target) this.handTo(target, handoff);
+    };
+    if (!capturing) {
+      send(ready ?? []);
+      return null;
+    }
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      send([]);
+    }, BACKGROUND_CONTEXT_WAIT_MS);
+    void capturing.then((captured) => {
+      if (settled) {
+        if (captured?.attachments.length)
+          this.windows.discardContext?.(captured.attachments);
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      send(captured?.attachments ?? []);
+    });
+    return null;
+  }
+
+  /** Gives a background message to its hidden window, now or once it asks. */
+  private handTo(target: HandoffWindow, handoff: QuickComposerHandoff): void {
+    if (target.window.isDestroyed()) return;
+    if (target.waiting) {
+      target.waiting(handoff);
+      target.waiting = null;
+      this.handoffs.delete(target.window.webContents.id);
+    } else {
+      target.handoff = handoff;
+    }
+  }
+
   /** Resolves with the message once one is sent to this window. */
   takeHandoff(contents: WebContents): Promise<QuickComposerHandoff | null> {
     const target = this.handoffs.get(contents.id);
@@ -379,6 +461,8 @@ export class QuickComposerController {
     const { handoff } = target;
     if (handoff) {
       target.handoff = null;
+      // It never presents; from now on it is one of the user's windows.
+      if (handoff.background) this.handoffs.delete(contents.id);
       return Promise.resolve(handoff);
     }
     return new Promise((resolve) => {
@@ -418,8 +502,13 @@ export class QuickComposerController {
   dispose(): void {
     for (const target of this.handoffs.values()) {
       if (target.timeout) clearTimeout(target.timeout);
-      // Only windows that never showed belong to the quick composer.
-      if (!target.window.isDestroyed() && !target.window.isVisible())
+      // Only windows that never showed belong to the quick composer; one
+      // answering in the background is the user's.
+      if (
+        !target.kept &&
+        !target.window.isDestroyed() &&
+        !target.window.isVisible()
+      )
         target.window.destroy();
     }
     this.handoffs.clear();
@@ -518,6 +607,7 @@ export class QuickComposerController {
       waiting: null,
       composerRect: null,
       timeout: null,
+      kept: false,
     };
     this.handoffs.set(id, target);
     window.once("closed", () => {

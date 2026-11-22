@@ -1293,12 +1293,21 @@ A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window. The context shows as a
-strip above the input: from the moment the composer appears, a grey
-placeholder holds its place while the app is captured, and the screenshot,
-app and window name fill it in once ready. The × button at the strip's right
-end, or Backspace or \ in an empty message, removes it, also while it is still
-a placeholder; what was being captured is then thrown away. Files, pasted images and long pasted text can be
-attached before the conversation opens in a window.
+strip above the input: from the moment the composer appears, a grey placeholder
+holds its place while the app is captured, and the screenshot, app and window
+name fill it in once ready. The × button at the strip's right end, or Backspace
+or \ in an empty message, removes it, also while it is still a placeholder;
+what was being captured is then thrown away. Files, pasted images and long
+pasted text can be attached before the conversation opens in a window. Enter
+opens the conversation in a window. Control+Enter (Alt+Enter on Windows and
+Linux) sends it in the background instead: the composer disappears at once and
+no window comes forward. Context still being captured is waited for and sent
+along. When Pine has answered, a system notification titled with the
+conversation shows the start of the reply (or says the answer could not be
+finished); clicking it opens Pine at that conversation. This notification comes
+even with "Signal when work is done" set to Off, but not while that
+conversation's window is in front. The send button's tooltip lists "Send in the
+background" with its keys when shortcut hints are on.
 
 ## Tray and menu bar
 
@@ -1344,6 +1353,9 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
   the new message; Option+Enter (Alt+Enter) sends without moving the
   conversation; Shift+Enter starts a new line
 - Mod+Enter: Optimize prompt in the composer; Esc cancels it
+- Quick composer: Control+Enter on macOS (Alt+Enter on Windows and Linux)
+  sends in the background and notifies with the answer; Backspace or \ in an
+  empty message removes the captured context
 - Enlarged Markdown image: Left / Right previous / next image; Mod+= / Mod+−
   zoom in / out; Mod+0 fit to window; Esc closes
 - File preview with text selected: Mod+Alt+M comments on the selection; in

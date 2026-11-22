@@ -25,6 +25,12 @@ export const DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL =
   "quick-composer:dismiss-context" as const;
 export const REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL =
   "quick-composer:request-permission" as const;
+/** A window says which session answers a message sent in the background. */
+export const WATCH_QUICK_COMPOSER_REPLY_CHANNEL =
+  "quick-composer:watch-reply" as const;
+/** Main asks a window to show a session, as its reply's notification was clicked. */
+export const REVEAL_QUICK_COMPOSER_SESSION_CHANNEL =
+  "quick-composer:reveal-session" as const;
 /** Main gives a message to the window that already holds its project. */
 export const DELIVER_QUICK_COMPOSER_CHANNEL = "quick-composer:deliver" as const;
 
@@ -78,6 +84,11 @@ export interface SubmitQuickComposerRequest {
   withContext: boolean;
   /** Where the composer is in the floating window. */
   composerRect: QuickComposerRect;
+  /**
+   * Sent with Control+Enter: the panel goes at once and the conversation
+   * runs out of sight; a notification brings its answer.
+   */
+  background?: boolean;
 }
 
 /** The message the new window sends, as the floating composer had it. */
@@ -90,6 +101,13 @@ export interface QuickComposerHandoff {
    * until sent, and goes ahead of its attachments.
    */
   context: PineAttachment[];
+  /** Sent without showing: the window stays as it is while it answers. */
+  background?: boolean;
+}
+
+/** A session whose window should come forward and show it. */
+export interface QuickComposerRevealSession {
+  sessionId: string;
 }
 
 /** Sent each time the floating composer appears. */
@@ -174,5 +192,14 @@ export interface PineQuickComposerApi {
    */
   onQuickComposerDelivered: (
     listener: (handoff: QuickComposerHandoff) => void,
+  ) => () => void;
+  /**
+   * Asks main to notify with this session's answer, for a message sent in
+   * the background.
+   */
+  watchQuickComposerReply: (sessionId: string) => Promise<void>;
+  /** Fires when a background answer's notification is clicked. */
+  onQuickComposerRevealSession: (
+    listener: (reveal: QuickComposerRevealSession) => void,
   ) => () => void;
 }

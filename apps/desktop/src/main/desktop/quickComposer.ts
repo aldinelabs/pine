@@ -27,6 +27,7 @@ import {
   SET_QUICK_COMPOSER_PASS_THROUGH_CHANNEL,
   SUBMIT_QUICK_COMPOSER_CHANNEL,
   TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
+  WATCH_QUICK_COMPOSER_REPLY_CHANNEL,
   type QuickComposerHandoff,
   type SetQuickComposerResult,
 } from "../../shared/quickComposer";
@@ -57,6 +58,7 @@ const SubmitQuickComposerSchema = z.object({
   projectId: z.string().min(1),
   withContext: z.boolean(),
   composerRect: QuickComposerRectSchema,
+  background: z.boolean().optional(),
 });
 
 interface DesktopQuickComposerOptions {
@@ -64,6 +66,8 @@ interface DesktopQuickComposerOptions {
   windows: DesktopWindows;
   windowForClient(clientId: number): BrowserWindow | undefined;
   focus(window: BrowserWindow): void;
+  /** Notifies with the session's answer once it finishes. */
+  watchReply(sessionId: string): void;
 }
 
 /** The floating composer behind its global shortcut, and its IPC. */
@@ -91,7 +95,8 @@ export class DesktopQuickComposer {
       },
       deliver: (window, handoff) => {
         window.webContents.send(DELIVER_QUICK_COMPOSER_CHANNEL, handoff);
-        options.focus(window);
+        // One sent in the background leaves the window where it is.
+        if (!handoff.background) options.focus(window);
       },
       createHandoffWindow: (bounds) =>
         windows.create({ bounds, quickComposerHandoff: true }),
@@ -213,6 +218,14 @@ export class DesktopQuickComposer {
       TAKE_QUICK_COMPOSER_HANDOFF_CHANNEL,
       (event): Promise<QuickComposerHandoff | null> =>
         quickComposer.takeHandoff(event.sender),
+    );
+
+    ipcMain.handle(
+      WATCH_QUICK_COMPOSER_REPLY_CHANNEL,
+      (event, sessionId: unknown): void => {
+        if (quickComposer.isPanel(event.sender)) return;
+        this.options.watchReply(z.string().min(1).parse(sessionId));
+      },
     );
 
     ipcMain.handle(

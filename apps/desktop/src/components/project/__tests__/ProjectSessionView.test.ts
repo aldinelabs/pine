@@ -1264,4 +1264,33 @@ describe("ProjectSessionView floating composer handoff", () => {
     );
     wrapper.unmount();
   });
+
+  it("sends a background message without showing the window, and asks to hear its answer", async () => {
+    const { wrapper } = mountView();
+    const sessionStore = useSessionStore();
+    vi.spyOn(sessionStore, "prompt").mockResolvedValue({
+      id: "answered-1",
+    } as never);
+    const present = vi.fn().mockResolvedValue(undefined);
+    const watchReply = vi.fn().mockResolvedValue(undefined);
+    Object.assign(window.pine, {
+      presentQuickComposerHandoff: present,
+      watchQuickComposerReply: watchReply,
+    });
+
+    useQuickComposerHandoffStore().deliver({
+      message: "Hello",
+      approvalMode: "auto-approve",
+      projectId: "p1",
+      context: [],
+      background: true,
+    });
+    await flushPromises();
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await flushPromises();
+
+    expect(present).not.toHaveBeenCalled();
+    expect(watchReply).toHaveBeenCalledWith("answered-1");
+    wrapper.unmount();
+  });
 });

@@ -202,7 +202,14 @@ onBeforeUnmount(() => {
   delete document.documentElement.dataset.quickComposer;
 });
 
-async function submit(message: string): Promise<void> {
+/**
+ * Enter opens the message into a window; Control+Enter sends it in the
+ * background, and main hides the panel at once.
+ */
+async function submit(
+  message: string,
+  options?: { background?: boolean },
+): Promise<void> {
   const element: unknown = composer.value?.$el;
   if (isSending.value || !(element instanceof HTMLElement)) return;
   const rect = element.getBoundingClientRect();
@@ -217,6 +224,7 @@ async function submit(message: string): Promise<void> {
       approvalMode: approvalMode.value,
       projectId: projectId.value,
       withContext: context.value.length > 0 || contextPending.value,
+      ...(options?.background ? { background: true } : {}),
       composerRect: {
         x: rect.x,
         y: rect.y,
@@ -415,6 +423,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
         :context-animates="contextAnimates"
         :rows-animate="contextAnimates"
         :edge-inset="!isExpanding"
+        background-send
         @dismiss-context="dismissContext"
         @select-project="projectId = $event"
         @submit="submit"

@@ -1663,6 +1663,7 @@ export default {
       steer: "Steer response",
       stop: "Stop response",
       sendWithoutScrolling: "Send without scrolling to the bottom",
+      sendInBackground: "Send in the background",
       steerWithoutScrolling: "Steer without scrolling to the bottom",
       withdrawSteering: "Withdraw staged message",
       withdrawSteeringFailed: "Could not withdraw the staged message",

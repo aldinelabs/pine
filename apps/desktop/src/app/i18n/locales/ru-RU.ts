@@ -1673,6 +1673,7 @@ export default {
       steer: "Скорректировать ответ",
       stop: "Остановить ответ",
       sendWithoutScrolling: "Отправить без прокрутки вниз",
+      sendInBackground: "Отправить в фоне",
       steerWithoutScrolling: "Скорректировать без прокрутки вниз",
       withdrawSteering: "Отозвать отложенное сообщение",
       withdrawSteeringFailed: "Не удалось отозвать отложенное сообщение",

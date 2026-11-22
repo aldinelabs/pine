@@ -312,6 +312,7 @@ const quickComposer = new DesktopQuickComposer({
   windows,
   windowForClient: windowForWebContentsId,
   focus: focusWindow,
+  watchReply: (sessionId) => attention.watchReply(sessionId),
 });
 quickComposer.registerIpc();
 

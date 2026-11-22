@@ -1692,6 +1692,7 @@ export default {
       steer: "Reorientar la respuesta",
       stop: "Detener la respuesta",
       sendWithoutScrolling: "Enviar sin desplazarse al final",
+      sendInBackground: "Enviar en segundo plano",
       steerWithoutScrolling: "Reorientar sin desplazarse al final",
       withdrawSteering: "Retirar el mensaje en cola",
       withdrawSteeringFailed: "No se pudo retirar el mensaje en cola",

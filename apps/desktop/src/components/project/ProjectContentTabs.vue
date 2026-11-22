@@ -86,6 +86,7 @@ const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
 // new draft here, which sends it once it shows.
 const quickComposerHandoff = useQuickComposerHandoffStore();
 let stopQuickComposerDelivery: (() => void) | undefined;
+let stopQuickComposerReveal: (() => void) | undefined;
 onMounted(() => {
   stopQuickComposerDelivery = window.pine.onQuickComposerDelivered?.(
     (handoff) => {
@@ -94,8 +95,23 @@ onMounted(() => {
         .then(() => quickComposerHandoff.deliver(handoff));
     },
   );
+  // The notification of an answer sent in the background shows its session.
+  stopQuickComposerReveal = window.pine.onQuickComposerRevealSession?.(
+    ({ sessionId }) => {
+      const tab = tabs.value.find(
+        (candidate) =>
+          candidate.kind === "session" &&
+          candidate.state === "bound" &&
+          candidate.sessionId === sessionId,
+      );
+      if (tab) tabNavigation.activate(tab.id);
+    },
+  );
 });
-onBeforeUnmount(() => stopQuickComposerDelivery?.());
+onBeforeUnmount(() => {
+  stopQuickComposerDelivery?.();
+  stopQuickComposerReveal?.();
+});
 
 const sessionTabs = computed(() =>
   tabs.value.filter((tab) => tab.kind === "session"),

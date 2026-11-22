@@ -35,6 +35,7 @@ interface ComposerProps {
   edgeInset?: boolean;
   context?: PineAttachment[];
   contextPending?: boolean;
+  backgroundSend?: boolean;
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
   isRunning?: boolean;
   isActive?: boolean;
@@ -316,6 +317,29 @@ describe("ProjectSessionComposer", () => {
     await button.trigger("click");
     expect(wrapper.emitted("dismissContext")).toHaveLength(1);
     wrapper.unmount();
+  });
+
+  it("sends in the background with Control+Enter from the floating composer", async () => {
+    const wrapper = mountComposer({ isActive: true, backgroundSend: true });
+    const input = wrapper.find("textarea");
+    await input.setValue("Hello");
+    await input.trigger("keydown", { key: "Enter", ctrlKey: true });
+    expect(wrapper.emitted("submit")).toEqual([
+      ["Hello", { background: true }],
+    ]);
+    // ⌘+Enter stays Optimize prompt and sends nothing.
+    await input.setValue("Hello");
+    await input.trigger("keydown", { key: "Enter", metaKey: true });
+    expect(wrapper.emitted("submit")).toHaveLength(1);
+    wrapper.unmount();
+
+    // Elsewhere Control+Enter does not send.
+    const plain = mountComposer({ isActive: true });
+    const plainInput = plain.find("textarea");
+    await plainInput.setValue("Hello");
+    await plainInput.trigger("keydown", { key: "Enter", ctrlKey: true });
+    expect(plain.emitted("submit")).toBeUndefined();
+    plain.unmount();
   });
 
   it("holds the controls below the input in while inset", async () => {

@@ -63,3 +63,18 @@ export function replyNotificationBody(markdown: string): string {
     .replaceAll(/\s+/g, " ")
     .trim();
 }
+
+/** What a message sent from the quick composer in the background came to. */
+export function backgroundReplyNotificationBody(
+  outcome: { kind: "answered"; text: string } | { kind: "failed" },
+  chinese: boolean,
+): string {
+  if (outcome.kind === "failed")
+    return chinese
+      ? "Pine 没能完成回答，点按查看发生了什么。"
+      : "Pine couldn’t finish answering. Click to see what happened.";
+  return (
+    replyNotificationBody(outcome.text) ||
+    (chinese ? "Pine 已回答。" : "Pine has answered.")
+  );
+}

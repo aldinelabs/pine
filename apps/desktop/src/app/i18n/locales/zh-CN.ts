@@ -1585,6 +1585,7 @@ export default {
       steer: "追加要求",
       stop: "停止回答",
       sendWithoutScrolling: "发送，不回到底部",
+      sendInBackground: "在后台发送",
       steerWithoutScrolling: "追加要求，不回到底部",
       withdrawSteering: "撤回暂存消息",
       withdrawSteeringFailed: "无法撤回该暂存消息",

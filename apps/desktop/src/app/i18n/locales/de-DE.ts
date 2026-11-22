@@ -1698,6 +1698,7 @@ export default {
       steer: "Antwort lenken",
       stop: "Antwort stoppen",
       sendWithoutScrolling: "Senden, ohne nach unten zu scrollen",
+      sendInBackground: "Im Hintergrund senden",
       steerWithoutScrolling: "Lenken, ohne nach unten zu scrollen",
       withdrawSteering: "Vorgemerkte Nachricht zurückziehen",
       withdrawSteeringFailed:

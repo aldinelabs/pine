@@ -538,7 +538,12 @@ function removeDraftAuthoring(target: PineAuthoringTarget): void {
  */
 function submit(
   message: string,
-  options?: { keepDraft?: boolean; holdView?: boolean },
+  options?: {
+    keepDraft?: boolean;
+    holdView?: boolean;
+    /** Once the message started its session. */
+    onSent?: (sessionId: string) => void;
+  },
 ): void {
   const holdView = options?.holdView === true && messages.value.length > 0;
   if (holdView) scroller.value?.holdViewForNextTurn?.();
@@ -597,6 +602,7 @@ function submit(
     })
     .then((session) => {
       tabNavigation.bindSession(props.tabId, session);
+      options?.onSent?.(session.id);
     })
     .catch(() => {
       releaseHold();
@@ -677,7 +683,9 @@ watch(
       window.setTimeout(resolve, 50);
     });
     const element: unknown = composer.value?.$el;
-    if (element instanceof HTMLElement) {
+    // Sent in the background, the window stays as it is; main tells the
+    // user once the session answers.
+    if (!handoff.background && element instanceof HTMLElement) {
       const rect = element.getBoundingClientRect();
       await window.pine
         .presentQuickComposerHandoff({
@@ -695,6 +703,14 @@ watch(
             parsed.prompt,
           )
         : handoff.message,
+      handoff.background
+        ? {
+            onSent: (sessionId) =>
+              void window.pine
+                .watchQuickComposerReply?.(sessionId)
+                .catch(() => undefined),
+          }
+        : undefined,
     );
     handoffContext.value = [];
   },
