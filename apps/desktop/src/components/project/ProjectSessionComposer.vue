@@ -368,7 +368,16 @@ function focus(): void {
   document.getElementById(messageId)?.focus({ preventScroll: true });
 }
 
-defineExpose({ focus });
+/**
+ * Puts an example prompt in the text box as an undoable edit and selects its
+ * first `[[blank]]`; nothing is sent.
+ */
+function fillExample(text: string): void {
+  replaceMessageUndoably(text);
+  void nextTick(focusFirstBlank);
+}
+
+defineExpose({ focus, fillExample });
 
 // ⌘L / Ctrl+L jumps to the prompt from anywhere on the page.
 useEventListener(window, "keydown", (event: KeyboardEvent) => {

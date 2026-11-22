@@ -1874,6 +1874,29 @@ export default {
       emptyDescription:
         "Stellen Sie eine Frage, übergeben Sie eine Aufgabe oder verfolgen Sie eine verrückte Idee.",
       emptyTitle: "Wagen Sie das Unmögliche",
+      examples: {
+        label: "Beispiele für den Einstieg",
+        explore: {
+          title: "Dieses Projekt kennenlernen",
+          prompt:
+            "Sieh dir die Ordner dieses Projekts an, beschreibe in ein paar Sätzen, worum es geht, und nenne die Dateien, die man zuerst lesen sollte.",
+        },
+        research: {
+          title: "Recherchieren und zusammenfassen",
+          prompt:
+            "Recherchiere die neuesten Entwicklungen zu [[einem Thema, das dich interessiert]] und schreibe eine Kurzübersicht mit Quellenlinks als Markdown-Datei.",
+        },
+        organize: {
+          title: "Einen Ordner aufräumen",
+          prompt:
+            "Sortiere die Dateien in [[einem Ordner]] nach Typ und Datum. Erkläre mir zuerst deinen Plan und setze ihn dann um.",
+        },
+        build: {
+          title: "Etwas Mutiges bauen",
+          prompt:
+            "Baue eine interaktive Webseite, die [[was sie können soll]], und öffne sie danach in der Vorschau für mich.",
+        },
+      },
       loadHistory: "Frühere Nachrichten laden",
       loadingHistory: "Wird geladen",
       scrollToBottom: "Nach unten scrollen",

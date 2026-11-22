@@ -538,7 +538,7 @@ export default {
       "Show a light running along the text box’s border while the agent works",
     helpGuides: "Guide buttons",
     helpGuidesDescription:
-      "Show buttons that open illustrated guides, such as in the approval mode menu and Context usage",
+      "Show buttons that open illustrated guides, such as in the approval mode menu and Context usage, and example tasks in a new conversation",
     replySuggestions: "Reply suggestions",
     replySuggestionsDescription:
       "After the agent answers, suggest a next message in the text box; press Tab to use it. Uses the prompt optimization model.",
@@ -1832,6 +1832,29 @@ export default {
       emptyDescription:
         "Ask a question, hand off a task, or chase a wild idea.",
       emptyTitle: "Dare the impossible",
+      examples: {
+        label: "Examples to start from",
+        explore: {
+          title: "Get to know this project",
+          prompt:
+            "Look through this project's folders, tell me in a few sentences what it is about, and list the files worth reading first.",
+        },
+        research: {
+          title: "Research and write a brief",
+          prompt:
+            "Research the latest developments in [[a topic you care about]] and write a brief with source links, saved as a Markdown file.",
+        },
+        organize: {
+          title: "Tidy up a folder",
+          prompt:
+            "Organize the files in [[a folder]] by type and date. Tell me your plan first, then do it.",
+        },
+        build: {
+          title: "Build something bold",
+          prompt:
+            "Build an interactive web page that [[what you want it to do]], then open it in the preview for me.",
+        },
+      },
       loadHistory: "Load earlier messages",
       loadingHistory: "Loading",
       scrollToBottom: "Scroll to bottom",

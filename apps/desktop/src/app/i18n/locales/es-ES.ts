@@ -1866,6 +1866,29 @@ export default {
       emptyDescription:
         "Haz una pregunta, delega una tarea o persigue una idea descabellada.",
       emptyTitle: "Atrévete con lo imposible",
+      examples: {
+        label: "Ejemplos para empezar",
+        explore: {
+          title: "Conocer este proyecto",
+          prompt:
+            "Revisa las carpetas de este proyecto, cuéntame en pocas frases de qué trata y enumera los archivos que conviene leer primero.",
+        },
+        research: {
+          title: "Investigar y redactar un informe",
+          prompt:
+            "Investiga las novedades sobre [[un tema que te interese]] y redacta un informe breve con enlaces a las fuentes, guardado como archivo Markdown.",
+        },
+        organize: {
+          title: "Ordenar una carpeta",
+          prompt:
+            "Organiza los archivos de [[una carpeta]] por tipo y fecha. Cuéntame primero tu plan y luego hazlo.",
+        },
+        build: {
+          title: "Crear algo atrevido",
+          prompt:
+            "Crea una página web interactiva que [[lo que quieres que haga]] y ábrela en la vista previa para que la vea.",
+        },
+      },
       loadHistory: "Cargar mensajes anteriores",
       loadingHistory: "Cargando",
       scrollToBottom: "Desplazarse hasta abajo",

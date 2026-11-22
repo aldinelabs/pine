@@ -62,7 +62,8 @@ click.
   as the last item of a menu or popover below a divider (for example "How
   approval modes work" in the approval mode menu, "How context works" in the
   Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
-  overlays). Guide buttons can be hidden everywhere with Guide buttons in
+  overlays). Guide buttons, and the example cards of a new session, can be
+  hidden everywhere with Guide buttons in
   Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
@@ -222,7 +223,11 @@ Tab bar ("Open content"):
 
 From top to bottom:
 
-1. Transcript. Empty sessions show "Dare the impossible". Otherwise it lists
+1. Transcript. Empty sessions show "Dare the impossible". With Guide buttons
+   on, four example cards follow ("Get to know this project", "Research and
+   write a brief", "Tidy up a folder", "Build something bold"); clicking one
+   puts its prompt in the text box, selects its first `[[…]]` blank and
+   sends nothing (Cmd/Ctrl+Z brings back what was typed). Otherwise it lists
    messages in order:
    - user messages, with Copy message and Edit message (editing resends);
    - assistant replies, with reasoning markers ("Thinking…", "Thought for …");

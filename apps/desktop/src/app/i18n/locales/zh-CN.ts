@@ -505,7 +505,7 @@ export default {
     composerGlowDescription: "智能体工作时，在输入框边框上显示流动的光",
     helpGuides: "图解教程按钮",
     helpGuidesDescription:
-      "在审批模式菜单、上下文用量等处显示打开图解教程的按钮",
+      "在审批模式菜单、上下文用量等处显示打开图解教程的按钮，并在新会话里显示示例任务",
     replySuggestions: "回复建议",
     replySuggestionsDescription:
       "智能体回答后，在输入框中给出建议的下一条消息，按 Tab 采用。使用指令优化模型。",
@@ -1741,6 +1741,29 @@ export default {
       },
       emptyDescription: "从一个问题、一项任务，或一个大胆的想法开始。",
       emptyTitle: "不妨大胆想象",
+      examples: {
+        label: "从这些示例开始",
+        explore: {
+          title: "了解这个项目",
+          prompt:
+            "看看这个项目的文件夹里有什么，用几句话告诉我它是做什么的，再列出最值得先看的几个文件。",
+        },
+        research: {
+          title: "调研并写简报",
+          prompt:
+            "调研 [[你关心的主题]] 的最新进展，整理成一份带来源链接的简报，保存为 Markdown 文件。",
+        },
+        organize: {
+          title: "整理一个文件夹",
+          prompt:
+            "把 [[某个文件夹]] 里的文件按类型和日期整理好。先告诉我你打算怎么整理，再动手。",
+        },
+        build: {
+          title: "大胆做点新东西",
+          prompt:
+            "做一个可交互的网页，用来 [[你想让它做的事]]，做好后在预览里打开给我看。",
+        },
+      },
       loadHistory: "加载更早的消息",
       loadingHistory: "正在加载",
       scrollToBottom: "滚动到底部",
