@@ -16,6 +16,7 @@ import {
   LibraryIcon,
   BlocksIcon,
   WorkflowIcon,
+  SparklesIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, type Component } from "vue";
@@ -71,6 +72,7 @@ const TOPIC_ICONS: Record<HelpTopicId, Component> = {
   skills: LibraryIcon,
   mcp: BlocksIcon,
   automations: WorkflowIcon,
+  "best-practices": SparklesIcon,
 };
 
 const groups = computed(() =>

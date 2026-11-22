@@ -75,6 +75,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
     "what automations are, the four kinds of trigger, creating one with Pine",
     "how runs work: permissions, Activity, notifications, Secrets, running in the background",
   ],
+  "best-practices": [
+    "handing over a task well: the goal, material, room to work, self-checks, keeping what works",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

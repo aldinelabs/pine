@@ -1283,6 +1283,8 @@ the user opens themselves do not pulse.
   projects servers, adding one with Pine, status),
   "Automations" (what automations are, triggers, creating one with Pine; how
   runs work, Activity, Secrets, running in the background),
+  "Working well with an agent" (one page: stating the goal, giving material,
+  room to work, having Pine check its work, keeping what works),
   plus three one-page guides opened from settings' question marks:
   "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands

@@ -27,6 +27,7 @@ import SkillsIllustration from "./SkillsIllustration.vue";
 import McpIllustration from "./McpIllustration.vue";
 import AutomationTriggersIllustration from "./AutomationTriggersIllustration.vue";
 import AutomationRunsIllustration from "./AutomationRunsIllustration.vue";
+import BestPracticesIllustration from "./BestPracticesIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -64,5 +65,6 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   mcp: McpIllustration,
   "automation-triggers": AutomationTriggersIllustration,
   "automation-runs": AutomationRunsIllustration,
+  "best-practices": BestPracticesIllustration,
   tips: TipsIllustration,
 };

@@ -544,4 +544,28 @@ export default {
       },
     ],
   },
+  "best-practices": {
+    title: "Working well with an agent",
+    summary:
+      "Modern models are very capable. Give one a clear goal and room to work, and it goes far.",
+    steps: [
+      {
+        title: "Hand it over boldly, then let it work",
+        body: [
+          "Pine reads and writes files, runs commands, searches the web, uses a browser and can split big tasks into sub-sessions. The key is to brief it the way you'd brief a capable colleague:",
+        ],
+        points: [
+          'Say where it ends: what to deliver and what counts as done beats step-by-step instructions. For example, "Put together a comparison table covering price, features and user reviews".',
+          "Give it the material: put the relevant folders in the project and include references, examples and links. The more it sees, the better it judges.",
+          "Give it room: start in Auto Approve and let it keep going. When a new idea comes up, just add it as a request; there's no need to stop and start over.",
+          "Have it check its own work: ask it to run the tests, open the result and look, or go through the requirements one by one.",
+          "Keep what works: ask it to remember a good approach or turn it into a Skill, and hand recurring tasks to an automation.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Not sure it can be done? Let it try. The result often goes beyond what you expected.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

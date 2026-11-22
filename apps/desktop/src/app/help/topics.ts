@@ -35,6 +35,7 @@ export const HELP_TOPIC_STEPS = {
   skills: ["skills"],
   mcp: ["mcp"],
   automations: ["automation-triggers", "automation-runs"],
+  "best-practices": ["best-practices"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
@@ -49,7 +50,7 @@ export const HELP_TOPIC_GROUPS: readonly {
 }[] = [
   {
     id: "start",
-    topics: ["approval-modes", "models", "context-window"],
+    topics: ["best-practices", "approval-modes", "models", "context-window"],
   },
   {
     id: "work",
@@ -99,6 +100,7 @@ export type HelpIllustrationId =
   | "mcp"
   | "automation-triggers"
   | "automation-runs"
+  | "best-practices"
   | "tips";
 
 export interface HelpStepText {
