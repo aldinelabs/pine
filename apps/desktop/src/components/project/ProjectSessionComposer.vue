@@ -1929,14 +1929,16 @@ function handleRootSubmit(event: Event): void {
                 </span>
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid="approval-modes-guide"
-              @select="helpStore.openTopic('approval-modes')"
-            >
-              <CircleHelpIcon />
-              {{ t("help.approvalModesGuide") }}
-            </DropdownMenuItem>
+            <template v-if="appearanceStore.helpGuides">
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                data-testid="approval-modes-guide"
+                @select="helpStore.openTopic('approval-modes')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.approvalModesGuide") }}
+              </DropdownMenuItem>
+            </template>
           </DropdownMenuContent>
         </DropdownMenu>
 

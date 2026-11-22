@@ -3,7 +3,7 @@ import { storeToRefs } from "pinia";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
-import HelpHint from "@/components/help/HelpHint.vue";
+import HelpGuideButton from "@/components/help/HelpGuideButton.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -248,10 +248,8 @@ async function compactContext(): Promise<void> {
     <PopoverContent side="top" align="start" class="w-72 gap-4">
       <section class="flex flex-col gap-2" data-testid="context-section">
         <div class="flex items-baseline justify-between gap-4">
-          <span class="flex items-baseline gap-2 text-sm font-medium">
+          <span class="text-sm font-medium">
             {{ t("project.composer.contextUsage.label") }}
-            <!-- The guide opens over the popover's place, so it closes. -->
-            <HelpHint topic="context-window" @open="isOpen = false" />
           </span>
           <span
             class="text-lg font-semibold tabular-nums"
@@ -298,6 +296,12 @@ async function compactContext(): Promise<void> {
               : t("project.composer.contextUsage.compactNow")
           }}
         </Button>
+        <!-- The guide opens over the popover's place, so it closes. -->
+        <HelpGuideButton
+          topic="context-window"
+          :label="t('help.contextWindowGuide')"
+          @open="isOpen = false"
+        />
       </section>
 
       <Separator />

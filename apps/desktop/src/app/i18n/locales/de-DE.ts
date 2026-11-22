@@ -508,6 +508,9 @@ export default {
     composerGlow: "Leuchten bei der Arbeit",
     composerGlowDescription:
       "Zeigt ein Licht, das am Rand des Eingabefelds entlangläuft, während der Agent arbeitet",
+    helpGuides: "Schaltflächen für Anleitungen",
+    helpGuidesDescription:
+      "Zeigt Schaltflächen, die bebilderte Anleitungen öffnen, etwa im Menü der Freigabemodi und bei der Kontextnutzung",
     replySuggestions: "Antwortvorschläge",
     replySuggestionsDescription:
       "Schlägt nach der Antwort des Agenten eine nächste Nachricht im Eingabefeld vor; mit Tab übernehmen. Nutzt das Modell für Prompt-Optimierung.",
@@ -3355,8 +3358,6 @@ export default {
     },
   },
   help: {
-    hintLabel: "Mehr über {topic}",
-    openGuide: "Klicken für eine bebilderte Anleitung",
     previous: "Zurück",
     next: "Weiter",
     done: "Fertig",
@@ -3365,5 +3366,6 @@ export default {
     tip: "Tipp",
     caution: "Hinweis",
     approvalModesGuide: "So funktionieren die Freigabemodi",
+    contextWindowGuide: "So funktioniert der Kontext",
   },
 } as const;

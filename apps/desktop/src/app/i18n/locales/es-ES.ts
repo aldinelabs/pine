@@ -507,6 +507,9 @@ export default {
     composerGlow: "Brillo de trabajo",
     composerGlowDescription:
       "Muestra una luz que recorre el borde del cuadro de texto mientras el agente trabaja",
+    helpGuides: "Botones de guías",
+    helpGuidesDescription:
+      "Muestra botones que abren guías ilustradas, por ejemplo en el menú de modos de aprobación y en Uso del contexto",
     replySuggestions: "Sugerencias de respuesta",
     replySuggestionsDescription:
       "Cuando el agente responde, sugiere un siguiente mensaje en el cuadro de texto; pulsa Tab para usarlo. Usa el modelo de optimización de prompts.",
@@ -3332,8 +3335,6 @@ export default {
     },
   },
   help: {
-    hintLabel: "Más sobre {topic}",
-    openGuide: "Haz clic para ver una guía ilustrada",
     previous: "Anterior",
     next: "Siguiente",
     done: "Listo",
@@ -3342,5 +3343,6 @@ export default {
     tip: "Consejo",
     caution: "Atención",
     approvalModesGuide: "Cómo funcionan los modos de aprobación",
+    contextWindowGuide: "Cómo funciona el contexto",
   },
 } as const;

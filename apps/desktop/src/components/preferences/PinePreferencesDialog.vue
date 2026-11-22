@@ -1658,6 +1658,23 @@ defineExpose({ open });
                     />
                   </Field>
 
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-help-guides-setting">
+                        {{ t("preferences.helpGuides") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.helpGuidesDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-help-guides-toggle"
+                      :model-value="appearanceStore.helpGuides"
+                      aria-labelledby="pine-help-guides-setting"
+                      @update:model-value="appearanceStore.setHelpGuides"
+                    />
+                  </Field>
+
                   <Field
                     v-if="supportsSidebarVibrancy"
                     orientation="horizontal"

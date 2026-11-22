@@ -498,6 +498,9 @@ export default {
     composerGlow: "Working glow",
     composerGlowDescription:
       "Show a light running along the text box’s border while the agent works",
+    helpGuides: "Guide buttons",
+    helpGuidesDescription:
+      "Show buttons that open illustrated guides, such as in the approval mode menu and Context usage",
     replySuggestions: "Reply suggestions",
     replySuggestionsDescription:
       "After the agent answers, suggest a next message in the text box; press Tab to use it. Uses the prompt optimization model.",
@@ -3262,8 +3265,6 @@ export default {
     },
   },
   help: {
-    hintLabel: "Learn about {topic}",
-    openGuide: "Click for an illustrated guide",
     previous: "Previous",
     next: "Next",
     done: "Done",
@@ -3272,5 +3273,6 @@ export default {
     tip: "Tip",
     caution: "Note",
     approvalModesGuide: "How approval modes work",
+    contextWindowGuide: "How context works",
   },
 } as const;
