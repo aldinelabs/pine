@@ -1656,6 +1656,7 @@ export default {
         mcp: "Pine と一緒に MCP サーバーを管理",
         remove: "通常の会話にする",
       },
+      contextCapturing: "使用中のアプリを取り込んでいます…",
       contextRemove: "削除するには",
       attachmentPickerFailed: "選択した項目を開けないか、確認できませんでした",
       attachmentDropFailed: "ドロップした添付ファイルを確認できませんでした",

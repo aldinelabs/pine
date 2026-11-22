@@ -172,6 +172,11 @@ const props = withDefaults(
      * Backspace or \\ in an empty message. The parent sends it.
      */
     context?: readonly PineAttachment[];
+    /**
+     * The context is still being captured; a placeholder holds its place
+     * and can be dropped the same way.
+     */
+    contextPending?: boolean;
     /** False to show or drop the context at once. */
     contextAnimates?: boolean;
     /**
@@ -201,6 +206,7 @@ const props = withDefaults(
   }>(),
   {
     context: () => [],
+    contextPending: false,
     contextAnimates: true,
     rowsAnimate: true,
     authoring: () => [],
@@ -1294,6 +1300,10 @@ function removeAttachment(path: string): void {
   );
 }
 
+const hasContext = computed(
+  () => props.context.length > 0 || props.contextPending,
+);
+
 /** Whether the caret sits at the end of the text box with nothing selected. */
 function caretAtEnd(event: KeyboardEvent): boolean {
   const textarea = event.target;
@@ -1308,7 +1318,7 @@ function handleKeydown(event: KeyboardEvent): void {
     return;
   }
   if (
-    props.context.length > 0 &&
+    hasContext.value &&
     message.value === "" &&
     (event.key === "Backspace" || event.key === "\\") &&
     !event.isComposing &&
@@ -1468,7 +1478,7 @@ function handleRootSubmit(event: Event): void {
                  keeps what it showed. -->
             <Transition :css="contextAnimates" name="session-composer-context">
               <div
-                v-if="context.length > 0"
+                v-if="hasContext"
                 data-slot="session-composer-context"
                 class="session-composer-context grid w-full"
               >
@@ -1476,6 +1486,7 @@ function handleRootSubmit(event: Event): void {
                   <ProjectComposerContext
                     class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
                     :context="context"
+                    :pending="contextPending && context.length === 0"
                   />
                 </div>
               </div>

@@ -20,6 +20,9 @@ export const PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL =
   "quick-composer:present-handoff" as const;
 /** Main sends what it captured from the app the user was in. */
 export const QUICK_COMPOSER_CONTEXT_CHANNEL = "quick-composer:context" as const;
+/** The user removed this showing's context, captured or still on its way. */
+export const DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL =
+  "quick-composer:dismiss-context" as const;
 export const REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL =
   "quick-composer:request-permission" as const;
 /** Main gives a message to the window that already holds its project. */
@@ -92,6 +95,11 @@ export interface QuickComposerHandoff {
 /** Sent each time the floating composer appears. */
 export interface QuickComposerShown {
   id: number;
+  /**
+   * The app the user was in is being captured; its context arrives later,
+   * and holds its place in the composer meanwhile.
+   */
+  capturing: boolean;
 }
 
 /** What capturing the app's context needs and does not have. */
@@ -135,6 +143,11 @@ export interface PineQuickComposerApi {
   onQuickComposerContext: (
     listener: (context: QuickComposerContext) => void,
   ) => () => void;
+  /**
+   * Drops this showing's context: what was captured is deleted, and a
+   * capture still under way is discarded when it finishes.
+   */
+  dismissQuickComposerContext: () => Promise<void>;
   /** Asks the system for a permission the context needs. */
   requestQuickComposerPermission: (
     permission: QuickComposerPermission,

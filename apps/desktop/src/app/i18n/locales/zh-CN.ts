@@ -1572,6 +1572,7 @@ export default {
         mcp: "正在和 Pine 协作管理 MCP 服务器",
         remove: "改为普通对话",
       },
+      contextCapturing: "正在获取你刚才所在的应用…",
       contextRemove: "移除",
       attachmentPickerFailed: "无法打开或读取所选附件",
       attachmentDropFailed: "无法读取拖入的附件",

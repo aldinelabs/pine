@@ -141,7 +141,7 @@ describe("QuickComposerController", () => {
     });
     expect(panel.webContents.send).toHaveBeenCalledWith(
       QUICK_COMPOSER_SHOWN_CHANNEL,
-      { id: expect.any(Number) as number },
+      { id: expect.any(Number) as number, capturing: false },
     );
     expect(handoffWindows).toHaveLength(1);
     expect(handoffWindows[0]?.visible).toBe(false);
@@ -178,7 +178,7 @@ describe("QuickComposerController", () => {
     expect(panel.show).toHaveBeenCalledOnce();
     expect(panel.webContents.send).toHaveBeenCalledWith(
       QUICK_COMPOSER_SHOWN_CHANNEL,
-      { id: expect.any(Number) as number },
+      { id: expect.any(Number) as number, capturing: false },
     );
   });
 
@@ -466,6 +466,12 @@ describe("QuickComposerController", () => {
       panel.emit("ready-to-show");
     });
 
+    function shownMessages(): unknown[] {
+      return panel.webContents.send.mock.calls
+        .filter(([channel]) => channel === QUICK_COMPOSER_SHOWN_CHANNEL)
+        .map(([, shown]) => shown as unknown);
+    }
+
     function sentContexts(): unknown[] {
       return panel.webContents.send.mock.calls
         .filter(([channel]) => channel === QUICK_COMPOSER_CONTEXT_CHANNEL)
@@ -524,6 +530,38 @@ describe("QuickComposerController", () => {
     it("captures nothing for a panel closed during its entrance", () => {
       controller.show();
       controller.hide();
+      vi.advanceTimersByTime(600);
+      expect(captures).toHaveLength(0);
+    });
+
+    it("tells the panel a capture is coming as it shows", () => {
+      controller.show();
+      expect(shownMessages().at(-1)).toEqual({ id: 1, capturing: true });
+    });
+
+    it("deletes context the user removed, even while it is captured", async () => {
+      controller.show();
+      vi.advanceTimersByTime(600);
+      controller.dismissContext();
+      captures[0]?.(captured);
+      await vi.waitFor(() => expect(discarded).toEqual([captured.attachments]));
+      expect(sentContexts()).toEqual([]);
+
+      await showAndCapture();
+      controller.dismissContext();
+      expect(discarded).toHaveLength(2);
+      // Nothing is left to send or delete again.
+      const target = handoffWindows.at(-1) as FakeWindow;
+      const taken = controller.takeHandoff(target.webContents as never);
+      controller.submit({ ...request, withContext: true });
+      await expect(taken).resolves.toMatchObject({ context: [] });
+      controller.hide();
+      expect(discarded).toHaveLength(2);
+    });
+
+    it("never captures context removed before the entrance ends", () => {
+      controller.show();
+      controller.dismissContext();
       vi.advanceTimersByTime(600);
       expect(captures).toHaveLength(0);
     });

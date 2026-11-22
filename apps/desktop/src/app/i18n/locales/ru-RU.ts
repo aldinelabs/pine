@@ -1657,6 +1657,7 @@ export default {
         mcp: "Управление MCP-серверами вместе с Pine",
         remove: "Начать обычный разговор",
       },
+      contextCapturing: "Захват приложения, в котором вы были…",
       contextRemove: "чтобы убрать",
       attachmentPickerFailed:
         "Не удалось открыть или проверить выбранные элементы",

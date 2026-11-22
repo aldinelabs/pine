@@ -1676,6 +1676,7 @@ export default {
         mcp: "Gestion des serveurs MCP avec Pine",
         remove: "Passer à une conversation ordinaire",
       },
+      contextCapturing: "Capture de l’app que vous utilisiez…",
       contextRemove: "pour retirer",
       attachmentPickerFailed:
         "Impossible d'ouvrir ou d'inspecter les éléments sélectionnés",

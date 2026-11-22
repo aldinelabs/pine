@@ -16,6 +16,7 @@ import {
 import {
   DEFAULT_QUICK_COMPOSER_ENABLED,
   DELIVER_QUICK_COMPOSER_CHANNEL,
+  DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL,
   GET_QUICK_COMPOSER_CHANNEL,
   HIDE_QUICK_COMPOSER_CHANNEL,
   PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
@@ -158,6 +159,10 @@ export class DesktopQuickComposer {
 
     ipcMain.handle(HIDE_QUICK_COMPOSER_CHANNEL, (event): void => {
       if (quickComposer.isPanel(event.sender)) quickComposer.hide();
+    });
+
+    ipcMain.handle(DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL, (event): void => {
+      if (quickComposer.isPanel(event.sender)) quickComposer.dismissContext();
     });
 
     ipcMain.handle(

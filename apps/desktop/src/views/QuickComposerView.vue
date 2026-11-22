@@ -93,15 +93,33 @@ function playEntrance(): void {
  */
 let shownId = 0;
 const context = ref<PineAttachment[]>([]);
+/** Being captured: its place shows already, filled in once it arrives. */
+const contextPending = ref(false);
+/** The showing whose context the user removed; what comes later stays out. */
+let dismissedShownId = -1;
 const missingPermissions = ref<QuickComposerPermission[]>([]);
 
-function dismissContext(): void {
+function clearContext(): void {
   context.value = [];
+  contextPending.value = false;
+}
+
+/** Main deletes what was captured and drops a capture still under way. */
+function dismissContext(): void {
+  clearContext();
+  dismissedShownId = shownId;
+  void window.pine.dismissQuickComposerContext().catch(() => undefined);
 }
 
 function handleContext(captured: QuickComposerContext): void {
-  if (captured.shownId !== shownId || isSending.value) return;
+  if (
+    captured.shownId !== shownId ||
+    captured.shownId === dismissedShownId ||
+    isSending.value
+  )
+    return;
   context.value = captured.attachments;
+  contextPending.value = false;
   missingPermissions.value = captured.missing;
 }
 
@@ -133,7 +151,7 @@ const contextAnimates = ref(true);
  */
 async function handleHidden(): Promise<void> {
   contextAnimates.value = false;
-  dismissContext();
+  clearContext();
   missingPermissions.value = [];
   // The card shrinks back from the window the last message opened into.
   for (const animation of cardElement.value?.getAnimations() ?? [])
@@ -153,6 +171,12 @@ async function handleHidden(): Promise<void> {
 
 function handleShown(shown: QuickComposerShown): void {
   shownId = shown.id;
+  // In place from the first frame, so typing never moves it in later.
+  if (shown.capturing) {
+    contextAnimates.value = false;
+    contextPending.value = true;
+    void nextTick(() => (contextAnimates.value = true));
+  }
   playEntrance();
   passThrough = true;
   void projectStore.loadProjects().catch(() => undefined);
@@ -192,7 +216,7 @@ async function submit(message: string): Promise<void> {
       message,
       approvalMode: approvalMode.value,
       projectId: projectId.value,
-      withContext: context.value.length > 0,
+      withContext: context.value.length > 0 || contextPending.value,
       composerRect: {
         x: rect.x,
         y: rect.y,
@@ -387,6 +411,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
         is-active
         :project-id="projectId"
         :context="context"
+        :context-pending="contextPending"
         :context-animates="contextAnimates"
         :rows-animate="contextAnimates"
         :edge-inset="!isExpanding"

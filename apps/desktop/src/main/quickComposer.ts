@@ -113,6 +113,8 @@ function prefersReducedMotion(): boolean {
   return systemPreferences.getAnimationSettings().prefersReducedMotion;
 }
 
+type CapturedContext = Omit<QuickComposerContext, "shownId">;
+
 interface HandoffWindow {
   window: BrowserWindow;
   handoff: QuickComposerHandoff | null;
@@ -155,8 +157,7 @@ export interface QuickComposerWindows {
    * app shows, which takes the main thread a while, so it runs once the
    * panel has appeared.
    */
-  captureContext?: () =>
-    (() => Promise<Omit<QuickComposerContext, "shownId">>) | null;
+  captureContext?: () => (() => Promise<CapturedContext>) | null;
   /** Deletes the files of context that was not sent. */
   discardContext?: (attachments: readonly PineAttachment[]) => void;
 }
@@ -178,8 +179,15 @@ export class QuickComposerController {
   /** What was captured for this showing, kept for a panel not shown yet. */
   private context: QuickComposerContext | null = null;
   /** Captures this showing's context once the panel has appeared. */
-  private pendingCapture:
-    (() => Promise<Omit<QuickComposerContext, "shownId">>) | null = null;
+  private pendingCapture: (() => Promise<CapturedContext>) | null = null;
+  /**
+   * A capture under way. Whoever clears it takes over what it brings: an
+   * ordinary showing sends it to the panel, a dismissed one deletes it.
+   */
+  private inFlight: {
+    shownId: number;
+    promise: Promise<CapturedContext | null>;
+  } | null = null;
   /** Native dialogs of the panel take focus without dismissing it. */
   private modalCount = 0;
   /** The panel has painted once; until then showing it would flash. */
@@ -538,7 +546,10 @@ export class QuickComposerController {
     panel.show();
     panel.focus();
     // The page blurs into focus and grows while the windows fade in.
-    const shown: QuickComposerShown = { id: this.shownId };
+    const shown: QuickComposerShown = {
+      id: this.shownId,
+      capturing: this.pendingCapture !== null,
+    };
     panel.webContents.send(QUICK_COMPOSER_SHOWN_CHANNEL, shown);
     this.sendContext();
     this.playEntrance(panel, grows);
@@ -573,26 +584,59 @@ export class QuickComposerController {
    * sending is never seen, so it is deleted.
    */
   private capture(): void {
+    const promise = this.startCapture();
+    if (!promise) return;
+    const shownId = this.shownId;
+    void promise.then((captured) => {
+      // Taken over by a dismissal, which deletes it.
+      if (this.inFlight?.promise !== promise) return;
+      this.inFlight = null;
+      if (!captured) return;
+      const panel = this.panel;
+      if (
+        shownId !== this.shownId ||
+        this.handoff ||
+        this.isDelivering ||
+        !panel?.isVisible()
+      ) {
+        this.windows.discardContext?.(captured.attachments);
+        return;
+      }
+      this.context = { shownId, ...captured };
+      this.sendContext();
+    });
+  }
+
+  /** Starts this showing's capture, or returns the one under way. */
+  private startCapture(): Promise<CapturedContext | null> | null {
     const capture = this.pendingCapture;
     this.pendingCapture = null;
-    if (!capture) return;
-    const shownId = this.shownId;
-    void capture()
-      .then((captured) => {
-        const panel = this.panel;
-        if (
-          shownId !== this.shownId ||
-          this.handoff ||
-          this.isDelivering ||
-          !panel?.isVisible()
-        ) {
+    if (!capture)
+      return this.inFlight?.shownId === this.shownId
+        ? this.inFlight.promise
+        : null;
+    const promise = capture().catch(() => null);
+    this.inFlight = { shownId: this.shownId, promise };
+    return promise;
+  }
+
+  /**
+   * The user removed this showing's context: what was captured is deleted
+   * now, and a capture under way when it finishes.
+   */
+  dismissContext(): void {
+    this.pendingCapture = null;
+    const inFlight = this.inFlight;
+    this.inFlight = null;
+    if (inFlight)
+      void inFlight.promise.then((captured) => {
+        if (captured?.attachments.length)
           this.windows.discardContext?.(captured.attachments);
-          return;
-        }
-        this.context = { shownId, ...captured };
-        this.sendContext();
-      })
-      .catch(() => undefined);
+      });
+    const context = this.context;
+    this.context = null;
+    if (context?.attachments.length)
+      this.windows.discardContext?.(context.attachments);
   }
 
   /** Drops this showing's context, deleting its files unless it was sent. */

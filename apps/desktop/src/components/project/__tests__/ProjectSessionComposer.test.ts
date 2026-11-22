@@ -34,6 +34,7 @@ import { MODIFIER_HOLD_DELAY_MS } from "@/composables/useModifierHold";
 interface ComposerProps {
   edgeInset?: boolean;
   context?: PineAttachment[];
+  contextPending?: boolean;
   approvalMode?: "let-me-review" | "auto-approve" | "autonomous" | "YOLO";
   isRunning?: boolean;
   isActive?: boolean;
@@ -263,6 +264,45 @@ describe("ProjectSessionComposer", () => {
     await plain.find("textarea").trigger("keydown", { key: "Backspace" });
     expect(plain.emitted("dismissContext")).toBeUndefined();
     plain.unmount();
+  });
+
+  it("holds the place of context still being captured, and drops it the same way", async () => {
+    const wrapper = mountComposer({ isActive: true, contextPending: true });
+    const strip = wrapper.find('[data-slot="composer-context"]');
+    expect(strip.exists()).toBe(true);
+    expect(strip.attributes("aria-busy")).toBe("true");
+    expect(strip.find('[data-slot="composer-context-skeleton"]').exists()).toBe(
+      true,
+    );
+    const input = wrapper.find("textarea");
+    await input.setValue("a");
+    await input.trigger("keydown", { key: "Backspace" });
+    expect(wrapper.emitted("dismissContext")).toBeUndefined();
+    await input.setValue("");
+    await input.trigger("keydown", { key: "Backspace" });
+    expect(wrapper.emitted("dismissContext")).toHaveLength(1);
+
+    // What arrives replaces the placeholder in the same strip.
+    await wrapper.setProps({
+      context: [
+        {
+          extension: "png",
+          kind: "file",
+          modifiedAt: "2026-10-30T00:00:00.000Z",
+          name: "Notes.png",
+          path: "/tmp/notes.png",
+          size: 10,
+          source: { app: "Notes" },
+        },
+      ],
+    });
+    const filled = wrapper.find('[data-slot="composer-context"]');
+    expect(filled.attributes("aria-busy")).toBeUndefined();
+    expect(
+      filled.find('[data-slot="composer-context-skeleton"]').exists(),
+    ).toBe(false);
+    expect(filled.text()).toContain("Notes");
+    wrapper.unmount();
   });
 
   it("holds the controls below the input in while inset", async () => {

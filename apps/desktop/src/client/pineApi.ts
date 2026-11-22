@@ -317,6 +317,7 @@ import {
   HIDE_QUICK_COMPOSER_CHANNEL,
   PRESENT_QUICK_COMPOSER_HANDOFF_CHANNEL,
   DELIVER_QUICK_COMPOSER_CHANNEL,
+  DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL,
   QUICK_COMPOSER_CONTEXT_CHANNEL,
   QUICK_COMPOSER_HIDDEN_CHANNEL,
   QUICK_COMPOSER_SHOWN_CHANNEL,
@@ -708,6 +709,8 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       return () =>
         transport.removeListener(QUICK_COMPOSER_CONTEXT_CHANNEL, handler);
     },
+    dismissQuickComposerContext: (): Promise<void> =>
+      transport.invoke(DISMISS_QUICK_COMPOSER_CONTEXT_CHANNEL),
     requestQuickComposerPermission: (permission: QuickComposerPermission) =>
       transport.invoke(REQUEST_QUICK_COMPOSER_PERMISSION_CHANNEL, permission),
     onQuickComposerHidden: (listener: () => void) => {

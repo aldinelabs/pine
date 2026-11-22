@@ -3,6 +3,7 @@ import { attachmentImageUrl } from "@/lib/clientAssets";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { Kbd } from "@/components/ui/kbd";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useShortcutHints } from "@/composables/useShortcutHints";
 import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
 
@@ -11,7 +12,11 @@ import { isImageAttachment, type PineAttachment } from "@/shared/attachments";
  * screenshot of its window and the text selected there. It goes with the
  * message like attachments, but reads as one piece the keys can drop.
  */
-const props = defineProps<{ context: readonly PineAttachment[] }>();
+const props = defineProps<{
+  context: readonly PineAttachment[];
+  /** Still being captured: placeholders the size of what will come. */
+  pending?: boolean;
+}>();
 
 const { t } = useI18n();
 const showShortcutHints = useShortcutHints();
@@ -33,16 +38,30 @@ const detail = computed(
 <template>
   <div
     data-slot="composer-context"
-    class="flex min-w-0 items-center gap-2.5 rounded-[var(--session-composer-attachment-radius)] bg-muted/60 p-1.5 pr-3"
+    class="flex min-h-12 min-w-0 items-center gap-2.5 rounded-[var(--session-composer-attachment-radius)] bg-muted/60 p-1.5 pr-3"
+    :aria-busy="pending || undefined"
   >
+    <template v-if="pending">
+      <Skeleton
+        data-slot="composer-context-skeleton"
+        class="h-9 w-14 shrink-0 rounded-[calc(var(--session-composer-attachment-radius)-0.375rem)]"
+      />
+      <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span class="sr-only">{{
+          t("project.composer.contextCapturing")
+        }}</span>
+        <Skeleton class="h-3 w-32 max-w-full rounded-full" />
+        <Skeleton class="h-3 w-48 max-w-full rounded-full" />
+      </div>
+    </template>
     <img
-      v-if="screenshot"
+      v-else-if="screenshot"
       data-slot="composer-context-screenshot"
       :alt="screenshot.name"
       :src="attachmentImageUrl(screenshot.path)"
       class="h-9 w-14 shrink-0 rounded-[calc(var(--session-composer-attachment-radius)-0.375rem)] object-cover object-top"
     />
-    <div class="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
+    <div v-if="!pending" class="flex min-w-0 flex-1 flex-col gap-0.5 text-xs">
       <span class="truncate font-medium">
         {{ source?.app }}
         <span

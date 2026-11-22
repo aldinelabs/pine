@@ -1680,6 +1680,7 @@ export default {
         mcp: "MCP-Server mit Pine verwalten",
         remove: "Stattdessen normal unterhalten",
       },
+      contextCapturing: "Die vorherige App wird erfasst…",
       contextRemove: "zum Entfernen",
       attachmentPickerFailed:
         "Die ausgewählten Elemente konnten nicht geöffnet oder geprüft werden",
