@@ -160,7 +160,7 @@ function mountPanel(
 
 function rowTexts(wrapper: ReturnType<typeof mount>): string[] {
   return wrapper
-    .findAll('[data-testid="workbench-artifact"]')
+    .findAll('[data-testid="workbench-artifact"]:not([data-motion])')
     .map((row) => row.text());
 }
 
@@ -518,7 +518,9 @@ describe("WorkbenchArtifactsPanel", () => {
     ];
     const folderNames = (wrapper: ReturnType<typeof mount>) =>
       wrapper
-        .findAll('[data-testid="workbench-artifact-folder-name"]')
+        .findAll(
+          '[data-testid="workbench-artifact-folder"]:not([data-motion]) [data-testid="workbench-artifact-folder-name"]',
+        )
         .map((name) => name.text());
     const { wrapper } = mountPanel(projectTarget, "read-write", calls);
     expect(folderNames(wrapper)).toEqual(["Reports", "Week 1", "Data"]);
@@ -540,6 +542,63 @@ describe("WorkbenchArtifactsPanel", () => {
         .findAll('[data-testid="workbench-artifact-folder"] button')[0]
         .attributes("aria-expanded"),
     ).toBe("false");
+  });
+
+  it("folds rows in and out as artifacts change, but not on load or a session switch", async () => {
+    const animate = vi.spyOn(HTMLElement.prototype, "animate");
+    const first = submission("submit-1", [
+      { path: "/project/out/a.md" },
+      { path: "/project/out/b.md" },
+    ]);
+    const { wrapper } = mountPanel(projectTarget, "read-write", [[first]]);
+    await flushPromises();
+    expect(animate).not.toHaveBeenCalled();
+
+    const session = useSessionStore();
+    // Resubmitting b.md moves it to the top: it folds out below a.md.
+    session.messages = [
+      message("m1", [first]),
+      message("m2", [submission("submit-2", [{ path: "/project/out/b.md" }])]),
+    ];
+    await flushPromises();
+    expect(
+      wrapper
+        .findAll('[data-testid="workbench-artifact"]')
+        .map((row) => `${row.attributes("data-motion") ?? ""}${row.text()}`),
+    ).toEqual(["b.md", "a.md", "leaveb.md"]);
+    const ghost = wrapper.get(
+      '[data-testid="workbench-artifact"][data-motion]',
+    );
+    expect(ghost.attributes("inert")).toBeDefined();
+    expect(animate).toHaveBeenCalledTimes(2);
+
+    animate.mockClear();
+    session.activeSession = {
+      id: "s2",
+      createdAt: "",
+      updatedAt: "",
+      messageCount: 1,
+    };
+    session.messages = [
+      message("m1", [submission("submit-3", [{ path: "/project/out/c.md" }])]),
+    ];
+    await flushPromises();
+    expect(animate).not.toHaveBeenCalled();
+    expect(rowTexts(wrapper)).toEqual(["c.md"]);
+    expect(wrapper.find("[data-motion]").exists()).toBe(false);
+
+    // An earlier transcript page arrives with older artifacts.
+    session.isLoadingMessages = true;
+    session.messages = [
+      message("m0", [
+        submission("submit-0", [{ path: "/project/out/old.md" }]),
+      ]),
+      ...session.messages,
+    ];
+    session.isLoadingMessages = false;
+    await flushPromises();
+    expect(rowTexts(wrapper)).toEqual(["c.md", "old.md"]);
+    expect(animate).not.toHaveBeenCalled();
   });
 
   it("offers no version history for a legacy presentation", async () => {

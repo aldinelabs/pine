@@ -11,7 +11,7 @@ import {
   Trash2Icon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
 import { handleError } from "@/app/errors/errorHandler";
@@ -56,6 +56,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useListFold } from "@/composables/useListFold";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { fileIcon } from "@/lib/fileIcon";
 import { dragFileTarget, startNativeFileDrag } from "@/lib/projectFileDrag";
@@ -110,7 +111,8 @@ const contentTabs = useContentTabsStore();
 const workbench = useWorkbenchStore();
 const navigation = useContentTabNavigation();
 const { emitProjectFilesChanged } = useProjectFileChanges();
-const { messages, activeSession } = storeToRefs(sessionStore);
+const { messages, activeSession, isLoadingMessages } =
+  storeToRefs(sessionStore);
 
 /**
  * One message's artifacts. Transcript messages are immutable records, so a
@@ -195,6 +197,30 @@ const rows = computed<Row[]>(() => {
   }
   add(artifactTree(artifacts.value), 0);
   return list;
+});
+
+/*
+ * Rows fold in and out like the session list's, except for the rows a
+ * session switch or a transcript page brings: those show as they are.
+ */
+let rowsSessionId: string | undefined;
+let pageLoaded = false;
+watch(
+  isLoadingMessages,
+  (loading) => {
+    if (loading) pageLoaded = true;
+    // The page's rows are listed in the flush before this timer fires.
+    else setTimeout(() => (pageLoaded = false), 0);
+  },
+  { flush: "sync" },
+);
+const { displayRows, setElement } = useListFold(rows, {
+  canAnimate: () => {
+    const sessionId = activeSession.value?.id;
+    const sameSession = sessionId === rowsSessionId;
+    rowsSessionId = sessionId;
+    return sameSession && !pageLoaded && !isLoadingMessages.value;
+  },
 });
 
 /** Indents a row by its depth in the tree. */
@@ -506,10 +532,14 @@ async function submitDialog(): Promise<void> {
       </EmptyHeader>
     </Empty>
     <SidebarMenu v-else class="px-(--workbench-inset) pb-(--workbench-inset)">
-      <template v-for="row in rows" :key="row.key">
+      <template v-for="row in displayRows" :key="row.renderKey">
         <SidebarMenuItem
           v-if="row.kind === 'folder'"
+          :ref="(element) => setElement(row.renderKey, element)"
           data-testid="workbench-artifact-folder"
+          :data-motion="row.motion"
+          :class="row.motion && 'pointer-events-none'"
+          :inert="row.motion === 'leave' || undefined"
         >
           <SidebarMenuButton
             :aria-expanded="row.expanded"
@@ -537,7 +567,11 @@ async function submitDialog(): Promise<void> {
           <SidebarMenuItem
             v-for="artifact in [row.artifact]"
             :key="artifact.path"
+            :ref="(element) => setElement(row.renderKey, element)"
             data-testid="workbench-artifact"
+            :data-motion="row.motion"
+            :class="row.motion && 'pointer-events-none'"
+            :inert="row.motion === 'leave' || undefined"
           >
             <ContextMenu @update:open="loadMenuTarget(artifact, $event)">
               <ContextMenuTrigger as-child>
