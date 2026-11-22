@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import CodeBlock from "@/components/markdown/CodeBlock.vue";
+import { parseJsonText } from "./toolViewAdapter";
 
 const props = defineProps<{
   value: unknown;
@@ -9,19 +10,7 @@ const props = defineProps<{
 
 /** Tool payloads often arrive as serialized JSON; show them as structure. */
 function parseJsonString(value: unknown): unknown {
-  if (typeof value !== "string") return value;
-  const candidate = value.trim();
-  if (!(
-    (candidate.startsWith("{") && candidate.endsWith("}")) ||
-    (candidate.startsWith("[") && candidate.endsWith("]"))
-  )) {
-    return value;
-  }
-  try {
-    return JSON.parse(candidate) as unknown;
-  } catch {
-    return value;
-  }
+  return typeof value === "string" ? (parseJsonText(value) ?? value) : value;
 }
 
 function toJson(value: unknown): string {

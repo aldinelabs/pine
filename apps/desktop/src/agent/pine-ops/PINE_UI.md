@@ -270,7 +270,8 @@ From top to bottom:
    - tool call groups; clicking a call opens Tool call details (status,
      approval, parameters, result). Parameters and results without a
      dedicated view show as syntax-highlighted, indented JSON with long lines
-     wrapped and a copy button on hover. With Guide buttons on, a call the
+     wrapped and a copy button on hover; a text result that is itself JSON is
+     shown the same way, while plain text and Markdown results stay as text. With Guide buttons on, a call the
      approval model or the sandbox blocked shows "Why was this blocked?"
      beside its approval; it closes the details and opens the approval modes
      step of "Tool calls and approvals" or the sandbox step of "Projects and

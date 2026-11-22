@@ -15,7 +15,11 @@ import {
 import { fileLanguage } from "@/lib/fileLanguage";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolJsonValue from "./ProjectToolJsonValue.vue";
-import { toolOutputParts, type ToolDetailView } from "./toolViewAdapter";
+import {
+  parseJsonText,
+  toolOutputParts,
+  type ToolDetailView,
+} from "./toolViewAdapter";
 
 const props = defineProps<{
   toolCall: PineToolCall;
@@ -31,7 +35,13 @@ function record(value: unknown): Record<string, unknown> {
 }
 const input = computed(() => record(props.toolCall.input));
 const details = computed(() => record(record(props.toolCall.output).details));
-const parts = computed(() => toolOutputParts(props.toolCall.output));
+/** Text parts that encode JSON render as JSON; prose and Markdown stay text. */
+const parts = computed(() =>
+  toolOutputParts(props.toolCall.output).map((part) => ({
+    ...part,
+    json: part.type === "text" ? parseJsonText(part.text ?? "") : undefined,
+  })),
+);
 const questions = computed(() =>
   Array.isArray(input.value.questions) ? input.value.questions.map(record) : [],
 );
@@ -279,8 +289,13 @@ const hasSpecialResult = computed(
     </Table>
     <template v-if="!hasSpecialResult">
       <template v-for="(part, index) in parts" :key="index">
+        <ProjectToolJsonValue
+          v-if="part.json"
+          :value="part.json"
+          :empty-label="t('project.transcript.toolDetails.noResult')"
+        />
         <pre
-          v-if="part.type === 'text'"
+          v-else-if="part.type === 'text'"
           class="max-h-80 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap break-words"
           >{{ part.text }}</pre>
         <img

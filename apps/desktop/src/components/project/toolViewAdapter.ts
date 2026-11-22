@@ -379,3 +379,23 @@ export function toolFileRequest(
     }
   }
 }
+
+/**
+ * Returns the object or array a JSON text encodes, or `undefined` when the
+ * text is prose, Markdown or any other non-JSON content.
+ */
+export function parseJsonText(text: string): object | undefined {
+  const candidate = text.trim();
+  if (!(
+    (candidate.startsWith("{") && candidate.endsWith("}")) ||
+    (candidate.startsWith("[") && candidate.endsWith("]"))
+  )) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(candidate) as unknown;
+    return typeof parsed === "object" && parsed !== null ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}

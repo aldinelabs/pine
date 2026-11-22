@@ -296,7 +296,7 @@ const emptyLabel = computed(() =>
   />
 
   <ProjectToolFirstPartyValue
-    v-else-if="view !== 'generic'"
+    v-else-if="view !== 'generic' || section === 'result'"
     :tool-call="toolCall"
     :section="section"
     :view="fallbackView"
