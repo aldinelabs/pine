@@ -701,6 +701,18 @@ slider, and for video Picture in picture and Full screen. The player's
 keyboard shortcuts work while the preview is the active tab and focus is not
 in a text field.
 
+Right-clicking an image or a video opens the system's own context menu. This
+works in file previews, in the enlarged Markdown image, and for images in
+conversations (Markdown images, agent-built UI images and attachment
+thumbnails). For an image: Copy Image, Save Image As…, then Copy File Path
+and Show in Finder (Show in File Explorer on Windows, Show in Folder on Linux)
+for a local file, or Copy Image Address for a web image. For a video: Save
+Video As…, then Copy File Path and Show in Finder, or Copy Video Address. On
+macOS a Share submenu below them shares the real file (or the web address)
+through the system's share services such as AirDrop, Messages and Mail.
+Images Pine decoded itself (such as TIFF and HEIC previews) offer only Copy
+Image. Right-clicking text, links or empty space still shows no menu.
+
 ##### Comments
 
 In a preview of a project file, comments collect change requests on parts of

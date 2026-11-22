@@ -120,22 +120,40 @@ export async function readProjectFilePreview(
   }
 }
 
+/** Looks up the file a project-media URL names, for the window it names. */
+export interface ProjectMediaResolvers {
+  project: (ownerId: number, params: Record<string, string>) => Promise<string>;
+  presented: (
+    ownerId: number,
+    params: Record<string, string>,
+  ) => Promise<string>;
+}
+
 /** Resolve the document grant first, then serve only its relative image assets. */
 export async function serveProjectMediaRequest(
   request: Request,
   ownerId: number,
-  resolvers: {
-    project: (
-      ownerId: number,
-      params: Record<string, string>,
-    ) => Promise<string>;
-    presented: (
-      ownerId: number,
-      params: Record<string, string>,
-    ) => Promise<string>;
-  },
+  resolvers: ProjectMediaResolvers,
 ): Promise<Response> {
-  const url = new URL(request.url);
+  const filePath = await resolveProjectMediaPath(
+    new URL(request.url),
+    ownerId,
+    resolvers,
+  );
+  if (filePath === undefined) return new Response(null, { status: 415 });
+  return serveProjectMedia(request, filePath);
+}
+
+/**
+ * The file a project-media URL serves, after the same grant checks the
+ * protocol makes. Undefined when a Markdown image names a non-image file;
+ * throws when the window may not read the file.
+ */
+export async function resolveProjectMediaPath(
+  url: URL,
+  ownerId: number,
+  resolvers: ProjectMediaResolvers,
+): Promise<string | undefined> {
   const params = Object.fromEntries(url.searchParams);
   const presented = params[PRESENTED_MEDIA_PARAM] === "1";
   let filePath = await resolvers[presented ? "presented" : "project"](
@@ -182,9 +200,9 @@ export async function serveProjectMediaRequest(
       });
     }
     if (!imagePreviewExtensions.has(previewExtension(filePath)))
-      return new Response(null, { status: 415 });
+      return undefined;
   }
-  return serveProjectMedia(request, filePath);
+  return filePath;
 }
 
 /** Serves only preview assets, with bounded streaming and byte ranges. */

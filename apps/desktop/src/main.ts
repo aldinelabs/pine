@@ -291,6 +291,16 @@ const windows = new DesktopWindows({
   iconPath: appIconPath,
   ...(isSmokeTest && { smokeTestReady: () => app.exit(0) }),
   canOpenWorkspace: () => core !== null,
+  mediaSources: () => {
+    const pine = core;
+    if (!pine) return undefined;
+    return {
+      attachment: (resolvedPath) =>
+        pine.isServableAttachmentRequest(resolvedPath),
+      project: (owner, input) => pine.previewPath(owner, input),
+      presented: (owner, input) => pine.presentedFilePath(owner, input),
+    };
+  },
   record: (event, details) => core?.diagnostics.record(event, details),
   focused: () => attention.clearApprovalAttention(),
   destroyed: (webContentsId) => core?.releaseClient(webContentsId),
