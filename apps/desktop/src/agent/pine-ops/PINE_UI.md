@@ -548,14 +548,15 @@ From top to bottom:
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling). The choice is saved with the conversation
      and shared between desktop and remote devices. With Guide buttons on
-     (General settings), the last item of the approval mode menu, "How
-     approval modes work", opens the "Tool calls and approvals" guide.
+     (General settings), the first item of the approval mode menu, "How
+     approval modes work", above a divider, opens the "Tool calls and
+     approvals" guide.
    - Model menu: Favorites (or Recently used when there are none), Browse
      all models…, and a Reasoning effort slider when the model offers more
-     than one level. With Guide buttons on, it ends with "How models work",
+     than one level. With Guide buttons on, it starts with "How models work",
      which opens the "Models and providers" guide, and, when the slider is
      shown, "How reasoning effort works", which opens the "Reasoning effort"
-     guide.
+     guide, above a divider.
    - Sessions the agent starts: when asked, the agent can start a separate
      session that works in the background in this or another project. It
      appears in the left sidebar without opening a tab or changing the active
