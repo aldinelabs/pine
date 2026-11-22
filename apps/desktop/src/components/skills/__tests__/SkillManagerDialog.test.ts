@@ -320,6 +320,10 @@ describe("SkillManagerDialog", () => {
     const wrapper = await openDialog();
 
     expect(wrapper.find('[data-testid="skill-empty"]').exists()).toBe(true);
+    // The list column already offers New Skill and Manage with Pine.
+    expect(
+      wrapper.find('[data-testid="skill-empty"]').findAll("button"),
+    ).toHaveLength(0);
     expect(wrapper.text()).toContain("这个空间还没有 Skill");
     expect(wrapper.find("#skill-global-name").exists()).toBe(false);
   });

@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -298,18 +297,6 @@ function statusFor(name: string): string {
                   t("mcp.emptyDescription")
                 }}</EmptyDescription></EmptyHeader
               >
-              <EmptyContent class="flex-row justify-center">
-                <Button size="sm" variant="outline" @click="createWithPine"
-                  ><SparklesIcon data-icon="inline-start" />{{
-                    t("common.manageWithPine")
-                  }}</Button
-                >
-                <Button size="sm" @click="beginAdd"
-                  ><PlusIcon data-icon="inline-start" />{{
-                    t("mcp.add")
-                  }}</Button
-                >
-              </EmptyContent>
             </Empty>
           </DialogScrollArea>
         </TabsContent>

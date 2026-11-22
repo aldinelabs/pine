@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -735,21 +734,6 @@ watch(activeScope, () => {
                       {{ t("skills.emptyDescription") }}
                     </EmptyDescription>
                   </EmptyHeader>
-                  <EmptyContent class="flex-row justify-center">
-                    <Button type="button" size="sm" @click="createFromList">
-                      <PlusIcon data-icon="inline-start" />
-                      {{ t("skills.new") }}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      @click="createWithPine"
-                    >
-                      <SparklesIcon data-icon="inline-start" />
-                      {{ t("common.manageWithPine") }}
-                    </Button>
-                  </EmptyContent>
                 </Empty>
 
                 <template v-else>

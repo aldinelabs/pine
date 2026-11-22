@@ -26,7 +26,6 @@ const stubs = {
       "DialogHeader",
       "DialogTitle",
       "Empty",
-      "EmptyContent",
       "EmptyDescription",
       "EmptyHeader",
       "EmptyTitle",
@@ -71,10 +70,17 @@ describe("McpManagerDialog", () => {
     });
     await flushPromises();
     expect(wrapper.text()).toContain("尚未配置服务器");
-    await wrapper
+    const addButtons = wrapper
       .findAll("button")
-      .find((button) => button.text().includes("添加服务器"))!
-      .trigger("click");
+      .filter((button) => button.text().includes("添加服务器"));
+    // The empty state leaves adding to the footer instead of repeating it.
+    expect(addButtons).toHaveLength(1);
+    expect(
+      wrapper
+        .findAll("button")
+        .filter((button) => button.text().includes("和 Pine 协作管理")),
+    ).toHaveLength(1);
+    await addButtons[0].trigger("click");
     await flushPromises();
     expect(wrapper.text()).toContain("尚未配置服务器");
     expect(wrapper.text()).toContain("服务器配置（JSON）");
