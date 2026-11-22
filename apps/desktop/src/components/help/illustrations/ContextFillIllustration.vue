@@ -54,7 +54,11 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  animations.forEach((animation) => animation.cancel());
+  animations.forEach((animation) => {
+    // Cancelling rejects finished; nothing waits on it.
+    animation.finished.catch(() => {});
+    animation.cancel();
+  });
   animations = [];
 });
 </script>
