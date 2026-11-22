@@ -5,16 +5,25 @@ import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import HelpGuideButton from "@/components/help/HelpGuideButton.vue";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+  FieldTitle,
+} from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import {
   Popover,
   PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { formatTokenCount } from "@/lib/format-token-count";
@@ -249,152 +258,160 @@ async function compactContext(): Promise<void> {
       </Button>
     </PopoverTrigger>
 
-    <PopoverContent side="top" align="start" class="w-72 gap-4">
-      <section class="flex flex-col gap-2" data-testid="context-section">
-        <PopoverHeader class="flex-row items-baseline justify-between gap-4">
-          <PopoverTitle class="text-sm">
-            {{ t("project.composer.contextUsage.label") }}
-          </PopoverTitle>
-          <span
-            class="text-lg font-semibold tabular-nums"
-            :class="usageToneClass"
-          >
-            {{ precisePercentText }}
-          </span>
-        </PopoverHeader>
-        <Progress :model-value="usageFraction * 100" class="h-1.5" />
-        <dl class="flex flex-col gap-1 text-sm">
+    <!-- Opened by pointer or keyboard, focus stays on the trigger rather than
+         ringing the first button, as in the live context popover. -->
+    <PopoverContent
+      side="top"
+      align="start"
+      class="w-72"
+      @open-auto-focus.prevent
+    >
+      <FieldGroup class="gap-4">
+        <Field data-testid="context-section" class="gap-2">
           <div class="flex items-baseline justify-between gap-4">
-            <dt class="text-muted-foreground">
-              {{ t("project.composer.contextUsage.usedTokens") }}
-            </dt>
-            <dd class="font-medium tabular-nums">
-              {{ usedTokensText }}
-              <span class="text-muted-foreground font-normal">
-                / {{ contextWindowText }}
-              </span>
-            </dd>
-          </div>
-          <div
-            v-if="usage?.cacheHitRate != null"
-            class="flex items-baseline justify-between gap-4"
-          >
-            <dt class="text-muted-foreground">
-              {{ t("project.composer.contextUsage.cacheHitRate") }}
-            </dt>
-            <dd class="font-medium tabular-nums">{{ cacheHitRateText }}</dd>
-          </div>
-        </dl>
-        <Button
-          data-testid="compact-context-button"
-          type="button"
-          variant="outline"
-          size="sm"
-          :disabled="!activeSession || isCompacting"
-          @click="compactContext"
-        >
-          <Spinner v-if="isCompacting" data-icon="inline-start" />
-          {{
-            isCompacting
-              ? t("project.composer.contextUsage.compacting")
-              : t("project.composer.contextUsage.compactNow")
-          }}
-        </Button>
-      </section>
-
-      <Separator />
-
-      <section class="flex flex-col gap-2" data-testid="cost-section">
-        <PopoverHeader class="flex-row items-baseline justify-between gap-4">
-          <PopoverTitle class="text-sm">
-            {{ t("project.composer.contextUsage.cost") }}
-          </PopoverTitle>
-          <span
-            class="text-sm font-medium tabular-nums"
-            :class="limitReached ? 'text-destructive' : ''"
-          >
-            {{ costText }}
+            <FieldTitle>
+              {{ t("project.composer.contextUsage.label") }}
+            </FieldTitle>
             <span
-              v-if="costLimit != null"
+              class="text-lg font-semibold tabular-nums"
+              :class="usageToneClass"
+            >
+              {{ precisePercentText }}
+            </span>
+          </div>
+          <Progress :model-value="usageFraction * 100" class="h-1.5" />
+          <dl class="flex flex-col gap-1">
+            <div class="flex items-baseline justify-between gap-4">
+              <dt class="text-muted-foreground">
+                {{ t("project.composer.contextUsage.usedTokens") }}
+              </dt>
+              <dd class="font-medium tabular-nums">
+                {{ usedTokensText }}
+                <span class="text-muted-foreground font-normal">
+                  / {{ contextWindowText }}
+                </span>
+              </dd>
+            </div>
+            <div
+              v-if="usage?.cacheHitRate != null"
+              class="flex items-baseline justify-between gap-4"
+            >
+              <dt class="text-muted-foreground">
+                {{ t("project.composer.contextUsage.cacheHitRate") }}
+              </dt>
+              <dd class="font-medium tabular-nums">{{ cacheHitRateText }}</dd>
+            </div>
+          </dl>
+          <Button
+            data-testid="compact-context-button"
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="!activeSession || isCompacting"
+            @click="compactContext"
+          >
+            <Spinner v-if="isCompacting" data-icon="inline-start" />
+            {{
+              isCompacting
+                ? t("project.composer.contextUsage.compacting")
+                : t("project.composer.contextUsage.compactNow")
+            }}
+          </Button>
+        </Field>
+
+        <FieldSeparator />
+
+        <Field data-testid="cost-section" class="gap-2">
+          <div class="flex items-baseline justify-between gap-4">
+            <FieldTitle>
+              {{ t("project.composer.contextUsage.cost") }}
+            </FieldTitle>
+            <span
+              class="font-medium tabular-nums"
+              :class="limitReached ? 'text-destructive' : ''"
+            >
+              {{ costText }}
+              <span
+                v-if="costLimit != null"
+                class="text-muted-foreground font-normal"
+              >
+                / {{ currencyStore.format(costLimit, 2) }}
+              </span>
+            </span>
+          </div>
+          <Progress
+            v-if="costPercent != null"
+            :model-value="costPercent"
+            :class="[
+              'h-1.5',
+              limitReached
+                ? '[&_[data-slot=progress-indicator]]:bg-destructive'
+                : '',
+            ]"
+          />
+          <Field orientation="horizontal">
+            <FieldLabel
+              for="session-cost-limit-toggle"
               class="text-muted-foreground font-normal"
             >
-              / {{ currencyStore.format(costLimit, 2) }}
-            </span>
-          </span>
-        </PopoverHeader>
-        <Progress
-          v-if="costPercent != null"
-          :model-value="costPercent"
-          :class="[
-            'h-1.5',
-            limitReached
-              ? '[&_[data-slot=progress-indicator]]:bg-destructive'
-              : '',
-          ]"
-        />
-        <div class="flex items-center justify-between gap-4">
-          <label
-            class="text-muted-foreground text-sm"
-            for="session-cost-limit-toggle"
+              {{ t("project.composer.contextUsage.costLimit") }}
+            </FieldLabel>
+            <Switch
+              id="session-cost-limit-toggle"
+              data-testid="cost-limit-toggle"
+              :model-value="costLimit != null"
+              @update:model-value="toggleLimit"
+            />
+          </Field>
+          <!-- Collapses to zero height instead of unmounting so it can ease.
+               The negative margin cancels the field's gap while collapsed. -->
+          <div
+            data-testid="cost-limit-field"
+            :inert="costLimit == null"
+            :class="[
+              'ease-out-expo grid transition-[grid-template-rows,opacity,margin] duration-500 motion-reduce:transition-none',
+              costLimit == null
+                ? '-mt-2 grid-rows-[0fr] opacity-0'
+                : 'mt-0 grid-rows-[1fr] opacity-100',
+            ]"
           >
-            {{ t("project.composer.contextUsage.costLimit") }}
-          </label>
-          <Switch
-            id="session-cost-limit-toggle"
-            data-testid="cost-limit-toggle"
-            :model-value="costLimit != null"
-            @update:model-value="toggleLimit"
-          />
-        </div>
-        <!-- Collapses to zero height instead of unmounting so it can ease. The
-          negative margin cancels the section's gap while collapsed. -->
-        <div
-          data-testid="cost-limit-field"
-          :inert="costLimit == null"
-          :class="[
-            'grid transition-[grid-template-rows,opacity,margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
-            costLimit == null
-              ? '-mt-2 grid-rows-[0fr] opacity-0'
-              : 'mt-0 grid-rows-[1fr] opacity-100',
-          ]"
-        >
-          <div class="-m-1 min-h-0 overflow-hidden p-1">
-            <div
-              class="border-input focus-within:border-ring focus-within:ring-ring/50 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 focus-within:ring-3"
-            >
-              <span class="text-muted-foreground text-sm" aria-hidden="true">
-                {{ currencyStore.symbol }}
-              </span>
-              <Input
-                v-model="limitDraft"
-                data-testid="cost-limit-input"
-                type="number"
-                inputmode="decimal"
-                min="0"
-                step="0.5"
-                placeholder="0.00"
-                :aria-label="t('project.composer.contextUsage.costLimit')"
-                class="h-auto min-w-0 flex-1 [appearance:textfield] border-0 bg-transparent p-0 text-sm tabular-nums shadow-none focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                @blur="commitLimit"
-                @keydown.enter.prevent="commitLimit"
-              />
-              <span class="text-muted-foreground text-xs">
-                {{ currencyStore.currency }}
-              </span>
+            <!-- The padding keeps the focus ring inside the clipped area. -->
+            <div class="-m-1 min-h-0 overflow-hidden p-1">
+              <InputGroup>
+                <InputGroupAddon>
+                  <InputGroupText>{{ currencyStore.symbol }}</InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  v-model="limitDraft"
+                  data-testid="cost-limit-input"
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  step="0.5"
+                  placeholder="0.00"
+                  :aria-label="t('project.composer.contextUsage.costLimit')"
+                  class="[appearance:textfield] tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  @blur="commitLimit"
+                  @keydown.enter.prevent="commitLimit"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupText>{{ currencyStore.currency }}</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
             </div>
           </div>
-        </div>
-      </section>
+        </Field>
 
-      <!-- The guide opens over the popover's place, so the popover closes. -->
-      <template v-if="appearanceStore.helpGuides">
-        <Separator />
-        <HelpGuideButton
-          topic="context-window"
-          :label="t('help.contextWindowGuide')"
-          @open="isOpen = false"
-        />
-      </template>
+        <!-- The guide opens over the popover's place, so the popover closes. -->
+        <template v-if="appearanceStore.helpGuides">
+          <FieldSeparator />
+          <HelpGuideButton
+            topic="context-window"
+            :label="t('help.contextWindowGuide')"
+            @open="isOpen = false"
+          />
+        </template>
+      </FieldGroup>
     </PopoverContent>
   </Popover>
 </template>
