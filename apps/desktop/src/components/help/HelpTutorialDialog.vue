@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LightbulbIcon, TriangleAlertIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { resolveHelpTopic } from "@/app/help";
 import type { AppLocale } from "@/app/i18n";
@@ -83,6 +83,20 @@ watch(step, async () => {
   );
 });
 
+/**
+ * Counts openings so each one mounts the dialog afresh. The portal (a Vue
+ * Teleport) keeps the place in <body> it took when it mounted, and this
+ * dialog lives in App.vue, mounted before any other: kept mounted, it would
+ * sit under a dialog opened later (New Project, Pine Settings) at the same
+ * z-index. Remounted, it is always the last portal and stacks on top. A
+ * closing guide keeps its instance until the next opening, so it still
+ * animates out.
+ */
+const openings = ref(0);
+watch(topicId, (id, previous) => {
+  if (id !== null && previous === null) openings.value += 1;
+});
+
 const open = computed({
   get: () => topic.value !== null,
   set: (value: boolean) => {
@@ -117,7 +131,7 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <Dialog v-model:open="open">
+  <Dialog :key="openings" v-model:open="open">
     <DialogContent
       data-testid="help-tutorial"
       :lang="topic?.locale"
