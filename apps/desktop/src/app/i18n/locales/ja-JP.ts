@@ -3366,6 +3366,10 @@ export default {
     projectFoldersGuide: "フォルダーのアクセス権のしくみ",
     learnWhy: "理由を見る",
     whyBlocked: "なぜ止められた？",
+    automationsGuide: "自動化の使い方",
+    skillsGuide: "スキルの使い方",
+    mcpGuide: "MCP サーバーの使い方",
+    memoryGuide: "メモリの使い方",
     hintShowGuide: "ガイドを見る",
     hintDismiss: "了解",
     hints: {

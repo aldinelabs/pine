@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpGuideBadge from "@/components/help/HelpGuideBadge.vue";
 import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   PlugIcon,
@@ -235,7 +236,12 @@ function statusFor(name: string): string {
       ]"
     >
       <DialogHeader>
-        <DialogTitle>{{ t("mcp.title") }}</DialogTitle>
+        <!-- The guide sits beside the title, clear of the close button and
+             of the dialog's own actions. -->
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <DialogTitle>{{ t("mcp.title") }}</DialogTitle>
+          <HelpGuideBadge topic="mcp" :label="t('help.mcpGuide')" />
+        </div>
         <DialogDescription>{{ t("mcp.description") }}</DialogDescription>
       </DialogHeader>
 

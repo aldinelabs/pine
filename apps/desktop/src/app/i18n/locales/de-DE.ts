@@ -3421,6 +3421,10 @@ export default {
     projectFoldersGuide: "So funktioniert der Ordnerzugriff",
     learnWhy: "Warum?",
     whyBlocked: "Warum wurde das blockiert?",
+    automationsGuide: "So funktionieren Automatisierungen",
+    skillsGuide: "So funktionieren Skills",
+    mcpGuide: "So funktionieren MCP-Server",
+    memoryGuide: "So funktioniert das Gedächtnis",
     hintShowGuide: "Anleitung ansehen",
     hintDismiss: "Verstanden",
     hints: {

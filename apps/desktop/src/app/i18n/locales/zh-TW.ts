@@ -3205,6 +3205,10 @@ export default {
     projectFoldersGuide: "資料夾權限怎麼設",
     learnWhy: "了解原因",
     whyBlocked: "為什麼被攔下？",
+    automationsGuide: "自動化怎麼用",
+    skillsGuide: "工作技能怎麼用",
+    mcpGuide: "MCP 伺服器怎麼用",
+    memoryGuide: "記憶怎麼用",
     hintShowGuide: "看看教學",
     hintDismiss: "知道了",
     hints: {

@@ -3398,6 +3398,10 @@ export default {
     projectFoldersGuide: "Cómo funciona el acceso a carpetas",
     learnWhy: "Ver por qué",
     whyBlocked: "¿Por qué se bloqueó?",
+    automationsGuide: "Cómo funcionan las automatizaciones",
+    skillsGuide: "Cómo funcionan las Skills",
+    mcpGuide: "Cómo funcionan los servidores MCP",
+    memoryGuide: "Cómo funciona la memoria",
     hintShowGuide: "Ver la guía",
     hintDismiss: "Entendido",
     hints: {

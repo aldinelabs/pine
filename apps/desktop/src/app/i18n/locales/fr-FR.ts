@@ -3418,6 +3418,10 @@ export default {
     projectFoldersGuide: "Comment fonctionne l’accès aux dossiers",
     learnWhy: "Comprendre pourquoi",
     whyBlocked: "Pourquoi est-ce bloqué ?",
+    automationsGuide: "Comment fonctionnent les automatisations",
+    skillsGuide: "Comment fonctionnent les Skills",
+    mcpGuide: "Comment fonctionnent les serveurs MCP",
+    memoryGuide: "Comment fonctionne la mémoire",
     hintShowGuide: "Voir le guide",
     hintDismiss: "Compris",
     hints: {

@@ -3327,6 +3327,10 @@ export default {
     projectFoldersGuide: "How folder access works",
     learnWhy: "Learn why",
     whyBlocked: "Why was this blocked?",
+    automationsGuide: "How automations work",
+    skillsGuide: "How Skills work",
+    mcpGuide: "How MCP servers work",
+    memoryGuide: "How memory works",
     hintShowGuide: "Show me",
     hintDismiss: "Got it",
     hints: {

@@ -3200,6 +3200,10 @@ export default {
     projectFoldersGuide: "文件夹权限怎么设",
     learnWhy: "了解原因",
     whyBlocked: "为什么被拦下？",
+    automationsGuide: "自动化怎么用",
+    skillsGuide: "工作技能怎么用",
+    mcpGuide: "MCP 服务器怎么用",
+    memoryGuide: "记忆怎么用",
     hintShowGuide: "看看教程",
     hintDismiss: "知道了",
     hints: {

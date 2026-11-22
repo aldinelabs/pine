@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpGuideBadge from "@/components/help/HelpGuideBadge.vue";
 import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   ChevronLeftIcon,
@@ -580,7 +581,12 @@ watch(activeScope, () => {
         </DialogDescription>
       </DialogHeader>
       <DialogHeader v-else class="px-6 pt-6 pb-4 pr-16">
-        <DialogTitle>{{ t("skills.title") }}</DialogTitle>
+        <!-- The guide sits beside the title, clear of the close button and
+             of the dialog's own actions. -->
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <DialogTitle>{{ t("skills.title") }}</DialogTitle>
+          <HelpGuideBadge topic="skills" :label="t('help.skillsGuide')" />
+        </div>
         <DialogDescription>{{ t("skills.description") }}</DialogDescription>
       </DialogHeader>
 

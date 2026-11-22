@@ -3321,6 +3321,10 @@ export default {
     projectFoldersGuide: "폴더 권한 설정 방법",
     learnWhy: "이유 알아보기",
     whyBlocked: "왜 차단되었나요?",
+    automationsGuide: "자동화 사용법",
+    skillsGuide: "스킬 사용법",
+    mcpGuide: "MCP 서버 사용법",
+    memoryGuide: "메모리 사용법",
     hintShowGuide: "가이드 보기",
     hintDismiss: "알겠어요",
     hints: {

@@ -61,8 +61,11 @@ click.
 - Guide button: a question-mark icon and a label naming what it explains,
   as the first item of a composer menu or popover above a divider (for
   example "How approval modes work" in the approval mode menu, "How context
-  works" in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
-  overlays). Guide buttons can be hidden everywhere with Guide buttons in
+  works" in the Context usage popover), or as a small labelled badge beside
+  a manager dialog's title ("How automations work", "How Skills work",
+  "How MCP servers work", "How memory works"). It opens an illustrated
+  guide (see Guides under Dialogs and overlays) on top of whatever is open;
+  closing the guide returns there. Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
 - One-time tip: a muted bar with a lightbulb, one line of text, "Show me"
   (opens the related guide) and "Got it", shown where a feature first
@@ -1222,7 +1225,8 @@ the user opens themselves do not pulse.
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
   their tabs as they are.
-- Automations manager, with tabs: Activity (runs with status such as Running,
+- Automations manager ("How automations work" beside the title opens the
+  "Automations" guide), with tabs: Activity (runs with status such as Running,
   Found something, Nothing new, Failed; Refresh, Mark all as read, Show runs
   with nothing new; opening a run opens its session), Automations (each with
   its triggers and permissions, On/Off/Paused state, Run now, Edit
@@ -1231,11 +1235,14 @@ the user opens themselves do not pulse.
   changeable only in the desktop app). Manage with Pine starts an automation
   draft. Automations run only while Pine is open unless keeping Pine running
   in the background is on.
-- Skills manager: global and project Skills; create, edit, enable per project,
+- Skills manager ("How Skills work" beside the title opens the "Skills"
+  guide): global and project Skills; create, edit, enable per project,
   delete; Manage with Pine.
-- MCP servers manager: servers for this project or all projects; add, edit,
+- MCP servers manager ("How MCP servers work" beside the title opens the
+  "MCP servers" guide): servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
-- Memory manager: the saved notes in two tabs, This project and All
+- Memory manager ("How memory works" beside the title opens the "Memory"
+  guide): the saved notes in two tabs, This project and All
   projects, each note with its name, one-line summary, an Unverified badge
   when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
   with Summary, Details and a Verified switch, plus Delete, which asks first.

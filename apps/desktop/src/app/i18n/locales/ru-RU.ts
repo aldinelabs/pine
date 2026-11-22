@@ -3369,6 +3369,10 @@ export default {
     projectFoldersGuide: "Как устроен доступ к папкам",
     learnWhy: "Узнать почему",
     whyBlocked: "Почему это заблокировано?",
+    automationsGuide: "Как работают автоматизации",
+    skillsGuide: "Как работают навыки",
+    mcpGuide: "Как работают серверы MCP",
+    memoryGuide: "Как работает память",
     hintShowGuide: "Открыть руководство",
     hintDismiss: "Понятно",
     hints: {
