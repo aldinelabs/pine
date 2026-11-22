@@ -3200,5 +3200,13 @@ export default {
     projectFoldersGuide: "文件夹权限怎么设",
     learnWhy: "了解原因",
     whyBlocked: "为什么被拦下？",
+    guides: "指南",
+    guidesDescription: "用图文简单讲讲 Pine 能做什么，以及怎么用得更好。",
+    groups: {
+      start: "从这里开始",
+      work: "日常使用",
+      extend: "扩展 Pine",
+      settings: "设置项说明",
+    },
   },
 } as const;

@@ -3421,5 +3421,14 @@ export default {
     projectFoldersGuide: "So funktioniert der Ordnerzugriff",
     learnWhy: "Warum?",
     whyBlocked: "Warum wurde das blockiert?",
+    guides: "Anleitungen",
+    guidesDescription:
+      "Kurze, bebilderte Anleitungen dazu, was Pine kann und wie Sie am meisten herausholen.",
+    groups: {
+      start: "Erste Schritte",
+      work: "Mit Pine arbeiten",
+      extend: "Pine erweitern",
+      settings: "Einstellungen erklärt",
+    },
   },
 } as const;

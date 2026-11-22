@@ -3366,5 +3366,14 @@ export default {
     projectFoldersGuide: "フォルダーのアクセス権のしくみ",
     learnWhy: "理由を見る",
     whyBlocked: "なぜ止められた？",
+    guides: "ガイド",
+    guidesDescription:
+      "Pine にできることと、うまく使うコツを図解で手短に紹介します。",
+    groups: {
+      start: "はじめに",
+      work: "日々の使い方",
+      extend: "Pine を拡張する",
+      settings: "設定の説明",
+    },
   },
 } as const;

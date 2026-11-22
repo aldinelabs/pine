@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { h } from "vue";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAutomationsStore } from "@/stores/automations";
+import { useHelpStore } from "@/stores/help";
 import {
   SESSION_HISTORY_STORAGE_KEY,
   useSessionHistoryStore,
@@ -163,9 +164,11 @@ describe("AllProjectsSessionList", () => {
     const list = wrapper.findComponent(AllProjectsSessionList);
     const more = wrapper.get('[data-testid="sidebar-more"]');
     const entries = () =>
-      [...document.querySelectorAll('[data-testid^="manage-"]')].map((entry) =>
-        entry.textContent?.trim(),
-      );
+      [
+        ...document.querySelectorAll(
+          '[data-testid^="manage-"], [data-testid="open-guides"]',
+        ),
+      ].map((entry) => entry.textContent?.trim());
     expect(entries()).toEqual([]);
 
     await more.trigger("click");
@@ -179,6 +182,7 @@ describe("AllProjectsSessionList", () => {
       "工作技能⌘S",
       "MCP 服务器⌘/",
       "记忆",
+      "指南",
     ]);
 
     for (const [testId, event] of [
@@ -197,6 +201,13 @@ describe("AllProjectsSessionList", () => {
       // Choosing one closes the menu before its dialog opens.
       expect(entries()).toEqual([]);
     }
+
+    await more.trigger("click");
+    await flushPromises();
+    document.querySelector<HTMLElement>('[data-testid="open-guides"]')!.click();
+    await flushPromises();
+    expect(useHelpStore().isOverviewOpen).toBe(true);
+    expect(entries()).toEqual([]);
     wrapper.unmount();
   });
 

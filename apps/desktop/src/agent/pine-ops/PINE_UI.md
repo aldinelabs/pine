@@ -101,7 +101,7 @@ window
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
 │   ├── top menu: Search sessions · New session · Projects · More
-│   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory
+│   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory · Guides
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
 │   │       ├── session folder (collapsible) → session items
@@ -185,6 +185,8 @@ More menu:
 - Skills: opens the Skills manager for the active tab's project.
 - MCP servers: opens the MCP servers manager for the active tab's project.
 - Memory: opens the Memory manager for the active tab's project.
+- Guides: opens the Guides overview (see Guides under Dialogs and
+  overlays). It stays in the menu with Guide buttons off.
 
 ### Content area
 
@@ -1243,8 +1245,14 @@ the user opens themselves do not pulse.
   makes the model (Google, OpenAI, Black Forest Labs, …), or a generic shield,
   image or video icon when Pine doesn't recognize the maker. The selected
   model's row shows a check mark in its place.
+- Guides overview: opened from the sidebar's More menu › Guides. Every
+  guide in one list, grouped under Getting started, Working with Pine,
+  Extending Pine and Settings explained; each row shows the guide's icon,
+  title and one-line summary. Clicking a row opens that guide on top of the
+  list; closing the guide returns to the list.
 - Guides: one dialog that teaches a feature in plain language, opened from a
-  guide button or menu item such as "How approval modes work". An animated
+  guide button or menu item such as "How approval modes work", or from the
+  Guides overview. An animated
   picture fills the top (it holds still with reduced motion); below it a
   small line names the guide and the step ("Tool calls and approvals · Step 1
   of 4"; one-page guides show only the name), then the step's title, a few paragraphs, sometimes a bullet list,
@@ -1267,7 +1275,7 @@ the user opens themselves do not pulse.
   OpenRouter), "Context compaction strategy" (recommended settings versus
   Passive compaction) and "Context compaction method" (Model versus Semantic
   algorithm (Beta) and its recall tool). The steering guide has no
-  button of its own yet. The agent can also open any guide at a chosen step, shown
+  button of its own; it opens from the Guides overview. The agent can also open any guide at a chosen step, shown
   only while its conversation is on screen; the transcript then reads
   "Opened the “…” guide". Their text is written in Simplified Chinese and English;
   Traditional Chinese shows the Simplified text and other languages show

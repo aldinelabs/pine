@@ -3398,5 +3398,14 @@ export default {
     projectFoldersGuide: "Cómo funciona el acceso a carpetas",
     learnWhy: "Ver por qué",
     whyBlocked: "¿Por qué se bloqueó?",
+    guides: "Guías",
+    guidesDescription:
+      "Guías breves e ilustradas sobre lo que Pine puede hacer y cómo sacarle el máximo partido.",
+    groups: {
+      start: "Primeros pasos",
+      work: "Trabajar con Pine",
+      extend: "Ampliar Pine",
+      settings: "Ajustes explicados",
+    },
   },
 } as const;

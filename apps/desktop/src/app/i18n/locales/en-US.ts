@@ -3327,5 +3327,14 @@ export default {
     projectFoldersGuide: "How folder access works",
     learnWhy: "Learn why",
     whyBlocked: "Why was this blocked?",
+    guides: "Guides",
+    guidesDescription:
+      "Short illustrated guides to what Pine can do and how to get the most from it.",
+    groups: {
+      start: "Getting started",
+      work: "Working with Pine",
+      extend: "Extending Pine",
+      settings: "Settings explained",
+    },
   },
 } as const;

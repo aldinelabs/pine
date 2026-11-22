@@ -3205,5 +3205,13 @@ export default {
     projectFoldersGuide: "資料夾權限怎麼設",
     learnWhy: "了解原因",
     whyBlocked: "為什麼被攔下？",
+    guides: "指南",
+    guidesDescription: "用圖文簡單講講 Pine 能做什麼，以及怎麼用得更好。",
+    groups: {
+      start: "從這裡開始",
+      work: "日常使用",
+      extend: "擴充 Pine",
+      settings: "設定項說明",
+    },
   },
 } as const;

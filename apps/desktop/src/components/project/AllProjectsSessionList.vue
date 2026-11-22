@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   Blocks,
+  BookOpen,
   Brain,
   Ellipsis,
   Folder,
@@ -85,6 +86,7 @@ import {
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { withoutRelayPrefix } from "@/shared/sessions";
 import { useAutomationsStore } from "@/stores/automations";
+import { useHelpStore } from "@/stores/help";
 import { useProjectStore } from "@/stores/project";
 import { useSessionHistoryStore } from "@/stores/sessionHistory";
 import { useSessionStore } from "@/stores/session";
@@ -108,6 +110,7 @@ const tabNavigation = useContentTabNavigation();
 // The managers live behind "More", so their count stays visible on it while
 // the submenu is closed.
 const automations = useAutomationsStore();
+const help = useHelpStore();
 const moreOpen = ref(false);
 const unreadAutomations = computed(
   () => automations.unread + automations.approvals.length,
@@ -762,6 +765,17 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
                     >
                       <Brain aria-hidden="true" />
                       <span>{{ t("preferences.memory.managerTitle") }}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-testid="open-guides"
+                      class="rounded-2xl"
+                      aria-haspopup="dialog"
+                      @click="pick(() => help.openOverview())"
+                    >
+                      <BookOpen aria-hidden="true" />
+                      <span>{{ t("help.guides") }}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>

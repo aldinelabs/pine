@@ -30,6 +30,31 @@ export const HELP_TOPIC_STEPS = {
   "compaction-method": ["compaction-method"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
+export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
+
+/**
+ * How the Guides overview groups the guides, in reading order. Every guide
+ * appears in exactly one group.
+ */
+export const HELP_TOPIC_GROUPS: readonly {
+  id: HelpTopicGroupId;
+  topics: readonly HelpTopicId[];
+}[] = [
+  {
+    id: "start",
+    topics: ["approval-modes", "models", "context-window"],
+  },
+  {
+    id: "work",
+    topics: ["steer-stop", "reasoning-effort", "project-folders"],
+  },
+  { id: "extend", topics: [] },
+  {
+    id: "settings",
+    topics: ["auto-approval-path", "compaction-strategy", "compaction-method"],
+  },
+];
+
 export type HelpIllustrationId =
   | "tool-call"
   | "approval-modes"

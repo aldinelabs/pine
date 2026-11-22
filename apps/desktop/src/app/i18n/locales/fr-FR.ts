@@ -3418,5 +3418,14 @@ export default {
     projectFoldersGuide: "Comment fonctionne l’accès aux dossiers",
     learnWhy: "Comprendre pourquoi",
     whyBlocked: "Pourquoi est-ce bloqué ?",
+    guides: "Guides",
+    guidesDescription:
+      "De courts guides illustrés sur ce que Pine sait faire et comment en tirer le meilleur parti.",
+    groups: {
+      start: "Premiers pas",
+      work: "Travailler avec Pine",
+      extend: "Étendre Pine",
+      settings: "Réglages expliqués",
+    },
   },
 } as const;

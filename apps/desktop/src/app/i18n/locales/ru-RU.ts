@@ -3369,5 +3369,14 @@ export default {
     projectFoldersGuide: "Как устроен доступ к папкам",
     learnWhy: "Узнать почему",
     whyBlocked: "Почему это заблокировано?",
+    guides: "Руководства",
+    guidesDescription:
+      "Короткие иллюстрированные руководства о том, что умеет Pine и как получить от него максимум.",
+    groups: {
+      start: "С чего начать",
+      work: "Работа с Pine",
+      extend: "Расширение Pine",
+      settings: "Пояснения к настройкам",
+    },
   },
 } as const;

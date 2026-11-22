@@ -3321,5 +3321,14 @@ export default {
     projectFoldersGuide: "폴더 권한 설정 방법",
     learnWhy: "이유 알아보기",
     whyBlocked: "왜 차단되었나요?",
+    guides: "가이드",
+    guidesDescription:
+      "Pine으로 할 수 있는 일과 더 잘 쓰는 방법을 그림과 함께 짧게 소개합니다.",
+    groups: {
+      start: "시작하기",
+      work: "일상 사용",
+      extend: "Pine 확장하기",
+      settings: "설정 설명",
+    },
   },
 } as const;
