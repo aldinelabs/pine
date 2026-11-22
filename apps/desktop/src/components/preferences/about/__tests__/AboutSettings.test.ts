@@ -74,7 +74,12 @@ it("shows Pine's version, brand and links", async () => {
   expect(wrapper.get('[data-testid="pine-about-version"]').text()).toBe(
     "Version 0.23.0",
   );
-  expect(wrapper.text()).toContain("By Aldine Labs");
+  const by = wrapper.get('[data-testid="pine-about-by"]');
+  expect(by.text()).toBe("By");
+  expect(by.findAll("img").map((img) => img.attributes("alt"))).toEqual([
+    "Aldine Labs",
+    "Aldine Labs",
+  ]);
   expect(wrapper.text()).toContain("© 2026 Aldine Labs");
 
   for (const [id, url] of [

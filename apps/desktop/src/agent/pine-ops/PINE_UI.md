@@ -1200,7 +1200,8 @@ the user opens themselves do not pulse.
     scan, WeChat remote is paused, or its settings were reset. Clicking one
     brings Pine's window forward. The tray menu has a "WeChat remote" switch
     (see Tray and menu bar).
-  - About (always last): Pine's icon, "Version X.Y.Z", "By Aldine Labs" and
+  - About (always last): Pine's icon, "Version X.Y.Z", "By" followed by the
+    Aldine logo (light or dark to match the theme) and
     a one-line description. "Check for updates" (desktop app only) opens the
     update dialog when a release is available and otherwise says "Pine is up
     to date." (or that the check failed). Links: Documentation (the Chinese

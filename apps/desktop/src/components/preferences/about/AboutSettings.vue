@@ -13,8 +13,10 @@ import {
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, nextTick, onMounted, ref, useTemplateRef } from "vue";
-import { useI18n } from "vue-i18n";
+import { I18nT, useI18n } from "vue-i18n";
 import pineAppIcon from "../../../../resources/icon.png";
+import aldineOnDark from "@/assets/aldine/aldine-horizontal-on-dark.svg";
+import aldineOnLight from "@/assets/aldine/aldine-horizontal-on-light.svg";
 import { useDialogPages } from "@/composables/useDialogPages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -270,9 +272,28 @@ function closeDetail(): void {
           >
             {{ t("preferences.about.version", { version: pineVersion }) }}
           </p>
-          <p class="text-sm text-muted-foreground">
-            {{ t("preferences.about.by", { brand: "Aldine Labs" }) }}
-          </p>
+          <I18nT
+            keypath="preferences.about.by"
+            tag="p"
+            scope="global"
+            data-testid="pine-about-by"
+            class="text-sm text-muted-foreground"
+          >
+            <template #brand>
+              <img
+                :src="aldineOnLight"
+                alt="Aldine Labs"
+                class="inline-block h-[1.4em] align-[-0.35em] select-none dark:hidden"
+                draggable="false"
+              />
+              <img
+                :src="aldineOnDark"
+                alt="Aldine Labs"
+                class="hidden h-[1.4em] align-[-0.35em] select-none dark:inline-block"
+                draggable="false"
+              />
+            </template>
+          </I18nT>
         </div>
       </div>
       <p class="text-sm">{{ t("preferences.about.tagline") }}</p>
