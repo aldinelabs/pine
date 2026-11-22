@@ -19,6 +19,7 @@ import type {
   FilePreviewTarget,
   FileReveal,
 } from "./projectFiles";
+import type { HelpTopicId } from "./helpTopics";
 import type { WorkbenchCommand } from "./workbench";
 import type {
   AskUserQuestionParams,
@@ -36,6 +37,8 @@ export const UI_PRESENT_FILE_TOOL_NAME = "ui_present_file" as const;
  * presenting, it opens nothing; the Artifacts panel lists what it recorded.
  */
 export const UI_SUBMIT_ARTIFACT_TOOL_NAME = "ui_submit_artifact" as const;
+/** Opens one of Pine's illustrated guides over the user's window. */
+export const UI_OPEN_GUIDE_TOOL_NAME = "ui_open_guide" as const;
 export const UI_PROJECT_LIST_TOOL_NAME = "ui_project_list" as const;
 export const UI_LIST_MODELS_TOOL_NAME = "ui_list_models" as const;
 export const UI_SESSION_TELEPORT_TOOL_NAME = "ui_session_teleport" as const;
@@ -433,6 +436,17 @@ export type PineAgentEvent =
       reveal?: FileReveal;
       /** Defaults to sidebar for callers that omit the display mode. */
       display?: FilePresentationDisplay;
+    }
+  | {
+      /**
+       * Opens a guide at a 0-based step. The window shows it only while this
+       * session is the one on screen.
+       */
+      type: "open-guide";
+      sessionId: string;
+      toolCallId: string;
+      topic: HelpTopicId;
+      step?: number;
     }
   | {
       /** Rearranges the workbench beside the session's conversation. */

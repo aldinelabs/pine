@@ -2177,6 +2177,16 @@ export default {
             error: "Couldn’t arrange the workbench",
             running: "Arranging the workbench",
           },
+          guide: {
+            complete: "Opened the “{guide}” guide",
+            error: "Couldn’t open the “{guide}” guide",
+            running: "Opening the “{guide}” guide",
+          },
+          guideUnknown: {
+            complete: "Opened a guide",
+            error: "Couldn’t open a guide",
+            running: "Opening a guide",
+          },
         },
         automation: {
           activate: {

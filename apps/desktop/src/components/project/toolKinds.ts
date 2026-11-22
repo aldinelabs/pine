@@ -49,6 +49,7 @@ import {
   currentToolName,
   UI_PRESENT_FILE_TOOL_NAME,
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
+  UI_OPEN_GUIDE_TOOL_NAME,
   UI_LIST_MODELS_TOOL_NAME,
   UI_PROJECT_CREATE_TOOL_NAME,
   UI_PROJECT_DELETE_TOOL_NAME,
@@ -293,7 +294,10 @@ export function toolKind(name: string): ToolKind {
   if (normalized === UI_PRESENT_FILE_TOOL_NAME) return "presentFile";
   if (normalized === UI_SUBMIT_ARTIFACT_TOOL_NAME) return "submitArtifact";
   if (normalized === UI_WORKBENCH_STATE_TOOL_NAME) return "workbenchState";
-  if ((UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized))
+  if (
+    normalized === UI_OPEN_GUIDE_TOOL_NAME ||
+    (UI_WORKBENCH_TOOL_NAMES as readonly string[]).includes(normalized)
+  )
     return "workbench";
   if ((PROJECT_TOOL_NAMES as readonly string[]).includes(normalized))
     return "project";

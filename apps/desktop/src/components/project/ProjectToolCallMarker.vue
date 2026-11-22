@@ -40,8 +40,11 @@ import {
   UI_SESSION_STOP_TOOL_NAME,
   UI_SESSION_TREE_TOOL_NAME,
   currentToolName,
+  UI_OPEN_GUIDE_TOOL_NAME,
   UI_PRESENT_FILE_TOOL_NAME,
 } from "@/shared/agent";
+import type { AppLocale } from "@/app/i18n";
+import { isHelpTopicId, resolveHelpTopic } from "@/app/help";
 import { LIVE_CONTEXT_CAPTURE_TOOL_NAME } from "@/shared/liveContextAgent";
 import { sessionSearchQuery } from "@/shared/sessions";
 import { useProjectStore } from "@/stores/project";
@@ -87,7 +90,7 @@ const props = defineProps<{
     toolCall: PineToolCall,
   ) => boolean | Promise<boolean>;
 }>();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 // Markers also render outside the app shell (dialogs, previews) without Pinia.
 const projectStore = getActivePinia() ? useProjectStore() : null;
 const sessionStore = getActivePinia() ? useSessionStore() : null;
@@ -168,12 +171,19 @@ function workbenchLabel(
   input: Record<string, unknown>,
   state: "complete" | "error" | "running",
   t: (key: string, values?: Record<string, unknown>) => string,
+  locale: string,
 ): string {
   const panelName = (value: unknown) =>
     isWorkbenchPanel(value) ? t(`project.workbench.panels.${value}`) : "";
   const base = "project.transcript.tools.workbench";
   const tool = normalizedToolName(name);
   if (tool === UI_WORKBENCH_STATE_TOOL_NAME) return t(`${base}.state.${state}`);
+  if (tool === UI_OPEN_GUIDE_TOOL_NAME)
+    return isHelpTopicId(input.topic)
+      ? t(`${base}.guide.${state}`, {
+          guide: resolveHelpTopic(input.topic, locale as AppLocale).title,
+        })
+      : t(`${base}.guideUnknown.${state}`);
   if (tool === UI_WORKBENCH_ARRANGE_TOOL_NAME) {
     const panels = [input.top, input.bottom].filter(isWorkbenchPanel);
     const [top, bottom] = panels;
@@ -1652,6 +1662,7 @@ const presentation = computed(() => {
             ? "error"
             : "running",
         t,
+        locale.value,
       ),
       operation: undefined,
       separator: "",

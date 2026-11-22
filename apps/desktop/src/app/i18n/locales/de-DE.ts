@@ -2224,6 +2224,16 @@ export default {
             error: "Arbeitsbereich konnte nicht angeordnet werden",
             running: "Arbeitsbereich wird angeordnet",
           },
+          guide: {
+            complete: "Anleitung „{guide}“ geöffnet",
+            error: "Anleitung „{guide}“ konnte nicht geöffnet werden",
+            running: "Anleitung „{guide}“ wird geöffnet",
+          },
+          guideUnknown: {
+            complete: "Anleitung geöffnet",
+            error: "Anleitung konnte nicht geöffnet werden",
+            running: "Anleitung wird geöffnet",
+          },
         },
         automation: {
           activate: {

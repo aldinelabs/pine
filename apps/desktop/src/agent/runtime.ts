@@ -2097,6 +2097,16 @@ export class PineAgentRuntime {
               command,
             }),
         },
+        guide: {
+          openGuide: (toolCallId, topic, step) =>
+            this.options.emit({
+              type: "open-guide",
+              sessionId: live.session.sessionId,
+              toolCallId,
+              topic,
+              ...(step === undefined ? {} : { step }),
+            }),
+        },
         workspace: {
           requestHost: (request) => this.requestHost(live, request),
           getLocale: () => live.locale,

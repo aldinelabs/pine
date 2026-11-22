@@ -2189,6 +2189,16 @@ export default {
             error: "ワークベンチを整理できませんでした",
             running: "ワークベンチを整理中",
           },
+          guide: {
+            complete: "ガイド「{guide}」を開きました",
+            error: "ガイド「{guide}」を開けませんでした",
+            running: "ガイド「{guide}」を開いています",
+          },
+          guideUnknown: {
+            complete: "ガイドを開きました",
+            error: "ガイドを開けませんでした",
+            running: "ガイドを開いています",
+          },
         },
         automation: {
           activate: {

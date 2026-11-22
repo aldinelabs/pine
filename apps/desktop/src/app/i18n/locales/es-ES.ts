@@ -2216,6 +2216,16 @@ export default {
             error: "No se pudo organizar el panel de trabajo",
             running: "Organizando el panel de trabajo",
           },
+          guide: {
+            complete: "Se abrió la guía «{guide}»",
+            error: "No se pudo abrir la guía «{guide}»",
+            running: "Abriendo la guía «{guide}»",
+          },
+          guideUnknown: {
+            complete: "Se abrió una guía",
+            error: "No se pudo abrir una guía",
+            running: "Abriendo una guía",
+          },
         },
         automation: {
           activate: {

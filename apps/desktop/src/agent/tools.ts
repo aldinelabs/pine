@@ -112,6 +112,10 @@ import {
   type PineWorkbenchToolContext,
 } from "./workbenchTools";
 import {
+  createGuideToolDefinitions,
+  type PineGuideToolContext,
+} from "./guideTools";
+import {
   BackgroundTaskRegistry,
   type BackgroundTaskRegistryOptions,
 } from "@pine/pi-background-tasks/registry";
@@ -305,6 +309,8 @@ export interface PineToolPermissionContext {
   ) => void;
   /** Gives the session the `ui_workbench_*` tools. */
   workbench?: PineWorkbenchToolContext;
+  /** Gives the session `ui_open_guide`. */
+  guide?: PineGuideToolContext;
   /** Listing the user's projects and moving the session between them. */
   workspace?: Omit<
     PineWorkspaceToolContext,
@@ -869,6 +875,9 @@ export async function createPineToolDefinitions(
   const workbenchTools = permissions?.workbench
     ? createWorkbenchToolDefinitions(permissions.workbench)
     : [];
+  const guideTools = permissions?.guide
+    ? createGuideToolDefinitions(permissions.guide)
+    : [];
   const uiPresentFileTool = presentFile
     ? gateFileTool(
         createPresentFileTool(policy),
@@ -1073,6 +1082,7 @@ export async function createPineToolDefinitions(
     ...(uiPresentFileTool ? [uiPresentFileTool] : []),
     ...(uiSubmitArtifactTool ? [uiSubmitArtifactTool] : []),
     ...workbenchTools,
+    ...guideTools,
     ...workspaceTools,
     ...sessionTools,
     ...(askUserQuestionTool ? [askUserQuestionTool] : []),

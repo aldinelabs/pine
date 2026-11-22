@@ -2165,6 +2165,16 @@ export default {
             error: "작업대를 정리할 수 없습니다",
             running: "작업대 정리 중",
           },
+          guide: {
+            complete: "“{guide}” 가이드를 열었습니다",
+            error: "“{guide}” 가이드를 열 수 없습니다",
+            running: "“{guide}” 가이드를 여는 중",
+          },
+          guideUnknown: {
+            complete: "가이드를 열었습니다",
+            error: "가이드를 열 수 없습니다",
+            running: "가이드를 여는 중",
+          },
         },
         automation: {
           activate: {

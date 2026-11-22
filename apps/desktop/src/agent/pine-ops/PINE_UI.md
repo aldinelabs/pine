@@ -12,8 +12,9 @@ a control lives, or to plan changes to what they see. It describes the UI; it
 does not by itself change anything. Pine operations that act on the UI may be
 added to this session later; until then, change the UI only through tools that
 are already available (for example the `ui_workbench_*` tools,
-`ui_present_file` and `ui_submit_artifact`), and otherwise tell the user where
-to click.
+`ui_present_file`, `ui_submit_artifact` and `ui_open_guide`, which opens one
+of the Guides below at a chosen step), and otherwise tell the user where to
+click.
 
 ## Concepts
 
@@ -1241,7 +1242,9 @@ the user opens themselves do not pulse.
   Withdraw and Send now, stopping, what a stop keeps, good habits) and
   "Projects and folder access" (projects as sets of folders, Read only and
   Read and write, the sandbox, good habits). The last two have no button of
-  their own yet. Their text is written in Simplified Chinese and English;
+  their own yet. The agent can also open any guide at a chosen step, shown
+  only while its conversation is on screen; the transcript then reads
+  "Opened the “…” guide". Their text is written in Simplified Chinese and English;
   Traditional Chinese shows the Simplified text and other languages show
   English, while the dialog's buttons follow the interface language.
 - Update dialog: release notes and installing an update. The notes cover every

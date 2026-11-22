@@ -2082,6 +2082,16 @@ export default {
             error: "无法排布工作台",
             running: "正在排布工作台",
           },
+          guide: {
+            complete: "已打开教程“{guide}”",
+            error: "无法打开教程“{guide}”",
+            running: "正在打开教程“{guide}”",
+          },
+          guideUnknown: {
+            complete: "已打开教程",
+            error: "无法打开教程",
+            running: "正在打开教程",
+          },
         },
         automation: {
           activate: {

@@ -1176,6 +1176,11 @@ describe("project transcript markers", () => {
         input: { top: "preview", bottom: null },
         expected: "已让工作台只显示预览",
       },
+      {
+        name: "ui_open_guide",
+        input: { topic: "models", step: 2 },
+        expected: "已打开教程“模型与模型服务”",
+      },
     ];
     for (const testCase of cases) {
       const wrapper = mount(ProjectToolCallMarker, {

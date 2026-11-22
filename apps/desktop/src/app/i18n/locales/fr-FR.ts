@@ -2219,6 +2219,16 @@ export default {
             error: "Impossible d'organiser l'espace de travail",
             running: "Organisation de l'espace de travail",
           },
+          guide: {
+            complete: "Guide « {guide} » ouvert",
+            error: "Impossible d’ouvrir le guide « {guide} »",
+            running: "Ouverture du guide « {guide} »",
+          },
+          guideUnknown: {
+            complete: "Guide ouvert",
+            error: "Impossible d’ouvrir le guide",
+            running: "Ouverture d’un guide",
+          },
         },
         automation: {
           activate: {
