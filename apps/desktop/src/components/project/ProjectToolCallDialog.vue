@@ -49,8 +49,6 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const appearanceStore = useAppearanceStore();
-const helpStore = useHelpStore();
 const isOpen = ref(false);
 // A transcript mounts one of these per tool call; keep the closed dialog's
 // content tree unmounted until it is first opened. It stays mounted after
@@ -123,7 +121,9 @@ const statusVariant = computed<BadgeVariants["variant"]>(() =>
  */
 const denialGuide = computed<{ topic: HelpTopicId; step: number } | null>(
   () => {
-    if (!appearanceStore.helpGuides) return null;
+    // Read here, not in setup: the details only render once opened, and
+    // markers mount in many places that never open them.
+    if (!isDenied.value || !useAppearanceStore().helpGuides) return null;
     if (statusKey.value === "sandboxDenied")
       return { topic: "project-folders", step: 1 };
     if (statusKey.value === "autoApprovalDenied")
@@ -137,7 +137,7 @@ function openDenialGuide(): void {
   const guide = denialGuide.value;
   if (!guide) return;
   isOpen.value = false;
-  helpStore.openTopic(guide.topic, guide.step);
+  useHelpStore().openTopic(guide.topic, guide.step);
 }
 
 const approvalKey = computed(() => {
