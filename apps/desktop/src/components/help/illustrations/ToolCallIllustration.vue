@@ -48,10 +48,10 @@ const tools = [FileTextIcon, TerminalIcon, GlobeIcon];
       <div
         v-for="(icon, index) in tools"
         :key="index"
-        class="help-tool bg-background ring-foreground/10 flex size-9 items-center justify-center rounded-xl ring-1"
+        class="help-tool bg-background ring-foreground/10 flex size-11 items-center justify-center rounded-xl ring-1"
         :style="{ animationDelay: `${1.2 + index * 0.15}s` }"
       >
-        <component :is="icon" class="text-muted-foreground size-4" />
+        <component :is="icon" class="text-muted-foreground size-5" />
       </div>
     </div>
   </div>

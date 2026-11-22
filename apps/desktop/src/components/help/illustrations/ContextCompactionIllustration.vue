@@ -33,7 +33,7 @@ const recent = [86, 64];
       class="bg-background ring-foreground/10 flex h-36 w-28 flex-col gap-1.5 rounded-2xl p-2.5 shadow-sm ring-1"
     >
       <div
-        class="help-summary bg-warning/20 text-warning flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1"
+        class="help-summary bg-warning/20 text-warning flex shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-0.625rem)] px-1.5 py-1"
       >
         <ScrollTextIcon class="size-3.5 shrink-0" />
         <span class="bg-warning/50 h-1.5 flex-1 rounded-full" />
@@ -45,7 +45,7 @@ const recent = [86, 64];
         :style="{ width: `${width}%` }"
       />
       <div
-        class="help-free ring-foreground/15 mt-auto flex-1 rounded-lg ring-1 ring-dashed"
+        class="help-free ring-foreground/15 mt-auto flex-1 rounded-[calc(var(--radius-2xl)-0.625rem)] ring-1"
       />
     </div>
   </div>

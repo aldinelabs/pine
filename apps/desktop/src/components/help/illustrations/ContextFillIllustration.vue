@@ -21,15 +21,17 @@ const layers = [
      tool results. The ring beside it tracks the same share. -->
 <template>
   <div class="flex items-end justify-center gap-6">
+    <!-- Layers and the reveal's clip use the window's radius less its
+         padding, so their corners stay concentric with it. -->
     <div
-      class="ring-foreground/20 relative flex h-36 w-24 flex-col-reverse gap-px overflow-hidden rounded-2xl p-1 ring-2 ring-dashed"
+      class="ring-foreground/20 relative flex h-36 w-24 flex-col-reverse overflow-hidden rounded-2xl p-1 ring-2 [--help-inner-radius:calc(var(--radius-2xl)-0.25rem)]"
     >
-      <div class="help-layers flex h-full flex-col-reverse gap-px">
+      <div class="help-layers flex h-full w-full flex-col-reverse gap-px">
         <div
           v-for="(layer, index) in layers"
           :key="index"
           :class="[
-            'flex shrink-0 items-center justify-center rounded-lg',
+            'flex shrink-0 items-center justify-center rounded-(--help-inner-radius)',
             layer.tone,
           ]"
           :style="{ height: `${layer.height}%` }"
@@ -39,11 +41,7 @@ const layers = [
       </div>
     </div>
 
-    <svg
-      viewBox="0 0 40 40"
-      class="text-destructive size-16"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 40 40" class="help-ring-tone size-16" aria-hidden="true">
       <circle
         cx="20"
         cy="20"
@@ -80,42 +78,57 @@ const layers = [
   animation: help-ring 6s ease-out infinite both;
 }
 
+/* On the svg, so the track and the arc change colour together. */
+.help-ring-tone {
+  color: var(--destructive);
+  animation: help-ring-tone 6s ease-out infinite both;
+}
+
 /* Reveals the stacked layers from the bottom up, in step with the ring. */
 @keyframes help-layers {
   0% {
-    clip-path: inset(100% 0 0 0);
+    clip-path: inset(100% 0 0 0 round var(--help-inner-radius));
   }
   60%,
   90% {
-    clip-path: inset(0);
+    clip-path: inset(0 round var(--help-inner-radius));
   }
   100% {
-    clip-path: inset(100% 0 0 0);
+    clip-path: inset(100% 0 0 0 round var(--help-inner-radius));
   }
 }
 
 @keyframes help-ring {
   0% {
     stroke-dashoffset: 100;
-    color: var(--muted-foreground);
   }
+  60%,
+  90% {
+    stroke-dashoffset: 18;
+  }
+  100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes help-ring-tone {
+  0%,
   50% {
     color: var(--muted-foreground);
   }
   60%,
   90% {
-    stroke-dashoffset: 18;
     color: var(--destructive);
   }
   100% {
-    stroke-dashoffset: 100;
     color: var(--muted-foreground);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .help-layers,
-  .help-ring {
+  .help-ring,
+  .help-ring-tone {
     animation: none;
   }
 }

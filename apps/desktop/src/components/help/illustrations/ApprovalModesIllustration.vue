@@ -52,7 +52,7 @@ const modes = [
         :style="{ animationDelay: `${index * 1.5}s` }"
       >
         <div
-          class="help-mode-icon bg-background ring-foreground/10 flex size-11 items-center justify-center rounded-2xl ring-1"
+          class="help-mode-icon bg-background ring-foreground/10 flex size-11 items-center justify-center rounded-xl ring-1"
         >
           <component :is="mode.icon" :class="['size-5', mode.tone]" />
         </div>
