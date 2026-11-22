@@ -242,4 +242,43 @@ export default {
       },
     ],
   },
+  "project-folders": {
+    title: "Projects and folder access",
+    summary:
+      "A project decides which folders Pine can touch. With clear limits, you can give it plenty of room.",
+    steps: [
+      {
+        title: "A project is a set of folders",
+        body: [
+          "Each project has a default folder and, optionally, a few additional context folders. Conversations in the project can reach only these folders.",
+          "Each folder is either Read and write or Read only. The default folder must be writable; it's where Pine mostly works. Folders it only needs to look at, such as notes or reference code, can be Read only.",
+        ],
+        note: {
+          tone: "tip",
+          text: "No Project is for quick jobs that belong to no project. Pine works in a space inside its own data folder and doesn't touch your files.",
+        },
+      },
+      {
+        title: "The sandbox keeps the limits",
+        body: [
+          "Every command Pine runs is sandboxed: it can read only the project's folders, files you attached and the system files it needs, and write only to writable folders and the project's own temporary folder. Commands can't go online either; searching and opening web pages are done by dedicated tools.",
+          "When something needs to cross the line, such as a file outside the project, the approval mode decides: in Auto Approve the approval model judges first and asks you only when unsure; in Let Me Review you're asked directly.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: the limits are enforced by a system-level sandbox, not by the model's good behaviour. Draw the lines, then let it run.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Add only the folders the task needs. Clear limits make it easy to let go.",
+          "Make notes and reference material Read only: Pine can look at them any time but won't change them.",
+          "Pine keeps drafts and temporary files in the project's own temporary folder, away from your folders. You can clear them in Settings › Projects.",
+          "Deleting a project removes only Pine's conversations and settings; your folders stay as they are.",
+        ],
+      },
+    ],
+  },
 } satisfies HelpContent;

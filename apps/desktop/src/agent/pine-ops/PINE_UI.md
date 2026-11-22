@@ -1237,12 +1237,13 @@ the user opens themselves do not pulse.
   and cost, compaction, keeping the context lean), "Models and providers"
   (where models come from, connecting a provider, picking a model, good
   habits), "Reasoning effort" (thinking before answering, setting the
-  effort, good habits) and "Steering and stopping" (steering while Pine
-  works, Withdraw and Send now, stopping, what a stop keeps, good habits).
-  The steering guide has no button of its own yet. Their text is written in
-  Simplified Chinese and English; Traditional Chinese shows the Simplified
-  text and other languages show English, while the dialog's buttons follow
-  the interface language.
+  effort, good habits), "Steering and stopping" (steering while Pine works,
+  Withdraw and Send now, stopping, what a stop keeps, good habits) and
+  "Projects and folder access" (projects as sets of folders, Read only and
+  Read and write, the sandbox, good habits). The last two have no button of
+  their own yet. Their text is written in Simplified Chinese and English;
+  Traditional Chinese shows the Simplified text and other languages show
+  English, while the dialog's buttons follow the interface language.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface
