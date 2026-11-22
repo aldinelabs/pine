@@ -5,6 +5,7 @@ import { defineComponent } from "vue";
 import { beforeEach, expect, it, vi } from "vitest";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useContentTabsStore } from "@/stores/contentTabs";
+import { useHelpStore } from "@/stores/help";
 import { useWorkbenchStore } from "@/stores/workbench";
 import { useWorkbenchEvents } from "../useWorkbenchEvents";
 
@@ -131,6 +132,31 @@ it("keeps a presented file's line targets and drops malformed ones", async () =>
     toolCallId: "call-2",
     path: target.path,
   });
+  wrapper.unmount();
+});
+
+it("opens a guide only over the conversation on screen", async () => {
+  const wrapper = await mountListener();
+  const help = useHelpStore();
+
+  listener?.({
+    type: "open-guide",
+    sessionId: "background",
+    toolCallId: "call-guide-1",
+    topic: "models",
+  });
+  expect(help.topicId).toBeNull();
+
+  // With no session open, the draft's key is the one on screen.
+  listener?.({
+    type: "open-guide",
+    sessionId: "draft",
+    toolCallId: "call-guide-2",
+    topic: "context-window",
+    step: 2,
+  });
+  expect(help.topicId).toBe("context-window");
+  expect(help.step).toBe(2);
   wrapper.unmount();
 });
 

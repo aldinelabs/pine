@@ -110,4 +110,236 @@ export default {
       },
     ],
   },
+  models: {
+    title: "Models and providers",
+    summary:
+      "The model does the thinking and the work. Connect a provider, pick a model, and Pine is ready to go.",
+    steps: [
+      {
+        title: "Models come from providers",
+        body: [
+          "Pine is the workbench; the model is what thinks and writes. Pine doesn't ship with a model of its own: you connect a provider such as OpenAI, Anthropic or Google, or a service like OpenRouter that gives you many of them in one place.",
+          "Every turn, Pine sends the context to the model you picked and brings the reply back. The provider bills by the token, to your account or subscription with them.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: models differ in what they're good at, how fast they are and what they cost, so Pine lets you choose and switch at any time.",
+        },
+      },
+      {
+        title: "Connecting a provider",
+        body: [
+          "Click the model button below the text box, choose Browse all models…, then Manage providers and models to see the built-in provider catalog. Pick one and follow the steps:",
+        ],
+        points: [
+          "Sign in: some providers let you sign in with your account or subscription; you approve it in the browser.",
+          "API key: create a key on the provider's website and paste it in. You pay for what you use.",
+          "Custom provider: models you host yourself or run on this computer can be added with Add model. For a local server that needs no key, any placeholder value works.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Connections are saved only on this computer and only ever sent to that provider. Treat an API key like a bank card and keep it to yourself; you can Disconnect a provider at any time.",
+        },
+      },
+      {
+        title: "Picking a model",
+        body: [
+          "The model menu lists your favorite or recently used models, and Browse all models… searches all of them. Models marked Recommended are the ones Pine currently recommends; when in doubt, start there.",
+          "The model is saved with each conversation: switching in a running conversation changes only that one, and the model you pick in a new conversation becomes the default for new ones.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Side jobs such as titles, auto-approval and reply suggestions use models too. You can pick separate ones, for example faster and cheaper models, in Settings › Models › Specialized models.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Start with a recommended model, give it a real task, and adjust from what you see.",
+          "Big pieces of code, long reports and multi-step research are worth a stronger model; tidying files or renaming things is fine with a faster one.",
+          "Favorite the models you use often and they appear at the top of the model menu. ⌘/Ctrl + I opens that menu at any time.",
+          "To stay within a budget, turn on Session cost limit in the Context usage popover.",
+        ],
+      },
+    ],
+  },
+  "reasoning-effort": {
+    title: "Reasoning effort",
+    summary:
+      "A model can think before it answers. Reasoning effort sets how long and how deep.",
+    steps: [
+      {
+        title: "Think first, then answer",
+        body: [
+          "Models that support reasoning think before they answer: they break the problem down, try a few approaches and check their conclusions, then act or reply.",
+          "While the model thinks, a Thinking line appears in the conversation; afterwards it shows how long it took. Click it to read what the provider sent back of the reasoning.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: the model first writes reasoning tokens, then the answer. More thinking means more tokens.",
+        },
+      },
+      {
+        title: "Setting the effort",
+        body: [
+          "Reasoning effort is in the model menu. The further right the slider, the longer and more carefully the model thinks, and the slower and costlier the answer. The levels depend on the model; Low, Medium, High and Extra high are common.",
+          "Medium is the usual default. Like the model, the effort is saved with each conversation.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Modern models do their best work in Pine with reasoning on, so we don't recommend turning it off. Maximum is often slower and costlier without being better.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Medium suits most tasks and makes a good everyday setting.",
+          "For tricky debugging, architecture decisions or problems that need careful reasoning, move to High or Extra high.",
+          "Stating the goal and the limits clearly often helps more than turning the effort up.",
+          "Answers too slow? Try one level lower, or a faster model.",
+        ],
+      },
+    ],
+  },
+  "steer-stop": {
+    title: "Steering and stopping",
+    summary:
+      "While Pine works, you can add requirements, change direction or stop it at any time.",
+    steps: [
+      {
+        title: "Talk while it works",
+        body: [
+          "The text box keeps working while Pine does. Type a new requirement and press Enter or click Steer response: the message waits above the text box until Pine finishes its current step, then goes to the model. Pine carries on with the new requirement instead of starting over.",
+          "Until the message is taken, two buttons sit below it: Withdraw puts it back in the text box; Send now interrupts the current work and handles your message right away.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: steering reaches the model between steps, so an action already running isn't cut off.",
+        },
+      },
+      {
+        title: "Stop at any time",
+        body: [
+          "With the text box empty, the button turns into Stop response; you can also press Esc. Pine stops at once: running commands are ended and the step that was cut off is marked Stopped.",
+          "Changes already made stay in place; stopping doesn't undo them. Afterwards, tell Pine what to do next, or ask it to change things back.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Files submitted to Artifacts keep their earlier versions, and Version history restores any of them. Commands that moved to the background keep running after a stop; you can see or end them under Background processes.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Hand the task over and add to it as you watch. It's far easier than writing the perfect instructions up front.",
+          "If it's heading the wrong way, say so early. A quick “try another approach” is often faster than stopping and explaining everything again.",
+          "Option/Alt + Enter steers without jumping to the bottom, so you can keep reading earlier messages while you add to them.",
+          "To go back and redo from an earlier point, use Edit message and send again. The conversation continues from there, but file changes aren't reverted.",
+        ],
+      },
+    ],
+  },
+  "project-folders": {
+    title: "Projects and folder access",
+    summary:
+      "A project decides which folders Pine can touch. With clear limits, you can give it plenty of room.",
+    steps: [
+      {
+        title: "A project is a set of folders",
+        body: [
+          "Each project has a default folder and, optionally, a few additional context folders. Conversations in the project can reach only these folders.",
+          "Each folder is either Read and write or Read only. The default folder must be writable; it's where Pine mostly works. Folders it only needs to look at, such as notes or reference code, can be Read only.",
+        ],
+        note: {
+          tone: "tip",
+          text: "No Project is for quick jobs that belong to no project. Pine works in a space inside its own data folder and doesn't touch your files.",
+        },
+      },
+      {
+        title: "The sandbox keeps the limits",
+        body: [
+          "Every command Pine runs is sandboxed: it can read only the project's folders, files you attached and the system files it needs, and write only to writable folders and the project's own temporary folder. Commands can't go online either; searching and opening web pages are done by dedicated tools.",
+          "When something needs to cross the line, such as a file outside the project, the approval mode decides: in Auto Approve the approval model judges first and asks you only when unsure; in Let Me Review you're asked directly.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: the limits are enforced by a system-level sandbox, not by the model's good behaviour. Draw the lines, then let it run.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Add only the folders the task needs. Clear limits make it easy to let go.",
+          "Make notes and reference material Read only: Pine can look at them any time but won't change them.",
+          "Pine keeps drafts and temporary files in the project's own temporary folder, away from your folders. You can clear them in Settings › Projects.",
+          "Deleting a project removes only Pine's conversations and settings; your folders stay as they are.",
+        ],
+      },
+    ],
+  },
+  "auto-approval-path": {
+    title: "Automatic approval path",
+    summary: "Who decides whether an action that needs a check can go ahead.",
+    steps: [
+      {
+        title: "Two approval paths",
+        body: [
+          "In Auto Approve and Autonomous, actions that reach beyond the project, could be destructive or need more permissions are reviewed first. This setting decides who reviews them:",
+        ],
+        points: [
+          "Model review (the default): every review goes to the approval model. It reads the call and the conversation, then gives a decision and its reasons. You can pick the approval model in Settings › Models › Specialized models.",
+          "Decision model (Beta): a dedicated decision model screens each call first, quickly. Clearly fine calls go ahead; calls that really need your say show an approval card, explained by the approval model; unclear or likely-denied calls go to the approval model for the final decision. Everyday actions get through faster.",
+        ],
+        note: {
+          tone: "tip",
+          text: "The decision model runs through OpenRouter, so connect OpenRouter first. Without it, or if screening times out or fails, Pine switches to model review on its own and work carries on. Autonomous never stops to ask you, so screening there either lets a call through or hands it to the approval model.",
+        },
+      },
+    ],
+  },
+  "compaction-strategy": {
+    title: "Context compaction strategy",
+    summary: "How full the context gets before Pine compacts it.",
+    steps: [
+      {
+        title: "Two compaction strategies",
+        body: [
+          "As a conversation grows, Pine turns earlier parts into a summary to free room for more work. This setting decides when:",
+        ],
+        points: [
+          "Use recommended settings (the default): compacts when the context reaches 80% of the window, at most about 400K tokens. The context stays lean, each turn costs less and the model stays focused.",
+          "Passive compaction: compacts as late as possible, when only about 16K tokens of the window are left. More of the original text stays, but each turn reads more and costs more.",
+        ],
+        note: {
+          tone: "tip",
+          text: "After compaction the full history stays stored in the session, and Pine looks back through it on its own when needed. The recommended settings suit most work.",
+        },
+      },
+    ],
+  },
+  "compaction-method": {
+    title: "Context compaction method",
+    summary:
+      "Who writes the summary of earlier conversation when Pine compacts.",
+    steps: [
+      {
+        title: "Two compaction methods",
+        body: [
+          "When Pine compacts, earlier conversation becomes a summary the model works from. This setting decides how the summary is made:",
+        ],
+        points: [
+          "Model (the default): the current model reads the earlier conversation and writes the summary. It understands the most, but takes one model call's time and tokens.",
+          "Semantic algorithm (Beta): no model call. Rules pick out goals, changed files, commits and a brief account of what happened. It's almost instant and costs no tokens. Pine also gets a recall tool, so it can search the full history for the original text when it needs details.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Neither method deletes history: the original conversation stays stored in the session.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

@@ -2219,6 +2219,16 @@ export default {
             error: "Impossible d'organiser l'espace de travail",
             running: "Organisation de l'espace de travail",
           },
+          guide: {
+            complete: "Guide « {guide} » ouvert",
+            error: "Impossible d’ouvrir le guide « {guide} »",
+            running: "Ouverture du guide « {guide} »",
+          },
+          guideUnknown: {
+            complete: "Guide ouvert",
+            error: "Impossible d’ouvrir le guide",
+            running: "Ouverture d’un guide",
+          },
         },
         automation: {
           activate: {
@@ -3403,5 +3413,10 @@ export default {
     caution: "Attention",
     approvalModesGuide: "Comment fonctionnent les modes d’approbation",
     contextWindowGuide: "Comment fonctionne le contexte",
+    modelsGuide: "Comment fonctionnent les modèles",
+    reasoningEffortGuide: "Comment fonctionne le niveau de raisonnement",
+    projectFoldersGuide: "Comment fonctionne l’accès aux dossiers",
+    learnWhy: "Comprendre pourquoi",
+    whyBlocked: "Pourquoi est-ce bloqué ?",
   },
 } as const;

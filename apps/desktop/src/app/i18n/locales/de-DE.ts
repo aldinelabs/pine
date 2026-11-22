@@ -2224,6 +2224,16 @@ export default {
             error: "Arbeitsbereich konnte nicht angeordnet werden",
             running: "Arbeitsbereich wird angeordnet",
           },
+          guide: {
+            complete: "Anleitung „{guide}“ geöffnet",
+            error: "Anleitung „{guide}“ konnte nicht geöffnet werden",
+            running: "Anleitung „{guide}“ wird geöffnet",
+          },
+          guideUnknown: {
+            complete: "Anleitung geöffnet",
+            error: "Anleitung konnte nicht geöffnet werden",
+            running: "Anleitung wird geöffnet",
+          },
         },
         automation: {
           activate: {
@@ -3406,5 +3416,10 @@ export default {
     caution: "Hinweis",
     approvalModesGuide: "So funktionieren die Freigabemodi",
     contextWindowGuide: "So funktioniert der Kontext",
+    modelsGuide: "So funktionieren Modelle",
+    reasoningEffortGuide: "So funktioniert der Denkaufwand",
+    projectFoldersGuide: "So funktioniert der Ordnerzugriff",
+    learnWhy: "Warum?",
+    whyBlocked: "Warum wurde das blockiert?",
   },
 } as const;

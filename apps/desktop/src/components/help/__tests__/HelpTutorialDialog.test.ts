@@ -3,6 +3,14 @@ import { createPinia, setActivePinia } from "pinia";
 import { afterEach, describe, expect, it } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { HELP_ILLUSTRATIONS } from "@/components/help/illustrations";
+import { defineComponent, h, ref } from "vue";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useHelpStore } from "@/stores/help";
 import HelpTutorialDialog from "../HelpTutorialDialog.vue";
 
@@ -26,6 +34,78 @@ async function mountDialog(locale: "en-US" | "zh-CN" | "ja-JP" = "en-US") {
 }
 
 describe("HelpTutorialDialog", () => {
+  it("opens above a dialog opened after it and hands focus back", async () => {
+    const help = await mountDialog();
+    // Like New Project: a dialog mounted after the app's guide dialog,
+    // whose question mark opens a guide.
+    const isProjectOpen = ref(true);
+    const project = mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            Dialog,
+            {
+              open: isProjectOpen.value,
+              "onUpdate:open": (value: boolean) =>
+                (isProjectOpen.value = value),
+            },
+            () =>
+              h(DialogContent, { "data-testid": "project-dialog" }, () => [
+                h(DialogTitle, () => "New Project"),
+                h(DialogDescription, () => "Folders"),
+                h(
+                  Button,
+                  {
+                    "data-testid": "project-hint",
+                    onClick: () => help.openTopic("project-folders"),
+                  },
+                  () => "?",
+                ),
+              ]),
+          ),
+      }),
+      { attachTo: document.body },
+    );
+    wrappers.push(project);
+    await flushPromises();
+
+    const hint = document.querySelector<HTMLElement>(
+      "[data-testid=project-hint]",
+    );
+    hint?.focus();
+    hint?.click();
+    await flushPromises();
+
+    const projectDialog = document.querySelector(
+      "[data-testid=project-dialog]",
+    );
+    const guide = document.querySelector("[data-testid=help-tutorial]");
+    expect(guide).not.toBeNull();
+    // Same z-index, so the later one in the document is the one on top.
+    expect(
+      (projectDialog?.compareDocumentPosition(guide as Node) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // Escape closes only the guide; the project dialog stays, focused again.
+    guide?.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    await flushPromises();
+    expect(help.topicId).toBeNull();
+    expect(isProjectOpen.value).toBe(true);
+    expect(document.activeElement).toBe(hint);
+
+    // A second opening stacks on top again.
+    hint?.click();
+    await flushPromises();
+    const reopened = document.querySelector("[data-testid=help-tutorial]");
+    expect(
+      (projectDialog?.compareDocumentPosition(reopened as Node) ?? 0) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("stays closed until a topic is opened", async () => {
     await mountDialog();
     expect(document.querySelector("[data-testid=help-tutorial]")).toBeNull();
@@ -50,6 +130,21 @@ describe("HelpTutorialDialog", () => {
 
     help.openTopic("approval-modes", 3);
     await flushPromises();
+    expect(find("[data-testid=help-next]").text()).toBe("Done");
+    await find("[data-testid=help-next]").trigger("click");
+    await flushPromises();
+    expect(help.topicId).toBeNull();
+  });
+
+  it("shows a one-page guide without step count or dots", async () => {
+    const help = await mountDialog();
+    help.openTopic("auto-approval-path");
+    await flushPromises();
+
+    const dialog = find("[data-testid=help-tutorial]");
+    expect(dialog.text()).toContain("Two approval paths");
+    expect(dialog.text()).not.toContain("Step 1 of 1");
+    expect(document.querySelector("[data-slot=help-steps]")).toBeNull();
     expect(find("[data-testid=help-next]").text()).toBe("Done");
     await find("[data-testid=help-next]").trigger("click");
     await flushPromises();

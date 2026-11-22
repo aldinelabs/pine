@@ -12,8 +12,9 @@ a control lives, or to plan changes to what they see. It describes the UI; it
 does not by itself change anything. Pine operations that act on the UI may be
 added to this session later; until then, change the UI only through tools that
 are already available (for example the `ui_workbench_*` tools,
-`ui_present_file` and `ui_submit_artifact`), and otherwise tell the user where
-to click.
+`ui_present_file`, `ui_submit_artifact` and `ui_open_guide`, which opens one
+of the Guides below at a chosen step), and otherwise tell the user where to
+click.
 
 ## Concepts
 
@@ -58,9 +59,9 @@ to click.
   only that user's automations and WeChat remote run. With a single user
   (the default) none of this shows anywhere except that Settings section.
 - Guide button: a question-mark icon and a label naming what it explains,
-  as the last item of a menu or popover below a divider (for example "How
-  approval modes work" in the approval mode menu, "How context works" in the
-  Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
+  as the first item of a composer menu or popover above a divider (for
+  example "How approval modes work" in the approval mode menu, "How context
+  works" in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
   overlays). Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
@@ -252,7 +253,11 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result). When a call has automatic review records,
+     approval, parameters, result). With Guide buttons on, a call the
+     approval model or the sandbox blocked shows "Why was this blocked?"
+     beside its approval; it closes the details and opens the approval modes
+     step of "Tool calls and approvals" or the sandbox step of "Projects and
+     folder access". When a call has automatic review records,
      Review history lists each Decisions screening or approval-model attempt,
      its actual model and provider, outcome and reason. Each outcome is shown in
      bold with its own icon and colour: green "Allowed", amber "Denied", blue
@@ -543,8 +548,15 @@ From top to bottom:
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling). The choice is saved with the conversation
      and shared between desktop and remote devices. With Guide buttons on
-     (General settings), the last item of the approval mode menu, "How
-     approval modes work", opens the "Tool calls and approvals" guide.
+     (General settings), the first item of the approval mode menu, "How
+     approval modes work", above a divider, opens the "Tool calls and
+     approvals" guide.
+   - Model menu: Favorites (or Recently used when there are none), Browse
+     all models…, and a Reasoning effort slider when the model offers more
+     than one level. With Guide buttons on, it starts with "How models work",
+     which opens the "Models and providers" guide, and, when the slider is
+     shown, "How reasoning effort works", which opens the "Reasoning effort"
+     guide, above a divider.
    - Sessions the agent starts: when asked, the agent can start a separate
      session that works in the background in this or another project. It
      appears in the left sidebar without opening a tab or changing the active
@@ -655,8 +667,10 @@ From top to bottom:
      section (conversation cost, in the currency chosen in Pine Settings ›
      General) with a Session cost limit switch and amount. Reaching the limit
      stops the running session and blocks new prompts until the limit is raised
-     or cleared; it can be set before a session starts.
-     With Guide buttons on, the popover ends with an item below a divider,
+     or cleared; it can be set before a session starts. The notice that says
+     so has "Learn why" (with Guide buttons on), which opens the tokens and
+     cost step of "Context and tokens".
+     With Guide buttons on, the popover starts with an item above a divider,
      "How context works", which closes it and opens the "Context and tokens"
      guide.
    - Action button: Send message when idle; Steer response (adds the message
@@ -1049,7 +1063,11 @@ the user opens themselves do not pulse.
       next message; off, Pine neither reads nor saves memory notes, which stay
       and can still be managed in the Memory manager), Share approximate
       location with AI switch, automatic approval path, context compaction
-      strategy and method.
+      strategy and method. With Guide buttons on, the question marks beside
+      the approval path and the two compaction settings open a one-page guide
+      comparing that setting's options instead of a tooltip; with
+      them off, or beside settings without a guide, a question mark shows a
+      short description on hover (tap on touch screens).
     - Tools: "Choose what Pine can do. Everything is on by default; a change
       applies from your next message." One row per tool family, each with an
       icon, a one-line description and a switch, all on by default: Shell
@@ -1184,7 +1202,9 @@ the user opens themselves do not pulse.
   which follows the Appearance setting, then Neutral, Olive, Red, Rose,
   Orange, Green, Blue, Yellow and Violet; the chosen one has a ring), default
   folder,
-  additional context folders with access (Read only, Read and write). Saving
+  additional context folders with access (Read only, Read and write); the
+  question mark beside "Additional context folders" opens the "Projects and
+  folder access" guide (with Guide buttons on). Saving
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
   their tabs as they are.
@@ -1227,17 +1247,31 @@ the user opens themselves do not pulse.
   guide button or menu item such as "How approval modes work". An animated
   picture fills the top (it holds still with reduced motion); below it a
   small line names the guide and the step ("Tool calls and approvals · Step 1
-  of 4"), then the step's title, a few paragraphs, sometimes a bullet list,
+  of 4"; one-page guides show only the name), then the step's title, a few paragraphs, sometimes a bullet list,
   and a highlighted tip (lightbulb) or caution (amber warning sign). The
-  footer has one dot per step (click to jump), Previous (from the second
+  footer has one dot per step (click to jump; none for a one-page guide), Previous (from the second
   step), and Next, which reads Done on the last step and closes the guide.
   Left and Right arrows move between steps. Guides so far: "Tool calls and
   approvals" (what tool calls are, the four approval modes, the approval
-  card, good habits) and "Context and tokens" (what the context is, tokens
-  and cost, compaction, keeping the context lean). Their text is written in
-  Simplified Chinese and English; Traditional Chinese shows the Simplified
-  text and other languages show English, while the dialog's buttons follow
-  the interface language.
+  card, good habits), "Context and tokens" (what the context is, tokens
+  and cost, compaction, keeping the context lean), "Models and providers"
+  (where models come from, connecting a provider, picking a model, good
+  habits), "Reasoning effort" (thinking before answering, setting the
+  effort, good habits), "Steering and stopping" (steering while Pine works,
+  Withdraw and Send now, stopping, what a stop keeps, good habits) and
+  "Projects and folder access" (projects as sets of folders, Read only and
+  Read and write, the sandbox, good habits), plus three one-page guides
+  opened from settings' question marks: "Automatic approval path" (Model
+  review versus Decision model (Beta), which screens calls first and hands
+  unclear ones to the approval model, falling back to model review without
+  OpenRouter), "Context compaction strategy" (recommended settings versus
+  Passive compaction) and "Context compaction method" (Model versus Semantic
+  algorithm (Beta) and its recall tool). The steering guide has no
+  button of its own yet. The agent can also open any guide at a chosen step, shown
+  only while its conversation is on screen; the transcript then reads
+  "Opened the “…” guide". Their text is written in Simplified Chinese and English;
+  Traditional Chinese shows the Simplified text and other languages show
+  English, while the dialog's buttons follow the interface language.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface

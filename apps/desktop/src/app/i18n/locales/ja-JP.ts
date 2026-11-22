@@ -2189,6 +2189,16 @@ export default {
             error: "ワークベンチを整理できませんでした",
             running: "ワークベンチを整理中",
           },
+          guide: {
+            complete: "ガイド「{guide}」を開きました",
+            error: "ガイド「{guide}」を開けませんでした",
+            running: "ガイド「{guide}」を開いています",
+          },
+          guideUnknown: {
+            complete: "ガイドを開きました",
+            error: "ガイドを開けませんでした",
+            running: "ガイドを開いています",
+          },
         },
         automation: {
           activate: {
@@ -3351,5 +3361,10 @@ export default {
     caution: "注意",
     approvalModesGuide: "承認モードの使い方",
     contextWindowGuide: "コンテキストのしくみ",
+    modelsGuide: "モデルの選び方",
+    reasoningEffortGuide: "推論の強度のしくみ",
+    projectFoldersGuide: "フォルダーのアクセス権のしくみ",
+    learnWhy: "理由を見る",
+    whyBlocked: "なぜ止められた？",
   },
 } as const;

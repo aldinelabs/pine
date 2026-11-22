@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createPinia } from "pinia";
 import { createAppI18n } from "@/app/i18n";
 import { DialogContent } from "@/components/ui/dialog";
+import { useHelpStore } from "@/stores/help";
 import ProjectToolCallMarker from "../ProjectToolCallMarker.vue";
 
 function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
@@ -46,6 +47,37 @@ function mountMarker(decidedBy: "judge" | "user" | "sandbox" | null = "judge") {
 }
 
 describe("ProjectToolCallDialog", () => {
+  it.each([
+    ["judge", "approval-modes"],
+    ["sandbox", "project-folders"],
+  ] as const)(
+    "explains a call the %s blocked with a guide",
+    async (decidedBy, topic) => {
+      const wrapper = mountMarker(decidedBy);
+      await wrapper.get('button[data-slot="marker"]').trigger("click");
+      await flushPromises();
+      const button = document.body.querySelector<HTMLElement>(
+        '[data-testid="tool-denial-guide"]',
+      );
+      expect(button?.textContent).toContain("为什么被拦下？");
+      button?.click();
+      await flushPromises();
+      expect(useHelpStore().topicId).toBe(topic);
+      expect(useHelpStore().step).toBe(1);
+      wrapper.unmount();
+    },
+  );
+
+  it("offers no guide for a call the user rejected", async () => {
+    const wrapper = mountMarker("user");
+    await wrapper.get('button[data-slot="marker"]').trigger("click");
+    await flushPromises();
+    expect(
+      document.body.querySelector('[data-testid="tool-denial-guide"]'),
+    ).toBeNull();
+    wrapper.unmount();
+  });
+
   it("mounts the dialog content only once it has been opened", async () => {
     const wrapper = mountMarker();
     expect(wrapper.findComponent(DialogContent).exists()).toBe(false);

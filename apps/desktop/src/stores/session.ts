@@ -51,6 +51,8 @@ import {
   type ThinkingBlockState,
 } from "@/lib/transcriptThinking";
 import { agentLocale, isAppLocale, localeMessages } from "@/app/i18n";
+import { useAppearanceStore } from "@/stores/appearance";
+import { useHelpStore } from "@/stores/help";
 import { useModelsStore } from "@/stores/models";
 import { useSessionUnreadStore } from "@/stores/sessionUnread";
 import { onSessionEvent } from "@/client/sessionEvents";
@@ -2097,6 +2099,16 @@ export const useSessionStore = defineStore("session", () => {
               messages.project.composer.contextUsage.limitReachedDescription
                 .replace("{cost}", usage.cost.toFixed(2))
                 .replace("{limit}", limit.toFixed(2)),
+            // The cost step of the context guide explains what is charged.
+            ...(useAppearanceStore().helpGuides
+              ? {
+                  action: {
+                    label: messages.help.learnWhy,
+                    onClick: () =>
+                      useHelpStore().openTopic("context-window", 1),
+                  },
+                }
+              : {}),
           },
         );
         void window.pine.abortSession({ sessionId: event.sessionId });

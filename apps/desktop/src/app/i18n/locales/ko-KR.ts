@@ -2165,6 +2165,16 @@ export default {
             error: "작업대를 정리할 수 없습니다",
             running: "작업대 정리 중",
           },
+          guide: {
+            complete: "“{guide}” 가이드를 열었습니다",
+            error: "“{guide}” 가이드를 열 수 없습니다",
+            running: "“{guide}” 가이드를 여는 중",
+          },
+          guideUnknown: {
+            complete: "가이드를 열었습니다",
+            error: "가이드를 열 수 없습니다",
+            running: "가이드를 여는 중",
+          },
         },
         automation: {
           activate: {
@@ -3306,5 +3316,10 @@ export default {
     caution: "주의",
     approvalModesGuide: "승인 모드 사용법",
     contextWindowGuide: "컨텍스트란?",
+    modelsGuide: "모델 선택 방법",
+    reasoningEffortGuide: "추론 강도 조절 방법",
+    projectFoldersGuide: "폴더 권한 설정 방법",
+    learnWhy: "이유 알아보기",
+    whyBlocked: "왜 차단되었나요?",
   },
 } as const;

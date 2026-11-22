@@ -2082,6 +2082,16 @@ export default {
             error: "无法排布工作台",
             running: "正在排布工作台",
           },
+          guide: {
+            complete: "已打开教程“{guide}”",
+            error: "无法打开教程“{guide}”",
+            running: "正在打开教程“{guide}”",
+          },
+          guideUnknown: {
+            complete: "已打开教程",
+            error: "无法打开教程",
+            running: "正在打开教程",
+          },
         },
         automation: {
           activate: {
@@ -3185,5 +3195,10 @@ export default {
     caution: "注意",
     approvalModesGuide: "审批模式怎么用",
     contextWindowGuide: "上下文是怎么回事",
+    modelsGuide: "模型怎么选",
+    reasoningEffortGuide: "推理强度怎么调",
+    projectFoldersGuide: "文件夹权限怎么设",
+    learnWhy: "了解原因",
+    whyBlocked: "为什么被拦下？",
   },
 } as const;

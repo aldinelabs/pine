@@ -2195,6 +2195,16 @@ export default {
             error: "Не удалось упорядочить рабочую панель",
             running: "Упорядочивание рабочей панели",
           },
+          guide: {
+            complete: "Открыто руководство «{guide}»",
+            error: "Не удалось открыть руководство «{guide}»",
+            running: "Открываю руководство «{guide}»",
+          },
+          guideUnknown: {
+            complete: "Открыто руководство",
+            error: "Не удалось открыть руководство",
+            running: "Открываю руководство",
+          },
         },
         automation: {
           activate: {
@@ -3354,5 +3364,10 @@ export default {
     caution: "Внимание",
     approvalModesGuide: "Как работают режимы подтверждения",
     contextWindowGuide: "Как устроен контекст",
+    modelsGuide: "Как устроены модели",
+    reasoningEffortGuide: "Как работает глубина рассуждений",
+    projectFoldersGuide: "Как устроен доступ к папкам",
+    learnWhy: "Узнать почему",
+    whyBlocked: "Почему это заблокировано?",
   },
 } as const;

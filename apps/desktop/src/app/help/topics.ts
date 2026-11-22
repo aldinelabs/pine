@@ -1,12 +1,16 @@
 /**
- * Pine's built-in guides: short illustrated tutorials opened from a help
- * hint (the small question mark) beside a feature. The structure lives here,
+ * Pine's built-in guides: short illustrated tutorials opened from a guide
+ * button or menu item beside a feature, or by the agent. The structure lives here,
  * language-free; each locale's text is in `content/`.
  */
 
-export const HELP_TOPIC_IDS = ["approval-modes", "context-window"] as const;
+import type { HelpTopicId } from "@/shared/helpTopics";
 
-export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];
+export {
+  HELP_TOPIC_IDS,
+  isHelpTopicId,
+  type HelpTopicId,
+} from "@/shared/helpTopics";
 
 /** The illustration each step shows, in step order. */
 export const HELP_TOPIC_STEPS = {
@@ -17,6 +21,13 @@ export const HELP_TOPIC_STEPS = {
     "context-compaction",
     "tips",
   ],
+  models: ["model-provider", "provider-connect", "model-picker", "tips"],
+  "reasoning-effort": ["reasoning-think", "reasoning-levels", "tips"],
+  "steer-stop": ["steer-message", "stop-turn", "tips"],
+  "project-folders": ["project-folders", "sandbox", "tips"],
+  "auto-approval-path": ["approval-path"],
+  "compaction-strategy": ["compaction-strategy"],
+  "compaction-method": ["compaction-method"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpIllustrationId =
@@ -26,6 +37,18 @@ export type HelpIllustrationId =
   | "context-fill"
   | "context-tokens"
   | "context-compaction"
+  | "model-provider"
+  | "provider-connect"
+  | "model-picker"
+  | "reasoning-think"
+  | "reasoning-levels"
+  | "steer-message"
+  | "stop-turn"
+  | "project-folders"
+  | "sandbox"
+  | "approval-path"
+  | "compaction-strategy"
+  | "compaction-method"
   | "tips";
 
 export interface HelpStepText {
@@ -47,10 +70,3 @@ export interface HelpTopicText {
 }
 
 export type HelpContent = Record<HelpTopicId, HelpTopicText>;
-
-export function isHelpTopicId(value: unknown): value is HelpTopicId {
-  return (
-    typeof value === "string" &&
-    (HELP_TOPIC_IDS as readonly string[]).includes(value)
-  );
-}

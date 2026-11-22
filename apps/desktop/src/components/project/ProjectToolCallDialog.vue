@@ -3,13 +3,16 @@ import { computed, ref, watch, type Component } from "vue";
 import {
   CircleAlertIcon,
   CircleCheckIcon,
+  CircleHelpIcon,
   ForwardIcon,
   ShieldBanIcon,
   UserRoundIcon,
 } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
+import type { HelpTopicId } from "@/app/help";
 import { Badge, type BadgeVariants } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +35,8 @@ import type {
 import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
 import { toolViewAdapter } from "./toolViewAdapter";
+import { useAppearanceStore } from "@/stores/appearance";
+import { useHelpStore } from "@/stores/help";
 
 const props = defineProps<{
   toolCall: PineToolCall;
@@ -108,6 +113,32 @@ const statusVariant = computed<BadgeVariants["variant"]>(() =>
       ? "outline"
       : "secondary",
 );
+
+/**
+ * Where a blocked call is explained: the sandbox step of the folders guide,
+ * or the approval modes for the approval model's call. A user's own
+ * rejection needs no explanation.
+ */
+const denialGuide = computed<{ topic: HelpTopicId; step: number } | null>(
+  () => {
+    // Read here, not in setup: the details only render once opened, and
+    // markers mount in many places that never open them.
+    if (!isDenied.value || !useAppearanceStore().helpGuides) return null;
+    if (statusKey.value === "sandboxDenied")
+      return { topic: "project-folders", step: 1 };
+    if (statusKey.value === "autoApprovalDenied")
+      return { topic: "approval-modes", step: 1 };
+    return null;
+  },
+);
+
+/** The guide takes the details' place, so the details close first. */
+function openDenialGuide(): void {
+  const guide = denialGuide.value;
+  if (!guide) return;
+  isOpen.value = false;
+  useHelpStore().openTopic(guide.topic, guide.step);
+}
 
 const approvalKey = computed(() => {
   const approval = props.toolCall.approval;
@@ -269,6 +300,19 @@ async function openDialog(): Promise<void> {
                     t(`project.transcript.toolDetails.approvals.${approvalKey}`)
                   }}
                 </Badge>
+                <Button
+                  v-if="denialGuide"
+                  data-testid="tool-denial-guide"
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  class="ms-1.5"
+                  aria-haspopup="dialog"
+                  @click="openDenialGuide"
+                >
+                  <CircleHelpIcon data-icon="inline-start" />
+                  {{ t("help.whyBlocked") }}
+                </Button>
               </dd>
             </template>
 

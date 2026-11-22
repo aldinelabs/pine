@@ -212,6 +212,7 @@ function retainedKey(event: PineSessionEvent): string | null {
     case "questionnaire-decided":
     case "approval-explanation":
     case "workbench-state-request":
+    case "open-guide":
     case "session-teleported":
     case "session-reset":
       return null;

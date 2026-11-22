@@ -2,9 +2,21 @@ import type { Component } from "vue";
 import type { HelpIllustrationId } from "@/app/help";
 import ApprovalCardIllustration from "./ApprovalCardIllustration.vue";
 import ApprovalModesIllustration from "./ApprovalModesIllustration.vue";
+import ApprovalPathIllustration from "./ApprovalPathIllustration.vue";
+import CompactionMethodIllustration from "./CompactionMethodIllustration.vue";
+import CompactionStrategyIllustration from "./CompactionStrategyIllustration.vue";
 import ContextCompactionIllustration from "./ContextCompactionIllustration.vue";
 import ContextFillIllustration from "./ContextFillIllustration.vue";
 import ContextTokensIllustration from "./ContextTokensIllustration.vue";
+import ModelPickerIllustration from "./ModelPickerIllustration.vue";
+import ModelProviderIllustration from "./ModelProviderIllustration.vue";
+import ProviderConnectIllustration from "./ProviderConnectIllustration.vue";
+import ReasoningLevelsIllustration from "./ReasoningLevelsIllustration.vue";
+import ReasoningThinkIllustration from "./ReasoningThinkIllustration.vue";
+import ProjectFoldersIllustration from "./ProjectFoldersIllustration.vue";
+import SandboxIllustration from "./SandboxIllustration.vue";
+import SteerMessageIllustration from "./SteerMessageIllustration.vue";
+import StopTurnIllustration from "./StopTurnIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -20,5 +32,17 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "context-fill": ContextFillIllustration,
   "context-tokens": ContextTokensIllustration,
   "context-compaction": ContextCompactionIllustration,
+  "model-provider": ModelProviderIllustration,
+  "provider-connect": ProviderConnectIllustration,
+  "model-picker": ModelPickerIllustration,
+  "reasoning-think": ReasoningThinkIllustration,
+  "reasoning-levels": ReasoningLevelsIllustration,
+  "steer-message": SteerMessageIllustration,
+  "stop-turn": StopTurnIllustration,
+  "project-folders": ProjectFoldersIllustration,
+  sandbox: SandboxIllustration,
+  "approval-path": ApprovalPathIllustration,
+  "compaction-strategy": CompactionStrategyIllustration,
+  "compaction-method": CompactionMethodIllustration,
   tips: TipsIllustration,
 };

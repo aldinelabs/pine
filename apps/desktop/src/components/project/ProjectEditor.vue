@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { PineColorSwatches } from "@/components/pine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import HelpHint from "@/components/help/HelpHint.vue";
 import { DialogFooter } from "@/components/ui/dialog";
 import {
   Field,
@@ -350,9 +351,17 @@ watch(() => props.project, reset, { immediate: true });
 
         <Field>
           <div class="flex items-center justify-between gap-4">
-            <FieldTitle>
-              {{ t("projects.editor.contextFoldersLabel") }}
-            </FieldTitle>
+            <div class="flex min-w-0 items-baseline gap-2">
+              <FieldTitle>
+                {{ t("projects.editor.contextFoldersLabel") }}
+              </FieldTitle>
+              <HelpHint
+                :label="t('help.projectFoldersGuide')"
+                :guide="{ topic: 'project-folders' }"
+              >
+                {{ t("projects.createDescription") }}
+              </HelpHint>
+            </div>
             <ProjectFolderPicker mode="context" @picked="mergeContextFolders">
               <Button
                 type="button"

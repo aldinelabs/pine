@@ -6,8 +6,8 @@ import { useAppearanceStore } from "@/stores/appearance";
 import { useHelpStore } from "@/stores/help";
 
 /**
- * Opens one of Pine's guides from the foot of a popover: a row shaped like
- * a dropdown menu item, set below an edge-to-edge divider in a popover with
+ * Opens one of Pine's guides from the top of a popover: a row shaped like
+ * a dropdown menu item, set above an edge-to-edge divider in a popover with
  * a menu's padding (p-1.5), so it matches the guide item in menus. It disappears with Guide
  * buttons off in General settings.
  */

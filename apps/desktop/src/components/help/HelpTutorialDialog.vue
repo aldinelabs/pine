@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { LightbulbIcon, TriangleAlertIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, nextTick, useTemplateRef, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { resolveHelpTopic } from "@/app/help";
 import type { AppLocale } from "@/app/i18n";
@@ -83,6 +83,20 @@ watch(step, async () => {
   );
 });
 
+/**
+ * Counts openings so each one mounts the dialog afresh. The portal (a Vue
+ * Teleport) keeps the place in <body> it took when it mounted, and this
+ * dialog lives in App.vue, mounted before any other: kept mounted, it would
+ * sit under a dialog opened later (New Project, Pine Settings) at the same
+ * z-index. Remounted, it is always the last portal and stacks on top. A
+ * closing guide keeps its instance until the next opening, so it still
+ * animates out.
+ */
+const openings = ref(0);
+watch(topicId, (id, previous) => {
+  if (id !== null && previous === null) openings.value += 1;
+});
+
 const open = computed({
   get: () => topic.value !== null,
   set: (value: boolean) => {
@@ -117,7 +131,7 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <Dialog v-model:open="open">
+  <Dialog :key="openings" v-model:open="open">
     <DialogContent
       data-testid="help-tutorial"
       :lang="topic?.locale"
@@ -161,8 +175,10 @@ function onKeydown(event: KeyboardEvent): void {
           content-class="flex flex-col gap-3 ps-6 pt-5 pb-2 text-pretty [line-break:strict]"
         >
           <DialogDescription class="text-muted-foreground text-xs">
-            {{ topic.title }} ·
-            {{ t("help.stepOf", { current: step + 1, total: stepCount }) }}
+            {{ topic.title }}
+            <template v-if="stepCount > 1">
+              · {{ t("help.stepOf", { current: step + 1, total: stepCount }) }}
+            </template>
           </DialogDescription>
           <DialogTitle class="text-lg font-semibold">
             {{ current.title }}
@@ -223,7 +239,13 @@ function onKeydown(event: KeyboardEvent): void {
                the gaps stay equal while the current dot stretches and the
                others slide aside. The negative margin lines the first dot
                up with the text. -->
-          <div class="-ms-1 flex items-center" data-slot="help-steps">
+          <!-- A one-page guide has no dots; the spacer keeps Done on the
+               right. -->
+          <div
+            v-if="stepCount > 1"
+            class="-ms-1 flex items-center"
+            data-slot="help-steps"
+          >
             <button
               v-for="index in stepCount"
               :key="index"
@@ -245,6 +267,7 @@ function onKeydown(event: KeyboardEvent): void {
               />
             </button>
           </div>
+          <span v-else aria-hidden="true" />
           <div class="flex items-center gap-2">
             <Button
               v-if="step > 0"

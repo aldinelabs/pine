@@ -1903,6 +1903,18 @@ function handleRootSubmit(event: Event): void {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent side="top" align="start" class="w-72">
+            <!-- Guide first: the menu opens upwards, so it stays out of the
+                 way between the button and the modes. -->
+            <template v-if="appearanceStore.helpGuides">
+              <DropdownMenuItem
+                data-testid="approval-modes-guide"
+                @select="helpStore.openTopic('approval-modes')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.approvalModesGuide") }}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </template>
             <DropdownMenuRadioGroup
               :model-value="approvalMode"
               @update:model-value="selectApprovalMode"
@@ -1929,16 +1941,6 @@ function handleRootSubmit(event: Event): void {
                 </span>
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
-            <template v-if="appearanceStore.helpGuides">
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                data-testid="approval-modes-guide"
-                @select="helpStore.openTopic('approval-modes')"
-              >
-                <CircleHelpIcon />
-                {{ t("help.approvalModesGuide") }}
-              </DropdownMenuItem>
-            </template>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -2010,6 +2012,28 @@ function handleRootSubmit(event: Event): void {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent side="top" align="end" class="w-72">
+          <!-- Guides first: the menu opens upwards, so they stay out of the
+               way between the button and the models. -->
+          <template v-if="appearanceStore.helpGuides">
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                data-testid="models-guide"
+                @select="helpStore.openTopic('models')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.modelsGuide") }}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                v-if="selectedModel && thinkingLevels.length > 1"
+                data-testid="reasoning-effort-guide"
+                @select="helpStore.openTopic('reasoning-effort')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.reasoningEffortGuide") }}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </template>
           <template v-if="featuredModels.length > 0">
             <DropdownMenuLabel>
               {{

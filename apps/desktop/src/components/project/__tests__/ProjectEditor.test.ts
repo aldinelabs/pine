@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -25,7 +26,7 @@ const project: PineProject = {
 function mountEditor(value: PineProject | null = project) {
   return mount(ProjectEditor, {
     props: { project: value },
-    global: { plugins: [createAppI18n("zh-CN")] },
+    global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
   });
 }
 
@@ -96,7 +97,7 @@ describe("ProjectEditor", () => {
     const wrapper = mount(ProjectEditor, {
       props: { project: { ...project, projectIcon: "code" } },
       attachTo: document.body,
-      global: { plugins: [createAppI18n("zh-CN")] },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
     });
 
     await wrapper.get('[data-slot="project-icon-trigger"]').trigger("click");
