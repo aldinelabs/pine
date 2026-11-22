@@ -20,12 +20,12 @@ export default {
       {
         title: "The four approval modes",
         body: [
-          "Commands run in a sandbox that can only touch the project's folders. Only actions beyond that (writing outside the project, deleting, installing from the internet, elevated rights and the like) need approval. The approval mode decides who makes the call:",
+          "Every command Pine runs is sandboxed to the project's folders. The approval mode decides whether Pine asks before acting, and who makes the call:",
         ],
         points: [
-          "Auto Approve: the approval model looks first, lets safe actions through and asks you only when it is unsure. The recommended place to start.",
-          "Autonomous Work: the approval model decides on its own and never stops to wait for you; whatever it rejects is skipped. For long tasks while you are away.",
-          "Let Me Review: asks you before every such action, for tasks you want to check step by step.",
+          "Auto Approve: everyday work just goes ahead. Actions that leave the project, look destructive or need more privileges go to the approval model first, which lets safe ones through and asks you only when it is unsure. The recommended place to start.",
+          "Autonomous Work: the approval model reviews the same actions but never stops to wait for you; whatever it rejects is skipped. For long tasks while you are away.",
+          "Let Me Review: asks you before every command and every change to a file (reading files doesn't ask). For tasks you want to check step by step.",
           "YOLO: removes every limit, with no checks and no questions. Not recommended.",
         ],
         note: {
@@ -90,7 +90,7 @@ export default {
       {
         title: "Compaction tidies up when it fills",
         body: [
-          "When the context is nearly full, Pine compacts it: earlier parts of the conversation become a summary that keeps the goals, key decisions and changed files, freeing room to keep working. A compaction marker appears in the conversation.",
+          "By default, when the context reaches 80% (at most about 400K tokens), Pine compacts it on its own: earlier parts of the conversation become a summary that keeps the goals, key decisions and changed files, freeing room to keep working. A compaction marker appears in the conversation. You can change this in Settings › Agent › Context compaction strategy.",
           "You can also compact at any time with Compact context now, for example when one stage is done and the next is about to start.",
         ],
         note: {
@@ -104,8 +104,8 @@ export default {
         points: [
           "One task, one conversation. For an unrelated new task, start a new session instead of continuing the old one.",
           "Attach only the files that matter. A whole folder or a very long document takes a big bite of the context.",
-          "When the ring turns red (over 80%), compact or start a new session before the next big task.",
-          "Put lasting preferences in Memory rather than hoping they stay in one conversation's context.",
+          "No need to watch the ring. Compaction happens on its own, so you can hand Pine long tasks and let it keep going.",
+          "To have Pine remember something from now on, just tell it “Remember: …”, for example “Remember: write my reports in English.” It also notes things worth keeping on its own. You can review and edit the notes in the sidebar under More › Memory.",
         ],
       },
     ],
