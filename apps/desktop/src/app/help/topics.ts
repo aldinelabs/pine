@@ -4,7 +4,12 @@
  * language-free; each locale's text is in `content/`.
  */
 
-export const HELP_TOPIC_IDS = ["approval-modes", "context-window"] as const;
+export const HELP_TOPIC_IDS = [
+  "approval-modes",
+  "context-window",
+  "models",
+  "reasoning-effort",
+] as const;
 
 export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];
 
@@ -17,6 +22,8 @@ export const HELP_TOPIC_STEPS = {
     "context-compaction",
     "tips",
   ],
+  models: ["model-provider", "provider-connect", "model-picker", "tips"],
+  "reasoning-effort": ["reasoning-think", "reasoning-levels", "tips"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpIllustrationId =
@@ -26,6 +33,11 @@ export type HelpIllustrationId =
   | "context-fill"
   | "context-tokens"
   | "context-compaction"
+  | "model-provider"
+  | "provider-connect"
+  | "model-picker"
+  | "reasoning-think"
+  | "reasoning-levels"
   | "tips";
 
 export interface HelpStepText {

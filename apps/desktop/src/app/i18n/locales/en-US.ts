@@ -3312,5 +3312,7 @@ export default {
     caution: "Note",
     approvalModesGuide: "How approval modes work",
     contextWindowGuide: "How context works",
+    modelsGuide: "How models work",
+    reasoningEffortGuide: "How reasoning effort works",
   },
 } as const;

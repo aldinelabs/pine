@@ -3351,5 +3351,7 @@ export default {
     caution: "注意",
     approvalModesGuide: "承認モードの使い方",
     contextWindowGuide: "コンテキストのしくみ",
+    modelsGuide: "モデルの選び方",
+    reasoningEffortGuide: "推論の強度のしくみ",
   },
 } as const;

@@ -3406,5 +3406,7 @@ export default {
     caution: "Hinweis",
     approvalModesGuide: "So funktionieren die Freigabemodi",
     contextWindowGuide: "So funktioniert der Kontext",
+    modelsGuide: "So funktionieren Modelle",
+    reasoningEffortGuide: "So funktioniert der Denkaufwand",
   },
 } as const;

@@ -110,4 +110,97 @@ export default {
       },
     ],
   },
+  models: {
+    title: "Models and providers",
+    summary:
+      "The model does the thinking and the work. Connect a provider, pick a model, and Pine is ready to go.",
+    steps: [
+      {
+        title: "Models come from providers",
+        body: [
+          "Pine is the workbench; the model is what thinks and writes. Pine doesn't ship with a model of its own: you connect a provider such as OpenAI, Anthropic or Google, or a service like OpenRouter that gives you many of them in one place.",
+          "Every turn, Pine sends the context to the model you picked and brings the reply back. The provider bills by the token, to your account or subscription with them.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: models differ in what they're good at, how fast they are and what they cost, so Pine lets you choose and switch at any time.",
+        },
+      },
+      {
+        title: "Connecting a provider",
+        body: [
+          "Click the model button below the text box, choose Browse all models…, then Manage providers and models to see the built-in provider catalog. Pick one and follow the steps:",
+        ],
+        points: [
+          "Sign in: some providers let you sign in with your account or subscription; you approve it in the browser.",
+          "API key: create a key on the provider's website and paste it in. You pay for what you use.",
+          "Custom provider: models you host yourself or run on this computer can be added with Add model. For a local server that needs no key, any placeholder value works.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Connections are saved only on this computer and only ever sent to that provider. Treat an API key like a bank card and keep it to yourself; you can Disconnect a provider at any time.",
+        },
+      },
+      {
+        title: "Picking a model",
+        body: [
+          "The model menu lists your favorite or recently used models, and Browse all models… searches all of them. Models marked Recommended are the ones Pine currently recommends; when in doubt, start there.",
+          "The model is saved with each conversation: switching in a running conversation changes only that one, and the model you pick in a new conversation becomes the default for new ones.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Side jobs such as titles, auto-approval and reply suggestions use models too. You can pick separate ones, for example faster and cheaper models, in Settings › Models › Specialized models.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Start with a recommended model, give it a real task, and adjust from what you see.",
+          "Big pieces of code, long reports and multi-step research are worth a stronger model; tidying files or renaming things is fine with a faster one.",
+          "Favorite the models you use often and they appear at the top of the model menu. ⌘/Ctrl + I opens that menu at any time.",
+          "To stay within a budget, turn on Session cost limit in the Context usage popover.",
+        ],
+      },
+    ],
+  },
+  "reasoning-effort": {
+    title: "Reasoning effort",
+    summary:
+      "A model can think before it answers. Reasoning effort sets how long and how deep.",
+    steps: [
+      {
+        title: "Think first, then answer",
+        body: [
+          "Models that support reasoning think before they answer: they break the problem down, try a few approaches and check their conclusions, then act or reply.",
+          "While the model thinks, a Thinking line appears in the conversation; afterwards it shows how long it took. Click it to read what the provider sent back of the reasoning.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: the model first writes reasoning tokens, then the answer. More thinking means more tokens.",
+        },
+      },
+      {
+        title: "Setting the effort",
+        body: [
+          "Reasoning effort is in the model menu. The further right the slider, the longer and more carefully the model thinks, and the slower and costlier the answer. The levels depend on the model; Low, Medium, High and Extra high are common.",
+          "Medium is the usual default. Like the model, the effort is saved with each conversation.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Modern models do their best work in Pine with reasoning on, so we don't recommend turning it off. Maximum is often slower and costlier without being better.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Medium suits most tasks and makes a good everyday setting.",
+          "For tricky debugging, architecture decisions or problems that need careful reasoning, move to High or Extra high.",
+          "Stating the goal and the limits clearly often helps more than turning the effort up.",
+          "Answers too slow? Try one level lower, or a faster model.",
+        ],
+      },
+    ],
+  },
 } satisfies HelpContent;

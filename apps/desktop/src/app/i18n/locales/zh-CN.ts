@@ -3185,5 +3185,7 @@ export default {
     caution: "注意",
     approvalModesGuide: "审批模式怎么用",
     contextWindowGuide: "上下文是怎么回事",
+    modelsGuide: "模型怎么选",
+    reasoningEffortGuide: "推理强度怎么调",
   },
 } as const;

@@ -3403,5 +3403,7 @@ export default {
     caution: "Attention",
     approvalModesGuide: "Comment fonctionnent les modes d’approbation",
     contextWindowGuide: "Comment fonctionne le contexte",
+    modelsGuide: "Comment fonctionnent les modèles",
+    reasoningEffortGuide: "Comment fonctionne le niveau de raisonnement",
   },
 } as const;

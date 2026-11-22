@@ -2101,6 +2101,26 @@ function handleRootSubmit(event: Event): void {
               </div>
             </div>
           </template>
+          <template v-if="appearanceStore.helpGuides">
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                data-testid="models-guide"
+                @select="helpStore.openTopic('models')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.modelsGuide") }}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                v-if="selectedModel && thinkingLevels.length > 1"
+                data-testid="reasoning-effort-guide"
+                @select="helpStore.openTopic('reasoning-effort')"
+              >
+                <CircleHelpIcon />
+                {{ t("help.reasoningEffortGuide") }}
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </template>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

@@ -3354,5 +3354,7 @@ export default {
     caution: "Внимание",
     approvalModesGuide: "Как работают режимы подтверждения",
     contextWindowGuide: "Как устроен контекст",
+    modelsGuide: "Как устроены модели",
+    reasoningEffortGuide: "Как работает глубина рассуждений",
   },
 } as const;

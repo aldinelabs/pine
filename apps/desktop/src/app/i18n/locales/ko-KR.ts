@@ -3306,5 +3306,7 @@ export default {
     caution: "주의",
     approvalModesGuide: "승인 모드 사용법",
     contextWindowGuide: "컨텍스트란?",
+    modelsGuide: "모델 선택 방법",
+    reasoningEffortGuide: "추론 강도 조절 방법",
   },
 } as const;

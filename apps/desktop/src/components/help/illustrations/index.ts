@@ -5,6 +5,11 @@ import ApprovalModesIllustration from "./ApprovalModesIllustration.vue";
 import ContextCompactionIllustration from "./ContextCompactionIllustration.vue";
 import ContextFillIllustration from "./ContextFillIllustration.vue";
 import ContextTokensIllustration from "./ContextTokensIllustration.vue";
+import ModelPickerIllustration from "./ModelPickerIllustration.vue";
+import ModelProviderIllustration from "./ModelProviderIllustration.vue";
+import ProviderConnectIllustration from "./ProviderConnectIllustration.vue";
+import ReasoningLevelsIllustration from "./ReasoningLevelsIllustration.vue";
+import ReasoningThinkIllustration from "./ReasoningThinkIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -20,5 +25,10 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "context-fill": ContextFillIllustration,
   "context-tokens": ContextTokensIllustration,
   "context-compaction": ContextCompactionIllustration,
+  "model-provider": ModelProviderIllustration,
+  "provider-connect": ProviderConnectIllustration,
+  "model-picker": ModelPickerIllustration,
+  "reasoning-think": ReasoningThinkIllustration,
+  "reasoning-levels": ReasoningLevelsIllustration,
   tips: TipsIllustration,
 };

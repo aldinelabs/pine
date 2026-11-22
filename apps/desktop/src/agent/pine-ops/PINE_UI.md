@@ -545,6 +545,12 @@ From top to bottom:
      and shared between desktop and remote devices. With Guide buttons on
      (General settings), the last item of the approval mode menu, "How
      approval modes work", opens the "Tool calls and approvals" guide.
+   - Model menu: Favorites (or Recently used when there are none), Browse
+     all models…, and a Reasoning effort slider when the model offers more
+     than one level. With Guide buttons on, it ends with "How models work",
+     which opens the "Models and providers" guide, and, when the slider is
+     shown, "How reasoning effort works", which opens the "Reasoning effort"
+     guide.
    - Sessions the agent starts: when asked, the agent can start a separate
      session that works in the background in this or another project. It
      appears in the left sidebar without opening a tab or changing the active
@@ -1227,8 +1233,11 @@ the user opens themselves do not pulse.
   step), and Next, which reads Done on the last step and closes the guide.
   Left and Right arrows move between steps. Guides so far: "Tool calls and
   approvals" (what tool calls are, the four approval modes, the approval
-  card, good habits) and "Context and tokens" (what the context is, tokens
-  and cost, compaction, keeping the context lean). Their text is written in
+  card, good habits), "Context and tokens" (what the context is, tokens
+  and cost, compaction, keeping the context lean), "Models and providers"
+  (where models come from, connecting a provider, picking a model, good
+  habits) and "Reasoning effort" (thinking before answering, setting the
+  effort, good habits). Their text is written in
   Simplified Chinese and English; Traditional Chinese shows the Simplified
   text and other languages show English, while the dialog's buttons follow
   the interface language.

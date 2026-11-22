@@ -3190,5 +3190,7 @@ export default {
     caution: "注意",
     approvalModesGuide: "審批模式怎麼用",
     contextWindowGuide: "上下文是怎麼回事",
+    modelsGuide: "模型怎麼選",
+    reasoningEffortGuide: "推理強度怎麼調",
   },
 } as const;
