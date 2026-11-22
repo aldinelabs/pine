@@ -26,6 +26,9 @@ export interface ListProjectDirectoryResult {
 export const PROJECT_FILE_OPERATION_CHANNEL = "project-files:operate" as const;
 export const START_PROJECT_FILE_DRAG_CHANNEL =
   "project-files:start-drag" as const;
+/** Native drag of a file presented to this window from outside the project. */
+export const START_PRESENTED_FILE_DRAG_CHANNEL =
+  "project-files:start-presented-drag" as const;
 
 export const SET_WATCHED_PROJECT_DIRECTORIES_CHANNEL =
   "project-files:set-watched-directories" as const;
@@ -59,6 +62,9 @@ export const PROJECT_FILE_ATTACHMENTS_CHANNEL =
   "project-files:attachments" as const;
 export type ProjectEntryReference = ListProjectDirectoryRequest;
 export type StartProjectFileDragRequest = ProjectEntryReference;
+export interface StartPresentedFileDragRequest {
+  path: string;
+}
 
 export const READ_PROJECT_FILE_PREVIEW_CHANNEL =
   "project-files:preview" as const;

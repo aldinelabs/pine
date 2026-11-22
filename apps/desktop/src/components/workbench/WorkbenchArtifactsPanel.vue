@@ -55,6 +55,7 @@ import {
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
 import { fileIcon } from "@/lib/fileIcon";
+import { dragFileTarget, startNativeFileDrag } from "@/lib/projectFileDrag";
 import {
   fileName,
   fileTargetKey,
@@ -175,7 +176,20 @@ function sessionProjectId(): string {
     : projectStore.currentProjectId;
 }
 
-async function resolve(artifact: Artifact): Promise<FilePreviewTarget> {
+/** Resolutions in flight, so a press and the click after it share one. */
+const resolving = new Map<string, Promise<FilePreviewTarget>>();
+
+function resolve(artifact: Artifact): Promise<FilePreviewTarget> {
+  const pending = resolving.get(artifact.key);
+  if (pending) return pending;
+  const next = resolveTarget(artifact).finally(() =>
+    resolving.delete(artifact.key),
+  );
+  resolving.set(artifact.key, next);
+  return next;
+}
+
+async function resolveTarget(artifact: Artifact): Promise<FilePreviewTarget> {
   const sessionId = activeSession.value?.id;
   // Files resolved in this window are remembered; others are resolved again
   // from the tool call, which re-grants read access.
@@ -250,6 +264,29 @@ function runNative(
   action: "open" | "reveal" | "copy-path",
 ): Promise<void> {
   return withTarget(artifact, (target) => operateFileTarget(target, action));
+}
+
+/** Resolves the file on press, so a drag that follows already knows it. */
+function prepareDrag(event: PointerEvent, artifact: Artifact): void {
+  if (event.button !== 0 || contentTabs.presentedTargetFor(artifact.key))
+    return;
+  void resolve(artifact).catch(() => undefined);
+}
+
+/**
+ * Drags the file out like one from the file tree: a real file for Finder and
+ * other apps, a project entry for Pine's composer and file tree.
+ */
+function startDrag(event: DragEvent, artifact: Artifact): void {
+  const target = contentTabs.presentedTargetFor(artifact.key);
+  if (target) {
+    dragFileTarget(event, target);
+    return;
+  }
+  // Still resolving: the browser drag cannot wait, so hand the file to the
+  // OS as soon as it is known.
+  event.preventDefault();
+  void resolve(artifact).then(startNativeFileDrag, () => undefined);
 }
 
 const versions = useArtifactVersionStore();
@@ -420,6 +457,9 @@ async function submitDialog(): Promise<void> {
                   ? `${displayPath(artifact)}\n${artifact.description}`
                   : displayPath(artifact)
               "
+              draggable="true"
+              @pointerdown="prepareDrag($event, artifact)"
+              @dragstart="startDrag($event, artifact)"
               @click="show(artifact)"
               @dblclick="openInTab(artifact)"
             >

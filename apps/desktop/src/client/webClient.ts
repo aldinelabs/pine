@@ -215,6 +215,7 @@ export async function initializeWebClient(): Promise<
     downloadUpdate: undefined,
     installUpdate: undefined,
     startProjectFileDrag: () => undefined,
+    startPresentedFileDrag: () => undefined,
     openExternalUrl: (url) => {
       const target = new URL(url);
       if (target.protocol === "https:" || target.protocol === "http:")

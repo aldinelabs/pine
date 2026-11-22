@@ -783,6 +783,10 @@ close the card. The panels are:
   Right-click a submitted file › Version history previews it with the
   Version history menu open (see Preview). Deleting a conversation deletes
   its versions.
+  Files can be dragged out of the list: onto Finder, the desktop or another
+  app (as the real file), or into the message box or the Files tree (like a
+  file dragged from the tree). In the web interface only files inside the
+  project folders can be dragged, and only within Pine.
 - Background processes: processes started by the agent, with their output.
 - Preview: the file last presented by the agent or picked from Artifacts;
   Open in tab. For a submitted file, the header also has Version history (a

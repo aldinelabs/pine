@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PROJECT_ENTRY_DRAG_TYPE } from "@/lib/projectFileDrag";
 import { UI_PRESENT_FILE_TOOL_NAME } from "@/shared/agent";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
 import type { PineToolCall } from "@/shared/sessions";
@@ -118,6 +119,8 @@ function mountPanel(
   const operateProjectFile = vi.fn(() => Promise.resolve());
   const operatePresentedFile = vi.fn(() => Promise.resolve());
   const reopenPresentedToolFile = vi.fn(() => Promise.resolve(target));
+  const startProjectFileDrag = vi.fn();
+  const startPresentedFileDrag = vi.fn();
   Object.defineProperty(window, "pine", {
     configurable: true,
     value: {
@@ -125,6 +128,8 @@ function mountPanel(
       operateProjectFile,
       operatePresentedFile,
       reopenPresentedToolFile,
+      startProjectFileDrag,
+      startPresentedFileDrag,
     },
   });
   const router = createRouter({
@@ -147,6 +152,8 @@ function mountPanel(
     operateProjectFile,
     operatePresentedFile,
     reopenPresentedToolFile,
+    startProjectFileDrag,
+    startPresentedFileDrag,
   };
 }
 
@@ -254,6 +261,52 @@ describe("WorkbenchArtifactsPanel", () => {
       action: "copy-path",
       path: "/tmp/outside.md",
     });
+  });
+
+  it("drags a project file out as a tree entry and a native file", async () => {
+    const { wrapper, reopenPresentedToolFile, startProjectFileDrag } =
+      mountPanel();
+    const button = wrapper.get('[data-testid="workbench-artifact"] button');
+    expect(button.attributes("draggable")).toBe("true");
+    await button.trigger("pointerdown", { button: 0 });
+    await button.trigger("click");
+    await flushPromises();
+    expect(reopenPresentedToolFile).toHaveBeenCalledTimes(1);
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: "uninitialized",
+      setData: (type: string, value: string) => data.set(type, value),
+    };
+    const event = new Event("dragstart", { cancelable: true });
+    Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+    button.element.dispatchEvent(event);
+    const reference = {
+      folderId,
+      projectId: "p1",
+      relativePath: "out/report.md",
+    };
+    expect(JSON.parse(data.get(PROJECT_ENTRY_DRAG_TYPE) ?? "")).toEqual([
+      reference,
+    ]);
+    expect(event.defaultPrevented).toBe(true);
+    expect(startProjectFileDrag).toHaveBeenCalledWith(reference);
+  });
+
+  it("drags a presented file outside the project once it resolves", async () => {
+    const { wrapper, startPresentedFileDrag, startProjectFileDrag } =
+      mountPanel({ source: "presented", path: "/tmp/outside.md" });
+    const button = wrapper.get('[data-testid="workbench-artifact"] button');
+    const event = new Event("dragstart", { cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+      value: { setData: vi.fn() },
+    });
+    button.element.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    await flushPromises();
+    expect(startPresentedFileDrag).toHaveBeenCalledWith({
+      path: "/tmp/outside.md",
+    });
+    expect(startProjectFileDrag).not.toHaveBeenCalled();
   });
 
   it("disables changes in read-only project folders", async () => {

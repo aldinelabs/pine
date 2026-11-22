@@ -28,6 +28,7 @@ import {
 import { setPiProviders } from "../core/requests/settings";
 import {
   SAVE_ARTIFACT_VERSION_CHANNEL,
+  START_PRESENTED_FILE_DRAG_CHANNEL,
   START_PROJECT_FILE_DRAG_CHANNEL,
   type SaveArtifactVersionResult,
 } from "../../shared/projectFiles";
@@ -48,7 +49,10 @@ import {
   ProjectSessionRequestSchema,
 } from "../core/requestSchemas";
 import { ProjectEntryReferenceSchema } from "../projectFileOperations";
-import { startProjectFileDrag } from "../projectFileDrag";
+import {
+  startPresentedFileDrag,
+  startProjectFileDrag,
+} from "../projectFileDrag";
 import type { QuickComposerController } from "../quickComposer";
 
 const PickProjectFoldersRequestSchema = z.object({
@@ -306,6 +310,21 @@ export function registerNativeIpc(
     START_PROJECT_FILE_DRAG_CHANNEL,
     (event, request: unknown): void => {
       void handleProjectFileDrag(event, request);
+    },
+  );
+
+  ipcMain.on(
+    START_PRESENTED_FILE_DRAG_CHANNEL,
+    (event, request: unknown): void => {
+      startPresentedFileDrag(
+        event.sender,
+        request,
+        (filePath) =>
+          core.presentedFilePath(event.sender.id, { path: filePath }),
+        (file, options) => app.getFileIcon(file, options),
+      ).catch((error: unknown) => {
+        console.error("Failed to start presented file drag.", error);
+      });
     },
   );
 }

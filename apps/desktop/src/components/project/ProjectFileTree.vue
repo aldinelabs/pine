@@ -39,7 +39,7 @@ import type {
 import {
   containsFileDrag,
   externalFilePaths,
-  PROJECT_ENTRY_DRAG_TYPE,
+  dragProjectEntry,
   readProjectEntryDrag,
 } from "@/lib/projectFileDrag";
 import {
@@ -665,15 +665,7 @@ function startDrag(event: DragEvent, node: ProjectTreeNode): void {
     event.preventDefault();
     return;
   }
-  event.dataTransfer.setData(
-    PROJECT_ENTRY_DRAG_TYPE,
-    JSON.stringify([reference(node)]),
-  );
-  // Even read-only folders can be attached to a message.
-  event.dataTransfer.effectAllowed = "copyMove";
-  if (isWeb) return;
-  event.preventDefault();
-  window.pine.startProjectFileDrag(reference(node));
+  dragProjectEntry(event, reference(node));
 }
 
 function dragOver(event: DragEvent, node: ProjectTreeNode): void {

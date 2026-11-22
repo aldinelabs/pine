@@ -268,6 +268,7 @@ import {
   PROJECT_FILE_ATTACHMENTS_CHANNEL,
   LIST_PROJECT_DIRECTORY_CHANNEL,
   START_PROJECT_FILE_DRAG_CHANNEL,
+  START_PRESENTED_FILE_DRAG_CHANNEL,
   READ_PROJECT_FILE_PREVIEW_CHANNEL,
   READ_PRESENTED_FILE_PREVIEW_CHANNEL,
   REOPEN_PRESENTED_TOOL_FILE_CHANNEL,
@@ -580,6 +581,8 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
     },
     startProjectFileDrag: (request) =>
       transport.send(START_PROJECT_FILE_DRAG_CHANNEL, request),
+    startPresentedFileDrag: (request) =>
+      transport.send(START_PRESENTED_FILE_DRAG_CHANNEL, request),
     inspectProjectAttachments: (entries) =>
       transport.invoke(PROJECT_FILE_ATTACHMENTS_CHANNEL, entries),
     listProjects: (): Promise<ListProjectsResult> =>
