@@ -261,8 +261,18 @@ async function compactContext(): Promise<void> {
       @open-auto-focus.prevent
     >
       <!-- Laid out like the approval menu: the dividers run edge to edge and
-           the guide is a menu-style row at the foot. The sections' own
-           padding makes up the popover's usual 1rem inset. -->
+           the guide is a menu-style row at the top, out of the way between
+           the button and the controls since the popover opens upwards. The
+           sections' own padding makes up the popover's usual 1rem inset.
+           The guide opens over the popover's place, so the popover closes. -->
+      <template v-if="appearanceStore.helpGuides">
+        <HelpGuideButton
+          topic="context-window"
+          :label="t('help.contextWindowGuide')"
+          @open="isOpen = false"
+        />
+        <Separator :class="DIVIDER_CLASS" />
+      </template>
       <Field data-testid="context-section" class="gap-2 p-2.5">
         <div class="flex items-baseline justify-between gap-4">
           <FieldTitle>
@@ -399,16 +409,6 @@ async function compactContext(): Promise<void> {
           </div>
         </div>
       </Field>
-
-      <!-- The guide opens over the popover's place, so the popover closes. -->
-      <template v-if="appearanceStore.helpGuides">
-        <Separator :class="DIVIDER_CLASS" />
-        <HelpGuideButton
-          topic="context-window"
-          :label="t('help.contextWindowGuide')"
-          @open="isOpen = false"
-        />
-      </template>
     </PopoverContent>
   </Popover>
 </template>

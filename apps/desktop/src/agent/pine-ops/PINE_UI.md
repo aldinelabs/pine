@@ -59,9 +59,9 @@ click.
   only that user's automations and WeChat remote run. With a single user
   (the default) none of this shows anywhere except that Settings section.
 - Guide button: a question-mark icon and a label naming what it explains,
-  as the last item of a menu or popover below a divider (for example "How
-  approval modes work" in the approval mode menu, "How context works" in the
-  Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
+  as the first item of a composer menu or popover above a divider (for
+  example "How approval modes work" in the approval mode menu, "How context
+  works" in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
   overlays). Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
@@ -670,7 +670,7 @@ From top to bottom:
      or cleared; it can be set before a session starts. The notice that says
      so has "Learn why" (with Guide buttons on), which opens the tokens and
      cost step of "Context and tokens".
-     With Guide buttons on, the popover ends with an item below a divider,
+     With Guide buttons on, the popover starts with an item above a divider,
      "How context works", which closes it and opens the "Context and tokens"
      guide.
    - Action button: Send message when idle; Steer response (adds the message
