@@ -151,7 +151,10 @@ interface ApprovalModeOption {
 
 const emit = defineEmits<{
   abort: [];
-  /** Backspace or \ in an empty message, while there is context to drop. */
+  /**
+   * Backspace or \ in an empty message, or the context's remove button,
+   * while there is context to drop.
+   */
   dismissContext: [];
   removeAuthoring: [target: PineAuthoringTarget];
   respond: [action: PineApprovalAction, guidance?: string];
@@ -1304,6 +1307,12 @@ const hasContext = computed(
   () => props.context.length > 0 || props.contextPending,
 );
 
+/** The strip's own button; the message keeps the caret. */
+function removeContext(): void {
+  emit("dismissContext");
+  focus();
+}
+
 /** Whether the caret sits at the end of the text box with nothing selected. */
 function caretAtEnd(event: KeyboardEvent): boolean {
   const textarea = event.target;
@@ -1487,6 +1496,7 @@ function handleRootSubmit(event: Event): void {
                     class="mx-[var(--session-composer-control-inset)] mt-[var(--session-composer-control-inset)]"
                     :context="context"
                     :pending="contextPending && context.length === 0"
+                    @remove="removeContext"
                   />
                 </div>
               </div>

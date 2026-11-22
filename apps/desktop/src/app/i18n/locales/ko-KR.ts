@@ -1639,6 +1639,7 @@ export default {
       },
       contextCapturing: "사용 중이던 앱을 캡처하는 중…",
       contextRemove: "제거하려면",
+      contextRemoveButton: "컨텍스트 제거",
       attachmentPickerFailed: "선택한 항목을 열거나 확인할 수 없습니다",
       attachmentDropFailed: "끌어다 놓은 첨부 파일을 확인할 수 없습니다",
       attachmentPasteFailed:

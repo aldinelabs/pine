@@ -1677,6 +1677,7 @@ export default {
       },
       contextCapturing: "Capturando la app en la que estabas…",
       contextRemove: "para quitar",
+      contextRemoveButton: "Quitar contexto",
       attachmentPickerFailed:
         "No se pudieron abrir o inspeccionar los elementos seleccionados",
       attachmentDropFailed: "No se pudieron inspeccionar los adjuntos soltados",

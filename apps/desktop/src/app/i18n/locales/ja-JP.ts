@@ -1658,6 +1658,7 @@ export default {
       },
       contextCapturing: "使用中のアプリを取り込んでいます…",
       contextRemove: "削除するには",
+      contextRemoveButton: "コンテキストを削除",
       attachmentPickerFailed: "選択した項目を開けないか、確認できませんでした",
       attachmentDropFailed: "ドロップした添付ファイルを確認できませんでした",
       attachmentPasteFailed:

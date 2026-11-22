@@ -2,6 +2,8 @@
 import { attachmentImageUrl } from "@/lib/clientAssets";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { XIcon } from "@lucide/vue";
+import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useShortcutHints } from "@/composables/useShortcutHints";
@@ -17,6 +19,7 @@ const props = defineProps<{
   /** Still being captured: placeholders the size of what will come. */
   pending?: boolean;
 }>();
+const emit = defineEmits<{ remove: [] }>();
 
 const { t } = useI18n();
 const showShortcutHints = useShortcutHints();
@@ -87,5 +90,20 @@ const detail = computed(
       <Kbd>⌫</Kbd>
       {{ t("project.composer.contextRemove") }}
     </span>
+    <!-- Centred in the strip, so its corners follow the strip's, set in by
+         the same 0.75rem on every side. Pressing keeps the caret in the
+         message. -->
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-xs"
+      data-slot="composer-context-remove"
+      class="shrink-0 rounded-[calc(var(--session-composer-attachment-radius)-0.75rem)] text-muted-foreground"
+      :aria-label="t('project.composer.contextRemoveButton')"
+      @mousedown.prevent
+      @click="emit('remove')"
+    >
+      <XIcon />
+    </Button>
   </div>
 </template>

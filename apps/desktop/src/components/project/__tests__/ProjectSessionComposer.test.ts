@@ -305,6 +305,19 @@ describe("ProjectSessionComposer", () => {
     wrapper.unmount();
   });
 
+  it("removes context with its own button, keeping the caret in the message", async () => {
+    const wrapper = mountComposer(
+      { isActive: true, contextPending: true },
+      "high",
+      "en-US",
+    );
+    const button = wrapper.find('[data-slot="composer-context-remove"]');
+    expect(button.attributes("aria-label")).toBe("Remove context");
+    await button.trigger("click");
+    expect(wrapper.emitted("dismissContext")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it("holds the controls below the input in while inset", async () => {
     const wrapper = mountComposer({ isActive: true, edgeInset: true });
     const footer = () => wrapper.find('[data-slot="session-composer-footer"]');

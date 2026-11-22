@@ -1651,6 +1651,7 @@ export default {
       },
       contextCapturing: "Capturing the app you were in…",
       contextRemove: "to remove",
+      contextRemoveButton: "Remove context",
       attachmentPickerFailed: "Could not open or inspect the selected items",
       attachmentDropFailed: "Could not inspect the dropped attachments",
       attachmentPasteFailed: "Could not save the pasted text, image, or file",

@@ -1659,6 +1659,7 @@ export default {
       },
       contextCapturing: "Захват приложения, в котором вы были…",
       contextRemove: "чтобы убрать",
+      contextRemoveButton: "Убрать контекст",
       attachmentPickerFailed:
         "Не удалось открыть или проверить выбранные элементы",
       attachmentDropFailed: "Не удалось проверить перетащенные вложения",

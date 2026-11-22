@@ -1295,9 +1295,9 @@ text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window. The context shows as a
 strip above the input: from the moment the composer appears, a grey
 placeholder holds its place while the app is captured, and the screenshot,
-app and window name fill it in once ready. Backspace or \ in an empty message
-removes the strip, also while it is still a placeholder; what was being
-captured is then thrown away. Files, pasted images and long pasted text can be
+app and window name fill it in once ready. The × button at the strip's right
+end, or Backspace or \ in an empty message, removes it, also while it is still
+a placeholder; what was being captured is then thrown away. Files, pasted images and long pasted text can be
 attached before the conversation opens in a window.
 
 ## Tray and menu bar

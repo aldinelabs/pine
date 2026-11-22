@@ -1578,6 +1578,7 @@ export default {
       },
       contextCapturing: "正在擷取你剛才所在的應用程式…",
       contextRemove: "移除",
+      contextRemoveButton: "移除上下文",
       attachmentPickerFailed: "無法開啟或讀取所選附件",
       attachmentDropFailed: "無法讀取拖入的附件",
       attachmentPasteFailed: "無法儲存貼上的文字、圖片或檔案",
