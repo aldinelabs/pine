@@ -314,6 +314,42 @@ describe("SkillManagerDialog", () => {
     ).toContain("# Release notes");
   });
 
+  it("starts each Skill the user picks at the top of the editor", async () => {
+    const otherSkill: PineSkillSummary = { ...globalSkill, name: "triage" };
+    listSkills.mockResolvedValue({
+      diagnostics: [],
+      skills: [globalSkill, otherSkill],
+    });
+    const wrapper = await openDialog();
+    const viewport = () =>
+      wrapper.get(
+        "[data-slot=dialog-scroll-area] > [data-slot=scroll-area-viewport]",
+      ).element as HTMLElement;
+
+    viewport().scrollTop = 240;
+    readSkill.mockResolvedValue({
+      content: loadedSkillContent.replace("release-notes", "triage"),
+      skill: otherSkill,
+    });
+    await wrapper
+      .findAll("button")
+      .find((button) => button.text().startsWith("triage"))
+      ?.trigger("click");
+    await flushPromises();
+    expect(readSkill).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: "triage" }),
+    );
+    expect(viewport().scrollTop).toBe(0);
+
+    // Saving reloads the same Skill and keeps the editor where it was.
+    viewport().scrollTop = 240;
+    await wrapper.get("#skill-global-body").setValue("# Triage");
+    await wrapper.get('[data-testid="skill-save"]').trigger("click");
+    await flushPromises();
+    expect(editSkill).toHaveBeenCalled();
+    expect(viewport().scrollTop).toBe(240);
+  });
+
   it("shows an empty state when the scope has no Skills", async () => {
     listSkills.mockResolvedValue({ diagnostics: [], skills: [] });
 

@@ -10,7 +10,7 @@ import {
   WandSparklesIcon,
 } from "@lucide/vue";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
 import { useDialogPages } from "@/composables/useDialogPages";
@@ -286,6 +286,19 @@ function reportError(error: unknown, operation: "load" | "save" | "remove") {
   });
 }
 
+// Under the scope `v-for`, so a list; only the active scope's editor renders.
+const editorScrolls =
+  useTemplateRef<InstanceType<typeof DialogScrollArea>[]>("editorScroll");
+
+/** A newly shown Skill starts at its top, not where the last one was. */
+function scrollEditorToTop(): void {
+  void nextTick(() => {
+    for (const scroll of editorScrolls.value ?? []) {
+      if (scroll.viewport) scroll.viewport.scrollTop = 0;
+    }
+  });
+}
+
 /** On a wide layout the editor always shows a Skill when there is one. */
 async function showDefaultSelection(): Promise<void> {
   const first = skills.value[0];
@@ -294,6 +307,7 @@ async function showDefaultSelection(): Promise<void> {
     return;
   }
   await selectSkill(first.name, first.managedBy ?? "pine");
+  scrollEditorToTop();
 }
 
 async function load(
@@ -362,6 +376,7 @@ async function selectSkillSafely(
 ): Promise<void> {
   try {
     await selectSkill(name, managedBy);
+    scrollEditorToTop();
     if (!isEditorShown.value)
       showPage("forward", () => (isEditorShown.value = true));
   } catch (error) {
@@ -397,6 +412,7 @@ function startCreating(): void {
   editorMode.value = "create";
   resetValidation();
   savedSnapshot.value = "";
+  scrollEditorToTop();
 }
 
 async function cancelCreating(): Promise<void> {
@@ -738,6 +754,7 @@ watch(activeScope, () => {
 
                 <template v-else>
                   <DialogScrollArea
+                    ref="editorScroll"
                     edge-inset="0rem"
                     content-inset="1.25rem"
                     class="flex-1"
