@@ -314,6 +314,8 @@ describe("ProjectSessionComposer", () => {
     );
     const button = wrapper.find('[data-slot="composer-context-remove"]');
     expect(button.attributes("aria-label")).toBe("Remove context");
+    // It reads as a button on the muted strip in light and dark.
+    expect(button.attributes("data-variant")).toBe("outline");
     await button.trigger("click");
     expect(wrapper.emitted("dismissContext")).toHaveLength(1);
     wrapper.unmount();

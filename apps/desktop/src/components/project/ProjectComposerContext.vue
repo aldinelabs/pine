@@ -92,13 +92,14 @@ const detail = computed(
     </span>
     <!-- Centred in the strip, so its corners follow the strip's, set in by
          the same 0.75rem on every side. Pressing keeps the caret in the
-         message. -->
+         message. Outlined like the app's other standalone icon buttons: a
+         ghost one would vanish into the muted strip. -->
     <Button
       type="button"
-      variant="ghost"
+      variant="outline"
       size="icon-xs"
       data-slot="composer-context-remove"
-      class="shrink-0 rounded-[calc(var(--session-composer-attachment-radius)-0.75rem)] text-muted-foreground"
+      class="shrink-0 rounded-[calc(var(--session-composer-attachment-radius)-0.75rem)]"
       :aria-label="t('project.composer.contextRemoveButton')"
       @mousedown.prevent
       @click="emit('remove')"
