@@ -11,7 +11,7 @@ import {
   SearchIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { I18nT, useI18n } from "vue-i18n";
 import pineAppIcon from "../../../../resources/icon.png";
 import aldineOnDark from "@/assets/aldine/aldine-horizontal-on-dark.svg";
@@ -80,6 +80,7 @@ const updateCheckResult = ref<"current" | "failed" | null>(null);
 /** The result line keeps its place; it only fades, so nothing shifts. */
 const isUpdateResultShown = ref(false);
 let updateResultTimer: ReturnType<typeof setTimeout> | undefined;
+const updateResultLine = ref<HTMLElement | null>(null);
 let isUnmounted = false;
 
 const docsUrl = computed(() =>
@@ -169,6 +170,11 @@ async function checkForUpdates(): Promise<void> {
   if (updater.isAvailable) return;
   if (isUnmounted) return;
   updateCheckResult.value = checkFailed.value ? "failed" : "current";
+  // The first result mounts hidden; settle that style before showing it so
+  // it fades in rather than appearing at full opacity.
+  await nextTick();
+  void updateResultLine.value?.offsetWidth;
+  if (isUnmounted) return;
   isUpdateResultShown.value = true;
   if (updateCheckResult.value === "current") {
     updateResultTimer = setTimeout(
@@ -249,6 +255,7 @@ onBeforeUnmount(() => {
       </Button>
       <span
         v-if="updateCheckResult"
+        ref="updateResultLine"
         data-testid="pine-about-update-result"
         :data-visible="isUpdateResultShown || undefined"
         :aria-hidden="!isUpdateResultShown || undefined"
