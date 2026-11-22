@@ -18,6 +18,7 @@ export const HELP_TOPIC_IDS = [
   "work-style",
   "skills",
   "mcp",
+  "automations",
 ] as const;
 
 export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];

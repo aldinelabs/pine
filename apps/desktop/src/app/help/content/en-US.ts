@@ -505,4 +505,43 @@ export default {
       },
     ],
   },
+  automations: {
+    title: "Automations",
+    summary:
+      "Pine starts work on its own, on a schedule or an event, and gets it done while you're away.",
+    steps: [
+      {
+        title: "Let Pine start on its own",
+        body: [
+          "An automation is work Pine does while you're away. Each one says when it triggers, what to do and which permissions it has; when it triggers, Pine starts a session to do the work. There are four kinds of trigger:",
+        ],
+        points: [
+          "A schedule, such as every weekday at 9 am, at most every 5 minutes.",
+          "A folder change: files added, changed or removed.",
+          "A system event: Pine starting, the computer waking from sleep, unlocking or going idle.",
+          "A website or feed check: Pine looks at a page, feed or API regularly and starts work only when there's something new.",
+        ],
+        note: {
+          tone: "tip",
+          text: 'The easiest way to make one: in the sidebar\'s More › Automations, click Manage with Pine and say what you want in a sentence, such as "every morning, check this site for new job posts". Pine asks a few questions, writes and checks the definition, then asks you to confirm saving it.',
+        },
+      },
+      {
+        title: "How runs work",
+        body: [
+          "Nobody is there to approve during a run, so automations work like Autonomous Work, and only with the permissions in their definition: which folders they may read and write, which addresses they may reach and which tools they may use.",
+        ],
+        points: [
+          "Each run is a session in the project, marked with a workflow icon. The Activity tab lists every run and its result, such as Found something, Nothing new or Failed; open one to see everything it did.",
+          "By default Pine notifies you only when a run finds something; failures always notify.",
+          "Put values such as API tokens in the Secrets tab. They're stored encrypted on this computer and available to runs, and their contents never show in the conversation.",
+          "Automation runs neither read nor save memory, and always work as Full takeover.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Automations run only while Pine is open. To keep them working, turn on Keep running in the background in Settings › General (desktop app on macOS and Windows).",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

@@ -71,6 +71,10 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   mcp: [
     "what MCP servers add, project and all-projects servers, adding one with Pine, status",
   ],
+  automations: [
+    "what automations are, the four kinds of trigger, creating one with Pine",
+    "how runs work: permissions, Activity, notifications, Secrets, running in the background",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

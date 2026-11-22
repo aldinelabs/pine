@@ -1281,6 +1281,8 @@ the user opens themselves do not pulse.
   project Skills, creating one with Pine),
   "MCP servers" (one page: what MCP servers add, Project and All
   projects servers, adding one with Pine, status),
+  "Automations" (what automations are, triggers, creating one with Pine; how
+  runs work, Activity, Secrets, running in the background),
   plus three one-page guides opened from settings' question marks:
   "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands

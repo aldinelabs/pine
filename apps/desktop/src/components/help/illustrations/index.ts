@@ -25,6 +25,8 @@ import ArtifactsIllustration from "./ArtifactsIllustration.vue";
 import WorkStyleIllustration from "./WorkStyleIllustration.vue";
 import SkillsIllustration from "./SkillsIllustration.vue";
 import McpIllustration from "./McpIllustration.vue";
+import AutomationTriggersIllustration from "./AutomationTriggersIllustration.vue";
+import AutomationRunsIllustration from "./AutomationRunsIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -60,5 +62,7 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "work-style": WorkStyleIllustration,
   skills: SkillsIllustration,
   mcp: McpIllustration,
+  "automation-triggers": AutomationTriggersIllustration,
+  "automation-runs": AutomationRunsIllustration,
   tips: TipsIllustration,
 };
