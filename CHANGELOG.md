@@ -11,7 +11,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [0.24.0] - 2026-11-22
 
-> **Highlights**: Illustrated guides explain Pine's features, opened from buttons in menus, settings and managers or from the Guides overview in the sidebar, with one-time tips where a feature first appears; Settings gains an About page with open-source licenses; artifacts can be filed into folders; the quick composer can send in the background and notify you when the answer is ready.
+> **Highlights**: Illustrated guides explain Pine's features, opened from buttons in menus, settings and managers or from the Guides overview in the sidebar, with one-time tips where a feature first appears; Settings gains an About page with open-source licenses; artifacts can be filed into folders; the quick composer can send in the background and notify you when the answer is ready; images can be generated with your ChatGPT plan.
 
 ### Added
 
@@ -38,6 +38,10 @@ Every release section here has a matching section in the Chinese changelog.
 
 - **Send from the quick composer in the background**: `⌃/Ctrl + Enter` (`Alt + Enter` on Windows and Linux) in the quick composer hides it at once and starts the conversation in the background without bringing a Pine window forward. When the answer is ready or fails, a system notification tells you, even with "Signal when work is done" set to Off; clicking it opens the conversation.
 - **Close the window with `⌘/Ctrl + Shift + W`**: It works the same as the window's close button.
+
+#### Image generation
+
+- **Generate images with your ChatGPT plan**: Settings › Models › Image generation model offers "GPT Image" in a ChatGPT group once you sign in to OpenAI Codex. It is off until you pick it, draws on your plan's Codex usage instead of an OpenRouter balance, and always uses the newest image model ChatGPT offers. It runs through ChatGPT's own route rather than a public API, so a later update may adjust it; the approval card shows when an image uses the subscription.
 
 ### Changed
 
