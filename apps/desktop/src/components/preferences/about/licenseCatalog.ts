@@ -56,3 +56,14 @@ export function filterReferencedProjects(
     matches(needle, project.name, project.license),
   );
 }
+
+/** The package's own homepage, else its npm page. */
+export function packageUrl(entry: ThirdPartyPackage): string {
+  return (
+    entry.homepage ??
+    `https://www.npmjs.com/package/${entry.name
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`
+  );
+}

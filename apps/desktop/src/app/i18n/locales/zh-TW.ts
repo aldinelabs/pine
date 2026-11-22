@@ -423,7 +423,7 @@ export default {
       pineLicense: "GNU Affero 通用公共授權條款 v3.0 或更新版本",
       openSource: "開放原始碼軟體",
       openSourceDescription:
-        "Pine 使用了以下開放原始碼軟體。選擇一項即可查看其授權條款。",
+        "Pine 使用了以下開放原始碼軟體。選擇一項即可在瀏覽器中開啟其專案頁面。",
       search: "依名稱或授權條款搜尋",
       noResults: "沒有符合的結果。",
       referenced: "移植與隨附的專案",
@@ -437,9 +437,6 @@ export default {
         native: "原生程式庫",
         model: "語音模型",
       },
-      homepage: "首頁",
-      noLicenseText:
-        "這個套件未附授權條款檔案，其資訊清單宣告的授權條款為 {license}。",
       loadFailed: "無法載入開放原始碼軟體清單。",
     },
     groups: {
@@ -1987,10 +1984,6 @@ export default {
         submittedFiles: "提交的檔案",
         parameters: "LLM 輸出引數",
         result: "工具返回值",
-        field: "欄位",
-        value: "值",
-        rootValue: "結果",
-        circularValue: "無法顯示迴圈引用",
         rejectionReason: "駁回原因",
         noParameters: "沒有引數",
         noResult: "暫無返回值",

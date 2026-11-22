@@ -3,6 +3,7 @@ import type { ThirdPartyPackage } from "@/build/thirdPartyLicenses";
 import {
   filterReferencedProjects,
   groupPackagesByLicense,
+  packageUrl,
 } from "../licenseCatalog";
 
 const pkg = (name: string, license: string): ThirdPartyPackage => ({
@@ -54,4 +55,13 @@ it("filters referenced projects the same way", () => {
   expect(filterReferencedProjects(projects, "ofl")).toHaveLength(1);
   expect(filterReferencedProjects(projects, "vue")).toHaveLength(0);
   expect(filterReferencedProjects(projects)).toHaveLength(1);
+});
+
+it("opens a package at its homepage, else on npm", () => {
+  expect(
+    packageUrl({ ...pkg("zod", "MIT"), homepage: "https://zod.dev" }),
+  ).toBe("https://zod.dev");
+  expect(packageUrl(pkg("@vue/shared", "MIT"))).toBe(
+    "https://www.npmjs.com/package/%40vue/shared",
+  );
 });

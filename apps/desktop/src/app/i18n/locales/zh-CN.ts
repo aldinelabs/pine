@@ -420,7 +420,7 @@ export default {
       pineLicense: "GNU Affero 通用公共许可证 v3.0 或更高版本",
       openSource: "开源软件",
       openSourceDescription:
-        "Pine 使用了以下开源软件。选择一项可查看其许可证。",
+        "Pine 使用了以下开源软件。选择一项可在浏览器中打开它的项目主页。",
       search: "按名称或许可证搜索",
       noResults: "没有匹配的结果。",
       referenced: "移植和随附的项目",
@@ -434,9 +434,6 @@ export default {
         native: "原生库",
         model: "语音模型",
       },
-      homepage: "主页",
-      noLicenseText:
-        "这个包没有附带许可证文件，其清单声明的许可证为 {license}。",
       loadFailed: "无法加载开源软件列表。",
     },
     groups: {
@@ -1983,10 +1980,6 @@ export default {
         submittedFiles: "提交的文件",
         parameters: "LLM 输出参数",
         result: "工具返回值",
-        field: "字段",
-        value: "值",
-        rootValue: "结果",
-        circularValue: "无法显示循环引用",
         rejectionReason: "驳回原因",
         noParameters: "没有参数",
         noResult: "暂无返回值",

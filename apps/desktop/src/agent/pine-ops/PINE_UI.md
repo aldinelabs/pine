@@ -268,7 +268,10 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result). With Guide buttons on, a call the
+     approval, parameters, result). Parameters and results without a
+     dedicated view show as syntax-highlighted, indented JSON with long lines
+     wrapped and a copy button on hover; a text result that is itself JSON is
+     shown the same way, while plain text and Markdown results stay as text. With Guide buttons on, a call the
      approval model or the sandbox blocked shows "Why was this blocked?"
      beside its approval; it closes the details and opens the approval modes
      step of "Tool calls and approvals" or the sandbox step of "Projects and
@@ -1197,23 +1200,22 @@ the user opens themselves do not pulse.
     scan, WeChat remote is paused, or its settings were reset. Clicking one
     brings Pine's window forward. The tray menu has a "WeChat remote" switch
     (see Tray and menu bar).
-  - About (always last): Pine's icon, "Version X.Y.Z", "By Aldine Labs" and
+  - About (always last): Pine's icon, "Version X.Y.Z", "By" followed by the
+    Aldine logo (light or dark to match the theme) and
     a one-line description. "Check for updates" (desktop app only) opens the
     update dialog when a release is available and otherwise says "Pine is up
     to date." (or that the check failed). Links: Documentation (the Chinese
     guide for Chinese interfaces, else English), Source code, Release notes
     and Report an issue open in the browser. License shows "GNU Affero
     General Public License v3.0 or later" with the copyright line; selecting
-    it shows the full text. "Open-source software" lists, after a short
-    loading placeholder, a search field (name or license), "Adapted and
-    bundled projects" (ported code, UI components, fonts, native libraries
-    and speech models, each with its license) and "Packages (N)", grouped by
-    license into collapsed groups with counts; searching opens every
-    matching group. Selecting any entry shows its name, version, license, a
-    Homepage link and the full license text on a page inside the section,
-    with an "About" back button that returns to the same place in the list;
-    a package without a license file says which license its manifest
-    declares.
+    it opens Pine's LICENSE file on GitHub. "Open-source software" lists,
+    after a short loading placeholder, a search field (name or license),
+    "Adapted and bundled projects" (ported code, UI components, fonts, native
+    libraries and speech models, each with its license) and "Packages (N)",
+    grouped by license into collapsed groups with counts that fold open and
+    closed smoothly; searching opens every matching group. Selecting any
+    entry opens its project page in the browser (a package without a
+    homepage opens on npm).
 - New Project / Edit Project: name, icon, accent color (a row of round
   swatches, each named on hover: "Pine Default" first, with a dashed edge,
   which follows the Appearance setting, then Neutral, Olive, Red, Rose,

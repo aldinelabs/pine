@@ -445,7 +445,7 @@ export default {
       pineLicense: "GNU Affero 일반 공중 사용 허가서 v3.0 이상",
       openSource: "오픈 소스 소프트웨어",
       openSourceDescription:
-        "Pine은 아래의 오픈 소스 소프트웨어를 사용합니다. 항목을 선택하면 라이선스를 볼 수 있습니다.",
+        "Pine은 아래의 오픈 소스 소프트웨어를 사용합니다. 항목을 선택하면 브라우저에서 프로젝트 페이지가 열립니다.",
       search: "이름 또는 라이선스로 검색",
       noResults: "일치하는 항목이 없습니다.",
       referenced: "이식 및 동봉한 프로젝트",
@@ -459,9 +459,6 @@ export default {
         native: "네이티브 라이브러리",
         model: "음성 모델",
       },
-      homepage: "홈페이지",
-      noLicenseText:
-        "이 패키지에는 라이선스 파일이 없습니다. 매니페스트에는 {license}(으)로 선언되어 있습니다.",
       loadFailed: "오픈 소스 소프트웨어 목록을 불러올 수 없습니다.",
     },
     groups: {
@@ -2064,10 +2061,6 @@ export default {
         submittedFiles: "제출한 파일",
         parameters: "LLM 매개변수",
         result: "도구 결과",
-        field: "필드",
-        value: "값",
-        rootValue: "결과",
-        circularValue: "순환 참조는 표시할 수 없습니다",
         rejectionReason: "거부 사유",
         noParameters: "매개변수 없음",
         noResult: "아직 결과가 없습니다",
