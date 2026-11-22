@@ -13,6 +13,7 @@ import {
   GitForkIcon,
   PanelRightIcon,
   UserCogIcon,
+  LibraryIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, type Component } from "vue";
@@ -65,6 +66,7 @@ const TOPIC_ICONS: Record<HelpTopicId, Component> = {
   "sub-sessions": GitForkIcon,
   workbench: PanelRightIcon,
   "work-style": UserCogIcon,
+  skills: LibraryIcon,
 };
 
 const groups = computed(() =>

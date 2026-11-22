@@ -23,6 +23,7 @@ import SubSessionsIllustration from "./SubSessionsIllustration.vue";
 import WorkbenchPanelsIllustration from "./WorkbenchPanelsIllustration.vue";
 import ArtifactsIllustration from "./ArtifactsIllustration.vue";
 import WorkStyleIllustration from "./WorkStyleIllustration.vue";
+import SkillsIllustration from "./SkillsIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -56,5 +57,6 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "workbench-panels": WorkbenchPanelsIllustration,
   artifacts: ArtifactsIllustration,
   "work-style": WorkStyleIllustration,
+  skills: SkillsIllustration,
   tips: TipsIllustration,
 };

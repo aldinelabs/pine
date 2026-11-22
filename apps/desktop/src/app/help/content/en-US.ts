@@ -461,4 +461,26 @@ export default {
       },
     ],
   },
+  skills: {
+    title: "Skills",
+    summary:
+      "Write down a way of working as a Skill, and Pine uses it on its own when a task calls for it.",
+    steps: [
+      {
+        title: "Teach Pine a routine",
+        body: [
+          'A Skill is a reusable set of instructions, such as "write the weekly report on the company template" or "the checklist before a release", optionally with files like templates or scripts. Pine normally sees only each Skill\'s name and When to use; when a task matches, it calls the Skill, reads the full instructions and follows them.',
+        ],
+        points: [
+          "Manage them in the sidebar's More › Skills. Global Skills work in every project and can be switched off in one project; Project Skills belong to the current project only.",
+          'The easiest way to make one is Manage with Pine, or just telling Pine "turn what we just did into a Skill"; it writes the instructions and description for you.',
+          "You can also write one yourself with New Skill. The more specific its When to use, the more reliably Pine picks it.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Pine reads the full instructions only when it uses a Skill, so even many Skills take up almost no context.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

@@ -32,6 +32,7 @@ export const HELP_TOPIC_STEPS = {
   "sub-sessions": ["sub-sessions"],
   workbench: ["workbench-panels", "artifacts"],
   "work-style": ["work-style"],
+  skills: ["skills"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
@@ -60,7 +61,7 @@ export const HELP_TOPIC_GROUPS: readonly {
       "work-style",
     ],
   },
-  { id: "extend", topics: [] },
+  { id: "extend", topics: ["skills"] },
   {
     id: "settings",
     topics: ["auto-approval-path", "compaction-strategy", "compaction-method"],
@@ -92,6 +93,7 @@ export type HelpIllustrationId =
   | "workbench-panels"
   | "artifacts"
   | "work-style"
+  | "skills"
   | "tips";
 
 export interface HelpStepText {

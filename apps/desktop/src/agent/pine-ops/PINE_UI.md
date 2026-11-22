@@ -1277,6 +1277,8 @@ the user opens themselves do not pulse.
   versions and dragging files out),
   "Work style and Aldine methodology" (one page: work style, communication
   style, technical background, Aldine methodology),
+  "Skills" (one page: what a Skill is, how Pine picks one, global and
+  project Skills, creating one with Pine),
   plus three one-page guides opened from settings' question marks:
   "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands

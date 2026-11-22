@@ -65,6 +65,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   "work-style": [
     "work style (Full takeover, Collaborate), communication style, technical background, Aldine methodology",
   ],
+  skills: [
+    "what a Skill is, how Pine picks one, global and project Skills, creating one with Pine",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(
