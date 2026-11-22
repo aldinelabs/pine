@@ -3347,6 +3347,7 @@ export default {
     contextWindowGuide: "How context works",
     modelsGuide: "How models work",
     reasoningEffortGuide: "How reasoning effort works",
+    projectFoldersGuide: "How folder access works",
     learnWhy: "Learn why",
     whyBlocked: "Why was this blocked?",
   },

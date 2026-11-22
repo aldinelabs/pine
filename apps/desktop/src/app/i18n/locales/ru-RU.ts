@@ -3389,6 +3389,7 @@ export default {
     contextWindowGuide: "Как устроен контекст",
     modelsGuide: "Как устроены модели",
     reasoningEffortGuide: "Как работает глубина рассуждений",
+    projectFoldersGuide: "Как устроен доступ к папкам",
     learnWhy: "Узнать почему",
     whyBlocked: "Почему это заблокировано?",
   },

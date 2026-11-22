@@ -59,7 +59,10 @@ function updateStrategy(value: unknown): void {
         <FieldTitle id="pine-auto-approval-strategy-label">{{
           t("preferences.autoApprovalStrategy")
         }}</FieldTitle>
-        <HelpHint :label="t('preferences.autoApprovalHelp')">
+        <HelpHint
+          :label="t('preferences.autoApprovalHelp')"
+          :guide="{ topic: 'approval-modes', step: 1 }"
+        >
           {{
             t(
               store.settings.strategy === "decisions"

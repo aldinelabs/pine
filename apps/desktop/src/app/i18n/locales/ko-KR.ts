@@ -3341,6 +3341,7 @@ export default {
     contextWindowGuide: "컨텍스트란?",
     modelsGuide: "모델 선택 방법",
     reasoningEffortGuide: "추론 강도 조절 방법",
+    projectFoldersGuide: "폴더 권한 설정 방법",
     learnWhy: "이유 알아보기",
     whyBlocked: "왜 차단되었나요?",
   },

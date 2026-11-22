@@ -3418,6 +3418,7 @@ export default {
     contextWindowGuide: "Cómo funciona el contexto",
     modelsGuide: "Cómo funcionan los modelos",
     reasoningEffortGuide: "Cómo funciona el nivel de razonamiento",
+    projectFoldersGuide: "Cómo funciona el acceso a carpetas",
     learnWhy: "Ver por qué",
     whyBlocked: "¿Por qué se bloqueó?",
   },

@@ -3386,6 +3386,7 @@ export default {
     contextWindowGuide: "コンテキストのしくみ",
     modelsGuide: "モデルの選び方",
     reasoningEffortGuide: "推論の強度のしくみ",
+    projectFoldersGuide: "フォルダーのアクセス権のしくみ",
     learnWhy: "理由を見る",
     whyBlocked: "なぜ止められた？",
   },

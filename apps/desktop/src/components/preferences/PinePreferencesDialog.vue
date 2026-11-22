@@ -2059,6 +2059,7 @@ defineExpose({ open });
                       </FieldTitle>
                       <HelpHint
                         :label="t('preferences.contextCompactionStrategyHelp')"
+                        :guide="{ topic: 'context-window', step: 2 }"
                       >
                         {{
                           t("preferences.contextCompactionStrategyDescription")
@@ -2090,6 +2091,7 @@ defineExpose({ open });
                       </FieldTitle>
                       <HelpHint
                         :label="t('preferences.contextCompactionRouteHelp')"
+                        :guide="{ topic: 'context-window', step: 2 }"
                       >
                         {{ t("preferences.contextCompactionRouteDescription") }}
                       </HelpHint>

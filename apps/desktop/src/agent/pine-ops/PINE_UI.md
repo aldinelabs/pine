@@ -1061,7 +1061,11 @@ the user opens themselves do not pulse.
       next message; off, Pine neither reads nor saves memory notes, which stay
       and can still be managed in the Memory manager), Share approximate
       location with AI switch, automatic approval path, context compaction
-      strategy and method.
+      strategy and method. With Guide buttons on, the question marks beside
+      the approval path and the two compaction settings open the matching
+      guide step (approval modes; compaction) instead of a tooltip; with
+      them off, or beside settings without a guide, a question mark shows a
+      short description on hover (tap on touch screens).
     - Tools: "Choose what Pine can do. Everything is on by default; a change
       applies from your next message." One row per tool family, each with an
       icon, a one-line description and a switch, all on by default: Shell
@@ -1196,7 +1200,9 @@ the user opens themselves do not pulse.
   which follows the Appearance setting, then Neutral, Olive, Red, Rose,
   Orange, Green, Blue, Yellow and Violet; the chosen one has a ring), default
   folder,
-  additional context folders with access (Read only, Read and write). Saving
+  additional context folders with access (Read only, Read and write); the
+  question mark beside "Additional context folders" opens the "Projects and
+  folder access" guide (with Guide buttons on). Saving
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
   their tabs as they are.
@@ -1252,8 +1258,8 @@ the user opens themselves do not pulse.
   effort, good habits), "Steering and stopping" (steering while Pine works,
   Withdraw and Send now, stopping, what a stop keeps, good habits) and
   "Projects and folder access" (projects as sets of folders, Read only and
-  Read and write, the sandbox, good habits). The last two have no button of
-  their own yet. The agent can also open any guide at a chosen step, shown
+  Read and write, the sandbox, good habits). The steering guide has no
+  button of its own yet. The agent can also open any guide at a chosen step, shown
   only while its conversation is on screen; the transcript then reads
   "Opened the “…” guide". Their text is written in Simplified Chinese and English;
   Traditional Chinese shows the Simplified text and other languages show
