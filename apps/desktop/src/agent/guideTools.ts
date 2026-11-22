@@ -46,6 +46,11 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
     "the sandbox and crossing it",
     "good habits",
   ],
+  "auto-approval-path": [
+    "Model review vs Decision model (Beta) and how they work together",
+  ],
+  "compaction-strategy": ["Use recommended settings vs Passive compaction"],
+  "compaction-method": ["Model vs Semantic algorithm (Beta)"],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

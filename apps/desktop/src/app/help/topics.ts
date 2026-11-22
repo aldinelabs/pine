@@ -25,6 +25,9 @@ export const HELP_TOPIC_STEPS = {
   "reasoning-effort": ["reasoning-think", "reasoning-levels", "tips"],
   "steer-stop": ["steer-message", "stop-turn", "tips"],
   "project-folders": ["project-folders", "sandbox", "tips"],
+  "auto-approval-path": ["approval-path"],
+  "compaction-strategy": ["compaction-strategy"],
+  "compaction-method": ["compaction-method"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpIllustrationId =
@@ -43,6 +46,9 @@ export type HelpIllustrationId =
   | "stop-turn"
   | "project-folders"
   | "sandbox"
+  | "approval-path"
+  | "compaction-strategy"
+  | "compaction-method"
   | "tips";
 
 export interface HelpStepText {

@@ -2,6 +2,9 @@ import type { Component } from "vue";
 import type { HelpIllustrationId } from "@/app/help";
 import ApprovalCardIllustration from "./ApprovalCardIllustration.vue";
 import ApprovalModesIllustration from "./ApprovalModesIllustration.vue";
+import ApprovalPathIllustration from "./ApprovalPathIllustration.vue";
+import CompactionMethodIllustration from "./CompactionMethodIllustration.vue";
+import CompactionStrategyIllustration from "./CompactionStrategyIllustration.vue";
 import ContextCompactionIllustration from "./ContextCompactionIllustration.vue";
 import ContextFillIllustration from "./ContextFillIllustration.vue";
 import ContextTokensIllustration from "./ContextTokensIllustration.vue";
@@ -38,5 +41,8 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "stop-turn": StopTurnIllustration,
   "project-folders": ProjectFoldersIllustration,
   sandbox: SandboxIllustration,
+  "approval-path": ApprovalPathIllustration,
+  "compaction-strategy": CompactionStrategyIllustration,
+  "compaction-method": CompactionMethodIllustration,
   tips: TipsIllustration,
 };

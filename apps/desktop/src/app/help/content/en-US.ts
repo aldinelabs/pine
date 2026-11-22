@@ -281,4 +281,65 @@ export default {
       },
     ],
   },
+  "auto-approval-path": {
+    title: "Automatic approval path",
+    summary: "Who decides whether an action that needs a check can go ahead.",
+    steps: [
+      {
+        title: "Two approval paths",
+        body: [
+          "In Auto Approve and Autonomous, actions that reach beyond the project, could be destructive or need more permissions are reviewed first. This setting decides who reviews them:",
+        ],
+        points: [
+          "Model review (the default): every review goes to the approval model. It reads the call and the conversation, then gives a decision and its reasons. You can pick the approval model in Settings › Models › Specialized models.",
+          "Decision model (Beta): a dedicated decision model screens each call first, quickly. Clearly fine calls go ahead; calls that really need your say show an approval card, explained by the approval model; unclear or likely-denied calls go to the approval model for the final decision. Everyday actions get through faster.",
+        ],
+        note: {
+          tone: "tip",
+          text: "The decision model runs through OpenRouter, so connect OpenRouter first. Without it, or if screening times out or fails, Pine switches to model review on its own and work carries on. Autonomous never stops to ask you, so screening there either lets a call through or hands it to the approval model.",
+        },
+      },
+    ],
+  },
+  "compaction-strategy": {
+    title: "Context compaction strategy",
+    summary: "How full the context gets before Pine compacts it.",
+    steps: [
+      {
+        title: "Two compaction strategies",
+        body: [
+          "As a conversation grows, Pine turns earlier parts into a summary to free room for more work. This setting decides when:",
+        ],
+        points: [
+          "Use recommended settings (the default): compacts when the context reaches 80% of the window, at most about 400K tokens. The context stays lean, each turn costs less and the model stays focused.",
+          "Passive compaction: compacts as late as possible, when only about 16K tokens of the window are left. More of the original text stays, but each turn reads more and costs more.",
+        ],
+        note: {
+          tone: "tip",
+          text: "After compaction the full history stays stored in the session, and Pine looks back through it on its own when needed. The recommended settings suit most work.",
+        },
+      },
+    ],
+  },
+  "compaction-method": {
+    title: "Context compaction method",
+    summary:
+      "Who writes the summary of earlier conversation when Pine compacts.",
+    steps: [
+      {
+        title: "Two compaction methods",
+        body: [
+          "When Pine compacts, earlier conversation becomes a summary the model works from. This setting decides how the summary is made:",
+        ],
+        points: [
+          "Model (the default): the current model reads the earlier conversation and writes the summary. It understands the most, but takes one model call's time and tokens.",
+          "Semantic algorithm (Beta): no model call. Rules pick out goals, changed files, commits and a brief account of what happened. It's almost instant and costs no tokens. Pine also gets a recall tool, so it can search the full history for the original text when it needs details.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Neither method deletes history: the original conversation stays stored in the session.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

@@ -61,7 +61,7 @@ function updateStrategy(value: unknown): void {
         }}</FieldTitle>
         <HelpHint
           :label="t('preferences.autoApprovalHelp')"
-          :guide="{ topic: 'approval-modes', step: 1 }"
+          :guide="{ topic: 'auto-approval-path' }"
         >
           {{
             t(

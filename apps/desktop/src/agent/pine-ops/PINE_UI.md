@@ -1057,8 +1057,8 @@ the user opens themselves do not pulse.
       and can still be managed in the Memory manager), Share approximate
       location with AI switch, automatic approval path, context compaction
       strategy and method. With Guide buttons on, the question marks beside
-      the approval path and the two compaction settings open the matching
-      guide step (approval modes; compaction) instead of a tooltip; with
+      the approval path and the two compaction settings open a one-page guide
+      comparing that setting's options instead of a tooltip; with
       them off, or beside settings without a guide, a question mark shows a
       short description on hover (tap on touch screens).
     - Tools: "Choose what Pine can do. Everything is on by default; a change
@@ -1240,9 +1240,9 @@ the user opens themselves do not pulse.
   guide button or menu item such as "How approval modes work". An animated
   picture fills the top (it holds still with reduced motion); below it a
   small line names the guide and the step ("Tool calls and approvals · Step 1
-  of 4"), then the step's title, a few paragraphs, sometimes a bullet list,
+  of 4"; one-page guides show only the name), then the step's title, a few paragraphs, sometimes a bullet list,
   and a highlighted tip (lightbulb) or caution (amber warning sign). The
-  footer has one dot per step (click to jump), Previous (from the second
+  footer has one dot per step (click to jump; none for a one-page guide), Previous (from the second
   step), and Next, which reads Done on the last step and closes the guide.
   Left and Right arrows move between steps. Guides so far: "Tool calls and
   approvals" (what tool calls are, the four approval modes, the approval
@@ -1253,7 +1253,13 @@ the user opens themselves do not pulse.
   effort, good habits), "Steering and stopping" (steering while Pine works,
   Withdraw and Send now, stopping, what a stop keeps, good habits) and
   "Projects and folder access" (projects as sets of folders, Read only and
-  Read and write, the sandbox, good habits). The steering guide has no
+  Read and write, the sandbox, good habits), plus three one-page guides
+  opened from settings' question marks: "Automatic approval path" (Model
+  review versus Decision model (Beta), which screens calls first and hands
+  unclear ones to the approval model, falling back to model review without
+  OpenRouter), "Context compaction strategy" (recommended settings versus
+  Passive compaction) and "Context compaction method" (Model versus Semantic
+  algorithm (Beta) and its recall tool). The steering guide has no
   button of its own yet. The agent can also open any guide at a chosen step, shown
   only while its conversation is on screen; the transcript then reads
   "Opened the “…” guide". Their text is written in Simplified Chinese and English;

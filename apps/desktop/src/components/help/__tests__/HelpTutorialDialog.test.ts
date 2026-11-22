@@ -136,6 +136,21 @@ describe("HelpTutorialDialog", () => {
     expect(help.topicId).toBeNull();
   });
 
+  it("shows a one-page guide without step count or dots", async () => {
+    const help = await mountDialog();
+    help.openTopic("auto-approval-path");
+    await flushPromises();
+
+    const dialog = find("[data-testid=help-tutorial]");
+    expect(dialog.text()).toContain("Two approval paths");
+    expect(dialog.text()).not.toContain("Step 1 of 1");
+    expect(document.querySelector("[data-slot=help-steps]")).toBeNull();
+    expect(find("[data-testid=help-next]").text()).toBe("Done");
+    await find("[data-testid=help-next]").trigger("click");
+    await flushPromises();
+    expect(help.topicId).toBeNull();
+  });
+
   it("moves with the arrow keys and the step dots", async () => {
     const help = await mountDialog();
     help.openTopic("context-window");

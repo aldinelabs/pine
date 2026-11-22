@@ -175,8 +175,10 @@ function onKeydown(event: KeyboardEvent): void {
           content-class="flex flex-col gap-3 ps-6 pt-5 pb-2 text-pretty [line-break:strict]"
         >
           <DialogDescription class="text-muted-foreground text-xs">
-            {{ topic.title }} ·
-            {{ t("help.stepOf", { current: step + 1, total: stepCount }) }}
+            {{ topic.title }}
+            <template v-if="stepCount > 1">
+              · {{ t("help.stepOf", { current: step + 1, total: stepCount }) }}
+            </template>
           </DialogDescription>
           <DialogTitle class="text-lg font-semibold">
             {{ current.title }}
@@ -237,7 +239,13 @@ function onKeydown(event: KeyboardEvent): void {
                the gaps stay equal while the current dot stretches and the
                others slide aside. The negative margin lines the first dot
                up with the text. -->
-          <div class="-ms-1 flex items-center" data-slot="help-steps">
+          <!-- A one-page guide has no dots; the spacer keeps Done on the
+               right. -->
+          <div
+            v-if="stepCount > 1"
+            class="-ms-1 flex items-center"
+            data-slot="help-steps"
+          >
             <button
               v-for="index in stepCount"
               :key="index"
@@ -259,6 +267,7 @@ function onKeydown(event: KeyboardEvent): void {
               />
             </button>
           </div>
+          <span v-else aria-hidden="true" />
           <div class="flex items-center gap-2">
             <Button
               v-if="step > 0"
