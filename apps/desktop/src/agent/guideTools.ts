@@ -68,6 +68,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   skills: [
     "what a Skill is, how Pine picks one, global and project Skills, creating one with Pine",
   ],
+  mcp: [
+    "what MCP servers add, project and all-projects servers, adding one with Pine, status",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

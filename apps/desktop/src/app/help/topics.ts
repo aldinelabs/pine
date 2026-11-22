@@ -33,6 +33,7 @@ export const HELP_TOPIC_STEPS = {
   workbench: ["workbench-panels", "artifacts"],
   "work-style": ["work-style"],
   skills: ["skills"],
+  mcp: ["mcp"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
@@ -61,7 +62,7 @@ export const HELP_TOPIC_GROUPS: readonly {
       "work-style",
     ],
   },
-  { id: "extend", topics: ["skills"] },
+  { id: "extend", topics: ["skills", "mcp"] },
   {
     id: "settings",
     topics: ["auto-approval-path", "compaction-strategy", "compaction-method"],
@@ -94,6 +95,7 @@ export type HelpIllustrationId =
   | "artifacts"
   | "work-style"
   | "skills"
+  | "mcp"
   | "tips";
 
 export interface HelpStepText {

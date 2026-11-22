@@ -483,4 +483,26 @@ export default {
       },
     ],
   },
+  mcp: {
+    title: "MCP servers",
+    summary: "Connect outside tools and data, and Pine can do even more.",
+    steps: [
+      {
+        title: "Plug more tools into Pine",
+        body: [
+          "MCP (Model Context Protocol) is an open standard for connecting AI to outside tools. Add an MCP server and Pine can use the tools it offers, such as querying a database, working in a project tracker or calling your company's internal services.",
+        ],
+        points: [
+          "Add and manage servers in the sidebar's More › MCP servers. Project servers work only in this project; All projects servers live in a shared configuration file that other MCP apps can use too.",
+          "The easiest way is Manage with Pine: send Pine the service's docs link or install command and it writes the configuration. It asks you before saving.",
+          "A server can be a command that runs on this computer or a URL. The list shows Connected, Needs authorization or Connection failed; Refresh status checks again.",
+          "Changes apply from your next message.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Pine reaches MCP through one entry point and looks up a specific tool when it needs one, so even many servers won't crowd the context.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

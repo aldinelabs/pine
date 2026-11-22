@@ -1279,6 +1279,8 @@ the user opens themselves do not pulse.
   style, technical background, Aldine methodology),
   "Skills" (one page: what a Skill is, how Pine picks one, global and
   project Skills, creating one with Pine),
+  "MCP servers" (one page: what MCP servers add, Project and All
+  projects servers, adding one with Pine, status),
   plus three one-page guides opened from settings' question marks:
   "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands

@@ -24,6 +24,7 @@ import WorkbenchPanelsIllustration from "./WorkbenchPanelsIllustration.vue";
 import ArtifactsIllustration from "./ArtifactsIllustration.vue";
 import WorkStyleIllustration from "./WorkStyleIllustration.vue";
 import SkillsIllustration from "./SkillsIllustration.vue";
+import McpIllustration from "./McpIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -58,5 +59,6 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   artifacts: ArtifactsIllustration,
   "work-style": WorkStyleIllustration,
   skills: SkillsIllustration,
+  mcp: McpIllustration,
   tips: TipsIllustration,
 };
