@@ -177,12 +177,16 @@ function onKeydown(event: KeyboardEvent): void {
         <div
           class="flex shrink-0 items-center justify-between gap-3 px-6 pt-3 pb-6"
         >
-          <div class="flex items-center gap-1" data-slot="help-steps">
+          <!-- Each button hugs its dot, with padding as the hit area, so
+               the gaps stay equal while the current dot stretches and the
+               others slide aside. The negative margin lines the first dot
+               up with the text. -->
+          <div class="-ms-1.5 flex items-center" data-slot="help-steps">
             <button
               v-for="index in stepCount"
               :key="index"
               type="button"
-              class="focus-visible:ring-ring/50 flex size-5 items-center justify-center rounded-full outline-none focus-visible:ring-3"
+              class="focus-visible:ring-ring/50 flex h-6 items-center rounded-full px-1.5 outline-none focus-visible:ring-3"
               :aria-label="t('help.goToStep', { step: index })"
               :aria-current="index - 1 === step ? 'step' : undefined"
               @click="goTo(index - 1)"
@@ -190,7 +194,7 @@ function onKeydown(event: KeyboardEvent): void {
               <span
                 :class="
                   cn(
-                    'h-1.5 rounded-full transition-[width,background-color] duration-300 motion-reduce:transition-none',
+                    'ease-out-expo h-1.5 rounded-full transition-[width,background-color] duration-500 motion-reduce:transition-none',
                     index - 1 === step
                       ? 'bg-foreground w-4'
                       : 'bg-foreground/25 w-1.5',
