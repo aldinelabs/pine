@@ -3441,5 +3441,7 @@ export default {
     contextWindowGuide: "So funktioniert der Kontext",
     modelsGuide: "So funktionieren Modelle",
     reasoningEffortGuide: "So funktioniert der Denkaufwand",
+    learnWhy: "Warum?",
+    whyBlocked: "Warum wurde das blockiert?",
   },
 } as const;

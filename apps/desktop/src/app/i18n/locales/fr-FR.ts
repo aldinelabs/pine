@@ -3438,5 +3438,7 @@ export default {
     contextWindowGuide: "Comment fonctionne le contexte",
     modelsGuide: "Comment fonctionnent les modèles",
     reasoningEffortGuide: "Comment fonctionne le niveau de raisonnement",
+    learnWhy: "Comprendre pourquoi",
+    whyBlocked: "Pourquoi est-ce bloqué ?",
   },
 } as const;

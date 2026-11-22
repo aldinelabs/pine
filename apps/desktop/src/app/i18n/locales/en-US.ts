@@ -3347,5 +3347,7 @@ export default {
     contextWindowGuide: "How context works",
     modelsGuide: "How models work",
     reasoningEffortGuide: "How reasoning effort works",
+    learnWhy: "Learn why",
+    whyBlocked: "Why was this blocked?",
   },
 } as const;

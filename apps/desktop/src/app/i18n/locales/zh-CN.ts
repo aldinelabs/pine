@@ -3220,5 +3220,7 @@ export default {
     contextWindowGuide: "上下文是怎么回事",
     modelsGuide: "模型怎么选",
     reasoningEffortGuide: "推理强度怎么调",
+    learnWhy: "了解原因",
+    whyBlocked: "为什么被拦下？",
   },
 } as const;

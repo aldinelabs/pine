@@ -3,13 +3,16 @@ import { computed, ref, watch, type Component } from "vue";
 import {
   CircleAlertIcon,
   CircleCheckIcon,
+  CircleHelpIcon,
   ForwardIcon,
   ShieldBanIcon,
   UserRoundIcon,
 } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
+import type { HelpTopicId } from "@/app/help";
 import { Badge, type BadgeVariants } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +35,8 @@ import type {
 import ProjectToolSemanticValue from "./ProjectToolSemanticValue.vue";
 import { isDeniedTool } from "./toolKinds";
 import { toolViewAdapter } from "./toolViewAdapter";
+import { useAppearanceStore } from "@/stores/appearance";
+import { useHelpStore } from "@/stores/help";
 
 const props = defineProps<{
   toolCall: PineToolCall;
@@ -44,6 +49,8 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
+const appearanceStore = useAppearanceStore();
+const helpStore = useHelpStore();
 const isOpen = ref(false);
 // A transcript mounts one of these per tool call; keep the closed dialog's
 // content tree unmounted until it is first opened. It stays mounted after
@@ -108,6 +115,30 @@ const statusVariant = computed<BadgeVariants["variant"]>(() =>
       ? "outline"
       : "secondary",
 );
+
+/**
+ * Where a blocked call is explained: the sandbox step of the folders guide,
+ * or the approval modes for the approval model's call. A user's own
+ * rejection needs no explanation.
+ */
+const denialGuide = computed<{ topic: HelpTopicId; step: number } | null>(
+  () => {
+    if (!appearanceStore.helpGuides) return null;
+    if (statusKey.value === "sandboxDenied")
+      return { topic: "project-folders", step: 1 };
+    if (statusKey.value === "autoApprovalDenied")
+      return { topic: "approval-modes", step: 1 };
+    return null;
+  },
+);
+
+/** The guide takes the details' place, so the details close first. */
+function openDenialGuide(): void {
+  const guide = denialGuide.value;
+  if (!guide) return;
+  isOpen.value = false;
+  helpStore.openTopic(guide.topic, guide.step);
+}
 
 const approvalKey = computed(() => {
   const approval = props.toolCall.approval;
@@ -269,6 +300,19 @@ async function openDialog(): Promise<void> {
                     t(`project.transcript.toolDetails.approvals.${approvalKey}`)
                   }}
                 </Badge>
+                <Button
+                  v-if="denialGuide"
+                  data-testid="tool-denial-guide"
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  class="ms-1.5"
+                  aria-haspopup="dialog"
+                  @click="openDenialGuide"
+                >
+                  <CircleHelpIcon data-icon="inline-start" />
+                  {{ t("help.whyBlocked") }}
+                </Button>
               </dd>
             </template>
 

@@ -258,7 +258,11 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result). When a call has automatic review records,
+     approval, parameters, result). With Guide buttons on, a call the
+     approval model or the sandbox blocked shows "Why was this blocked?"
+     beside its approval; it closes the details and opens the approval modes
+     step of "Tool calls and approvals" or the sandbox step of "Projects and
+     folder access". When a call has automatic review records,
      Review history lists each Decisions screening or approval-model attempt,
      its actual model and provider, outcome and reason. Each outcome is shown in
      bold with its own icon and colour: green "Allowed", amber "Denied", blue
@@ -667,7 +671,9 @@ From top to bottom:
      section (conversation cost, in the currency chosen in Pine Settings ›
      General) with a Session cost limit switch and amount. Reaching the limit
      stops the running session and blocks new prompts until the limit is raised
-     or cleared; it can be set before a session starts.
+     or cleared; it can be set before a session starts. The notice that says
+     so has "Learn why" (with Guide buttons on), which opens the tokens and
+     cost step of "Context and tokens".
      With Guide buttons on, the popover ends with an item below a divider,
      "How context works", which closes it and opens the "Context and tokens"
      guide.
