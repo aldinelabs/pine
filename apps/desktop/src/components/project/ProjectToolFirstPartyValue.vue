@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { fileLanguage } from "@/lib/fileLanguage";
 import type { PineToolCall } from "@/shared/sessions";
-import ProjectToolValueTable from "./ProjectToolValueTable.vue";
+import ProjectToolJsonValue from "./ProjectToolJsonValue.vue";
 import { toolOutputParts, type ToolDetailView } from "./toolViewAdapter";
 
 const props = defineProps<{
@@ -183,7 +183,7 @@ const hasSpecialResult = computed(
       :loading="toolCall.status === 'running'"
       :node="{ type: 'code_block', code, language: codeLanguage }"
     />
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="Object.keys(parameterFields).length"
       :value="parameterFields"
       :empty-label="t('project.transcript.toolDetails.noParameters')"
@@ -294,12 +294,12 @@ const hasSpecialResult = computed(
         }}</Badge>
       </template>
     </template>
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="Object.keys(resultDetails).length"
       :value="resultDetails"
       :empty-label="t('project.transcript.toolDetails.noResult')"
     />
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="
         !parts.length && !hasSpecialResult && !Object.keys(resultDetails).length
       "

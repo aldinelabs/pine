@@ -268,7 +268,9 @@ From top to bottom:
    - for an automation run, a card at the top with the automation's name,
      trigger and start time; "Instructions" expands what it was asked to do;
    - tool call groups; clicking a call opens Tool call details (status,
-     approval, parameters, result). With Guide buttons on, a call the
+     approval, parameters, result). Parameters and results without a
+     dedicated view show as syntax-highlighted, indented JSON with long lines
+     wrapped and a copy button on hover. With Guide buttons on, a call the
      approval model or the sandbox blocked shows "Why was this blocked?"
      beside its approval; it closes the details and opens the approval modes
      step of "Tool calls and approvals" or the sandbox step of "Projects and

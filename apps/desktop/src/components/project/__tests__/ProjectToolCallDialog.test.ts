@@ -528,7 +528,7 @@ describe("ProjectToolCallDialog", () => {
         .querySelector('[data-slot="dialog-content"] img')
         ?.getAttribute("src"),
     ).toBe("data:image/png;base64,aGVsbG8=");
-    expect(document.body.querySelector("[data-tool-value-table]")).toBeNull();
+    expect(document.body.querySelector("[data-tool-json-value]")).toBeNull();
     computer.unmount();
   });
 
@@ -634,8 +634,11 @@ describe("ProjectToolCallDialog", () => {
     expect(dialogText).toContain("工具调用详情");
     expect(dialogText).toContain("自动审批驳回");
     expect(dialogText).toContain("请改用不会覆盖现有文件的命令。");
-    const tables = document.body.querySelectorAll("[data-tool-value-table]");
-    expect(tables).toHaveLength(1);
+    const jsonBlocks = document.body.querySelectorAll("[data-tool-json-value]");
+    expect(jsonBlocks).toHaveLength(1);
+    expect(jsonBlocks[0]?.textContent).toContain(
+      '{\n  "description": "覆盖现有文件"\n}',
+    );
     expect(dialogText).toContain("dangerous-command");
     expect(dialogText).not.toContain("[0].type");
     expect(dialogText).not.toContain("[0].text");

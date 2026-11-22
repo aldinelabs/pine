@@ -33,6 +33,8 @@ const props = defineProps<{
   node: CodeBlockNodeProps;
   loading?: boolean;
   layout?: "block" | "preview";
+  /** Block layout only: wrap long lines instead of scrolling sideways. */
+  wrap?: boolean;
   /** Preview layout only: line ranges to tint. */
   highlightLines?: readonly FileLineRange[];
   /**
@@ -231,6 +233,7 @@ async function copyCode(): Promise<void> {
         class="code-highlight"
         :data-color-scheme="colorScheme"
         :data-layout="layout"
+        :data-wrap="wrap && layout !== 'preview' ? '' : undefined"
       >
         <div :class="layout === 'preview' ? 'code-preview' : undefined">
           <div
@@ -329,6 +332,13 @@ async function copyCode(): Promise<void> {
   line-height: inherit;
   background: transparent;
   padding: 0;
+}
+
+/* Wrapped blocks break long strings anywhere rather than overflow. */
+.code-highlight[data-wrap] :deep(pre) {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
 }
 
 /* File previews keep line numbers fixed while long lines scroll inside the code area. */

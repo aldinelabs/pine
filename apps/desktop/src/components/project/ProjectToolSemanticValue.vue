@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import type { PineToolCall } from "@/shared/sessions";
 import ProjectToolFirstPartyValue from "./ProjectToolFirstPartyValue.vue";
-import ProjectToolValueTable from "./ProjectToolValueTable.vue";
+import ProjectToolJsonValue from "./ProjectToolJsonValue.vue";
 import {
   editDiffCode,
   editHunks,
@@ -153,7 +153,7 @@ const emptyLabel = computed(() =>
         {{ url }}
       </Badge>
     </div>
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="Object.keys(otherParameters).length"
       :value="otherParameters"
       :empty-label="emptyLabel"
@@ -204,7 +204,7 @@ const emptyLabel = computed(() =>
         </TableRow>
       </TableBody>
     </Table>
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="Object.keys(webDetails).length"
       :value="webDetails"
       :empty-label="emptyLabel"
@@ -232,7 +232,7 @@ const emptyLabel = computed(() =>
         v-if="result.content || result.snippet"
         class="max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap break-words"
         >{{ result.content || result.snippet }}</pre>
-      <ProjectToolValueTable
+      <ProjectToolJsonValue
         v-if="Object.keys(result.metadata).length"
         :value="result.metadata"
         :empty-label="emptyLabel"
@@ -241,7 +241,7 @@ const emptyLabel = computed(() =>
     <p v-if="!results?.length" class="text-sm text-muted-foreground">
       {{ emptyLabel }}
     </p>
-    <ProjectToolValueTable
+    <ProjectToolJsonValue
       v-if="Object.keys(webDetails).length"
       :value="webDetails"
       :empty-label="emptyLabel"
@@ -289,7 +289,7 @@ const emptyLabel = computed(() =>
     </p>
   </div>
 
-  <ProjectToolValueTable
+  <ProjectToolJsonValue
     v-else-if="view === 'fileSearch'"
     :value="section === 'parameters' ? toolCall.input : toolCall.output"
     :empty-label="emptyLabel"
@@ -302,7 +302,7 @@ const emptyLabel = computed(() =>
     :view="fallbackView"
   />
 
-  <ProjectToolValueTable
+  <ProjectToolJsonValue
     v-else
     :value="section === 'parameters' ? toolCall.input : toolCall.output"
     :empty-label="emptyLabel"
