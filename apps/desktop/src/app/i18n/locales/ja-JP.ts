@@ -545,6 +545,9 @@ export default {
     composerGlow: "作業中の光彩",
     composerGlowDescription:
       "エージェントの作業中、入力欄の枠に沿って流れる光を表示します",
+    helpGuides: "図解ガイドのボタン",
+    helpGuidesDescription:
+      "承認モードのメニューやコンテキスト使用量などに、図解ガイドを開くボタンを表示します",
     replySuggestions: "返信の提案",
     replySuggestionsDescription:
       "エージェントが回答した後、次のメッセージの候補を入力欄に表示します。Tab キーで採用します。指示最適化モデルを使用します。",
@@ -3337,5 +3340,16 @@ export default {
       thinking: "思考レベル {level}",
       defaultModel: "既定のモデル",
     },
+  },
+  help: {
+    previous: "前へ",
+    next: "次へ",
+    done: "完了",
+    stepOf: "ステップ {current} / {total}",
+    goToStep: "ステップ {step} へ移動",
+    tip: "ヒント",
+    caution: "注意",
+    approvalModesGuide: "承認モードの使い方",
+    contextWindowGuide: "コンテキストのしくみ",
   },
 } as const;

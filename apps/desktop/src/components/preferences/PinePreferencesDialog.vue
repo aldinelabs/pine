@@ -51,7 +51,7 @@ import AboutSettings from "./about/AboutSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import UsersSettings from "./UsersSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
-import HelpHint from "./HelpHint.vue";
+import HelpHint from "@/components/help/HelpHint.vue";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1428,6 +1428,23 @@ defineExpose({ open });
                         </SelectGroup>
                       </SelectContent>
                     </Select>
+                  </Field>
+
+                  <Field orientation="horizontal">
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-help-guides-setting">
+                        {{ t("preferences.helpGuides") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("preferences.helpGuidesDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Switch
+                      data-testid="pine-help-guides-toggle"
+                      :model-value="appearanceStore.helpGuides"
+                      aria-labelledby="pine-help-guides-setting"
+                      @update:model-value="appearanceStore.setHelpGuides"
+                    />
                   </Field>
                 </FieldGroup>
               </FieldSet>

@@ -505,6 +505,9 @@ export default {
     invertDocumentsDescription: "深色模式下預設反色顯示 PDF、簡報等文件的頁面",
     composerGlow: "工作光效",
     composerGlowDescription: "智慧代理工作時，在輸入框邊框上顯示流動的光",
+    helpGuides: "圖解教學按鈕",
+    helpGuidesDescription:
+      "在審批模式選單、上下文用量等處顯示開啟圖解教學的按鈕",
     replySuggestions: "回覆建議",
     replySuggestionsDescription:
       "智慧體回答後，在輸入框中提供建議的下一則訊息，按 Tab 採用。使用指令最佳化模型。",
@@ -3176,5 +3179,16 @@ export default {
       thinking: "思考強度 {level}",
       defaultModel: "你的預設模型",
     },
+  },
+  help: {
+    previous: "上一步",
+    next: "下一步",
+    done: "完成",
+    stepOf: "第 {current} 步，共 {total} 步",
+    goToStep: "前往第 {step} 步",
+    tip: "提示",
+    caution: "注意",
+    approvalModesGuide: "審批模式怎麼用",
+    contextWindowGuide: "上下文是怎麼回事",
   },
 } as const;

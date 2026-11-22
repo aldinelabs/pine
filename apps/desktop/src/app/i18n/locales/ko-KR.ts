@@ -531,6 +531,9 @@ export default {
     composerGlow: "작업 중 빛 효과",
     composerGlowDescription:
       "에이전트가 작업하는 동안 입력란 테두리를 따라 흐르는 빛을 표시합니다",
+    helpGuides: "그림 가이드 버튼",
+    helpGuidesDescription:
+      "승인 모드 메뉴, 컨텍스트 사용량 등에 그림 가이드를 여는 버튼을 표시합니다",
     replySuggestions: "답장 제안",
     replySuggestionsDescription:
       "에이전트가 답한 뒤 입력란에 다음 메시지를 제안합니다. Tab 키로 사용할 수 있습니다. 프롬프트 최적화 모델을 사용합니다.",
@@ -3292,5 +3295,16 @@ export default {
       thinking: "추론 수준 {level}",
       defaultModel: "기본 모델",
     },
+  },
+  help: {
+    previous: "이전",
+    next: "다음",
+    done: "완료",
+    stepOf: "{total}단계 중 {current}단계",
+    goToStep: "{step}단계로 이동",
+    tip: "팁",
+    caution: "주의",
+    approvalModesGuide: "승인 모드 사용법",
+    contextWindowGuide: "컨텍스트란?",
   },
 } as const;

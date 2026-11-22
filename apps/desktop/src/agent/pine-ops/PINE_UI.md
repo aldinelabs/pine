@@ -57,6 +57,12 @@ to click.
   they keep things apart, not private. Pine runs as one user at a time, and
   only that user's automations and WeChat remote run. With a single user
   (the default) none of this shows anywhere except that Settings section.
+- Guide button: a question-mark icon and a label naming what it explains,
+  as the last item of a menu or popover below a divider (for example "How
+  approval modes work" in the approval mode menu, "How context works" in the
+  Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
+  overlays). Guide buttons can be hidden everywhere with Guide buttons in
+  Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
@@ -536,7 +542,9 @@ From top to bottom:
      (balance autonomy and control), Autonomous Work (maximize autonomy
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling). The choice is saved with the conversation
-     and shared between desktop and remote devices.
+     and shared between desktop and remote devices. With Guide buttons on
+     (General settings), the last item of the approval mode menu, "How
+     approval modes work", opens the "Tool calls and approvals" guide.
    - Sessions the agent starts: when asked, the agent can start a separate
      session that works in the background in this or another project. It
      appears in the left sidebar without opening a tab or changing the active
@@ -648,6 +656,9 @@ From top to bottom:
      General) with a Session cost limit switch and amount. Reaching the limit
      stops the running session and blocks new prompts until the limit is raised
      or cleared; it can be set before a session starts.
+     With Guide buttons on, the popover ends with an item below a divider,
+     "How context works", which closes it and opens the "Context and tokens"
+     guide.
    - Action button: Send message when idle; Steer response (adds the message
      to the running turn) or Stop response while the agent works. The Send
      and Steer tooltips also show Option+Enter (Alt+Enter), which sends
@@ -991,7 +1002,9 @@ the user opens themselves do not pulse.
 - Pine Settings, with sections (a phone shows the section list first):
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
-    rate, US dollars when rates are unavailable), completion signal, attention
+    rate, US dollars when rates are unavailable), Guide buttons (on by
+    default; off hides every button and menu item that opens a guide, in
+    every open window), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
@@ -1204,6 +1217,21 @@ the user opens themselves do not pulse.
   makes the model (Google, OpenAI, Black Forest Labs, …), or a generic shield,
   image or video icon when Pine doesn't recognize the maker. The selected
   model's row shows a check mark in its place.
+- Guides: one dialog that teaches a feature in plain language, opened from a
+  guide button or menu item such as "How approval modes work". An animated
+  picture fills the top (it holds still with reduced motion); below it a
+  small line names the guide and the step ("Tool calls and approvals · Step 1
+  of 4"), then the step's title, a few paragraphs, sometimes a bullet list,
+  and a highlighted tip (lightbulb) or caution (amber warning sign). The
+  footer has one dot per step (click to jump), Previous (from the second
+  step), and Next, which reads Done on the last step and closes the guide.
+  Left and Right arrows move between steps. Guides so far: "Tool calls and
+  approvals" (what tool calls are, the four approval modes, the approval
+  card, good habits) and "Context and tokens" (what the context is, tokens
+  and cost, compaction, keeping the context lean). Their text is written in
+  Simplified Chinese and English; Traditional Chinese shows the Simplified
+  text and other languages show English, while the dialog's buttons follow
+  the interface language.
 - Update dialog: release notes and installing an update. The notes cover every
   version released after the installed one, up to the new version, newest
   first, each under its own version heading and date, in the interface
@@ -1276,6 +1304,7 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 - File preview with text selected: Mod+Alt+M comments on the selection; in
   the comment box Enter saves, Shift+Enter starts a new line and Esc cancels
 - File preview while drawing an area to comment on: Esc cancels
+- Guide dialog: Left / Right previous / next step
 - Who's using Pine?: arrow keys move between users; Return or Space opens
   one; 1–9 open that user
 - Audio and video preview: Space or K play / pause; Left / Right seek 5

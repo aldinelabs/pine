@@ -3,7 +3,9 @@ import { storeToRefs } from "pinia";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import HelpGuideButton from "@/components/help/HelpGuideButton.vue";
 import { Button } from "@/components/ui/button";
+import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -15,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { formatTokenCount } from "@/lib/format-token-count";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useCurrencyStore } from "@/stores/currency";
 import { useSessionStore } from "@/stores/session";
 
@@ -22,7 +25,13 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const { activeSession, contextUsage: usage } = storeToRefs(sessionStore);
 const currencyStore = useCurrencyStore();
+const appearanceStore = useAppearanceStore();
 const isCompacting = ref(false);
+
+/** A menu separator's look: edge to edge across the popover's padding. */
+const DIVIDER_CLASS =
+  "bg-border/50 -mx-1.5 my-1.5 data-[orientation=horizontal]:w-auto";
+const isOpen = ref(false);
 
 onMounted(() => void currencyStore.load());
 
@@ -180,7 +189,7 @@ async function compactContext(): Promise<void> {
 </script>
 
 <template>
-  <Popover>
+  <Popover v-model:open="isOpen">
     <PopoverTrigger as-child>
       <Button
         data-slot="context-usage-trigger"
@@ -243,12 +252,22 @@ async function compactContext(): Promise<void> {
       </Button>
     </PopoverTrigger>
 
-    <PopoverContent side="top" align="start" class="w-72 gap-4">
-      <section class="flex flex-col gap-2" data-testid="context-section">
+    <!-- Opened by pointer or keyboard, focus stays on the trigger rather than
+         ringing the first button, as in the live context popover. -->
+    <PopoverContent
+      side="top"
+      align="start"
+      class="w-72 gap-0 p-1.5"
+      @open-auto-focus.prevent
+    >
+      <!-- Laid out like the approval menu: the dividers run edge to edge and
+           the guide is a menu-style row at the foot. The sections' own
+           padding makes up the popover's usual 1rem inset. -->
+      <Field data-testid="context-section" class="gap-2 p-2.5">
         <div class="flex items-baseline justify-between gap-4">
-          <span class="text-sm font-medium">
+          <FieldTitle>
             {{ t("project.composer.contextUsage.label") }}
-          </span>
+          </FieldTitle>
           <span
             class="text-lg font-semibold tabular-nums"
             :class="usageToneClass"
@@ -257,7 +276,7 @@ async function compactContext(): Promise<void> {
           </span>
         </div>
         <Progress :model-value="usageFraction * 100" class="h-1.5" />
-        <dl class="flex flex-col gap-1 text-sm">
+        <dl class="flex flex-col gap-1">
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-muted-foreground">
               {{ t("project.composer.contextUsage.usedTokens") }}
@@ -294,17 +313,17 @@ async function compactContext(): Promise<void> {
               : t("project.composer.contextUsage.compactNow")
           }}
         </Button>
-      </section>
+      </Field>
 
-      <Separator />
+      <Separator :class="DIVIDER_CLASS" />
 
-      <section class="flex flex-col gap-2" data-testid="cost-section">
+      <Field data-testid="cost-section" class="gap-2 p-2.5">
         <div class="flex items-baseline justify-between gap-4">
-          <span class="text-sm font-medium">
+          <FieldTitle>
             {{ t("project.composer.contextUsage.cost") }}
-          </span>
+          </FieldTitle>
           <span
-            class="text-sm font-medium tabular-nums"
+            class="font-medium tabular-nums"
             :class="limitReached ? 'text-destructive' : ''"
           >
             {{ costText }}
@@ -326,32 +345,33 @@ async function compactContext(): Promise<void> {
               : '',
           ]"
         />
-        <div class="flex items-center justify-between gap-4">
-          <label
-            class="text-muted-foreground text-sm"
+        <Field orientation="horizontal">
+          <FieldLabel
             for="session-cost-limit-toggle"
+            class="text-muted-foreground font-normal"
           >
             {{ t("project.composer.contextUsage.costLimit") }}
-          </label>
+          </FieldLabel>
           <Switch
             id="session-cost-limit-toggle"
             data-testid="cost-limit-toggle"
             :model-value="costLimit != null"
             @update:model-value="toggleLimit"
           />
-        </div>
-        <!-- Collapses to zero height instead of unmounting so it can ease. The
-          negative margin cancels the section's gap while collapsed. -->
+        </Field>
+        <!-- Collapses to zero height instead of unmounting so it can ease.
+               The negative margin cancels the field's gap while collapsed. -->
         <div
           data-testid="cost-limit-field"
           :inert="costLimit == null"
           :class="[
-            'grid transition-[grid-template-rows,opacity,margin] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none',
+            'ease-out-expo grid transition-[grid-template-rows,opacity,margin] duration-500 motion-reduce:transition-none',
             costLimit == null
               ? '-mt-2 grid-rows-[0fr] opacity-0'
               : 'mt-0 grid-rows-[1fr] opacity-100',
           ]"
         >
+          <!-- The padding keeps the focus ring inside the clipped area. -->
           <div class="-m-1 min-h-0 overflow-hidden p-1">
             <div
               class="border-input focus-within:border-ring focus-within:ring-ring/50 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 focus-within:ring-3"
@@ -378,7 +398,17 @@ async function compactContext(): Promise<void> {
             </div>
           </div>
         </div>
-      </section>
+      </Field>
+
+      <!-- The guide opens over the popover's place, so the popover closes. -->
+      <template v-if="appearanceStore.helpGuides">
+        <Separator :class="DIVIDER_CLASS" />
+        <HelpGuideButton
+          topic="context-window"
+          :label="t('help.contextWindowGuide')"
+          @open="isOpen = false"
+        />
+      </template>
     </PopoverContent>
   </Popover>
 </template>

@@ -503,6 +503,9 @@ export default {
       "深色模式下默认反色显示 PDF、演示文稿等文档的页面",
     composerGlow: "工作光效",
     composerGlowDescription: "智能体工作时，在输入框边框上显示流动的光",
+    helpGuides: "图解教程按钮",
+    helpGuidesDescription:
+      "在审批模式菜单、上下文用量等处显示打开图解教程的按钮",
     replySuggestions: "回复建议",
     replySuggestionsDescription:
       "智能体回答后，在输入框中给出建议的下一条消息，按 Tab 采用。使用指令优化模型。",
@@ -3171,5 +3174,16 @@ export default {
       thinking: "思考强度 {level}",
       defaultModel: "你的默认模型",
     },
+  },
+  help: {
+    previous: "上一步",
+    next: "下一步",
+    done: "完成",
+    stepOf: "第 {current} 步，共 {total} 步",
+    goToStep: "转到第 {step} 步",
+    tip: "提示",
+    caution: "注意",
+    approvalModesGuide: "审批模式怎么用",
+    contextWindowGuide: "上下文是怎么回事",
   },
 } as const;

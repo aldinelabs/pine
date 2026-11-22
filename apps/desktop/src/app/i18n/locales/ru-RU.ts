@@ -538,6 +538,9 @@ export default {
     composerGlow: "Свечение во время работы",
     composerGlowDescription:
       "Показывать свет, бегущий по рамке поля ввода, пока агент работает",
+    helpGuides: "Кнопки руководств",
+    helpGuidesDescription:
+      "Показывать кнопки, открывающие иллюстрированные руководства, например в меню режимов подтверждения и в использовании контекста",
     replySuggestions: "Подсказки ответа",
     replySuggestionsDescription:
       "После ответа агента предлагает следующее сообщение в поле ввода; нажмите Tab, чтобы использовать его. Использует модель оптимизации запросов.",
@@ -3340,5 +3343,16 @@ export default {
       thinking: "уровень рассуждений {level}",
       defaultModel: "модель по умолчанию",
     },
+  },
+  help: {
+    previous: "Назад",
+    next: "Далее",
+    done: "Готово",
+    stepOf: "Шаг {current} из {total}",
+    goToStep: "Перейти к шагу {step}",
+    tip: "Совет",
+    caution: "Внимание",
+    approvalModesGuide: "Как работают режимы подтверждения",
+    contextWindowGuide: "Как устроен контекст",
   },
 } as const;

@@ -545,6 +545,9 @@ export default {
     composerGlow: "Halo de travail",
     composerGlowDescription:
       "Affiche une lumière qui parcourt le bord de la zone de saisie pendant que l’agent travaille",
+    helpGuides: "Boutons des guides",
+    helpGuidesDescription:
+      "Affiche les boutons qui ouvrent les guides illustrés, par exemple dans le menu des modes d’approbation et l’utilisation du contexte",
     replySuggestions: "Suggestions de réponse",
     replySuggestionsDescription:
       "Après la réponse de l'agent, propose un message suivant dans la zone de saisie ; appuyez sur Tab pour l'utiliser. Utilise le modèle d'optimisation des prompts.",
@@ -3389,5 +3392,16 @@ export default {
       thinking: "réflexion {level}",
       defaultModel: "votre modèle par défaut",
     },
+  },
+  help: {
+    previous: "Précédent",
+    next: "Suivant",
+    done: "Terminé",
+    stepOf: "Étape {current} sur {total}",
+    goToStep: "Aller à l’étape {step}",
+    tip: "Astuce",
+    caution: "Attention",
+    approvalModesGuide: "Comment fonctionnent les modes d’approbation",
+    contextWindowGuide: "Comment fonctionne le contexte",
   },
 } as const;
