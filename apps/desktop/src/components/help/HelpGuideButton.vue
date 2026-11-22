@@ -6,10 +6,9 @@ import { useAppearanceStore } from "@/stores/appearance";
 import { useHelpStore } from "@/stores/help";
 
 /**
- * Opens one of Pine's guides from the foot of a popover or card: a plain
- * full-width ghost button with an icon and a label, set below a Separator
- * by the parent, with no spacing of its own beyond the container's gap.
- * Menus use a menu item of the same shape instead. It disappears with Guide
+ * Opens one of Pine's guides from the foot of a popover: a row shaped like
+ * a dropdown menu item, set below an edge-to-edge divider in a popover with
+ * a menu's padding (p-1.5), so it matches the guide item in menus. It disappears with Guide
  * buttons off in General settings.
  */
 const props = defineProps<{
@@ -35,8 +34,7 @@ function openGuide(): void {
     data-slot="help-guide-button"
     type="button"
     variant="ghost"
-    size="sm"
-    class="w-full justify-start"
+    class="hover:bg-accent hover:text-accent-foreground h-auto w-full justify-start gap-2.5 rounded-2xl px-3 py-2 font-medium has-data-[icon=inline-start]:pl-3"
     aria-haspopup="dialog"
     @click="openGuide"
   >
