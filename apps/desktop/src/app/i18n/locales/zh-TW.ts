@@ -3221,6 +3221,12 @@ export default {
       artifacts:
         "Pine 交付的檔案會放在這裡，可以歸類、回看版本，也能直接拖出去。",
       subSessions: "子會話會並行工作，完成後通知主會話。",
+      automationRun: "這是一次自動化執行，Pine 自己完成了這些工作。",
+      memorySaved: "Pine 記下了一則筆記，之後的對話也能用上。",
+      stopped: "已停止。做過的改動都還在，接著說下一步就行。",
+      steering: "Pine 做完手上這一步就會看到，也可以「立即傳送」。",
+      skillUsed: "Pine 用上了一項工作技能，會照著裡面的做法完成任務。",
+      mcpUsed: "Pine 透過 MCP 伺服器用上了外部工具。",
     },
     firstUseHints: "一次性提示",
     firstUseHintsDescription: "第一次遇到審批、壓縮等功能時，給一句簡短提示。",

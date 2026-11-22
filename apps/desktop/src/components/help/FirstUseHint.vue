@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { LightbulbIcon } from "@lucide/vue";
-import {
-  computed,
-  onBeforeUnmount,
-  watchEffect,
-  type HTMLAttributes,
-} from "vue";
+import { computed, onBeforeUnmount, type HTMLAttributes } from "vue";
 import { useI18n } from "vue-i18n";
 import type { HelpTopicId } from "@/app/help";
 import { Button } from "@/components/ui/button";
@@ -19,8 +14,7 @@ import { useHelpStore } from "@/stores/help";
 /**
  * A one-time hint: one line of text with Show me and Got it, set into the
  * interface right where a feature first appears. Either button dismisses it
- * for good. Where several places could show the same hint, only the first
- * one mounted does.
+ * for good. A window shows one hint at a time (see the store).
  */
 const props = defineProps<{
   id: FirstUseHintId;
@@ -34,12 +28,10 @@ const hints = useFirstUseHintsStore();
 const help = useHelpStore();
 const holder = Symbol(props.id);
 
-watchEffect(() => {
-  if (hints.isAvailable(props.id)) hints.claim(props.id, holder);
-});
-onBeforeUnmount(() => hints.release(props.id, holder));
+hints.claim(props.id, holder);
+onBeforeUnmount(() => hints.release(holder));
 
-const isShown = computed(() => hints.shows(props.id, holder));
+const isShown = computed(() => hints.shows(holder));
 
 function showGuide(): void {
   hints.dismiss(props.id);

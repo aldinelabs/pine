@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import type { PineAttachment } from "@/shared/attachments";
 import { SendHorizontalIcon, Undo2Icon } from "@lucide/vue";
 import { computed } from "vue";
@@ -112,5 +113,12 @@ async function openAttachment(attachment: PineAttachment): Promise<void> {
         </Button>
       </div>
     </div>
+    <!-- Below the staged messages, while any are waiting. -->
+    <FirstUseHint
+      id="steering"
+      class="w-full shrink-0"
+      :text="t('help.hints.steering')"
+      :guide="{ topic: 'steer-stop' }"
+    />
   </div>
 </template>

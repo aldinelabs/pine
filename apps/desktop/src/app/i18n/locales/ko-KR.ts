@@ -3337,6 +3337,13 @@ export default {
       artifacts:
         "Pine이 전달한 파일은 여기에 모입니다. 폴더로 묶고, 버전을 돌아보고, 바로 끌어다 놓을 수 있습니다.",
       subSessions: "하위 세션은 병렬로 작업하고 끝나면 상위 세션에 알립니다.",
+      automationRun: "자동화 실행입니다. Pine이 이 작업을 스스로 해냈어요.",
+      memorySaved: "Pine이 메모를 저장했어요. 다음 대화에서도 쓸 수 있어요.",
+      stopped:
+        "멈췄어요. 지금까지의 변경은 남아 있으니 다음 할 일을 말해 주세요.",
+      steering: "Pine이 지금 단계를 마치면 읽어요. 지금 보내기도 할 수 있어요.",
+      skillUsed: "Pine이 스킬을 사용해 그 방법대로 작업하고 있어요.",
+      mcpUsed: "Pine이 MCP 서버를 통해 외부 도구를 사용했어요.",
     },
     firstUseHints: "처음 한 번 보는 팁",
     firstUseHintsDescription: "기능을 처음 만날 때 짧은 팁을 보여 줍니다.",

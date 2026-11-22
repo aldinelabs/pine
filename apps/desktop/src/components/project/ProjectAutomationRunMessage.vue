@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import { ChevronRightIcon, WorkflowIcon } from "@lucide/vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -71,4 +72,10 @@ const startedAt = computed(() => {
       </ItemFooter>
     </Item>
   </Collapsible>
+  <FirstUseHint
+    id="automation-run"
+    class="mt-2"
+    :text="t('help.hints.automationRun')"
+    :guide="{ topic: 'automations', step: 1 }"
+  />
 </template>

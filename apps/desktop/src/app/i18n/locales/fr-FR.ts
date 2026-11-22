@@ -3436,6 +3436,16 @@ export default {
         "Les fichiers livrés par Pine arrivent ici. Vous pouvez les classer, revoir leurs versions et les faire glisser directement ailleurs.",
       subSessions:
         "Les sous-sessions travaillent en parallèle et préviennent leur session parente une fois terminées.",
+      automationRun:
+        "Ceci est une exécution automatique : Pine a fait ce travail de lui-même.",
+      memorySaved:
+        "Pine a enregistré une note utile pour les prochaines conversations.",
+      stopped:
+        "Arrêté. Les modifications déjà faites sont conservées ; dites la suite.",
+      steering:
+        "Pine le lira après l'étape en cours, ou utilisez Envoyer maintenant.",
+      skillUsed: "Pine a utilisé une Skill et suit ses instructions.",
+      mcpUsed: "Pine a utilisé un outil externe via un serveur MCP.",
     },
     firstUseHints: "Astuces de première fois",
     firstUseHintsDescription:

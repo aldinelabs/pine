@@ -3416,6 +3416,14 @@ export default {
         "Aquí llegan los archivos que entrega Pine. Se pueden agrupar, conservan sus versiones y se arrastran directamente fuera.",
       subSessions:
         "Las subsesiones trabajan en paralelo y avisan a su sesión principal al terminar.",
+      automationRun:
+        "Esta es una ejecución automática: Pine hizo este trabajo por su cuenta.",
+      memorySaved:
+        "Pine guardó una nota que podrá usar en próximas conversaciones.",
+      stopped: "Detenido. Los cambios hechos se conservan; di qué sigue.",
+      steering: "Pine lo leerá al terminar el paso actual, o usa Enviar ahora.",
+      skillUsed: "Pine usó una Skill y sigue sus instrucciones.",
+      mcpUsed: "Pine usó una herramienta externa a través de un servidor MCP.",
     },
     firstUseHints: "Consejos de primera vez",
     firstUseHintsDescription:

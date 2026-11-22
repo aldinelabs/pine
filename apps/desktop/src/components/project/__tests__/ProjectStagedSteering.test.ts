@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { afterEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -16,7 +17,7 @@ function mountSteering(
 ) {
   const wrapper = mount(ProjectStagedSteering, {
     props: { steeringMessages: messages },
-    global: { plugins: [createAppI18n("zh-CN")] },
+    global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
   });
   wrappers.push(wrapper);
   if (openAttachment) {
