@@ -6,12 +6,7 @@ import { handleError } from "@/app/errors/errorHandler";
 import HelpGuideButton from "@/components/help/HelpGuideButton.vue";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -378,11 +373,13 @@ async function compactContext(): Promise<void> {
         >
           <!-- The padding keeps the focus ring inside the clipped area. -->
           <div class="-m-1 min-h-0 overflow-hidden p-1">
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>{{ currencyStore.symbol }}</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput
+            <div
+              class="border-input focus-within:border-ring focus-within:ring-ring/50 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 focus-within:ring-3"
+            >
+              <span class="text-muted-foreground text-sm" aria-hidden="true">
+                {{ currencyStore.symbol }}
+              </span>
+              <Input
                 v-model="limitDraft"
                 data-testid="cost-limit-input"
                 type="number"
@@ -391,14 +388,14 @@ async function compactContext(): Promise<void> {
                 step="0.5"
                 placeholder="0.00"
                 :aria-label="t('project.composer.contextUsage.costLimit')"
-                class="[appearance:textfield] tabular-nums [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                class="h-auto min-w-0 flex-1 [appearance:textfield] border-0 bg-transparent p-0 text-sm tabular-nums shadow-none focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 @blur="commitLimit"
                 @keydown.enter.prevent="commitLimit"
               />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText>{{ currencyStore.currency }}</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
+              <span class="text-muted-foreground text-xs">
+                {{ currencyStore.currency }}
+              </span>
+            </div>
           </div>
         </div>
       </Field>
