@@ -9,6 +9,7 @@ import {
   ShrinkIcon,
   SlidersHorizontalIcon,
   WandSparklesIcon,
+  BrainIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, type Component } from "vue";
@@ -57,6 +58,7 @@ const TOPIC_ICONS: Record<HelpTopicId, Component> = {
   "auto-approval-path": ShieldQuestionIcon,
   "compaction-strategy": ShrinkIcon,
   "compaction-method": WandSparklesIcon,
+  memory: BrainIcon,
 };
 
 const groups = computed(() =>

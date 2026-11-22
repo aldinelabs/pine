@@ -51,6 +51,10 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   ],
   "compaction-strategy": ["Use recommended settings vs Passive compaction"],
   "compaction-method": ["Model vs Semantic algorithm (Beta)"],
+  memory: [
+    "what memory is, project and global notes, asking Pine to remember",
+    "the Memory manager, Unverified notes, turning memory off",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

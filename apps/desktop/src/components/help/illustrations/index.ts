@@ -17,6 +17,8 @@ import ProjectFoldersIllustration from "./ProjectFoldersIllustration.vue";
 import SandboxIllustration from "./SandboxIllustration.vue";
 import SteerMessageIllustration from "./SteerMessageIllustration.vue";
 import StopTurnIllustration from "./StopTurnIllustration.vue";
+import MemoryNotesIllustration from "./MemoryNotesIllustration.vue";
+import MemoryManagerIllustration from "./MemoryManagerIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -44,5 +46,7 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "approval-path": ApprovalPathIllustration,
   "compaction-strategy": CompactionStrategyIllustration,
   "compaction-method": CompactionMethodIllustration,
+  "memory-notes": MemoryNotesIllustration,
+  "memory-manager": MemoryManagerIllustration,
   tips: TipsIllustration,
 };

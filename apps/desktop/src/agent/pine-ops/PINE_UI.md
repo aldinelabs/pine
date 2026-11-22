@@ -1268,7 +1268,9 @@ the user opens themselves do not pulse.
   effort, good habits), "Steering and stopping" (steering while Pine works,
   Withdraw and Send now, stopping, what a stop keeps, good habits) and
   "Projects and folder access" (projects as sets of folders, Read only and
-  Read and write, the sandbox, good habits), plus three one-page guides
+  Read and write, the sandbox, good habits),
+  "Memory" (asking Pine to remember, project and global notes, the Memory
+  manager, Unverified notes, turning memory off), plus three one-page guides
   opened from settings' question marks: "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands
   unclear ones to the approval model, falling back to model review without

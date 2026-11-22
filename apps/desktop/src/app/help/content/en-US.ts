@@ -342,4 +342,41 @@ export default {
       },
     ],
   },
+  memory: {
+    title: "Memory",
+    summary:
+      "Pine can remember your preferences and decisions, so you don't have to explain them again.",
+    steps: [
+      {
+        title: "Ask Pine to remember",
+        body: [
+          "A model starts every conversation from scratch. Memory lets Pine keep what's worth keeping as notes: later conversations start with the list of notes and read one in full when it's relevant.",
+          'To have it remember something, just say so, for example "Remember: weekly reports use a table, amounts with two decimals". Pine also saves notes on its own when it learns something worth keeping, such as a correction you made, a detail of your setup or a decision.',
+        ],
+        points: [
+          "Project notes appear only in that project's conversations. Good for project conventions and background.",
+          "Global notes are seen in every project. Good for your personal habits and preferences.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Saving or deleting a note shows as a tool call in the conversation, so you can always see what Pine wrote down.",
+        },
+      },
+      {
+        title: "Review and tidy your memory",
+        body: [
+          "The sidebar's More › Memory lists every note in two tabs, This project and All projects. Each note has a name and a one-line summary; Edit changes the summary and details, or deletes the note.",
+        ],
+        points: [
+          "Notes marked Unverified are things Pine inferred and nobody has confirmed. Pine treats them as leads, not facts; once you know a note is right, turn on Verified.",
+          "The easiest way to correct a note is to tell Pine; it rewrites that note.",
+          "To stop using memory, turn off Remember across sessions in Settings › Agent. Pine then neither reads nor saves notes, and the existing notes stay.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Automation runs neither read nor save memory; each run works only from its own definition.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;
