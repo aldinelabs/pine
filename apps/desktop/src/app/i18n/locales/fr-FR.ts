@@ -3351,4 +3351,16 @@ export default {
       defaultModel: "votre modèle par défaut",
     },
   },
+  help: {
+    hintLabel: "En savoir plus : {topic}",
+    openGuide: "Cliquez pour un guide illustré",
+    previous: "Précédent",
+    next: "Suivant",
+    done: "Terminé",
+    stepOf: "Étape {current} sur {total}",
+    goToStep: "Aller à l’étape {step}",
+    tip: "Astuce",
+    caution: "Attention",
+    approvalModesGuide: "Comment fonctionnent les modes d’approbation",
+  },
 } as const;

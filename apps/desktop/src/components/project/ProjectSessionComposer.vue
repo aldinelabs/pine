@@ -5,6 +5,7 @@ import {
   ArrowUpIcon,
   BrainCircuitIcon,
   ChevronDownIcon,
+  CircleHelpIcon,
   CornerDownRightIcon,
   FileIcon,
   FolderIcon,
@@ -121,6 +122,7 @@ import {
 } from "@/shared/promptRewrite";
 import { withoutRelayPrefix } from "@/shared/sessions";
 import { onSessionEvent } from "@/client/sessionEvents";
+import { useHelpStore } from "@/stores/help";
 import { useSessionStore } from "@/stores/session";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
@@ -273,6 +275,7 @@ const hasPendingInterruption = computed(() =>
  * with it. Turning the setting off mid-run takes the normal exit.
  */
 const appearanceStore = useAppearanceStore();
+const helpStore = useHelpStore();
 const isRewriting = ref(false);
 const workingBorderActive = computed(() =>
   Boolean(
@@ -1926,6 +1929,14 @@ function handleRootSubmit(event: Event): void {
                 </span>
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              data-testid="approval-modes-guide"
+              @select="helpStore.openTopic('approval-modes')"
+            >
+              <CircleHelpIcon />
+              {{ t("help.approvalModesGuide") }}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

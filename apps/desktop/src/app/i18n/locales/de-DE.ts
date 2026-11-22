@@ -3354,4 +3354,16 @@ export default {
       defaultModel: "Ihr Standardmodell",
     },
   },
+  help: {
+    hintLabel: "Mehr über {topic}",
+    openGuide: "Klicken für eine bebilderte Anleitung",
+    previous: "Zurück",
+    next: "Weiter",
+    done: "Fertig",
+    stepOf: "Schritt {current} von {total}",
+    goToStep: "Zu Schritt {step}",
+    tip: "Tipp",
+    caution: "Hinweis",
+    approvalModesGuide: "So funktionieren die Freigabemodi",
+  },
 } as const;

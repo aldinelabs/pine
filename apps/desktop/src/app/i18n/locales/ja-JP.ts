@@ -3299,4 +3299,16 @@ export default {
       defaultModel: "既定のモデル",
     },
   },
+  help: {
+    hintLabel: "{topic}について",
+    openGuide: "クリックすると図解ガイドを表示",
+    previous: "前へ",
+    next: "次へ",
+    done: "完了",
+    stepOf: "ステップ {current} / {total}",
+    goToStep: "ステップ {step} へ移動",
+    tip: "ヒント",
+    caution: "注意",
+    approvalModesGuide: "承認モードの使い方",
+  },
 } as const;

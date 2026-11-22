@@ -3331,4 +3331,16 @@ export default {
       defaultModel: "tu modelo predeterminado",
     },
   },
+  help: {
+    hintLabel: "Más sobre {topic}",
+    openGuide: "Haz clic para ver una guía ilustrada",
+    previous: "Anterior",
+    next: "Siguiente",
+    done: "Listo",
+    stepOf: "Paso {current} de {total}",
+    goToStep: "Ir al paso {step}",
+    tip: "Consejo",
+    caution: "Atención",
+    approvalModesGuide: "Cómo funcionan los modos de aprobación",
+  },
 } as const;

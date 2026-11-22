@@ -3302,4 +3302,16 @@ export default {
       defaultModel: "модель по умолчанию",
     },
   },
+  help: {
+    hintLabel: "Подробнее: {topic}",
+    openGuide: "Нажмите, чтобы открыть иллюстрированное руководство",
+    previous: "Назад",
+    next: "Далее",
+    done: "Готово",
+    stepOf: "Шаг {current} из {total}",
+    goToStep: "Перейти к шагу {step}",
+    tip: "Совет",
+    caution: "Внимание",
+    approvalModesGuide: "Как работают режимы подтверждения",
+  },
 } as const;

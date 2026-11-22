@@ -3261,4 +3261,16 @@ export default {
       defaultModel: "your default model",
     },
   },
+  help: {
+    hintLabel: "Learn about {topic}",
+    openGuide: "Click for an illustrated guide",
+    previous: "Previous",
+    next: "Next",
+    done: "Done",
+    stepOf: "Step {current} of {total}",
+    goToStep: "Go to step {step}",
+    tip: "Tip",
+    caution: "Note",
+    approvalModesGuide: "How approval modes work",
+  },
 } as const;

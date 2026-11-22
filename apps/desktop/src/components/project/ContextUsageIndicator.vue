@@ -3,6 +3,7 @@ import { storeToRefs } from "pinia";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { handleError } from "@/app/errors/errorHandler";
+import HelpHint from "@/components/help/HelpHint.vue";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,6 +24,7 @@ const sessionStore = useSessionStore();
 const { activeSession, contextUsage: usage } = storeToRefs(sessionStore);
 const currencyStore = useCurrencyStore();
 const isCompacting = ref(false);
+const isOpen = ref(false);
 
 onMounted(() => void currencyStore.load());
 
@@ -180,7 +182,7 @@ async function compactContext(): Promise<void> {
 </script>
 
 <template>
-  <Popover>
+  <Popover v-model:open="isOpen">
     <PopoverTrigger as-child>
       <Button
         data-slot="context-usage-trigger"
@@ -246,8 +248,10 @@ async function compactContext(): Promise<void> {
     <PopoverContent side="top" align="start" class="w-72 gap-4">
       <section class="flex flex-col gap-2" data-testid="context-section">
         <div class="flex items-baseline justify-between gap-4">
-          <span class="text-sm font-medium">
+          <span class="flex items-baseline gap-2 text-sm font-medium">
             {{ t("project.composer.contextUsage.label") }}
+            <!-- The guide opens over the popover's place, so it closes. -->
+            <HelpHint topic="context-window" @open="isOpen = false" />
           </span>
           <span
             class="text-lg font-semibold tabular-nums"

@@ -3135,4 +3135,16 @@ export default {
       defaultModel: "你的默认模型",
     },
   },
+  help: {
+    hintLabel: "了解：{topic}",
+    openGuide: "点击查看图解教程",
+    previous: "上一步",
+    next: "下一步",
+    done: "完成",
+    stepOf: "第 {current} 步，共 {total} 步",
+    goToStep: "转到第 {step} 步",
+    tip: "提示",
+    caution: "注意",
+    approvalModesGuide: "审批模式怎么用",
+  },
 } as const;

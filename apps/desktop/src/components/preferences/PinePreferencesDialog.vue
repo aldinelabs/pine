@@ -48,7 +48,7 @@ import PiProvidersSettings from "./PiProvidersSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import UsersSettings from "./UsersSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
-import HelpHint from "./HelpHint.vue";
+import HelpHint from "@/components/help/HelpHint.vue";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

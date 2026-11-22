@@ -3255,4 +3255,16 @@ export default {
       defaultModel: "기본 모델",
     },
   },
+  help: {
+    hintLabel: "{topic} 알아보기",
+    openGuide: "클릭하면 그림 가이드를 볼 수 있습니다",
+    previous: "이전",
+    next: "다음",
+    done: "완료",
+    stepOf: "{total}단계 중 {current}단계",
+    goToStep: "{step}단계로 이동",
+    tip: "팁",
+    caution: "주의",
+    approvalModesGuide: "승인 모드 사용법",
+  },
 } as const;
