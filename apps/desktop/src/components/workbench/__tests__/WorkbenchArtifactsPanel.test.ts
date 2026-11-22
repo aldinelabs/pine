@@ -57,6 +57,7 @@ function submission(
     path: string;
     title?: string;
     description?: string;
+    folder?: string;
     snapshot?: typeof storedSnapshot;
   }[],
 ): PineToolCall {
@@ -503,6 +504,42 @@ describe("WorkbenchArtifactsPanel", () => {
     expect(
       wrapper.get('[data-testid="workbench-artifact-version-count"]').text(),
     ).toContain("2");
+  });
+
+  it("lists filed artifacts in folders and remembers collapsed ones", async () => {
+    const calls = [
+      [
+        submission("submit-1", [
+          { path: "/project/out/week1.md", folder: "Reports/Week 1" },
+          { path: "/project/out/data.csv", folder: "Data" },
+          { path: "/project/out/notes.md" },
+        ]),
+      ],
+    ];
+    const folderNames = (wrapper: ReturnType<typeof mount>) =>
+      wrapper
+        .findAll('[data-testid="workbench-artifact-folder-name"]')
+        .map((name) => name.text());
+    const { wrapper } = mountPanel(projectTarget, "read-write", calls);
+    expect(folderNames(wrapper)).toEqual(["Reports", "Week 1", "Data"]);
+    expect(rowTexts(wrapper)).toEqual(["week1.md", "data.csv", "notes.md"]);
+
+    const reports = wrapper.findAll(
+      '[data-testid="workbench-artifact-folder"] button',
+    )[0];
+    expect(reports.attributes("aria-expanded")).toBe("true");
+    await reports.trigger("click");
+    expect(folderNames(wrapper)).toEqual(["Reports", "Data"]);
+    expect(rowTexts(wrapper)).toEqual(["data.csv", "notes.md"]);
+
+    wrapper.unmount();
+    const remounted = mountPanel(projectTarget, "read-write", calls).wrapper;
+    expect(folderNames(remounted)).toEqual(["Reports", "Data"]);
+    expect(
+      remounted
+        .findAll('[data-testid="workbench-artifact-folder"] button')[0]
+        .attributes("aria-expanded"),
+    ).toBe("false");
   });
 
   it("offers no version history for a legacy presentation", async () => {

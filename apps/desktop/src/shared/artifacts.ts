@@ -15,6 +15,11 @@ export interface SessionArtifact {
   path: string;
   title?: string;
   description?: string;
+  /**
+   * The Artifacts folder the agent filed it under ("Reports/Week 1"); ""
+   * files it at the top level explicitly, absent means none was given.
+   */
+  folder?: string;
   /** True for a submitted file, false for a legacy presentation. */
   submitted: boolean;
   /** The copy a submission kept; absent for presentations and older submissions. */
@@ -23,6 +28,25 @@ export interface SessionArtifact {
 
 /** Most files one `ui_submit_artifact` call accepts. */
 export const MAX_SUBMITTED_ARTIFACTS = 50;
+
+/** Deepest folder an artifact can be filed under. */
+export const MAX_ARTIFACT_FOLDER_DEPTH = 4;
+/** Longest folder name (one level) kept. */
+export const MAX_ARTIFACT_FOLDER_NAME_LENGTH = 80;
+
+/**
+ * A folder path as `ui_submit_artifact` records it: levels split on `/` or
+ * `\`, trimmed, without empty, `.` and `..` levels, at most
+ * `MAX_ARTIFACT_FOLDER_DEPTH` deep. "" is the top level.
+ */
+export function normalizeArtifactFolder(value: string): string {
+  return value
+    .split(/[/\\]/)
+    .map((name) => name.trim().slice(0, MAX_ARTIFACT_FOLDER_NAME_LENGTH).trim())
+    .filter((name) => name && name !== "." && name !== "..")
+    .slice(0, MAX_ARTIFACT_FOLDER_DEPTH)
+    .join("/");
+}
 
 /**
  * Key for target and removal maps: the tool call id for a presentation, the
@@ -60,11 +84,16 @@ export function submittedArtifactsOfCall(
     const title = optionalText(record.title);
     const description = optionalText(record.description);
     const snapshot = parseArtifactSnapshot(record.snapshot);
+    const folder =
+      typeof record.folder === "string"
+        ? normalizeArtifactFolder(record.folder)
+        : undefined;
     artifacts.push({
       toolCallId: call.id,
       path: record.path,
       ...(title ? { title } : {}),
       ...(description ? { description } : {}),
+      ...(folder !== undefined ? { folder } : {}),
       submitted: true,
       ...(snapshot ? { snapshot } : {}),
     });
@@ -130,7 +159,8 @@ export function artifactsOfCalls(calls: Iterable<PineToolCall>): CallArtifacts {
 }
 
 /**
- * The session's artifacts, newest first and one per path. Once any submission
+ * The session's artifacts, newest first and one per path. A resubmission
+ * without a folder stays in the folder it was filed under. Once any submission
  * exists only submitted files count; otherwise presentations recorded before
  * `ui_submit_artifact` existed do, so older sessions keep their list.
  *
@@ -146,11 +176,62 @@ export function collectArtifacts(
   const byPath = new Map<string, SessionArtifact>();
   for (const chunk of list) {
     for (const artifact of useSubmitted ? chunk.submitted : chunk.legacy) {
+      const previous = byPath.get(artifact.path);
       byPath.delete(artifact.path);
-      byPath.set(artifact.path, artifact);
+      byPath.set(
+        artifact.path,
+        artifact.folder === undefined && previous?.folder !== undefined
+          ? { ...artifact, folder: previous.folder }
+          : artifact,
+      );
     }
   }
   return [...byPath.values()].reverse();
+}
+
+/** A folder of the Artifacts tree and what it holds. */
+export interface ArtifactFolderNode<T> {
+  /** The folder's path from the top level ("Reports/Week 1"). */
+  path: string;
+  name: string;
+  folders: ArtifactFolderNode<T>[];
+  /** Files directly in this folder, in the order given. */
+  files: T[];
+}
+
+/**
+ * Files the Artifacts list in folders. Folders come before files at each
+ * level, ordered by their newest file; files keep the order given (newest
+ * first). A file without a folder sits at the top level.
+ */
+export function artifactTree<T extends { folder?: string }>(
+  artifacts: readonly T[],
+): ArtifactFolderNode<T> {
+  const root: ArtifactFolderNode<T> = {
+    path: "",
+    name: "",
+    folders: [],
+    files: [],
+  };
+  const byPath = new Map<string, ArtifactFolderNode<T>>([["", root]]);
+  function folderAt(path: string): ArtifactFolderNode<T> {
+    const known = byPath.get(path);
+    if (known) return known;
+    const slash = path.lastIndexOf("/");
+    const parent = folderAt(slash < 0 ? "" : path.slice(0, slash));
+    const node: ArtifactFolderNode<T> = {
+      path,
+      name: path.slice(slash + 1),
+      folders: [],
+      files: [],
+    };
+    parent.folders.push(node);
+    byPath.set(path, node);
+    return node;
+  }
+  for (const artifact of artifacts)
+    folderAt(artifact.folder ?? "").files.push(artifact);
+  return root;
 }
 
 /** Largest file a submission keeps a copy of; a larger one only records its size. */

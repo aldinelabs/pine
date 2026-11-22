@@ -12,6 +12,7 @@ import {
 } from "../shared/agent";
 import {
   MAX_SUBMITTED_ARTIFACTS,
+  normalizeArtifactFolder,
   type ArtifactSnapshot,
 } from "../shared/artifacts";
 import { snapshotFile, submissionEntryKey } from "./artifactStore";
@@ -28,6 +29,7 @@ const DESCRIPTION = [
   "- Submitting a path again also updates its title and description and moves it to the top.",
   "- Paths must be files inside the folders shared with Pine or the user's attachments; save or copy a deliverable into a shared folder first. Directories and missing files are rejected per file, and the result lists what was accepted and rejected.",
   "- title (short) and description (one line) are optional and shown in the Artifacts list.",
+  "- folder files the deliverable under a folder of the Artifacts list, nested with `/` (for example `Reports/Week 1`); it only groups the list and does not move the file. When a session has many deliverables, or several kinds of them, give each a folder by topic or kind and reuse the same names; leave it out for one or two files. A resubmission without folder stays where it was; pass an empty string to move it to the top level.",
 ].join("\n");
 
 const submitArtifactParams = Type.Object({
@@ -50,6 +52,13 @@ const submitArtifactParams = Type.Object({
           description: "One line on what the file is.",
         }),
       ),
+      folder: Type.Optional(
+        Type.String({
+          maxLength: 200,
+          description:
+            'Artifacts list folder, nested with `/`; "" for the top level.',
+        }),
+      ),
     }),
     {
       minItems: 1,
@@ -66,6 +75,8 @@ export interface SubmittedArtifactDetail {
   requestedPath: string;
   title?: string;
   description?: string;
+  /** The Artifacts folder given ("" for the top level); absent when none was. */
+  folder?: string;
   /** The copy kept of the file; absent when the session has no version store. */
   snapshot?: ArtifactSnapshot;
 }
@@ -89,6 +100,11 @@ export interface SubmitArtifactToolOptions {
 function trimmed(value: string | undefined): string | undefined {
   const text = value?.trim();
   return text ? text : undefined;
+}
+
+function folderLabel(folder: string | undefined): string {
+  if (folder === undefined) return "";
+  return folder ? ` [${folder}/]` : " [top level]";
 }
 
 /**
@@ -153,6 +169,10 @@ export function createSubmitArtifactToolDefinition(
         }
         const title = trimmed(file.title);
         const description = trimmed(file.description);
+        const folder =
+          file.folder === undefined
+            ? undefined
+            : normalizeArtifactFolder(file.folder);
         // A path given twice keeps its first position and the last labels.
         const previous = accepted.get(authorized);
         accepted.set(authorized, {
@@ -160,6 +180,7 @@ export function createSubmitArtifactToolDefinition(
           requestedPath: previous?.requestedPath ?? requested,
           ...(title ? { title } : {}),
           ...(description ? { description } : {}),
+          ...(folder !== undefined ? { folder } : {}),
         });
       }
       const files = [...accepted.values()];
@@ -193,7 +214,8 @@ export function createSubmitArtifactToolDefinition(
       }
       const acceptedText = files
         .map(
-          ({ path: file, title }) => `- ${file}${title ? ` — ${title}` : ""}`,
+          ({ path: file, title, folder }) =>
+            `- ${file}${title ? ` — ${title}` : ""}${folderLabel(folder)}`,
         )
         .join("\n");
       const details: SubmitArtifactDetails = { files, rejected };

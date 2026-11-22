@@ -53,7 +53,12 @@ async function setup(
     sessionManager: { getSessionId: () => "session-1" },
   } as never;
   const submit = (
-    files: { path: string; title?: string; description?: string }[],
+    files: {
+      path: string;
+      title?: string;
+      description?: string;
+      folder?: string;
+    }[],
   ) => tool.execute("submit-call", { files }, undefined, undefined, context);
   return {
     outside,
@@ -196,6 +201,29 @@ describe("ui_submit_artifact", () => {
       },
       { path: path.join(readWrite, "b.md"), requestedPath: "b.md" },
     ]);
+  });
+
+  it("records each file's folder and tells the agent to group by topic", async () => {
+    const { readWrite, submit, tool } = await setup();
+    await writeFile(path.join(readWrite, "a.md"), "a");
+    await writeFile(path.join(readWrite, "b.md"), "b");
+    await writeFile(path.join(readWrite, "c.md"), "c");
+
+    const result = await submit([
+      { path: "a.md", folder: " Reports / Week 1/ " },
+      { path: "b.md", folder: "" },
+      { path: "c.md" },
+    ]);
+
+    expect(detailsOf(result).files.map((file) => file.folder)).toEqual([
+      "Reports/Week 1",
+      "",
+      undefined,
+    ]);
+    expect(textOf(result)).toContain("a.md [Reports/Week 1/]");
+    expect(textOf(result)).toContain("b.md [top level]");
+    expect(tool.description).toContain("folder");
+    expect(tool.description).toContain("by topic");
   });
 
   it("tells the agent to submit again after each revision", async () => {

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   artifactKey,
   artifactsOfCalls,
+  artifactTree,
   collectArtifacts,
   legacyPresentedArtifactOfCall,
+  normalizeArtifactFolder,
   submittedArtifactsOfCall,
 } from "../artifacts";
 import type { PineToolCall } from "../sessions";
@@ -30,7 +32,12 @@ function present(
 
 function submit(
   id: string,
-  files: { path: string; title?: string; description?: string }[],
+  files: {
+    path: string;
+    title?: string;
+    description?: string;
+    folder?: string;
+  }[],
   status: PineToolCall["status"] = "complete",
 ): PineToolCall {
   return {
@@ -143,6 +150,69 @@ describe("session artifacts", () => {
     expect(artifactKey("call", "/abs/a.md")).toBe("call\n/abs/a.md");
     expect(artifactKey("call", "/abs/a.md")).toBe(
       artifactKey("call", "/abs/a.md"),
+    );
+  });
+});
+
+describe("artifact folders", () => {
+  it("normalizes folder paths", () => {
+    expect(normalizeArtifactFolder(" Reports / Week 1 ")).toBe(
+      "Reports/Week 1",
+    );
+    expect(normalizeArtifactFolder("a\\b//./../c")).toBe("a/b/c");
+    expect(normalizeArtifactFolder("/")).toBe("");
+    expect(normalizeArtifactFolder("a/b/c/d/e/f")).toBe("a/b/c/d");
+  });
+
+  it("reads folders from the tool result, keeping an explicit top level", () => {
+    expect(
+      submittedArtifactsOfCall(
+        submit("s1", [
+          { path: "a.md", folder: "Reports/ Week 1" },
+          { path: "b.md", folder: "" },
+          { path: "c.md" },
+        ]),
+      ).map((artifact) => artifact.folder),
+    ).toEqual(["Reports/Week 1", "", undefined]);
+  });
+
+  it("keeps a resubmission without a folder in its folder", () => {
+    const result = collect(
+      [
+        submit("s1", [
+          { path: "a.md", folder: "Reports" },
+          { path: "b.md", folder: "Data" },
+        ]),
+      ],
+      [submit("s2", [{ path: "a.md" }, { path: "b.md", folder: "" }])],
+    );
+    expect(result.map(({ path, folder }) => ({ path, folder }))).toEqual([
+      { path: "/abs/a.md", folder: "Reports" },
+      { path: "/abs/b.md", folder: "" },
+    ]);
+  });
+
+  it("builds a tree with folders first, ordered by their newest file", () => {
+    const tree = artifactTree([
+      { name: "new", folder: "Reports/Week 2" },
+      { name: "top" },
+      { name: "data", folder: "Data" },
+      { name: "old", folder: "Reports/Week 1" },
+      { name: "summary", folder: "Reports" },
+      { name: "root", folder: "" },
+    ]);
+    expect(tree.files.map((file) => file.name)).toEqual(["top", "root"]);
+    expect(tree.folders.map((folder) => folder.path)).toEqual([
+      "Reports",
+      "Data",
+    ]);
+    const [reports] = tree.folders;
+    expect(reports.files.map((file) => file.name)).toEqual(["summary"]);
+    expect(reports.folders.map((folder) => [folder.name, folder.path])).toEqual(
+      [
+        ["Week 2", "Reports/Week 2"],
+        ["Week 1", "Reports/Week 1"],
+      ],
     );
   });
 });

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import {
   AppWindowIcon,
+  ChevronRightIcon,
   EyeIcon,
   FilesIcon,
+  FolderIcon,
+  FolderOpenIcon,
   HistoryIcon,
   PencilIcon,
   Trash2Icon,
@@ -66,12 +69,15 @@ import {
 import {
   artifactKey,
   artifactsOfCalls,
+  artifactTree,
   collectArtifacts,
+  type ArtifactFolderNode,
   type CallArtifacts,
   type SessionArtifact,
 } from "@/shared/artifacts";
 import { isValidProjectEntryName } from "@/shared/fileNames";
 import type { FilePreviewTarget } from "@/shared/projectFiles";
+import { useArtifactFoldersStore } from "@/stores/artifactFolders";
 import {
   useArtifactVersionStore,
   workbenchVersionKey,
@@ -85,6 +91,17 @@ import { useWorkbenchStore } from "@/stores/workbench";
 type Artifact = SessionArtifact & { key: string };
 
 type ProjectTarget = Extract<FilePreviewTarget, { source: "project" }>;
+
+/** One visible row of the Artifacts tree, indented by its depth. */
+type Row =
+  | {
+      kind: "folder";
+      key: string;
+      depth: number;
+      folder: ArtifactFolderNode<Artifact>;
+      expanded: boolean;
+    }
+  | { kind: "file"; key: string; depth: number; artifact: Artifact };
 
 const { t } = useI18n();
 const sessionStore = useSessionStore();
@@ -133,11 +150,59 @@ const artifacts = computed<Artifact[]>((previous) => {
         previous[index].key === artifact.key &&
         previous[index].path === artifact.path &&
         previous[index].title === artifact.title &&
-        previous[index].description === artifact.description,
+        previous[index].description === artifact.description &&
+        previous[index].folder === artifact.folder,
     )
     ? previous
     : next;
 });
+
+const folders = useArtifactFoldersStore();
+
+function folderExpanded(path: string): boolean {
+  const sessionId = activeSession.value?.id;
+  return !sessionId || folders.isExpanded(sessionId, path);
+}
+
+function toggleFolder(path: string): void {
+  const sessionId = activeSession.value?.id;
+  if (sessionId)
+    folders.setExpanded(sessionId, path, !folders.isExpanded(sessionId, path));
+}
+
+/** The tree's visible rows: a collapsed folder hides what it holds. */
+const rows = computed<Row[]>(() => {
+  const list: Row[] = [];
+  function add(node: ArtifactFolderNode<Artifact>, depth: number): void {
+    for (const folder of node.folders) {
+      const expanded = folderExpanded(folder.path);
+      list.push({
+        kind: "folder",
+        key: `folder:${folder.path}`,
+        depth,
+        folder,
+        expanded,
+      });
+      if (expanded) add(folder, depth + 1);
+    }
+    for (const artifact of node.files)
+      list.push({
+        kind: "file",
+        key: `file:${artifact.path}`,
+        depth,
+        artifact,
+      });
+  }
+  add(artifactTree(artifacts.value), 0);
+  return list;
+});
+
+/** Indents a row by its depth in the tree. */
+function indent(depth: number): Record<string, string> | undefined {
+  return depth
+    ? { paddingInlineStart: `calc(0.5rem + ${depth} * 1rem)` }
+    : undefined;
+}
 
 const previewedKey = computed(() => {
   const preview = workbench.activeLayout.preview;
@@ -441,118 +506,161 @@ async function submitDialog(): Promise<void> {
       </EmptyHeader>
     </Empty>
     <SidebarMenu v-else class="px-(--workbench-inset) pb-(--workbench-inset)">
-      <SidebarMenuItem
-        v-for="artifact in artifacts"
-        :key="artifact.path"
-        data-testid="workbench-artifact"
-      >
-        <ContextMenu @update:open="loadMenuTarget(artifact, $event)">
-          <ContextMenuTrigger as-child>
-            <SidebarMenuButton
-              :is-active="isPreviewed(artifact)"
-              :size="artifact.description ? 'lg' : 'default'"
-              :class="versionCount(artifact) > 1 && 'pr-12'"
-              :title="
-                artifact.description
-                  ? `${displayPath(artifact)}\n${artifact.description}`
-                  : displayPath(artifact)
-              "
-              draggable="true"
-              @pointerdown="prepareDrag($event, artifact)"
-              @dragstart="startDrag($event, artifact)"
-              @click="show(artifact)"
-              @dblclick="openInTab(artifact)"
-            >
-              <component
-                :is="fileIcon(displayPath(artifact))"
-                aria-hidden="true"
-              />
-              <span
-                v-if="artifact.description"
-                class="flex min-w-0 flex-1 flex-col"
-              >
-                <span data-testid="workbench-artifact-name" class="truncate">{{
-                  artifact.title ?? fileName(displayPath(artifact))
-                }}</span>
-                <span
-                  data-testid="workbench-artifact-description"
-                  class="truncate text-xs font-normal text-muted-foreground"
-                  >{{ artifact.description }}</span
-                >
-              </span>
-              <span
-                v-else
-                data-testid="workbench-artifact-name"
-                class="min-w-0 flex-1 truncate"
-                >{{ artifact.title ?? fileName(displayPath(artifact)) }}</span
-              >
-            </SidebarMenuButton>
-          </ContextMenuTrigger>
-          <ContextMenuContent class="w-52 [&_[data-inset]]:pl-8">
-            <ContextMenuGroup>
-              <ContextMenuItem @select="show(artifact)">
-                <EyeIcon aria-hidden="true" />
-                {{ t("project.workbench.artifacts.preview") }}
-              </ContextMenuItem>
-              <ContextMenuItem @select="openInTab(artifact)">
-                <AppWindowIcon aria-hidden="true" />
-                {{ t("project.workbench.preview.openInTab") }}
-              </ContextMenuItem>
-              <ContextMenuItem
-                v-if="artifact.submitted"
-                data-testid="workbench-artifact-versions"
-                @select="showVersions(artifact)"
-              >
-                <HistoryIcon aria-hidden="true" />
-                {{ t("project.workbench.artifacts.versions.menu") }}
-              </ContextMenuItem>
-            </ContextMenuGroup>
-            <ContextMenuSeparator />
-            <ContextMenuGroup>
-              <ContextMenuItem inset @select="runNative(artifact, 'open')">
-                {{ t("project.files.open") }}
-              </ContextMenuItem>
-              <ContextMenuItem inset @select="runNative(artifact, 'reveal')">
-                {{ t("project.files.reveal") }}
-              </ContextMenuItem>
-              <ContextMenuItem inset @select="runNative(artifact, 'copy-path')">
-                {{ t("project.files.copyPath") }}
-              </ContextMenuItem>
-            </ContextMenuGroup>
-            <ContextMenuSeparator />
-            <ContextMenuGroup>
-              <ContextMenuItem
-                :disabled="busy || !editableTarget(artifact)"
-                @select="showDialog('rename', artifact)"
-              >
-                <PencilIcon aria-hidden="true" />
-                {{ t("project.files.rename") }}
-              </ContextMenuItem>
-              <ContextMenuItem
-                variant="destructive"
-                :disabled="busy || !editableTarget(artifact)"
-                @select="showDialog('trash', artifact)"
-              >
-                <Trash2Icon aria-hidden="true" />
-                {{ t("project.files.trash") }}
-              </ContextMenuItem>
-            </ContextMenuGroup>
-          </ContextMenuContent>
-        </ContextMenu>
-        <SidebarMenuBadge
-          v-if="versionCount(artifact) > 1"
-          data-testid="workbench-artifact-version-count"
-          class="gap-0.5 text-muted-foreground"
+      <template v-for="row in rows" :key="row.key">
+        <SidebarMenuItem
+          v-if="row.kind === 'folder'"
+          data-testid="workbench-artifact-folder"
         >
-          <HistoryIcon class="size-3" aria-hidden="true" />
-          <span aria-hidden="true">{{ versionCount(artifact) }}</span>
-          <span class="sr-only">{{
-            t("project.workbench.artifacts.versions.count", {
-              count: versionCount(artifact),
-            })
-          }}</span>
-        </SidebarMenuBadge>
-      </SidebarMenuItem>
+          <SidebarMenuButton
+            :aria-expanded="row.expanded"
+            :title="row.folder.path"
+            :style="indent(row.depth)"
+            @click="toggleFolder(row.folder.path)"
+          >
+            <ChevronRightIcon
+              aria-hidden="true"
+              class="transition-transform"
+              :class="row.expanded && 'rotate-90'"
+            />
+            <component
+              :is="row.expanded ? FolderOpenIcon : FolderIcon"
+              aria-hidden="true"
+            />
+            <span
+              data-testid="workbench-artifact-folder-name"
+              class="min-w-0 flex-1 truncate"
+              >{{ row.folder.name }}</span
+            >
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <template v-else>
+          <SidebarMenuItem
+            v-for="artifact in [row.artifact]"
+            :key="artifact.path"
+            data-testid="workbench-artifact"
+          >
+            <ContextMenu @update:open="loadMenuTarget(artifact, $event)">
+              <ContextMenuTrigger as-child>
+                <SidebarMenuButton
+                  :is-active="isPreviewed(artifact)"
+                  :size="artifact.description ? 'lg' : 'default'"
+                  :class="versionCount(artifact) > 1 && 'pr-12'"
+                  :style="indent(row.depth)"
+                  :title="
+                    artifact.description
+                      ? `${displayPath(artifact)}\n${artifact.description}`
+                      : displayPath(artifact)
+                  "
+                  draggable="true"
+                  @pointerdown="prepareDrag($event, artifact)"
+                  @dragstart="startDrag($event, artifact)"
+                  @click="show(artifact)"
+                  @dblclick="openInTab(artifact)"
+                >
+                  <component
+                    :is="fileIcon(displayPath(artifact))"
+                    aria-hidden="true"
+                  />
+                  <span
+                    v-if="artifact.description"
+                    class="flex min-w-0 flex-1 flex-col"
+                  >
+                    <span
+                      data-testid="workbench-artifact-name"
+                      class="truncate"
+                      >{{
+                        artifact.title ?? fileName(displayPath(artifact))
+                      }}</span
+                    >
+                    <span
+                      data-testid="workbench-artifact-description"
+                      class="truncate text-xs font-normal text-muted-foreground"
+                      >{{ artifact.description }}</span
+                    >
+                  </span>
+                  <span
+                    v-else
+                    data-testid="workbench-artifact-name"
+                    class="min-w-0 flex-1 truncate"
+                    >{{
+                      artifact.title ?? fileName(displayPath(artifact))
+                    }}</span
+                  >
+                </SidebarMenuButton>
+              </ContextMenuTrigger>
+              <ContextMenuContent class="w-52 [&_[data-inset]]:pl-8">
+                <ContextMenuGroup>
+                  <ContextMenuItem @select="show(artifact)">
+                    <EyeIcon aria-hidden="true" />
+                    {{ t("project.workbench.artifacts.preview") }}
+                  </ContextMenuItem>
+                  <ContextMenuItem @select="openInTab(artifact)">
+                    <AppWindowIcon aria-hidden="true" />
+                    {{ t("project.workbench.preview.openInTab") }}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    v-if="artifact.submitted"
+                    data-testid="workbench-artifact-versions"
+                    @select="showVersions(artifact)"
+                  >
+                    <HistoryIcon aria-hidden="true" />
+                    {{ t("project.workbench.artifacts.versions.menu") }}
+                  </ContextMenuItem>
+                </ContextMenuGroup>
+                <ContextMenuSeparator />
+                <ContextMenuGroup>
+                  <ContextMenuItem inset @select="runNative(artifact, 'open')">
+                    {{ t("project.files.open") }}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    inset
+                    @select="runNative(artifact, 'reveal')"
+                  >
+                    {{ t("project.files.reveal") }}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    inset
+                    @select="runNative(artifact, 'copy-path')"
+                  >
+                    {{ t("project.files.copyPath") }}
+                  </ContextMenuItem>
+                </ContextMenuGroup>
+                <ContextMenuSeparator />
+                <ContextMenuGroup>
+                  <ContextMenuItem
+                    :disabled="busy || !editableTarget(artifact)"
+                    @select="showDialog('rename', artifact)"
+                  >
+                    <PencilIcon aria-hidden="true" />
+                    {{ t("project.files.rename") }}
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    variant="destructive"
+                    :disabled="busy || !editableTarget(artifact)"
+                    @select="showDialog('trash', artifact)"
+                  >
+                    <Trash2Icon aria-hidden="true" />
+                    {{ t("project.files.trash") }}
+                  </ContextMenuItem>
+                </ContextMenuGroup>
+              </ContextMenuContent>
+            </ContextMenu>
+            <SidebarMenuBadge
+              v-if="versionCount(artifact) > 1"
+              data-testid="workbench-artifact-version-count"
+              class="gap-0.5 text-muted-foreground"
+            >
+              <HistoryIcon class="size-3" aria-hidden="true" />
+              <span aria-hidden="true">{{ versionCount(artifact) }}</span>
+              <span class="sr-only">{{
+                t("project.workbench.artifacts.versions.count", {
+                  count: versionCount(artifact),
+                })
+              }}</span>
+            </SidebarMenuBadge>
+          </SidebarMenuItem>
+        </template>
+      </template>
     </SidebarMenu>
   </div>
 

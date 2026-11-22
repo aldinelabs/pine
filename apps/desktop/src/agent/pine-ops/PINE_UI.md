@@ -800,6 +800,12 @@ close the card. The panels are:
   description when given); Preview in workbench. Files the agent only
   presents (to show progress or comparisons) are not listed. Conversations
   from before this feature list the files the agent presented.
+  The agent can file deliverables into folders (nested, such as
+  Reports › Week 1); folders are listed before files, newest activity first,
+  and only group the list (the files stay where they are on disk). Click a
+  folder to collapse or expand it; Pine remembers this per conversation.
+  Files without a folder stay at the top level. Folders can't be created,
+  renamed or rearranged by hand; ask the agent to refile deliverables.
   Each submission keeps a copy of the file (files up to 25 MB; up to 1 GB
   of copies per project, the oldest removed first); a file with more than
   one kept version shows a clock badge with the number of versions.
