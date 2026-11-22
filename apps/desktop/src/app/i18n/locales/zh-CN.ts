@@ -3218,8 +3218,7 @@ export default {
       subSessions: "子会话会并行工作，完成后通知主会话。",
     },
     firstUseHints: "一次性提示",
-    firstUseHintsDescription:
-      "第一次遇到审批、上下文压缩、产出文件和子会话时，显示一条简短提示。",
+    firstUseHintsDescription: "第一次遇到审批、压缩等功能时，给一句简短提示。",
     firstUseHintsReset: "重新显示",
     guides: "指南",
     guidesDescription: "用图文简单讲讲 Pine 能做什么，以及怎么用得更好。",

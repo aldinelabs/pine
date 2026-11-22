@@ -3439,7 +3439,7 @@ export default {
     },
     firstUseHints: "Astuces de première fois",
     firstUseHintsDescription:
-      "De courtes astuces la première fois que vous voyez une approbation, une compaction, un livrable ou une sous-session.",
+      "Une courte astuce la première fois que vous croisez une fonction.",
     firstUseHintsReset: "Afficher à nouveau",
     guides: "Guides",
     guidesDescription:

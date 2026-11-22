@@ -3387,7 +3387,7 @@ export default {
     },
     firstUseHints: "初回のヒント",
     firstUseHintsDescription:
-      "承認、圧縮、成果物、サブセッションに初めて出会ったときに短いヒントを表示します。",
+      "機能に初めて出会ったときに短いヒントを表示します。",
     firstUseHintsReset: "もう一度表示",
     guides: "ガイド",
     guidesDescription:

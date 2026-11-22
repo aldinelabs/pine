@@ -3346,8 +3346,7 @@ export default {
         "Sub-sessions work in parallel and tell their parent when they're done.",
     },
     firstUseHints: "One-time tips",
-    firstUseHintsDescription:
-      "Short tips the first time you see an approval, a compaction, an artifact or a sub-session.",
+    firstUseHintsDescription: "A short tip the first time you meet a feature.",
     firstUseHintsReset: "Show again",
     guides: "Guides",
     guidesDescription:

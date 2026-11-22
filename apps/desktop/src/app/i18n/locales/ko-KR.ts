@@ -3339,8 +3339,7 @@ export default {
       subSessions: "하위 세션은 병렬로 작업하고 끝나면 상위 세션에 알립니다.",
     },
     firstUseHints: "처음 한 번 보는 팁",
-    firstUseHintsDescription:
-      "승인, 압축, 결과물, 하위 세션을 처음 볼 때 짧은 팁을 보여 줍니다.",
+    firstUseHintsDescription: "기능을 처음 만날 때 짧은 팁을 보여 줍니다.",
     firstUseHintsReset: "다시 보기",
     guides: "가이드",
     guidesDescription:

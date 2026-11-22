@@ -3441,7 +3441,7 @@ export default {
     },
     firstUseHints: "Einmalige Hinweise",
     firstUseHintsDescription:
-      "Kurze Hinweise, wenn Sie zum ersten Mal eine Freigabe, eine Verdichtung, ein Ergebnis oder eine Untersitzung sehen.",
+      "Ein kurzer Tipp, wenn Ihnen eine Funktion zum ersten Mal begegnet.",
     firstUseHintsReset: "Erneut anzeigen",
     guides: "Anleitungen",
     guidesDescription:

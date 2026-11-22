@@ -3390,7 +3390,7 @@ export default {
     },
     firstUseHints: "Подсказки при первой встрече",
     firstUseHintsDescription:
-      "Короткие подсказки, когда вы впервые видите одобрение, сжатие, результат или подсеанс.",
+      "Короткая подсказка при первой встрече с функцией.",
     firstUseHintsReset: "Показать снова",
     guides: "Руководства",
     guidesDescription:

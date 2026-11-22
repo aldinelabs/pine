@@ -3419,7 +3419,7 @@ export default {
     },
     firstUseHints: "Consejos de primera vez",
     firstUseHintsDescription:
-      "Consejos breves la primera vez que ves una aprobación, una compactación, un archivo entregado o una subsesión.",
+      "Un consejo breve la primera vez que encuentras una función.",
     firstUseHintsReset: "Volver a mostrar",
     guides: "Guías",
     guidesDescription:
