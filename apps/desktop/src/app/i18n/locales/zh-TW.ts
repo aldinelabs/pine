@@ -507,7 +507,7 @@ export default {
     composerGlowDescription: "智慧代理工作時，在輸入框邊框上顯示流動的光",
     helpGuides: "圖解教學按鈕",
     helpGuidesDescription:
-      "在審批模式選單、上下文用量等處顯示開啟圖解教學的按鈕，並在新會話裡顯示範例任務",
+      "在審批模式選單、上下文用量等處顯示開啟圖解教學的按鈕",
     replySuggestions: "回覆建議",
     replySuggestionsDescription:
       "智慧體回答後，在輸入框中提供建議的下一則訊息，按 Tab 採用。使用指令最佳化模型。",
@@ -1745,29 +1745,6 @@ export default {
       },
       emptyDescription: "從一個問題、一項任務，或一個大膽的想法開始。",
       emptyTitle: "不妨大膽想像",
-      examples: {
-        label: "從這些範例開始",
-        explore: {
-          title: "了解這個專案",
-          prompt:
-            "看看這個專案的資料夾裡有什麼，用幾句話告訴我它是做什麼的，再列出最值得先看的幾個檔案。",
-        },
-        research: {
-          title: "調查並寫簡報",
-          prompt:
-            "調查 [[你關心的主題]] 的最新進展，整理成一份附來源連結的簡報，儲存為 Markdown 檔案。",
-        },
-        organize: {
-          title: "整理一個資料夾",
-          prompt:
-            "把 [[某個資料夾]] 裡的檔案依類型和日期整理好。先告訴我你打算怎麼整理，再動手。",
-        },
-        build: {
-          title: "大膽做點新東西",
-          prompt:
-            "做一個可互動的網頁，用來 [[你想讓它做的事]]，做好後在預覽裡打開給我看。",
-        },
-      },
       loadHistory: "載入更早的訊息",
       loadingHistory: "正在載入",
       scrollToBottom: "捲動到底部",

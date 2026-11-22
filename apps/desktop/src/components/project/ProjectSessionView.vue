@@ -32,10 +32,8 @@ import {
 } from "@/shared/attachments";
 import { intelligentUiHostKey } from "@/components/intelligent-ui/context";
 import { PineCharacter } from "@/components/pine";
-import ProjectWelcomeExamples from "./ProjectWelcomeExamples.vue";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -56,7 +54,6 @@ import { useOpenSubmittedArtifact } from "@/composables/useOpenSubmittedArtifact
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useSteeringMessageTransition } from "@/composables/useSteeringMessageTransition";
-import { useAppearanceStore } from "@/stores/appearance";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
@@ -97,7 +94,6 @@ const automationsStore = useAutomationsStore();
 const automationApprovals = computed(() =>
   automationsStore.approvalsFor(props.sessionId),
 );
-const appearanceStore = useAppearanceStore();
 const contentTabsStore = useContentTabsStore();
 const projectStore = useProjectStore();
 const openForDraft = useDraftProjectOpener();
@@ -940,14 +936,6 @@ async function handleDrop(event: DragEvent): Promise<void> {
                   </EmptyDescription>
                   <SwitchComputerButton />
                 </EmptyHeader>
-                <EmptyContent
-                  v-if="appearanceStore.helpGuides"
-                  class="@container/welcome max-w-xl"
-                >
-                  <ProjectWelcomeExamples
-                    @pick="(prompt) => composer?.fillExample(prompt)"
-                  />
-                </EmptyContent>
               </Empty>
 
               <MessageScrollerItem

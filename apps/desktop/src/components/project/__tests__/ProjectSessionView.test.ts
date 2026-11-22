@@ -62,8 +62,6 @@ function fileTransfer(files: File[] = []): DataTransfer {
   } as unknown as DataTransfer;
 }
 
-const composerFillExample = vi.fn();
-
 function mountView() {
   activeTabId.value = "session-1";
   const pinia = createPinia();
@@ -138,7 +136,6 @@ function mountView() {
         ProjectSessionComposer: {
           name: "ProjectSessionComposer",
           props: ["attachments", "authoring", "modelValue"],
-          methods: { fillExample: composerFillExample },
           template:
             '<div data-slot="composer-stub" :data-attachment-count="attachments?.length ?? 0" :data-authoring="authoring?.join(\',\')" :data-draft="modelValue"><button data-slot="remove-authoring-stub" @click="$emit(\'removeAuthoring\', authoring?.[0])" /><button data-slot="submit-new-stub" @click="$emit(\'submit\', \'Start\')" /><button data-slot="submit-steering-stub" @click="$emit(\'submit\', \'Change direction\')" /></div>',
         },
@@ -311,23 +308,6 @@ describe("ProjectSessionView file drop", () => {
     expect(
       await openFile("/elsewhere/other.png", { ...toolCall, id: "read-2" }),
     ).toBe(false);
-    wrapper.unmount();
-  });
-
-  it("puts a welcome example in the text box without sending it", async () => {
-    const { wrapper } = mountView();
-    const prompt = vi.spyOn(useSessionStore(), "prompt");
-    await flushPromises();
-
-    const examples = wrapper.findAll("[data-example]");
-    expect(
-      examples.map((example) => example.attributes("data-example")),
-    ).toEqual(["explore", "research", "organize", "build"]);
-    await examples[1].trigger("click");
-    expect(composerFillExample).toHaveBeenCalledWith(
-      "调研 [[你关心的主题]] 的最新进展，整理成一份带来源链接的简报，保存为 Markdown 文件。",
-    );
-    expect(prompt).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
