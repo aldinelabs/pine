@@ -30,6 +30,7 @@ export const HELP_TOPIC_STEPS = {
   "compaction-method": ["compaction-method"],
   memory: ["memory-notes", "memory-manager"],
   "sub-sessions": ["sub-sessions"],
+  workbench: ["workbench-panels", "artifacts"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
@@ -54,6 +55,7 @@ export const HELP_TOPIC_GROUPS: readonly {
       "project-folders",
       "memory",
       "sub-sessions",
+      "workbench",
     ],
   },
   { id: "extend", topics: [] },
@@ -85,6 +87,8 @@ export type HelpIllustrationId =
   | "memory-notes"
   | "memory-manager"
   | "sub-sessions"
+  | "workbench-panels"
+  | "artifacts"
   | "tips";
 
 export interface HelpStepText {

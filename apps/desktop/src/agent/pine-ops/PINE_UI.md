@@ -1272,9 +1272,11 @@ the user opens themselves do not pulse.
   "Memory" (asking Pine to remember, project and global notes, the Memory
   manager, Unverified notes, turning memory off),
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
-  appear in the sidebar, notices to the parent, limits), plus three one-page
-  guides
-  opened from settings' question marks: "Automatic approval path" (Model
+  appear in the sidebar, notices to the parent, limits),
+  "Workbench" (the workbench and its panels; Artifacts with folders,
+  versions and dragging files out),
+  plus three one-page guides opened from settings' question marks:
+  "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands
   unclear ones to the approval model, falling back to model review without
   OpenRouter), "Context compaction strategy" (recommended settings versus

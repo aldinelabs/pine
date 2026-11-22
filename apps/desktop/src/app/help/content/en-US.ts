@@ -402,4 +402,42 @@ export default {
       },
     ],
   },
+  workbench: {
+    title: "Workbench",
+    summary:
+      "The panel beside the conversation: collect results, preview files, watch background processes.",
+    steps: [
+      {
+        title: "What's in the workbench",
+        body: [
+          "The workbench is the panel on the right of a session. Open it with Toggle workbench in the title bar or ⌘/Ctrl + Alt + B. It holds up to two cards, one above the other, and each card's switcher picks a panel:",
+        ],
+        points: [
+          "Artifacts: the results Pine delivers to you.",
+          "Preview: the file Pine showed last, or the one you picked in Artifacts.",
+          "Background processes: long-running programs Pine started, with their output.",
+          "Files: the project's file tree and each folder's access.",
+          "Side chat: a separate, read-only discussion about this session that doesn't interrupt the work.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Open in tab, in a card's header, moves the content to the main area for more room.",
+        },
+      },
+      {
+        title: "Artifacts",
+        body: [
+          "When Pine finishes a task, it submits the files it delivers to Artifacts, each with a title and a one-line description, newest first. Files it only showed to report progress or compare options stay out: this list holds results.",
+        ],
+        points: [
+          "When there are many files, Pine files them into folders, such as Reports › Week 1. Folders only organize the list; the files stay where they are on disk. To group them differently, just tell Pine.",
+          "Every submission keeps a copy. A file with a clock badge has several versions; right-click it › Version history to look back and compare.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Drag an artifact straight onto your file manager, the desktop or another app, or into the message box.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

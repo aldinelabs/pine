@@ -58,6 +58,10 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   "sub-sessions": [
     "splitting work into sub-sessions, where they appear, notices to the parent, limits",
   ],
+  workbench: [
+    "the workbench and its panels",
+    "Artifacts: deliverables, folders, versions, dragging out",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(
