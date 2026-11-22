@@ -581,7 +581,9 @@ export default {
     selectImageModel: "Modell auswählen",
     noImageModelSelected: "Standardmodell",
     imageModelUnconfigured:
-      "OpenRouter ist noch nicht eingerichtet. Fügen Sie über „Anbieter und Modelle verwalten“ den API-Schlüssel hinzu.",
+      "Fügen Sie unter „Anbieter und Modelle verwalten“ einen OpenRouter-API-Schlüssel hinzu oder melden Sie sich bei OpenAI Codex an, um Bilder zu erzeugen.",
+    imageModelChatGpt:
+      "GPT Image über Ihr ChatGPT-Abo. Bilder nutzen das Codex-Kontingent des Abos. Der Weg führt über ChatGPT selbst statt über eine öffentliche API und kann sich mit einem späteren Update ändern.",
     videoModel: "Modell für Videoerzeugung",
     selectVideoModel: "Modell auswählen",
     noVideoModelSelected: "Kein Modell ausgewählt",
@@ -675,9 +677,13 @@ export default {
       decisionsEmpty: "Keine passenden Decisions-Modelle",
       imageTitle: "Bildmodell auswählen",
       imageDescription:
-        "Durchsuchen Sie die Bildmodelle von OpenRouter und wählen Sie das Standardmodell für die Bilderzeugung.",
+        "Wählen Sie das Standardmodell für die Bilderzeugung: ein Bildmodell von OpenRouter oder GPT Image über Ihr ChatGPT-Abo.",
       imageSearchPlaceholder: "Bildmodelle suchen…",
       imageEmpty: "Keine passenden Bildmodelle",
+      chatGptImageHint:
+        "Neuestes Modell Ihres ChatGPT-Abos · nutzt Codex-Kontingent",
+      chatGptImageSignIn:
+        "Melden Sie sich bei OpenAI Codex an, um es zu nutzen",
       videoTitle: "Videomodell auswählen",
       videoDescription:
         "Durchsuchen Sie die Videomodelle von OpenRouter und wählen Sie das Standardmodell für die Videoerzeugung.",
@@ -3148,7 +3154,7 @@ export default {
     imageModel: {
       title: "Bildmodell konnte nicht aktualisiert werden",
       description:
-        "Prüfen Sie die OpenRouter-Zugangsdaten und versuchen Sie es erneut",
+        "Prüfen Sie die Anmeldung beim Anbieter und versuchen Sie es erneut",
     },
     videoModel: {
       title: "Videomodell konnte nicht aktualisiert werden",

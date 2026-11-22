@@ -1082,7 +1082,17 @@ the user opens themselves do not pulse.
     by the composer's Optimize prompt; without one it uses the title
     generation model), live translation model (translates live context when
     its translation is on; without one it uses the title generation model),
-    image generation model, video generation model, Decisions model.
+    image generation model (an OpenRouter image model by default, or "GPT
+    Image" under a "ChatGPT" group, which runs on the user's ChatGPT plan
+    through the OpenAI Codex sign-in and whose row reads "Newest model on
+    your ChatGPT plan · uses Codex usage"; it is never picked automatically, its
+    row is greyed out with "Sign in to OpenAI Codex to use it" until that
+    sign-in exists, and once picked the setting explains that pictures use
+    the plan's Codex usage and that the route is ChatGPT's own rather than a
+    public API, so a later update may adjust it; ChatGPT chooses its newest
+    image model itself and the agent's result names the one it used; the
+    approval card for such a call says "on the ChatGPT subscription"), video
+    generation model, Decisions model.
   - Agent, in two titled groups:
     - Behavior: Interactive answers switch (enabled by default;
       in WeChat an interactive answer arrives as text, lists and tables; its
@@ -1273,8 +1283,9 @@ the user opens themselves do not pulse.
   models" group when Pine recommends any. Recommendations are fetched online
   and only name models the user can pick.
   Chat model rows start with their provider's icon (e.g. OpenRouter). In the
-  decisions, image and video generation model pickers, where every model comes
-  from OpenRouter, each row instead starts with the icon of the company that
+  decisions, image and video generation model pickers, where models come
+  from OpenRouter (plus the opt-in ChatGPT group in the image picker), each
+  row instead starts with the icon of the company that
   makes the model (Google, OpenAI, Black Forest Labs, …), or a generic shield,
   image or video icon when Pine doesn't recognize the maker. The selected
   model's row shows a check mark in its place.

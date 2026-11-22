@@ -565,7 +565,9 @@ export default {
     selectImageModel: "모델 선택",
     noImageModelSelected: "기본 모델",
     imageModelUnconfigured:
-      "OpenRouter가 아직 구성되지 않았습니다. '제공자 및 모델 관리'에서 API 키를 추가하세요.",
+      "'제공자 및 모델 관리'에서 OpenRouter API 키를 추가하거나 OpenAI Codex에 로그인하면 이미지를 만들 수 있습니다.",
+    imageModelChatGpt:
+      "ChatGPT 요금제의 GPT Image를 사용합니다. 이미지를 만들 때 요금제의 Codex 사용량이 차감됩니다. 공개 API가 아닌 ChatGPT 자체 경로를 사용하므로 이후 업데이트에서 조정될 수 있습니다.",
     videoModel: "동영상 생성 모델",
     selectVideoModel: "모델 선택",
     noVideoModelSelected: "선택된 모델 없음",
@@ -657,9 +659,11 @@ export default {
       decisionsEmpty: "일치하는 Decisions 모델이 없습니다",
       imageTitle: "이미지 모델 선택",
       imageDescription:
-        "OpenRouter의 이미지 모델을 검색하고 이미지 생성의 기본 모델을 선택하세요.",
+        "이미지 생성의 기본 모델을 선택하세요. OpenRouter 이미지 모델이나 ChatGPT 요금제의 GPT Image를 고를 수 있습니다.",
       imageSearchPlaceholder: "이미지 모델 검색…",
       imageEmpty: "일치하는 이미지 모델이 없습니다",
+      chatGptImageHint: "ChatGPT 요금제의 최신 모델 · Codex 사용량 차감",
+      chatGptImageSignIn: "OpenAI Codex에 로그인하면 사용할 수 있습니다",
       videoTitle: "동영상 모델 선택",
       videoDescription:
         "OpenRouter의 동영상 모델을 검색하고 동영상 생성의 기본 모델을 선택하세요.",
@@ -3057,7 +3061,7 @@ export default {
     },
     imageModel: {
       title: "이미지 모델을 업데이트할 수 없습니다",
-      description: "OpenRouter 자격 증명을 확인한 후 다시 시도하세요",
+      description: "제공자 로그인 상태를 확인한 후 다시 시도하세요",
     },
     videoModel: {
       title: "동영상 모델을 업데이트할 수 없습니다",

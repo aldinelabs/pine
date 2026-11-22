@@ -87,6 +87,7 @@ export {
 } from "./bash-execution";
 import type { ToolGate } from "./gate";
 import type { PineApprovalMode } from "../shared/agent";
+import type { PineImageModelSelection } from "../shared/models";
 import { resolveImageReference } from "./media/image-input";
 import {
   createTinyFishToolDefinitions,
@@ -336,9 +337,14 @@ export interface PineMediaGenerationContext {
   activate(): void;
   /** Resolves the OpenRouter credential; undefined when it is not configured. */
   resolveOpenRouterApiKey(): Promise<string | undefined>;
+  /** Resolves the ChatGPT (OpenAI Codex) access token; undefined when signed out. */
+  resolveChatGptAccessToken?(): Promise<string | undefined>;
   /** Media models selected in Pine settings. */
   videoModelId?(): Promise<string | undefined> | string | undefined;
-  imageModelId?(): Promise<string | undefined> | string | undefined;
+  imageModelSelection?():
+    | Promise<PineImageModelSelection | undefined>
+    | PineImageModelSelection
+    | undefined;
 }
 
 /**
@@ -1040,8 +1046,8 @@ export async function createPineToolDefinitions(
   const activateMediaGeneration = mediaGeneration
     ? () => mediaGeneration.activate()
     : undefined;
-  const imageModelId = mediaGeneration?.imageModelId
-    ? () => mediaGeneration.imageModelId?.()
+  const imageModelSelection = mediaGeneration?.imageModelSelection
+    ? () => mediaGeneration.imageModelSelection?.()
     : undefined;
   const mediaTools = createMediaGenerationToolDefinitions({
     activateMediaGeneration,
@@ -1050,7 +1056,7 @@ export async function createPineToolDefinitions(
     cwd: location.cwd,
     getApprovalMode,
     getGate,
-    imageModelId,
+    imageModelSelection,
     videoModelId: () => mediaGeneration?.videoModelId?.(),
     videoAgentDir: location.agentDir,
     readVideoReferenceFile: async (target) =>
@@ -1059,6 +1065,9 @@ export async function createPineToolDefinitions(
     outputDirectory: path.join(canonicalBashTemporaryDirectory, "media"),
     resolveApiKey: () =>
       mediaGeneration?.resolveOpenRouterApiKey() ?? Promise.resolve(undefined),
+    resolveChatGptAccessToken: () =>
+      mediaGeneration?.resolveChatGptAccessToken?.() ??
+      Promise.resolve(undefined),
     resolveImageReference: (reference, signal) =>
       resolveImageReference(reference, {
         cwd: location.cwd,

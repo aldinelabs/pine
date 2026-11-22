@@ -570,7 +570,9 @@ export default {
     selectImageModel: "Choose model",
     noImageModelSelected: "Default model",
     imageModelUnconfigured:
-      "OpenRouter is not configured yet. Use “Manage providers and models” to add its API key.",
+      "Add an OpenRouter API key or sign in to OpenAI Codex under “Manage providers and models” to start making images.",
+    imageModelChatGpt:
+      "GPT Image on your ChatGPT plan. Pictures draw on the plan's Codex usage, and the route is ChatGPT's own rather than a public API, so a later update may adjust it.",
     videoModel: "Video generation model",
     selectVideoModel: "Choose model",
     noVideoModelSelected: "No model selected",
@@ -663,9 +665,11 @@ export default {
       decisionsEmpty: "No matching Decisions models",
       imageTitle: "Choose an image model",
       imageDescription:
-        "Search OpenRouter's image models and pick the default for image generation.",
+        "Pick the default for image generation: an OpenRouter image model, or GPT Image on your ChatGPT plan.",
       imageSearchPlaceholder: "Search image models…",
       imageEmpty: "No matching image models",
+      chatGptImageHint: "Newest model on your ChatGPT plan · uses Codex usage",
+      chatGptImageSignIn: "Sign in to OpenAI Codex to use it",
       videoTitle: "Choose a video model",
       videoDescription:
         "Search OpenRouter's video models and pick the default for video generation.",
@@ -3062,7 +3066,7 @@ export default {
     },
     imageModel: {
       title: "Unable to update image model",
-      description: "Check the OpenRouter credential and try again",
+      description: "Check the provider sign-in and try again",
     },
     videoModel: {
       title: "Unable to update video model",

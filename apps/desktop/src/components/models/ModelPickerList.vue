@@ -171,11 +171,25 @@ const modelGroups = computed(() =>
 );
 
 /**
- * Image models are a separate pi-ai catalog served by OpenRouter only, so the
- * image purpose skips favorites, capabilities, and custom-model management.
+ * Image models are a separate pi-ai catalog (OpenRouter, plus the opt-in
+ * ChatGPT subscription source), so the image purpose skips favorites,
+ * capabilities, and custom-model management. Each provider gets its group.
  */
-const imageModelGroups = computed(() =>
-  [
+const imageModelGroups = computed(() => {
+  const providerGroups = new Map<
+    string,
+    { heading: string; id: string; models: PineImageModelDescriptor[] }
+  >();
+  for (const model of modelsStore.imageModels) {
+    const group = providerGroups.get(model.providerId) ?? {
+      heading: model.providerName,
+      id: `image-models:${model.providerId}`,
+      models: [],
+    };
+    group.models.push(model);
+    providerGroups.set(model.providerId, group);
+  }
+  return [
     {
       heading: t("models.recommended"),
       id: "image-recommended",
@@ -183,13 +197,16 @@ const imageModelGroups = computed(() =>
         modelsStore.isRecommendedImageModel(model),
       ),
     },
-    {
-      heading: modelsStore.imageModels[0]?.providerName ?? "",
-      id: "image-models",
-      models: modelsStore.imageModels,
-    },
-  ].filter((group) => group.models.length > 0),
-);
+    ...providerGroups.values(),
+  ].filter((group) => group.models.length > 0);
+});
+
+function imageModelDetail(model: PineImageModelDescriptor): string {
+  if (!model.usesSubscription) return model.id;
+  return model.available === false
+    ? t("models.picker.chatGptImageSignIn")
+    : t("models.picker.chatGptImageHint");
+}
 const videoModelGroups = computed(() =>
   [
     {
@@ -618,6 +635,7 @@ function withSearchReset(action: () => void): void {
           :class="ROW_CLASS"
           data-picker-row="image"
           :data-value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
+          :disabled="row.model.available === false"
           :value="`${row.model.providerName} ${row.model.name} ${row.model.id}`"
           @select="withSearchReset(() => emit('selectImageModel', row.model))"
         >
@@ -631,7 +649,7 @@ function withSearchReset(action: () => void): void {
           <span class="flex min-w-0 flex-1 flex-col gap-0.5">
             <span class="truncate">{{ row.model.name }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">
-              {{ row.model.id }}
+              {{ imageModelDetail(row.model) }}
             </span>
           </span>
         </ListboxItem>

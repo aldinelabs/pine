@@ -466,7 +466,7 @@ describe("PinePreferencesDialog", () => {
     await openSection(wrapper, "模型");
 
     expect(wrapper.text()).toContain(imageModel.name);
-    expect(wrapper.text()).not.toContain("尚未配置 OpenRouter");
+    expect(wrapper.text()).not.toContain("添加 OpenRouter 的 API 密钥");
 
     const picker = wrapper
       .findAll("[data-model-picker]")
@@ -499,7 +499,46 @@ describe("PinePreferencesDialog", () => {
 
     await openSection(wrapper, "模型");
 
-    expect(wrapper.text()).toContain("尚未配置 OpenRouter");
+    expect(wrapper.text()).toContain(
+      "添加 OpenRouter 的 API 密钥，或登录 OpenAI Codex",
+    );
+  });
+
+  it("explains the ChatGPT subscription source once it is picked", async () => {
+    const { pinia, wrapper } = mountDialog();
+    useModelsStore(pinia).catalog = {
+      imageModels: [
+        {
+          acceptsImageInput: true,
+          available: true,
+          id: "chatgpt-image",
+          name: "GPT Image",
+          providerId: "openai-codex-images",
+          providerName: "ChatGPT",
+          returnsText: false,
+          usesSubscription: true,
+        },
+      ],
+      imageSelection: {
+        modelId: "chatgpt-image",
+        providerId: "openai-codex-images",
+      },
+      models: [],
+      providers: [
+        {
+          authMethods: [{ label: "ChatGPT", type: "oauth" }],
+          configured: true,
+          id: "openai-codex",
+          modelCount: 0,
+          name: "OpenAI Codex",
+        },
+      ],
+    };
+
+    await openSection(wrapper, "模型");
+
+    expect(wrapper.text()).toContain("使用 ChatGPT 订阅里的 GPT Image");
+    expect(wrapper.text()).toContain("Codex 用量");
   });
 
   it("has the memory switch in the Agent section", async () => {

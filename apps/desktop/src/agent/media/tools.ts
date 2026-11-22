@@ -28,7 +28,14 @@ import {
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../../shared/agent";
 import type { ToolGate } from "../gate";
-import { DEFAULT_IMAGE_MODEL_ID, imageModel, pineImagesModels } from "./models";
+import type { PineImageModelSelection } from "../../shared/models";
+import {
+  DEFAULT_IMAGE_MODEL_ID,
+  IMAGE_MODEL_PROVIDER_ID,
+  imageModel,
+  pineImagesModels,
+  usesChatGptSubscription,
+} from "./models";
 import {
   PROTECTED_BODY_FIELDS,
   generateImagesViaEndpoint,
@@ -113,6 +120,7 @@ function withSequence(filePath: string, sequence: number): string {
 }
 
 export interface GenerateImageRequest {
+  /** OpenRouter API key, or the ChatGPT access token for subscription models. */
   apiKey: string;
   input?: readonly ImagesInputContent[];
   model: ImageModel<ImageApi>;
@@ -130,8 +138,16 @@ export interface MediaGenerationToolOptions {
   getGate(): ToolGate | null;
   /** Resolves the OpenRouter credential; undefined when it is not configured. */
   resolveApiKey(): Promise<string | undefined>;
+  /**
+   * Resolves the ChatGPT (OpenAI Codex) access token through Pi, which also
+   * refreshes it; undefined when the user has not signed in.
+   */
+  resolveChatGptAccessToken?: () => Promise<string | undefined>;
   /** Media models selected by the user in settings, never by the tool. */
-  imageModelId?: () => Promise<string | undefined> | string | undefined;
+  imageModelSelection?: () =>
+    | Promise<PineImageModelSelection | undefined>
+    | PineImageModelSelection
+    | undefined;
   videoModelId?: () => Promise<string | undefined> | string | undefined;
   /** Agent-owned catalog cache and project-owned durable job directory. */
   videoAgentDir?: string;
@@ -162,6 +178,28 @@ export function imageTransportFor(
   model: ImageModel<ImageApi>,
 ): "chat" | "images" {
   return model.output.includes("text") ? "chat" : "images";
+}
+
+/**
+ * Default generation path: ChatGPT subscription models run through Pi's image
+ * interface with their own provider; OpenRouter models keep their transport
+ * routing.
+ */
+export async function generateImagesForModel(
+  request: GenerateImageRequest,
+): Promise<AssistantImages> {
+  if (!usesChatGptSubscription(request.model)) {
+    return generateImagesWithOpenRouter(request);
+  }
+  return pineImagesModels().generateImages(
+    request.model,
+    { input: [...(request.input ?? [{ type: "text", text: request.prompt }])] },
+    {
+      apiKey: request.apiKey,
+      ...(request.parameters ? { parameters: request.parameters } : {}),
+      ...(request.signal ? { signal: request.signal } : {}),
+    },
+  );
 }
 
 export async function generateImagesWithOpenRouter(
@@ -257,7 +295,7 @@ const generateImageParams = Type.Object(
     parameters: Type.Optional(
       Type.Record(Type.String(), Type.Unknown(), {
         description:
-          "Extra OpenRouter request-body fields for model-specific options, such as size, quality, aspect_ratio, n, background, or output_format. Passed through unchanged; models that do not support a field may ignore or reject it. model, prompt, messages, modalities, input_references, and stream cannot be overridden here.",
+          "Extra request fields for model-specific options, such as size, quality, aspect_ratio, n, background, or output_format. Passed through unchanged; models that do not support a field may ignore or reject it. model, prompt, messages, modalities, input_references, and stream cannot be overridden here.",
       }),
     ),
     output_path: Type.Optional(
@@ -301,13 +339,13 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
     name: GENERATE_IMAGE_TOOL_NAME,
     label: "Generate Image",
     description:
-      "Generate an image from a text prompt and optional reference images with OpenRouter's aggregated image models, then save the result as a file. The file is not opened for the user: keep it in a folder shared with Pine and call " +
+      "Generate an image from a text prompt and optional reference images with the image model picked in Pine's settings, then save the result as a file. The file is not opened for the user: keep it in a folder shared with Pine and call " +
       UI_PRESENT_FILE_TOOL_NAME +
       " if the user should see it, and " +
       UI_SUBMIT_ARTIFACT_TOOL_NAME +
       " if it is a deliverable. Requires activate_media_generation first. This call reaches the network and may cost money, so it is reviewed like other privileged actions.",
     promptSnippet:
-      "Generate images from a prompt with OpenRouter image models and save them as project files",
+      "Generate images from a prompt with the image model picked in Pine's settings and save them as project files",
     promptGuidelines: [
       `Write ${GENERATE_IMAGE_TOOL_NAME} prompts that a reader could execute without seeing the conversation: describe the subject, setting, composition, style, lighting, and palette, and spell out text that must appear in the image.`,
       `For image-to-image work, pass every intended reference in input_references. Use the exact local path from the current <pine_attachments> block, or an HTTP(S)/base64 data URL; do not describe an attached image and omit it from the request.`,
@@ -320,19 +358,28 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
     prepareArguments: (args) => args as Static<typeof generateImageParams>,
     executionMode: "sequential",
     execute: async (toolCallId, params, signal) => {
-      const apiKey = (await options.resolveApiKey())?.trim();
-      if (!apiKey) {
-        throw new Error(
-          "Image generation is unavailable because OpenRouter is not configured. Ask the user to add an OpenRouter API key or sign in with OpenRouter in Pine's model settings, then try again.",
-        );
-      }
-
+      const selection = await options.imageModelSelection?.();
       const selectedModelId =
-        (await options.imageModelId?.())?.trim() || DEFAULT_IMAGE_MODEL_ID;
-      const model = imageModel(selectedModelId);
+        selection?.modelId.trim() || DEFAULT_IMAGE_MODEL_ID;
+      const selectedProviderId = selection?.modelId.trim()
+        ? selection.providerId
+        : IMAGE_MODEL_PROVIDER_ID;
+      const model = imageModel(selectedModelId, selectedProviderId);
       if (!model) {
         throw new Error(
-          `The image model "${selectedModelId}" from Pine's settings is not in OpenRouter's image catalog. Ask the user to pick another image model in Pine's settings, then try again.`,
+          `The image model "${selectedModelId}" from Pine's settings is not in Pine's image catalog. Ask the user to pick another image model in Pine's settings, then try again.`,
+        );
+      }
+      const subscription = usesChatGptSubscription(model);
+
+      const apiKey = subscription
+        ? (await options.resolveChatGptAccessToken?.())?.trim()
+        : (await options.resolveApiKey())?.trim();
+      if (!apiKey) {
+        throw new Error(
+          subscription
+            ? "Image generation through ChatGPT is unavailable because Pine is not signed in to OpenAI Codex. Ask the user to sign in to OpenAI Codex under Pine Settings › Models › Manage providers and models, or pick another image model, then try again."
+            : "Image generation is unavailable because OpenRouter is not configured. Ask the user to add an OpenRouter API key or sign in with OpenRouter in Pine's model settings, then try again.",
         );
       }
 
@@ -355,9 +402,12 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
           toolCallId,
           toolName: GENERATE_IMAGE_TOOL_NAME,
           subject: `${model.name}: ${params.prompt}`,
-          description: `Generate an image with ${model.name}`,
-          evidence:
-            "This sends the prompt to OpenRouter's image API, outside Pine's project sandbox, and the request may cost money.",
+          description: subscription
+            ? `Generate an image with ${model.name} on the ChatGPT subscription`
+            : `Generate an image with ${model.name}`,
+          evidence: subscription
+            ? "This sends the prompt to ChatGPT, outside Pine's project sandbox, and uses the ChatGPT plan's Codex usage instead of money."
+            : "This sends the prompt to OpenRouter's image API, outside Pine's project sandbox, and the request may cost money.",
           signal,
         });
         if (decision.kind === "deny") {
@@ -366,7 +416,7 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
       }
       if (signal?.aborted) throw new Error("aborted");
 
-      const generate = options.generateImages ?? generateImagesWithOpenRouter;
+      const generate = options.generateImages ?? generateImagesForModel;
       const resolveReference =
         options.resolveImageReference ??
         ((reference: string, referenceSignal?: AbortSignal) =>
@@ -403,6 +453,11 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
         );
       }
 
+      // ChatGPT reports the image model it actually ran (it picks its newest).
+      const modelLabel =
+        subscription && result.model && result.model !== model.id
+          ? `${model.name} (${result.model}, ChatGPT subscription)`
+          : model.name;
       const images = result.output.filter(
         (part): part is { type: "image"; data: string; mimeType: string } =>
           part.type === "image",
@@ -414,7 +469,7 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
         .trim();
       if (images.length === 0) {
         throw new Error(
-          `${model.name} returned no image${modelText ? `: ${modelText}` : "."}`,
+          `${modelLabel} returned no image${modelText ? `: ${modelText}` : "."}`,
         );
       }
 
@@ -457,9 +512,9 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
         )
         .join("\n");
       const summary = [
-        `Generated ${files.length} image${files.length === 1 ? "" : "s"} with ${model.name}:`,
+        `Generated ${files.length} image${files.length === 1 ? "" : "s"} with ${modelLabel}:`,
         list,
-        ...(modelText ? [`\n${model.name} also returned:\n${modelText}`] : []),
+        ...(modelText ? [`\n${modelLabel} also returned:\n${modelText}`] : []),
         `\nPine does not open generated images. To show one to the user, write or copy it into a folder shared with Pine and call ${UI_PRESENT_FILE_TOOL_NAME} on that path and, if it is a deliverable, submit it with ${UI_SUBMIT_ARTIFACT_TOOL_NAME}.`,
       ]
         .filter(Boolean)
@@ -467,6 +522,9 @@ function createGenerateImageTool(options: MediaGenerationToolOptions) {
       return textResult(summary, {
         files,
         model: model.id,
+        ...(subscription
+          ? { generatedBy: result.model, subscription: "chatgpt" }
+          : {}),
         ...(params.parameters ? { parameters: params.parameters } : {}),
         prompt: params.prompt,
         ...(result.responseId ? { responseId: result.responseId } : {}),

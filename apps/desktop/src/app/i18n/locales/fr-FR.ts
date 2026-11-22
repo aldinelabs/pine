@@ -579,7 +579,9 @@ export default {
     selectImageModel: "Choisir un modèle",
     noImageModelSelected: "Modèle par défaut",
     imageModelUnconfigured:
-      "OpenRouter n'est pas encore configuré. Utilisez « Gérer les fournisseurs et les modèles » pour ajouter sa clé d'API.",
+      "Ajoutez une clé d'API OpenRouter ou connectez-vous à OpenAI Codex dans « Gérer les fournisseurs et les modèles » pour créer des images.",
+    imageModelChatGpt:
+      "GPT Image avec votre forfait ChatGPT. Chaque image utilise une part de l'usage Codex du forfait. Elle passe par la voie propre à ChatGPT plutôt que par une API publique, et une prochaine mise à jour pourra l'ajuster.",
     videoModel: "Modèle de génération de vidéos",
     selectVideoModel: "Choisir un modèle",
     noVideoModelSelected: "Aucun modèle sélectionné",
@@ -673,9 +675,12 @@ export default {
       decisionsEmpty: "Aucun modèle Decisions correspondant",
       imageTitle: "Choisir un modèle d'image",
       imageDescription:
-        "Recherchez parmi les modèles d'image d'OpenRouter et choisissez celui utilisé par défaut pour générer des images.",
+        "Choisissez le modèle utilisé par défaut pour générer des images : un modèle d'image d'OpenRouter ou GPT Image avec votre forfait ChatGPT.",
       imageSearchPlaceholder: "Rechercher des modèles d'image…",
       imageEmpty: "Aucun modèle d'image correspondant",
+      chatGptImageHint:
+        "Dernier modèle de votre forfait ChatGPT · utilise l'usage Codex",
+      chatGptImageSignIn: "Connectez-vous à OpenAI Codex pour l'utiliser",
       videoTitle: "Choisir un modèle vidéo",
       videoDescription:
         "Recherchez parmi les modèles vidéo d'OpenRouter et choisissez celui utilisé par défaut pour générer des vidéos.",
@@ -3148,7 +3153,7 @@ export default {
     },
     imageModel: {
       title: "Impossible de mettre à jour le modèle d'image",
-      description: "Vérifiez l'identifiant OpenRouter, puis réessayez",
+      description: "Vérifiez la connexion au fournisseur, puis réessayez",
     },
     videoModel: {
       title: "Impossible de mettre à jour le modèle vidéo",

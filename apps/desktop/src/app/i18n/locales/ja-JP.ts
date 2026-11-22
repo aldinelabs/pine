@@ -579,7 +579,9 @@ export default {
     selectImageModel: "モデルを選択",
     noImageModelSelected: "既定のモデル",
     imageModelUnconfigured:
-      "OpenRouter はまだ設定されていません。「プロバイダとモデルを管理」から API キーを追加してください。",
+      "「プロバイダとモデルを管理」で OpenRouter の API キーを追加するか、OpenAI Codex にサインインすると画像を生成できます。",
+    imageModelChatGpt:
+      "ChatGPT プランの GPT Image を使います。画像はプランの Codex 使用量から消費されます。公開 API ではなく ChatGPT 独自の経路を使うため、今後のアップデートで調整されることがあります。",
     videoModel: "動画生成モデル",
     selectVideoModel: "モデルを選択",
     noVideoModelSelected: "モデルが選択されていません",
@@ -671,9 +673,11 @@ export default {
       decisionsEmpty: "一致する Decisions モデルがありません",
       imageTitle: "画像モデルを選択",
       imageDescription:
-        "OpenRouter の画像モデルを検索し、画像生成の既定モデルを選びます。",
+        "画像生成の既定モデルを選びます。OpenRouter の画像モデルか、ChatGPT プランの GPT Image を選べます。",
       imageSearchPlaceholder: "画像モデルを検索…",
       imageEmpty: "一致する画像モデルがありません",
+      chatGptImageHint: "ChatGPT プランの最新モデル · Codex 使用量を消費",
+      chatGptImageSignIn: "OpenAI Codex にサインインすると使えます",
       videoTitle: "動画モデルを選択",
       videoDescription:
         "OpenRouter の動画モデルを検索し、動画生成の既定モデルを選びます。",
@@ -3100,7 +3104,8 @@ export default {
     },
     imageModel: {
       title: "画像モデルを更新できません",
-      description: "OpenRouter の認証情報を確認して、もう一度お試しください",
+      description:
+        "プロバイダのサインイン状態を確認して、もう一度お試しください",
     },
     videoModel: {
       title: "動画モデルを更新できません",

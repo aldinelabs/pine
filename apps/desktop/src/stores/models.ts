@@ -230,10 +230,13 @@ export const useModelsStore = defineStore("models", () => {
   const decisionsModels = computed(() => catalog.value.decisionsModels ?? []);
   const imageModels = computed(() => catalog.value.imageModels ?? []);
   const imageSelection = computed(() => catalog.value.imageSelection);
-  const imageProviderConfigured = computed(
-    () =>
-      providers.value.find((provider) => provider.id === "openrouter")
-        ?.configured === true,
+  // OpenRouter, or a ChatGPT sign-in for the opt-in subscription source.
+  const imageProviderConfigured = computed(() =>
+    providers.value.some(
+      (provider) =>
+        (provider.id === "openrouter" || provider.id === "openai-codex") &&
+        provider.configured,
+    ),
   );
   const imageSelectedModel = computed(() => {
     const selected = imageSelection.value;

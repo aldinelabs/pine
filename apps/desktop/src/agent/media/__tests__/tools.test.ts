@@ -212,7 +212,10 @@ describe("generate_image", () => {
   it("uses the image model picked in the model selector", async () => {
     const generateImages = vi.fn(() => Promise.resolve(pngOutput()));
     const options = createOptions({
-      imageModelId: () => "google/gemini-2.5-flash-image",
+      imageModelSelection: () => ({
+        modelId: "google/gemini-2.5-flash-image",
+        providerId: "openrouter",
+      }),
       generateImages,
     });
 
@@ -247,12 +250,85 @@ describe("generate_image", () => {
 
   it("reports a stale model selection instead of picking another model", async () => {
     const options = createOptions({
-      imageModelId: () => "acme/not-an-image-model",
+      imageModelSelection: () => ({
+        modelId: "acme/not-an-image-model",
+        providerId: "openrouter",
+      }),
     });
 
     await expect(
       execute(options, GENERATE_IMAGE_TOOL_NAME, { prompt: "A red circle" }),
     ).rejects.toThrow(/pick another image model in Pine's settings/u);
+  });
+
+  it("runs the ChatGPT subscription source with the ChatGPT sign-in", async () => {
+    const outputDirectory = await createOutputDirectory();
+    const review = vi.fn(() => Promise.resolve({ kind: "allow" as const }));
+    const generateImages = vi.fn(() =>
+      Promise.resolve({
+        ...pngOutput(),
+        api: "openai-codex-images",
+        model: "gpt-image-9-codex",
+        output: pngOutput().output.slice(0, 1),
+        provider: "openai-codex-images",
+      }),
+    );
+    const resolveApiKey = vi.fn(() => Promise.resolve("sk-or-test"));
+    const options = createOptions({
+      generateImages,
+      getGate: () => fakeGate(review),
+      imageModelSelection: () => ({
+        modelId: "chatgpt-image",
+        providerId: "openai-codex-images",
+      }),
+      outputDirectory,
+      resolveApiKey,
+      resolveChatGptAccessToken: () => Promise.resolve("chatgpt-token"),
+    });
+
+    const result = await execute(options, GENERATE_IMAGE_TOOL_NAME, {
+      prompt: "A pine tree",
+    });
+
+    expect(resolveApiKey).not.toHaveBeenCalled();
+    expect(generateImages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiKey: "chatgpt-token",
+        model: expect.objectContaining({ id: "chatgpt-image" }),
+      }),
+    );
+    expect(review).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          "Generate an image with GPT Image on the ChatGPT subscription",
+        evidence: expect.stringContaining("Codex usage"),
+      }),
+    );
+    expect(result.content[0]).toMatchObject({
+      text: expect.stringContaining(
+        "with GPT Image (gpt-image-9-codex, ChatGPT subscription)",
+      ),
+    });
+    expect(result.details).toMatchObject({
+      generatedBy: "gpt-image-9-codex",
+      subscription: "chatgpt",
+    });
+    const [file] = (result.details as { files: { path: string }[] }).files;
+    expect(await readFile(file?.path ?? "", "utf8")).toBe("image-bytes");
+  });
+
+  it("asks for a ChatGPT sign-in when the subscription source has none", async () => {
+    const options = createOptions({
+      imageModelSelection: () => ({
+        modelId: "chatgpt-image",
+        providerId: "openai-codex-images",
+      }),
+      resolveChatGptAccessToken: () => Promise.resolve(undefined),
+    });
+
+    await expect(
+      execute(options, GENERATE_IMAGE_TOOL_NAME, { prompt: "A pine tree" }),
+    ).rejects.toThrow(/not signed in to OpenAI Codex/u);
   });
 
   it("requires approval before reaching the provider", async () => {

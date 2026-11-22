@@ -572,7 +572,9 @@ export default {
     selectImageModel: "Выбрать модель",
     noImageModelSelected: "Модель по умолчанию",
     imageModelUnconfigured:
-      "OpenRouter ещё не настроен. Добавьте его API-ключ через «Управление провайдерами и моделями».",
+      "Добавьте API-ключ OpenRouter или войдите в OpenAI Codex через «Управление провайдерами и моделями», чтобы создавать изображения.",
+    imageModelChatGpt:
+      "GPT Image по вашей подписке ChatGPT. Каждое изображение расходует лимит Codex этой подписки. Запросы идут через собственный канал ChatGPT, а не через публичный API, поэтому в будущих обновлениях это может измениться.",
     videoModel: "Модель генерации видео",
     selectVideoModel: "Выбрать модель",
     noVideoModelSelected: "Модель не выбрана",
@@ -665,9 +667,12 @@ export default {
       decisionsEmpty: "Подходящих моделей Decisions нет",
       imageTitle: "Выберите модель изображений",
       imageDescription:
-        "Найдите модель изображений OpenRouter и выберите ту, что будет использоваться по умолчанию для генерации изображений.",
+        "Выберите модель по умолчанию для генерации изображений: модель OpenRouter или GPT Image по подписке ChatGPT.",
       imageSearchPlaceholder: "Поиск моделей изображений…",
       imageEmpty: "Подходящих моделей изображений нет",
+      chatGptImageHint:
+        "Новейшая модель вашей подписки ChatGPT · расходует лимит Codex",
+      chatGptImageSignIn: "Войдите в OpenAI Codex, чтобы использовать",
       videoTitle: "Выберите модель видео",
       videoDescription:
         "Найдите видеомодель OpenRouter и выберите ту, что будет использоваться по умолчанию для генерации видео.",
@@ -3101,7 +3106,7 @@ export default {
     },
     imageModel: {
       title: "Не удалось обновить модель изображений",
-      description: "Проверьте учётные данные OpenRouter и повторите попытку",
+      description: "Проверьте вход в провайдер и повторите попытку",
     },
     videoModel: {
       title: "Не удалось обновить модель видео",

@@ -47,6 +47,10 @@ import {
   IMAGE_MODEL_PROVIDER_ID,
 } from "../media/models";
 import {
+  CHATGPT_AUTH_PROVIDER_ID,
+  CHATGPT_IMAGE_PROVIDER_ID,
+} from "../media/codex-images";
+import {
   readPineAgentSettings,
   writeImageModelSelection,
   writeVideoModelSelection,
@@ -239,21 +243,14 @@ export class PineModelService {
         ? liveTranslationSelection
         : undefined;
 
-    const imageSelection = pineSettings.imageModel;
-    const storedImageSelection =
-      imageSelection &&
-      imageSelection.providerId === IMAGE_MODEL_PROVIDER_ID &&
-      imageModel(imageSelection.modelId)
-        ? imageSelection
-        : undefined;
-    const effectiveImageSelection = runtime.hasConfiguredAuth(
-      IMAGE_MODEL_PROVIDER_ID,
-    )
-      ? (storedImageSelection ?? {
-          modelId: DEFAULT_IMAGE_MODEL_ID,
-          providerId: IMAGE_MODEL_PROVIDER_ID,
-        })
-      : undefined;
+    const chatGptSignedIn = runtime.hasConfiguredAuth(CHATGPT_AUTH_PROVIDER_ID);
+    const effectiveImageSelection = effectiveImageModelSelection(
+      pineSettings.imageModel,
+      {
+        chatGpt: chatGptSignedIn,
+        openRouter: runtime.hasConfiguredAuth(IMAGE_MODEL_PROVIDER_ID),
+      },
+    );
 
     const [videoModels, decisionsModels] = await Promise.all([
       videoModelDescriptors(agentDir),
@@ -266,7 +263,7 @@ export class PineModelService {
         ? { videoSelection }
         : {}),
       decisionsModels,
-      imageModels: imageModelDescriptors(),
+      imageModels: imageModelDescriptors({ chatGptSignedIn }),
       ...(effectiveImageSelection
         ? { imageSelection: effectiveImageSelection }
         : {}),
@@ -606,14 +603,23 @@ export class PineModelService {
     agentDir: string,
     selection: PineImageModelSelection,
   ): Promise<{ updated: boolean }> {
-    if (selection.providerId !== IMAGE_MODEL_PROVIDER_ID) {
+    const runtime = await this.getModelRuntime(agentDir);
+    if (selection.providerId === CHATGPT_IMAGE_PROVIDER_ID) {
+      if (!runtime.hasConfiguredAuth(CHATGPT_AUTH_PROVIDER_ID)) {
+        throw new Error(
+          "Sign in to OpenAI Codex before selecting ChatGPT image generation.",
+        );
+      }
+    } else if (selection.providerId === IMAGE_MODEL_PROVIDER_ID) {
+      if (!runtime.hasConfiguredAuth(IMAGE_MODEL_PROVIDER_ID)) {
+        throw new Error(
+          "Configure OpenRouter before selecting an image model.",
+        );
+      }
+    } else {
       throw new Error("Unsupported image model provider.");
     }
-    const runtime = await this.getModelRuntime(agentDir);
-    if (!runtime.hasConfiguredAuth(IMAGE_MODEL_PROVIDER_ID)) {
-      throw new Error("Configure OpenRouter before selecting an image model.");
-    }
-    if (!imageModel(selection.modelId)) {
+    if (!imageModel(selection.modelId, selection.providerId)) {
       throw new Error("Image model not found.");
     }
     await writeImageModelSelection(agentDir, selection);
@@ -781,4 +787,26 @@ export class PineModelService {
       pending.reject(new Error(message));
     }
   }
+}
+
+/**
+ * The image model Pine actually uses. A stored choice wins while its provider
+ * is signed in; otherwise OpenRouter's default applies when OpenRouter is
+ * configured. ChatGPT is never chosen on the user's behalf.
+ */
+export function effectiveImageModelSelection(
+  stored: PineImageModelSelection | undefined,
+  signedIn: { chatGpt: boolean; openRouter: boolean },
+): PineImageModelSelection | undefined {
+  if (stored && imageModel(stored.modelId, stored.providerId)) {
+    if (stored.providerId === CHATGPT_IMAGE_PROVIDER_ID && signedIn.chatGpt) {
+      return stored;
+    }
+    if (stored.providerId === IMAGE_MODEL_PROVIDER_ID && signedIn.openRouter) {
+      return stored;
+    }
+  }
+  return signedIn.openRouter
+    ? { modelId: DEFAULT_IMAGE_MODEL_ID, providerId: IMAGE_MODEL_PROVIDER_ID }
+    : undefined;
 }

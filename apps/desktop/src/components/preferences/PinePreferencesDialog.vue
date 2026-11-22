@@ -359,9 +359,12 @@ const sections = computed<
 ]);
 
 const imageModelSummary = computed(() =>
-  imageProviderConfigured.value
-    ? (imageSelectedModel.value?.name ?? t("preferences.noImageModelSelected"))
-    : t("preferences.imageModelUnconfigured"),
+  imageSelectedModel.value?.usesSubscription
+    ? t("preferences.imageModelChatGpt")
+    : imageProviderConfigured.value
+      ? (imageSelectedModel.value?.name ??
+        t("preferences.noImageModelSelected"))
+      : t("preferences.imageModelUnconfigured"),
 );
 const videoModelSummary = computed(() =>
   videoProviderConfigured.value

@@ -580,7 +580,9 @@ export default {
     selectImageModel: "Elegir modelo",
     noImageModelSelected: "Modelo predeterminado",
     imageModelUnconfigured:
-      "OpenRouter aún no está configurado. Usa «Gestionar proveedores y modelos» para añadir su clave de API.",
+      "Añade una clave de API de OpenRouter o inicia sesión en OpenAI Codex en «Gestionar proveedores y modelos» para empezar a crear imágenes.",
+    imageModelChatGpt:
+      "GPT Image con tu plan de ChatGPT. Cada imagen usa parte del uso de Codex del plan. Funciona por la vía propia de ChatGPT y no por una API pública, así que una actualización futura podría ajustarla.",
     videoModel: "Modelo de generación de vídeo",
     selectVideoModel: "Elegir modelo",
     noVideoModelSelected: "Ningún modelo seleccionado",
@@ -673,9 +675,12 @@ export default {
       decisionsEmpty: "No hay modelos de Decisions que coincidan",
       imageTitle: "Elige un modelo de imagen",
       imageDescription:
-        "Busca entre los modelos de imagen de OpenRouter y elige el predeterminado para generar imágenes.",
+        "Elige el modelo predeterminado para generar imágenes: un modelo de imagen de OpenRouter o GPT Image con tu plan de ChatGPT.",
       imageSearchPlaceholder: "Buscar modelos de imagen…",
       imageEmpty: "No hay modelos de imagen que coincidan",
+      chatGptImageHint:
+        "Modelo más reciente de tu plan de ChatGPT · consume uso de Codex",
+      chatGptImageSignIn: "Inicia sesión en OpenAI Codex para usarlo",
       videoTitle: "Elige un modelo de vídeo",
       videoDescription:
         "Busca entre los modelos de vídeo de OpenRouter y elige el predeterminado para generar vídeos.",
@@ -3129,7 +3134,8 @@ export default {
     },
     imageModel: {
       title: "No se puede actualizar el modelo de imagen",
-      description: "Comprueba la credencial de OpenRouter e inténtalo de nuevo",
+      description:
+        "Comprueba el inicio de sesión del proveedor e inténtalo de nuevo",
     },
     videoModel: {
       title: "No se puede actualizar el modelo de vídeo",

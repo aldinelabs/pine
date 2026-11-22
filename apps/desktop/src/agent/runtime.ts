@@ -211,7 +211,8 @@ import {
   ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
   type AutomationHostOperation,
 } from "../shared/automation";
-import { imageModel, IMAGE_MODEL_PROVIDER_ID } from "./media/models";
+import { IMAGE_MODEL_PROVIDER_ID } from "./media/models";
+import { CHATGPT_AUTH_PROVIDER_ID } from "./media/codex-images";
 import { PineSkillRepository } from "./skills/repository";
 import { PineMemoryRepository } from "./memory/repository";
 import { MEMORY_SYSTEM_PROMPT, memoryNotice } from "./memory/prompt";
@@ -271,7 +272,10 @@ import {
   type PineContextCompactionStrategy,
 } from "../shared/preferences";
 import { runApprovalReview } from "./runtime/decisions-review";
-import { PineModelService } from "./runtime/model-service";
+import {
+  effectiveImageModelSelection,
+  PineModelService,
+} from "./runtime/model-service";
 import { PineAgentEventForwarder } from "./runtime/event-forwarder";
 import type {
   LiveAgentSession,
@@ -2066,15 +2070,22 @@ export class PineAgentRuntime {
           },
           videoModelId: async () =>
             (await readPineAgentSettings(live.agentDir)).videoModel?.modelId,
-          imageModelId: async () => {
-            const selected = (await readPineAgentSettings(live.agentDir))
-              .imageModel;
-            return selected && imageModel(selected.modelId)
-              ? selected.modelId
-              : undefined;
-          },
+          imageModelSelection: async () =>
+            effectiveImageModelSelection(
+              (await readPineAgentSettings(live.agentDir)).imageModel,
+              {
+                chatGpt: modelRuntime.hasConfiguredAuth(
+                  CHATGPT_AUTH_PROVIDER_ID,
+                ),
+                openRouter: modelRuntime.hasConfiguredAuth(
+                  IMAGE_MODEL_PROVIDER_ID,
+                ),
+              },
+            ),
           resolveOpenRouterApiKey: async () =>
             (await modelRuntime.getAuth(IMAGE_MODEL_PROVIDER_ID))?.auth.apiKey,
+          resolveChatGptAccessToken: async () =>
+            (await modelRuntime.getAuth(CHATGPT_AUTH_PROVIDER_ID))?.auth.apiKey,
         },
         requestQuestionnaire: (toolCallId, params, signal) =>
           this.requestQuestionnaire(live, toolCallId, params, signal),

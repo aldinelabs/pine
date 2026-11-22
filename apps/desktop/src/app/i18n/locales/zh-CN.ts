@@ -535,7 +535,9 @@ export default {
     selectImageModel: "选择模型",
     noImageModelSelected: "默认模型",
     imageModelUnconfigured:
-      "尚未配置 OpenRouter。可在“管理服务或模型”中添加它的 API 密钥。",
+      "在“管理服务或模型”中添加 OpenRouter 的 API 密钥，或登录 OpenAI Codex，就能开始生成图片。",
+    imageModelChatGpt:
+      "使用 ChatGPT 订阅里的 GPT Image。生成图片会消耗订阅的 Codex 用量；它走的是 ChatGPT 自己的通道而非公开 API，后续版本可能会随之调整。",
     videoModel: "视频生成模型",
     selectVideoModel: "选择模型",
     noVideoModelSelected: "未选择模型",
@@ -625,9 +627,11 @@ export default {
       decisionsEmpty: "没有匹配的 Decisions 模型",
       imageTitle: "选择图像模型",
       imageDescription:
-        "在 OpenRouter 的图像模型中搜索，并设定图像生成使用的默认模型。",
+        "设定图像生成使用的默认模型：OpenRouter 的图像模型，或 ChatGPT 订阅里的 GPT Image。",
       imageSearchPlaceholder: "搜索图像模型…",
       imageEmpty: "没有匹配的图像模型",
+      chatGptImageHint: "ChatGPT 订阅里的最新模型 · 消耗 Codex 用量",
+      chatGptImageSignIn: "登录 OpenAI Codex 后即可使用",
       videoTitle: "选择视频模型",
       videoDescription:
         "在 OpenRouter 的视频模型中搜索，并设定视频生成使用的默认模型。",
@@ -2956,7 +2960,7 @@ export default {
     },
     imageModel: {
       title: "无法更新图像模型",
-      description: "请检查 OpenRouter 凭据后重试",
+      description: "请检查服务的登录状态后重试",
     },
     videoModel: {
       title: "无法更新视频模型",

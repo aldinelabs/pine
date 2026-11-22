@@ -102,6 +102,10 @@ export interface PineImageModelDescriptor {
   acceptsImageInput: boolean;
   /** The model answers with text besides images. */
   returnsText: boolean;
+  /** False while the model needs a sign-in first; omitted means available. */
+  available?: boolean;
+  /** Runs on the user's ChatGPT plan and uses its Codex usage. */
+  usesSubscription?: boolean;
 }
 
 export type PineImageModelSelection = Pick<
