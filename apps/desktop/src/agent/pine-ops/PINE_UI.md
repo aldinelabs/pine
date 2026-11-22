@@ -1216,7 +1216,7 @@ the user opens themselves do not pulse.
     Aldine logo (light or dark to match the theme) and
     a one-line description. "Check for updates" (desktop app only) opens the
     update dialog when a release is available and otherwise says "Pine is up
-    to date." (or that the check failed). Links: Documentation (the Chinese
+    to date." (fading out after five seconds) or that the check failed. Links: Documentation (the Chinese
     guide for Chinese interfaces, else English), Source code, Release notes
     and Report an issue open in the browser. License shows "GNU Affero
     General Public License v3.0 or later" with the copyright line; selecting

@@ -129,6 +129,79 @@ it("says Pine is up to date after a check finds nothing", async () => {
   );
 });
 
+it('fades "Pine is up to date." out after five seconds', async () => {
+  const wrapper = await mountAbout();
+  vi.useFakeTimers();
+  try {
+    const check = wrapper.get('[data-testid="pine-about-check-updates"]');
+    const result = () =>
+      wrapper.get('[data-testid="pine-about-update-result"]');
+
+    await check.trigger("click");
+    await flushPromises();
+    expect(result().attributes("data-visible")).toBeDefined();
+    expect(result().classes()).toContain("opacity-100");
+
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(result().attributes("data-visible")).toBeDefined();
+    await vi.advanceTimersByTimeAsync(1);
+    // Faded out, but still in place so nothing below it moves.
+    expect(result().attributes("data-visible")).toBeUndefined();
+    expect(result().classes()).toEqual(
+      expect.arrayContaining(["invisible", "opacity-0"]),
+    );
+
+    // Checking again shows it for another five seconds.
+    await vi.advanceTimersByTimeAsync(10_000);
+    await check.trigger("click");
+    await flushPromises();
+    expect(result().attributes("data-visible")).toBeDefined();
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(result().attributes("data-visible")).toBeDefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(result().attributes("data-visible")).toBeUndefined();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("clears the fade timer when the page closes", async () => {
+  const wrapper = await mountAbout();
+  vi.useFakeTimers();
+  try {
+    await wrapper
+      .get('[data-testid="pine-about-check-updates"]')
+      .trigger("click");
+    await flushPromises();
+    expect(vi.getTimerCount()).toBe(1);
+    wrapper.unmount();
+    wrappers.splice(wrappers.indexOf(wrapper), 1);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps a failed check's message until the next check", async () => {
+  checkForUpdate.mockRejectedValue(new Error("offline"));
+  const wrapper = await mountAbout();
+  vi.useFakeTimers();
+  try {
+    await wrapper
+      .get('[data-testid="pine-about-check-updates"]')
+      .trigger("click");
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(
+      wrapper
+        .get('[data-testid="pine-about-update-result"]')
+        .attributes("data-visible"),
+    ).toBeDefined();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it("opens the update dialog when a release is available", async () => {
   checkForUpdate.mockResolvedValue({
     status: "available",

@@ -11,7 +11,7 @@ import {
   SearchIcon,
 } from "@lucide/vue";
 import { storeToRefs } from "pinia";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { I18nT, useI18n } from "vue-i18n";
 import pineAppIcon from "../../../../resources/icon.png";
 import aldineOnDark from "@/assets/aldine/aldine-horizontal-on-dark.svg";
@@ -77,6 +77,10 @@ const catalogFailed = ref(false);
 const query = ref("");
 const openGroups = ref(new Set<string>());
 const updateCheckResult = ref<"current" | "failed" | null>(null);
+/** The result line keeps its place; it only fades, so nothing shifts. */
+const isUpdateResultShown = ref(false);
+let updateResultTimer: ReturnType<typeof setTimeout> | undefined;
+let isUnmounted = false;
 
 const docsUrl = computed(() =>
   locale.value.startsWith("zh") ? PINE_DOCS_URL.zh : PINE_DOCS_URL.en,
@@ -155,12 +159,29 @@ function openUrl(url: string): void {
   void window.pine?.openExternalUrl(url);
 }
 
+/** How long "Pine is up to date." stays before it fades out. */
+const UP_TO_DATE_VISIBLE_MS = 5000;
+
 async function checkForUpdates(): Promise<void> {
-  updateCheckResult.value = null;
+  clearTimeout(updateResultTimer);
+  isUpdateResultShown.value = false;
   await updater.openDialog();
   if (updater.isAvailable) return;
+  if (isUnmounted) return;
   updateCheckResult.value = checkFailed.value ? "failed" : "current";
+  isUpdateResultShown.value = true;
+  if (updateCheckResult.value === "current") {
+    updateResultTimer = setTimeout(
+      () => (isUpdateResultShown.value = false),
+      UP_TO_DATE_VISIBLE_MS,
+    );
+  }
 }
+
+onBeforeUnmount(() => {
+  isUnmounted = true;
+  clearTimeout(updateResultTimer);
+});
 </script>
 
 <template>
@@ -229,7 +250,12 @@ async function checkForUpdates(): Promise<void> {
       <span
         v-if="updateCheckResult"
         data-testid="pine-about-update-result"
-        class="text-sm text-muted-foreground"
+        :data-visible="isUpdateResultShown || undefined"
+        :aria-hidden="!isUpdateResultShown || undefined"
+        :class="
+          isUpdateResultShown ? 'visible opacity-100' : 'invisible opacity-0'
+        "
+        class="text-sm text-muted-foreground transition-[opacity,visibility] duration-500 ease-out-expo motion-reduce:transition-none"
         role="status"
       >
         {{
