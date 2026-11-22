@@ -438,6 +438,45 @@ export default {
       projects: "プロジェクト",
       remote: "リモート操作",
       users: "複数ユーザー",
+      about: "情報",
+    },
+    about: {
+      version: "バージョン {version}",
+      by: "{brand} 提供",
+      tagline:
+        "すべての人にもっと多くの可能性をもたらす AI エージェントワークスペース。",
+      checkForUpdates: "アップデートを確認",
+      checking: "確認中…",
+      upToDate: "Pine は最新です。",
+      checkFailed:
+        "アップデートを確認できませんでした。しばらくしてからもう一度お試しください。",
+      links: "リンク",
+      docs: "ドキュメント",
+      source: "ソースコード",
+      releaseNotes: "リリースノート",
+      feedback: "問題を報告",
+      license: "ライセンス",
+      pineLicense: "GNU Affero 一般公衆利用許諾書 v3.0 以降",
+      openSource: "オープンソースソフトウェア",
+      openSourceDescription:
+        "Pine は以下のオープンソースソフトウェアを使用しています。項目を選ぶとライセンスを表示します。",
+      search: "名前またはライセンスで検索",
+      noResults: "一致する項目はありません。",
+      referenced: "移植・同梱しているプロジェクト",
+      referencedDescription:
+        "Pine が移植したコードと、パッケージとしてはインストールせずに同梱しているコンポーネント、フォント、モデル。",
+      packages: "パッケージ（{count}）",
+      kinds: {
+        code: "移植したコード",
+        components: "UI コンポーネント",
+        font: "フォント",
+        native: "ネイティブライブラリ",
+        model: "音声モデル",
+      },
+      homepage: "ホームページ",
+      noLicenseText:
+        "このパッケージにはライセンスファイルが含まれていません。マニフェストでは {license} と宣言されています。",
+      loadFailed: "オープンソースソフトウェアの一覧を読み込めませんでした。",
     },
     groups: {
       language: "インターフェース",

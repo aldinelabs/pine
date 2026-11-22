@@ -9,6 +9,7 @@ import {
   ChevronRightIcon,
   BotIcon,
   FolderKanbanIcon,
+  InfoIcon,
   MonitorSmartphoneIcon,
   SettingsIcon,
   PaletteIcon,
@@ -46,6 +47,7 @@ import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import MemoryEnabledSetting from "./MemoryEnabledSetting.vue";
 import ToolGroupSettings from "./ToolGroupSettings.vue";
 import PiProvidersSettings from "./PiProvidersSettings.vue";
+import AboutSettings from "./about/AboutSettings.vue";
 import ProjectManagementSettings from "./ProjectManagementSettings.vue";
 import UsersSettings from "./UsersSettings.vue";
 import ModelPickerDialog from "@/components/models/ModelPickerDialog.vue";
@@ -147,7 +149,8 @@ type PreferenceSection =
   | "personalization"
   | "users"
   | "projects"
-  | "remote";
+  | "remote"
+  | "about";
 
 const { locale, t } = useI18n();
 const isDesktop = isDesktopClient();
@@ -346,6 +349,11 @@ const sections = computed<
         },
       ]
     : []),
+  {
+    icon: InfoIcon,
+    id: "about",
+    label: t("preferences.sections.about"),
+  },
 ]);
 
 const imageModelSummary = computed(() =>
@@ -2148,6 +2156,9 @@ defineExpose({ open });
             <RemoteControlSettings />
             <FieldSeparator v-if="hasWeChatRemote" class="my-6" />
             <WeChatRemoteSettings v-if="hasWeChatRemote" />
+          </div>
+          <div v-else-if="activeSection === 'about'" class="p-6 max-sm:px-4">
+            <AboutSettings />
           </div>
         </ScrollArea>
       </div>

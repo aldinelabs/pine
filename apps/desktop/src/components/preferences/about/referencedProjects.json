@@ -1,0 +1,100 @@
+[
+  {
+    "name": "shadcn-vue",
+    "url": "https://github.com/unovue/shadcn-vue",
+    "license": "MIT",
+    "kind": "components",
+    "licensePackage": "shadcn-vue"
+  },
+  {
+    "name": "shadcn/ui",
+    "url": "https://github.com/shadcn-ui/ui",
+    "license": "MIT",
+    "kind": "components",
+    "licenseText": "MIT License\n\nCopyright (c) 2023 shadcn\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+  },
+  {
+    "name": "Munim Computer Use",
+    "url": "https://github.com/munimtechnologies/munim-computer-use",
+    "license": "Apache-2.0",
+    "kind": "code",
+    "licenseFile": "../../../../../../packages/computer-use-runtime/LICENSE.upstream"
+  },
+  {
+    "name": "pi-background-tasks",
+    "url": "https://github.com/ismailsaleekh/pi-background-tasks",
+    "license": "ISC",
+    "kind": "code",
+    "licenseFile": "../../../../../../packages/pi-background-tasks/LICENSE.upstream"
+  },
+  {
+    "name": "rpiv-todo",
+    "url": "https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-todo",
+    "license": "MIT",
+    "kind": "code",
+    "licenseFile": "../../../../../../packages/rpiv-todo/LICENSE.upstream"
+  },
+  {
+    "name": "rpiv-ask-user-question",
+    "url": "https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question",
+    "license": "MIT",
+    "kind": "code",
+    "licenseFile": "../../../../../../packages/rpiv-ask-user-question/LICENSE.upstream"
+  },
+  {
+    "name": "openclaw-weixin",
+    "url": "https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin",
+    "license": "MIT",
+    "kind": "code",
+    "licenseFile": "../../../../../../packages/wechat-ilink/LICENSE-openclaw-weixin"
+  },
+  {
+    "name": "Visual Studio Code",
+    "url": "https://github.com/microsoft/vscode",
+    "license": "MIT",
+    "kind": "code",
+    "licenseText": "MIT License\n\nCopyright (c) 2015 - present Microsoft Corporation\n\nAll rights reserved.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+  },
+  {
+    "name": "Sarasa Gothic",
+    "url": "https://github.com/be5invis/Sarasa-Gothic",
+    "license": "OFL-1.1",
+    "kind": "font",
+    "licenseFile": "../../../assets/fonts/SarasaGothicSC-OFL.txt"
+  },
+  {
+    "name": "Geist Serif",
+    "url": "https://github.com/vercel/geist-font",
+    "license": "OFL-1.1",
+    "kind": "font",
+    "licenseFile": "../../../assets/fonts/GeistSerif-OFL.txt"
+  },
+  {
+    "name": "sherpa-onnx",
+    "url": "https://github.com/k2-fsa/sherpa-onnx",
+    "license": "Apache-2.0",
+    "kind": "native",
+    "licenseFile": "../../../../native/live-context/licenses/Apache-2.0.txt"
+  },
+  {
+    "name": "ONNX Runtime",
+    "url": "https://github.com/microsoft/onnxruntime",
+    "license": "MIT",
+    "kind": "native",
+    "licenseText": "MIT License\n\nCopyright (c) Microsoft Corporation\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+  },
+  {
+    "name": "pyannote segmentation-3.0",
+    "url": "https://huggingface.co/pyannote/segmentation-3.0",
+    "license": "MIT",
+    "kind": "model",
+    "licenseFile": "../../../../native/live-context/licenses/pyannote-segmentation-3.0-MIT.txt"
+  },
+  {
+    "name": "3D-Speaker CAM++",
+    "url": "https://github.com/modelscope/3D-Speaker",
+    "license": "Apache-2.0",
+    "kind": "model",
+    "licenseFile": "../../../../native/live-context/licenses/Apache-2.0.txt"
+  }
+]

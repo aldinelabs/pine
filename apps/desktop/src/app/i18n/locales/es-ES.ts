@@ -437,6 +437,45 @@ export default {
       projects: "Proyectos",
       remote: "Control remoto",
       users: "Varios usuarios",
+      about: "Acerca de",
+    },
+    about: {
+      version: "Versión {version}",
+      by: "De {brand}",
+      tagline:
+        "Un espacio de trabajo de agentes de IA creado para dar a todos más posibilidades.",
+      checkForUpdates: "Buscar actualizaciones",
+      checking: "Comprobando…",
+      upToDate: "Pine está actualizado.",
+      checkFailed:
+        "No se pudieron buscar actualizaciones. Inténtalo más tarde.",
+      links: "Enlaces",
+      docs: "Documentación",
+      source: "Código fuente",
+      releaseNotes: "Notas de la versión",
+      feedback: "Informar de un problema",
+      license: "Licencia",
+      pineLicense: "Licencia Pública General Affero de GNU v3.0 o posterior",
+      openSource: "Software de código abierto",
+      openSourceDescription:
+        "Pine usa el software de código abierto que aparece a continuación. Selecciona una entrada para leer su licencia.",
+      search: "Buscar por nombre o licencia",
+      noResults: "No hay resultados.",
+      referenced: "Proyectos adaptados e incluidos",
+      referencedDescription:
+        "Código que Pine adaptó, y componentes, fuentes y modelos que incluye sin instalarlos como paquetes.",
+      packages: "Paquetes ({count})",
+      kinds: {
+        code: "Código adaptado",
+        components: "Componentes de interfaz",
+        font: "Fuente",
+        native: "Biblioteca nativa",
+        model: "Modelo de voz",
+      },
+      homepage: "Página principal",
+      noLicenseText:
+        "Este paquete no incluye un archivo de licencia. Su manifiesto declara {license}.",
+      loadFailed: "No se pudo cargar la lista de software de código abierto.",
     },
     groups: {
       language: "Interfaz",

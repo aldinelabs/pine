@@ -20,8 +20,15 @@ export const SET_THEME_SOURCE_CHANNEL = "window:set-theme-source" as const;
 export const GET_APP_VERSION_CHANNEL = "app:get-version" as const;
 export const OPEN_EXTERNAL_URL_CHANNEL = "shell:open-external" as const;
 
-export const PINE_RELEASES_URL =
-  "https://github.com/phosphoros-works/pine/releases" as const;
+export const PINE_REPOSITORY_URL =
+  "https://github.com/aldinelabs/pine" as const;
+export const PINE_RELEASES_URL = `${PINE_REPOSITORY_URL}/releases` as const;
+export const PINE_ISSUES_URL = `${PINE_REPOSITORY_URL}/issues` as const;
+/** The user guide, in Chinese for Chinese interfaces and English otherwise. */
+export const PINE_DOCS_URL = {
+  zh: "https://docs.aldine.cn/zh/pine/",
+  en: "https://docs.aldine.cn/en/pine/",
+} as const;
 
 export const TRANSPARENT_WINDOW_BACKGROUND = "#00000000" as const;
 /** Initial opaque backgrounds until the renderer reports its theme colour. */

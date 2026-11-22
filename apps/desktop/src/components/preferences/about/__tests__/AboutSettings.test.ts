@@ -1,0 +1,269 @@
+import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia, setActivePinia } from "pinia";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { createAppI18n } from "@/app/i18n";
+import type { ThirdPartyLicenseCatalog } from "@/build/thirdPartyLicenses";
+import {
+  PINE_DOCS_URL,
+  PINE_ISSUES_URL,
+  PINE_RELEASES_URL,
+  PINE_REPOSITORY_URL,
+} from "@/shared/window";
+import { useUpdaterStore } from "@/stores/updater";
+import AboutSettings from "../AboutSettings.vue";
+import { loadLicenseCatalog } from "../licenseCatalog";
+
+vi.mock("../licenseCatalog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../licenseCatalog")>()),
+  loadLicenseCatalog: vi.fn(),
+}));
+
+const catalog: ThirdPartyLicenseCatalog = {
+  packages: [
+    { name: "vue", version: "3.5.42", license: "MIT", text: 0 },
+    {
+      name: "zod",
+      version: "4.6.6",
+      license: "MIT",
+      homepage: "https://zod.dev",
+      text: 0,
+    },
+    { name: "typebox", version: "1.3.30", license: "Apache-2.0", text: null },
+  ],
+  referenced: [
+    {
+      name: "Sarasa Gothic",
+      url: "https://github.com/be5invis/Sarasa-Gothic",
+      license: "OFL-1.1",
+      kind: "font",
+      text: 1,
+    },
+  ],
+  texts: ["MIT License text", "OFL text"],
+};
+
+const checkForUpdate = vi.fn();
+const wrappers: ReturnType<typeof mount>[] = [];
+afterEach(() => wrappers.splice(0).forEach((wrapper) => wrapper.unmount()));
+
+beforeEach(() => {
+  setActivePinia(createPinia());
+  vi.mocked(loadLicenseCatalog).mockResolvedValue(catalog);
+  window.pine = {
+    getAppVersion: vi.fn().mockResolvedValue("0.23.0"),
+    openExternalUrl: vi.fn().mockResolvedValue(undefined),
+    checkForUpdate: checkForUpdate.mockResolvedValue({
+      status: "not-available",
+    }),
+  } as unknown as typeof window.pine;
+});
+
+async function mountAbout(locale: "en-US" | "zh-CN" = "en-US") {
+  const wrapper = mount(AboutSettings, {
+    attachTo: document.body,
+    global: { plugins: [createAppI18n(locale)] },
+  });
+  wrappers.push(wrapper);
+  await flushPromises();
+  return wrapper;
+}
+
+it("shows Pine's version, brand and links", async () => {
+  const wrapper = await mountAbout();
+
+  expect(wrapper.get('[data-testid="pine-about-version"]').text()).toBe(
+    "Version 0.23.0",
+  );
+  expect(wrapper.text()).toContain("By Aldine Labs");
+  expect(wrapper.text()).toContain("© 2026 Aldine Labs");
+
+  for (const [id, url] of [
+    ["docs", PINE_DOCS_URL.en],
+    ["source", PINE_REPOSITORY_URL],
+    ["releases", PINE_RELEASES_URL],
+    ["issues", PINE_ISSUES_URL],
+  ]) {
+    await wrapper.get(`[data-testid="pine-about-link-${id}"]`).trigger("click");
+    expect(window.pine.openExternalUrl).toHaveBeenLastCalledWith(url);
+  }
+});
+
+it("links Chinese interfaces to the Chinese guide", async () => {
+  const wrapper = await mountAbout("zh-CN");
+
+  await wrapper.get('[data-testid="pine-about-link-docs"]').trigger("click");
+  expect(window.pine.openExternalUrl).toHaveBeenCalledWith(PINE_DOCS_URL.zh);
+});
+
+it("holds the version's place while it loads", async () => {
+  vi.mocked(window.pine.getAppVersion).mockReturnValue(new Promise(() => {}));
+  vi.mocked(loadLicenseCatalog).mockReturnValue(new Promise(() => {}));
+  const wrapper = mount(AboutSettings, {
+    global: { plugins: [createAppI18n("en-US")] },
+  });
+  wrappers.push(wrapper);
+  await flushPromises();
+
+  expect(wrapper.find('[data-slot="skeleton"]').exists()).toBe(true);
+  expect(
+    wrapper.find('[data-testid="pine-about-licenses-loading"]').exists(),
+  ).toBe(true);
+});
+
+it("says Pine is up to date after a check finds nothing", async () => {
+  const wrapper = await mountAbout();
+
+  await wrapper
+    .get('[data-testid="pine-about-check-updates"]')
+    .trigger("click");
+  await flushPromises();
+
+  expect(checkForUpdate).toHaveBeenCalled();
+  expect(wrapper.get('[data-testid="pine-about-update-result"]').text()).toBe(
+    "Pine is up to date.",
+  );
+});
+
+it("opens the update dialog when a release is available", async () => {
+  checkForUpdate.mockResolvedValue({
+    status: "available",
+    update: { version: "0.24.0" },
+  });
+  const wrapper = await mountAbout();
+
+  await wrapper
+    .get('[data-testid="pine-about-check-updates"]')
+    .trigger("click");
+  await flushPromises();
+
+  expect(useUpdaterStore().isDialogOpen).toBe(true);
+  expect(
+    wrapper.find('[data-testid="pine-about-update-result"]').exists(),
+  ).toBe(false);
+});
+
+it("does not claim Pine is current when the check fails", async () => {
+  checkForUpdate.mockRejectedValue(new Error("offline"));
+  const wrapper = await mountAbout();
+
+  await wrapper
+    .get('[data-testid="pine-about-check-updates"]')
+    .trigger("click");
+  await flushPromises();
+
+  expect(wrapper.get('[data-testid="pine-about-update-result"]').text()).toBe(
+    "Couldn't check for updates. Try again later.",
+  );
+});
+
+it("hides the update check where Pine cannot update itself", async () => {
+  delete (window.pine as { checkForUpdate?: unknown }).checkForUpdate;
+  const wrapper = await mountAbout();
+
+  expect(
+    wrapper.find('[data-testid="pine-about-check-updates"]').exists(),
+  ).toBe(false);
+});
+
+it("groups packages by license and opens a license as its own page", async () => {
+  const wrapper = await mountAbout();
+
+  const groups = wrapper.findAll('[data-slot="pine-about-license-group"]');
+  expect(groups.map((group) => group.text())).toEqual(["MIT2", "Apache-2.01"]);
+  // Groups start closed.
+  expect(wrapper.findAll('[data-slot="pine-about-package-row"]')).toHaveLength(
+    0,
+  );
+
+  await groups[0].trigger("click");
+  const rows = wrapper.findAll('[data-slot="pine-about-package-row"]');
+  expect(rows.map((row) => row.text())).toEqual(["vue3.5.42", "zod4.6.6"]);
+
+  await rows[1].trigger("click");
+  await flushPromises();
+  const detail = wrapper.get('[data-testid="pine-about-license-detail"]');
+  expect(detail.text()).toContain("zod");
+  expect(detail.text()).toContain("4.6.6");
+  expect(wrapper.get('[data-testid="pine-about-license-text"]').text()).toBe(
+    "MIT License text",
+  );
+  await detail.get("button.h-auto").trigger("click");
+  expect(window.pine.openExternalUrl).toHaveBeenCalledWith("https://zod.dev");
+
+  await wrapper.get('[data-testid="pine-about-license-back"]').trigger("click");
+  await flushPromises();
+  expect(
+    wrapper.find('[data-testid="pine-about-license-detail"]').exists(),
+  ).toBe(false);
+  expect(wrapper.find('[data-testid="pine-about-version"]').exists()).toBe(
+    true,
+  );
+});
+
+it("searches by name or license and opens matching groups", async () => {
+  const wrapper = await mountAbout();
+  const search = wrapper.get('[data-testid="pine-about-license-search"]');
+
+  await search.setValue("apache");
+  expect(
+    wrapper
+      .findAll('[data-slot="pine-about-package-row"]')
+      .map((row) => row.text()),
+  ).toEqual(["typebox1.3.30"]);
+  expect(
+    wrapper.findAll('[data-slot="pine-about-referenced-row"]'),
+  ).toHaveLength(0);
+
+  await search.setValue("sarasa");
+  expect(
+    wrapper.findAll('[data-slot="pine-about-referenced-row"]'),
+  ).toHaveLength(1);
+  expect(
+    wrapper.findAll('[data-slot="pine-about-license-group"]'),
+  ).toHaveLength(0);
+
+  await search.setValue("no such package");
+  expect(
+    wrapper.find('[data-testid="pine-about-license-empty"]').exists(),
+  ).toBe(true);
+});
+
+it("says when a package ships no license file", async () => {
+  const wrapper = await mountAbout();
+  await wrapper
+    .get('[data-testid="pine-about-license-search"]')
+    .setValue("typebox");
+
+  await wrapper.get('[data-slot="pine-about-package-row"]').trigger("click");
+  await flushPromises();
+
+  expect(wrapper.find('[data-testid="pine-about-license-text"]').exists()).toBe(
+    false,
+  );
+  expect(wrapper.text()).toContain(
+    "This package does not include a license file. Its manifest declares Apache-2.0.",
+  );
+});
+
+it("shows Pine's own license text", async () => {
+  const wrapper = await mountAbout();
+
+  await wrapper.get('[data-testid="pine-about-pine-license"]').trigger("click");
+
+  // The text is its own chunk, so it takes longer than a microtask.
+  await vi.waitFor(() =>
+    expect(
+      wrapper.get('[data-testid="pine-about-license-text"]').text(),
+    ).toContain("GNU AFFERO GENERAL PUBLIC LICENSE"),
+  );
+  expect(wrapper.text()).toContain("AGPL-3.0-or-later");
+});
+
+it("reports a catalog that fails to load", async () => {
+  vi.mocked(loadLicenseCatalog).mockRejectedValue(new Error("chunk"));
+  const wrapper = await mountAbout();
+
+  expect(
+    wrapper.find('[data-testid="pine-about-licenses-failed"]').exists(),
+  ).toBe(true);
+});

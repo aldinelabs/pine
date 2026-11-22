@@ -10,6 +10,7 @@ import {
 } from "./vite.file-viewer-internals";
 import { vueCompiler } from "./vite.vue-compiler";
 import { flattenAncestorTestsPlugin } from "./src/build/flattenAncestorTests";
+import { thirdPartyLicensesPlugin } from "./src/build/thirdPartyLicenses";
 import {
   PINE_LOGO_PATH,
   PINE_LOGO_VIEW_BOX,
@@ -55,6 +56,22 @@ export default defineConfig({
     }),
     fileViewerWorkers(),
     pineSplashLogo(),
+    // The About page's open-source notice, read from node_modules per build.
+    thirdPartyLicensesPlugin({
+      appDirectory: __dirname,
+      standalonePackages: [
+        // Electron's runtime ships; its npm dependencies only download it.
+        "electron",
+        // Compiled into the renderer's CSS.
+        "@fontsource-variable/inter",
+        "tailwindcss",
+        "tw-animate-css",
+      ],
+      referencedProjectsFile: path.join(
+        __dirname,
+        "src/components/preferences/about/referencedProjects.json",
+      ),
+    }),
   ],
   css: {
     postcss: {

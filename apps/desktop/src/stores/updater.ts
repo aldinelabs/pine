@@ -15,6 +15,8 @@ export const useUpdaterStore = defineStore("updater", () => {
   const isAvailable = computed(() => update.value !== undefined);
   let initialized = false;
   const isChecking = ref(false);
+  // Whether the latest check could not reach the release feed.
+  const checkFailed = ref(false);
   let pendingCheck: Promise<void> | undefined;
 
   function check(): Promise<void> {
@@ -31,6 +33,7 @@ export const useUpdaterStore = defineStore("updater", () => {
     pendingCheck = (async () => {
       try {
         const result = await checkForUpdate();
+        checkFailed.value = false;
         if (result.status === "available") {
           if (update.value?.version !== result.update.version) {
             phase.value = "available";
@@ -45,6 +48,7 @@ export const useUpdaterStore = defineStore("updater", () => {
           error.value = undefined;
         }
       } catch {
+        checkFailed.value = true;
         // Background failures leave the last known release available.
       } finally {
         isChecking.value = false;
@@ -105,6 +109,7 @@ export const useUpdaterStore = defineStore("updater", () => {
 
   return {
     check,
+    checkFailed,
     download,
     error,
     initialize,

@@ -436,6 +436,45 @@ export default {
       projects: "Projets",
       remote: "Contrôle à distance",
       users: "Plusieurs utilisateurs",
+      about: "À propos",
+    },
+    about: {
+      version: "Version {version}",
+      by: "Par {brand}",
+      tagline:
+        "Un espace de travail d’agents IA conçu pour offrir plus de possibilités à chacun.",
+      checkForUpdates: "Rechercher des mises à jour",
+      checking: "Vérification…",
+      upToDate: "Pine est à jour.",
+      checkFailed:
+        "Impossible de rechercher des mises à jour. Réessayez plus tard.",
+      links: "Liens",
+      docs: "Documentation",
+      source: "Code source",
+      releaseNotes: "Notes de version",
+      feedback: "Signaler un problème",
+      license: "Licence",
+      pineLicense: "Licence publique générale GNU Affero v3.0 ou ultérieure",
+      openSource: "Logiciels open source",
+      openSourceDescription:
+        "Pine s’appuie sur les logiciels open source ci-dessous. Sélectionnez une entrée pour lire sa licence.",
+      search: "Rechercher par nom ou licence",
+      noResults: "Aucun résultat.",
+      referenced: "Projets adaptés et intégrés",
+      referencedDescription:
+        "Le code que Pine a adapté, ainsi que les composants, polices et modèles qu’il intègre sans les installer comme paquets.",
+      packages: "Paquets ({count})",
+      kinds: {
+        code: "Code adapté",
+        components: "Composants d’interface",
+        font: "Police",
+        native: "Bibliothèque native",
+        model: "Modèle vocal",
+      },
+      homepage: "Site web",
+      noLicenseText:
+        "Ce paquet n’inclut pas de fichier de licence. Son manifeste déclare {license}.",
+      loadFailed: "Impossible de charger la liste des logiciels open source.",
     },
     groups: {
       language: "Interface",

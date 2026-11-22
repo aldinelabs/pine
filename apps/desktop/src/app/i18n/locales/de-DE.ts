@@ -440,6 +440,45 @@ export default {
       projects: "Projekte",
       remote: "Fernsteuerung",
       users: "Mehrere Benutzer",
+      about: "Über",
+    },
+    about: {
+      version: "Version {version}",
+      by: "Von {brand}",
+      tagline:
+        "Ein KI-Agenten-Arbeitsbereich, der allen mehr Möglichkeiten eröffnet.",
+      checkForUpdates: "Nach Updates suchen",
+      checking: "Wird geprüft …",
+      upToDate: "Pine ist auf dem neuesten Stand.",
+      checkFailed:
+        "Updates konnten nicht geprüft werden. Versuchen Sie es später erneut.",
+      links: "Links",
+      docs: "Dokumentation",
+      source: "Quellcode",
+      releaseNotes: "Versionshinweise",
+      feedback: "Problem melden",
+      license: "Lizenz",
+      pineLicense: "GNU Affero General Public License v3.0 oder neuer",
+      openSource: "Open-Source-Software",
+      openSourceDescription:
+        "Pine basiert auf der folgenden Open-Source-Software. Wählen Sie einen Eintrag, um seine Lizenz zu lesen.",
+      search: "Nach Name oder Lizenz suchen",
+      noResults: "Keine Treffer.",
+      referenced: "Übernommene und mitgelieferte Projekte",
+      referencedDescription:
+        "Code, den Pine übernommen hat, sowie Komponenten, Schriften und Modelle, die Pine ohne Paketinstallation mitliefert.",
+      packages: "Pakete ({count})",
+      kinds: {
+        code: "Übernommener Code",
+        components: "UI-Komponenten",
+        font: "Schrift",
+        native: "Native Bibliothek",
+        model: "Sprachmodell",
+      },
+      homepage: "Website",
+      noLicenseText:
+        "Dieses Paket enthält keine Lizenzdatei. Sein Manifest gibt {license} an.",
+      loadFailed: "Die Open-Source-Liste konnte nicht geladen werden.",
     },
     groups: {
       language: "Oberfläche",

@@ -197,6 +197,22 @@ describe("PinePreferencesDialog", () => {
     wrapper.unmount();
   });
 
+  it("ends the section list with About", async () => {
+    installPineApi("darwin");
+    Object.assign(window.pine, {
+      getWebServer: vi.fn().mockResolvedValue({ enabled: false, port: 9415 }),
+    });
+    const { wrapper } = mountDialog();
+    const labels = wrapper
+      .get("nav")
+      .findAll('[data-slot="item"]')
+      .map((item) => item.text());
+    expect(labels.at(-1)).toBe("关于");
+    await openSection(wrapper, "关于");
+    expect(wrapper.find('[data-testid="pine-about"]').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
   it("shows the WeChat group only where the desktop app offers it", async () => {
     installPineApi("darwin");
     Object.assign(window.pine, {
