@@ -26,6 +26,7 @@ import {
   onMounted,
   reactive,
   ref,
+  useTemplateRef,
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
@@ -991,6 +992,21 @@ function open(section?: PreferenceSection): void {
   isOpen.value = true;
 }
 
+const sectionPane = useTemplateRef<HTMLElement>("sectionPane");
+
+/** Each section starts at its top, not where the previous one was scrolled. */
+watch(
+  [activeSection, isSectionShown],
+  () => {
+    sectionPane.value
+      ?.querySelectorAll<HTMLElement>(
+        "[data-preferences-section-scroll] > [data-slot=scroll-area-viewport]",
+      )
+      .forEach((viewport) => (viewport.scrollTop = 0));
+  },
+  { flush: "post" },
+);
+
 function showSection(section: PreferenceSection): void {
   showPage("forward", () => {
     activeSection.value = section;
@@ -1061,7 +1077,7 @@ defineExpose({ open });
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex min-h-0 flex-1">
+      <div ref="sectionPane" class="flex min-h-0 flex-1">
         <nav
           v-show="!isPhone || !isSectionShown"
           :class="[
@@ -1105,6 +1121,7 @@ defineExpose({ open });
           @submit.prevent="flushUserProfileSave"
         >
           <ScrollArea
+            data-preferences-section-scroll
             class="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
           >
             <FieldGroup class="gap-5 p-6 max-sm:px-4">
@@ -1318,6 +1335,7 @@ defineExpose({ open });
 
         <ScrollArea
           v-else
+          data-preferences-section-scroll
           v-show="!isPhone || isSectionShown"
           class="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:scroll-fade"
         >

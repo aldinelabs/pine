@@ -321,6 +321,29 @@ describe("PinePreferencesDialog", () => {
     expect(current()).toContain("通用");
   });
 
+  it("starts each section at its top", async () => {
+    installPineApi("darwin");
+    const { pinia, wrapper } = mountDialog();
+    vi.spyOn(useModelsStore(pinia), "load").mockResolvedValue(undefined);
+    const viewport = () =>
+      wrapper.get(
+        "[data-preferences-section-scroll] > [data-slot=scroll-area-viewport]",
+      ).element as HTMLElement;
+
+    await openSection(wrapper, "通用");
+    viewport().scrollTop = 240;
+    expect(viewport().scrollTop).toBe(240);
+    await openSection(wrapper, "外观");
+    expect(viewport().scrollTop).toBe(0);
+
+    // A section a shortcut opens starts at its top too.
+    viewport().scrollTop = 240;
+    (wrapper.vm as unknown as { open(section: string): void }).open("agent");
+    await flushPromises();
+    expect(viewport().scrollTop).toBe(0);
+    wrapper.unmount();
+  });
+
   it("places the decisions model after the video model and uses a help tooltip for automatic approval", async () => {
     installPineApi("darwin");
     const { wrapper } = mountDialog();
