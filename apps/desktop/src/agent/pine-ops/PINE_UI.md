@@ -1236,8 +1236,10 @@ the user opens themselves do not pulse.
   card, good habits), "Context and tokens" (what the context is, tokens
   and cost, compaction, keeping the context lean), "Models and providers"
   (where models come from, connecting a provider, picking a model, good
-  habits) and "Reasoning effort" (thinking before answering, setting the
-  effort, good habits). Their text is written in
+  habits), "Reasoning effort" (thinking before answering, setting the
+  effort, good habits) and "Steering and stopping" (steering while Pine
+  works, Withdraw and Send now, stopping, what a stop keeps, good habits).
+  The steering guide has no button of its own yet. Their text is written in
   Simplified Chinese and English; Traditional Chinese shows the Simplified
   text and other languages show English, while the dialog's buttons follow
   the interface language.

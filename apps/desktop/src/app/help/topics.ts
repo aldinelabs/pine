@@ -9,6 +9,7 @@ export const HELP_TOPIC_IDS = [
   "context-window",
   "models",
   "reasoning-effort",
+  "steer-stop",
 ] as const;
 
 export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];
@@ -24,6 +25,7 @@ export const HELP_TOPIC_STEPS = {
   ],
   models: ["model-provider", "provider-connect", "model-picker", "tips"],
   "reasoning-effort": ["reasoning-think", "reasoning-levels", "tips"],
+  "steer-stop": ["steer-message", "stop-turn", "tips"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpIllustrationId =
@@ -38,6 +40,8 @@ export type HelpIllustrationId =
   | "model-picker"
   | "reasoning-think"
   | "reasoning-levels"
+  | "steer-message"
+  | "stop-turn"
   | "tips";
 
 export interface HelpStepText {

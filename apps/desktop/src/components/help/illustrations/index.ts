@@ -10,6 +10,8 @@ import ModelProviderIllustration from "./ModelProviderIllustration.vue";
 import ProviderConnectIllustration from "./ProviderConnectIllustration.vue";
 import ReasoningLevelsIllustration from "./ReasoningLevelsIllustration.vue";
 import ReasoningThinkIllustration from "./ReasoningThinkIllustration.vue";
+import SteerMessageIllustration from "./SteerMessageIllustration.vue";
+import StopTurnIllustration from "./StopTurnIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -30,5 +32,7 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "model-picker": ModelPickerIllustration,
   "reasoning-think": ReasoningThinkIllustration,
   "reasoning-levels": ReasoningLevelsIllustration,
+  "steer-message": SteerMessageIllustration,
+  "stop-turn": StopTurnIllustration,
   tips: TipsIllustration,
 };

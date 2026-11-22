@@ -203,4 +203,43 @@ export default {
       },
     ],
   },
+  "steer-stop": {
+    title: "Steering and stopping",
+    summary:
+      "While Pine works, you can add requirements, change direction or stop it at any time.",
+    steps: [
+      {
+        title: "Talk while it works",
+        body: [
+          "The text box keeps working while Pine does. Type a new requirement and press Enter or click Steer response: the message waits above the text box until Pine finishes its current step, then goes to the model. Pine carries on with the new requirement instead of starting over.",
+          "Until the message is taken, two buttons sit below it: Withdraw puts it back in the text box; Send now interrupts the current work and handles your message right away.",
+        ],
+        note: {
+          tone: "tip",
+          text: "How it works: steering reaches the model between steps, so an action already running isn't cut off.",
+        },
+      },
+      {
+        title: "Stop at any time",
+        body: [
+          "With the text box empty, the button turns into Stop response; you can also press Esc. Pine stops at once: running commands are ended and the step that was cut off is marked Stopped.",
+          "Changes already made stay in place; stopping doesn't undo them. Afterwards, tell Pine what to do next, or ask it to change things back.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Files submitted to Artifacts keep their earlier versions, and Version history restores any of them. Commands that moved to the background keep running after a stop; you can see or end them under Background processes.",
+        },
+      },
+      {
+        title: "Getting the most out of it",
+        body: ["A few habits that help:"],
+        points: [
+          "Hand the task over and add to it as you watch. It's far easier than writing the perfect instructions up front.",
+          "If it's heading the wrong way, say so early. A quick “try another approach” is often faster than stopping and explaining everything again.",
+          "Option/Alt + Enter steers without jumping to the bottom, so you can keep reading earlier messages while you add to them.",
+          "To go back and redo from an earlier point, use Edit message and send again. The conversation continues from there, but file changes aren't reverted.",
+        ],
+      },
+    ],
+  },
 } satisfies HelpContent;
