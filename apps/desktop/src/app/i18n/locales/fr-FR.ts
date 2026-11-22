@@ -457,7 +457,7 @@ export default {
       pineLicense: "Licence publique générale GNU Affero v3.0 ou ultérieure",
       openSource: "Logiciels open source",
       openSourceDescription:
-        "Pine s’appuie sur les logiciels open source ci-dessous. Sélectionnez une entrée pour lire sa licence.",
+        "Pine s’appuie sur les logiciels open source ci-dessous. Sélectionnez une entrée pour ouvrir sa page dans le navigateur.",
       search: "Rechercher par nom ou licence",
       noResults: "Aucun résultat.",
       referenced: "Projets adaptés et intégrés",
@@ -471,9 +471,6 @@ export default {
         native: "Bibliothèque native",
         model: "Modèle vocal",
       },
-      homepage: "Site web",
-      noLicenseText:
-        "Ce paquet n’inclut pas de fichier de licence. Son manifeste déclare {license}.",
       loadFailed: "Impossible de charger la liste des logiciels open source.",
     },
     groups: {

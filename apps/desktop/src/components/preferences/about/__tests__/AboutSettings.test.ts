@@ -170,7 +170,7 @@ it("hides the update check where Pine cannot update itself", async () => {
   ).toBe(false);
 });
 
-it("groups packages by license and opens a license as its own page", async () => {
+it("folds license groups and opens packages in the browser", async () => {
   const wrapper = await mountAbout();
 
   const groups = wrapper.findAll('[data-slot="pine-about-license-group"]');
@@ -181,27 +181,39 @@ it("groups packages by license and opens a license as its own page", async () =>
   );
 
   await groups[0].trigger("click");
+  expect(groups[0].attributes("aria-expanded")).toBe("true");
   const rows = wrapper.findAll('[data-slot="pine-about-package-row"]');
   expect(rows.map((row) => row.text())).toEqual(["vue3.5.42", "zod4.6.6"]);
 
   await rows[1].trigger("click");
-  await flushPromises();
-  const detail = wrapper.get('[data-testid="pine-about-license-detail"]');
-  expect(detail.text()).toContain("zod");
-  expect(detail.text()).toContain("4.6.6");
-  expect(wrapper.get('[data-testid="pine-about-license-text"]').text()).toBe(
-    "MIT License text",
+  expect(window.pine.openExternalUrl).toHaveBeenLastCalledWith(
+    "https://zod.dev",
   );
-  await detail.get("button.h-auto").trigger("click");
-  expect(window.pine.openExternalUrl).toHaveBeenCalledWith("https://zod.dev");
-
-  await wrapper.get('[data-testid="pine-about-license-back"]').trigger("click");
-  await flushPromises();
+  // Without a homepage, a package opens on npm.
+  await rows[0].trigger("click");
+  expect(window.pine.openExternalUrl).toHaveBeenLastCalledWith(
+    "https://www.npmjs.com/package/vue",
+  );
   expect(
     wrapper.find('[data-testid="pine-about-license-detail"]').exists(),
   ).toBe(false);
-  expect(wrapper.find('[data-testid="pine-about-version"]').exists()).toBe(
-    true,
+
+  await groups[0].trigger("click");
+  expect(groups[0].attributes("aria-expanded")).toBe("false");
+  // Closed rows only fold out, inert, until their animation ends.
+  expect(
+    wrapper.findAll(
+      '[data-slot="pine-about-package-row"]:not([data-motion="leave"])',
+    ),
+  ).toHaveLength(0);
+});
+
+it("opens referenced projects at their homepage", async () => {
+  const wrapper = await mountAbout();
+
+  await wrapper.get('[data-slot="pine-about-referenced-row"]').trigger("click");
+  expect(window.pine.openExternalUrl).toHaveBeenLastCalledWith(
+    "https://github.com/be5invis/Sarasa-Gothic",
   );
 });
 
@@ -233,35 +245,13 @@ it("searches by name or license and opens matching groups", async () => {
   ).toBe(true);
 });
 
-it("says when a package ships no license file", async () => {
-  const wrapper = await mountAbout();
-  await wrapper
-    .get('[data-testid="pine-about-license-search"]')
-    .setValue("typebox");
-
-  await wrapper.get('[data-slot="pine-about-package-row"]').trigger("click");
-  await flushPromises();
-
-  expect(wrapper.find('[data-testid="pine-about-license-text"]').exists()).toBe(
-    false,
-  );
-  expect(wrapper.text()).toContain(
-    "This package does not include a license file. Its manifest declares Apache-2.0.",
-  );
-});
-
-it("shows Pine's own license text", async () => {
+it("links Pine's license to the repository", async () => {
   const wrapper = await mountAbout();
 
   await wrapper.get('[data-testid="pine-about-pine-license"]').trigger("click");
-
-  // The text is its own chunk, so it takes longer than a microtask.
-  await vi.waitFor(() =>
-    expect(
-      wrapper.get('[data-testid="pine-about-license-text"]').text(),
-    ).toContain("GNU AFFERO GENERAL PUBLIC LICENSE"),
+  expect(window.pine.openExternalUrl).toHaveBeenLastCalledWith(
+    `${PINE_REPOSITORY_URL}/blob/main/LICENSE`,
   );
-  expect(wrapper.text()).toContain("AGPL-3.0-or-later");
 });
 
 it("reports a catalog that fails to load", async () => {

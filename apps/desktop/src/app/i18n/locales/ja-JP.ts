@@ -459,7 +459,7 @@ export default {
       pineLicense: "GNU Affero 一般公衆利用許諾書 v3.0 以降",
       openSource: "オープンソースソフトウェア",
       openSourceDescription:
-        "Pine は以下のオープンソースソフトウェアを使用しています。項目を選ぶとライセンスを表示します。",
+        "Pine は以下のオープンソースソフトウェアを使用しています。項目を選ぶとブラウザでプロジェクトページを開きます。",
       search: "名前またはライセンスで検索",
       noResults: "一致する項目はありません。",
       referenced: "移植・同梱しているプロジェクト",
@@ -473,9 +473,6 @@ export default {
         native: "ネイティブライブラリ",
         model: "音声モデル",
       },
-      homepage: "ホームページ",
-      noLicenseText:
-        "このパッケージにはライセンスファイルが含まれていません。マニフェストでは {license} と宣言されています。",
       loadFailed: "オープンソースソフトウェアの一覧を読み込めませんでした。",
     },
     groups: {

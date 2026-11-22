@@ -458,7 +458,7 @@ export default {
       pineLicense: "Licencia Pública General Affero de GNU v3.0 o posterior",
       openSource: "Software de código abierto",
       openSourceDescription:
-        "Pine usa el software de código abierto que aparece a continuación. Selecciona una entrada para leer su licencia.",
+        "Pine usa el software de código abierto que aparece a continuación. Selecciona una entrada para abrir su página en el navegador.",
       search: "Buscar por nombre o licencia",
       noResults: "No hay resultados.",
       referenced: "Proyectos adaptados e incluidos",
@@ -472,9 +472,6 @@ export default {
         native: "Biblioteca nativa",
         model: "Modelo de voz",
       },
-      homepage: "Página principal",
-      noLicenseText:
-        "Este paquete no incluye un archivo de licencia. Su manifiesto declara {license}.",
       loadFailed: "No se pudo cargar la lista de software de código abierto.",
     },
     groups: {

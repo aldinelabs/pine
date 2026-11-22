@@ -450,7 +450,7 @@ export default {
       pineLicense: "GNU Affero General Public License v3.0 or later",
       openSource: "Open-source software",
       openSourceDescription:
-        "Pine is built with the open-source software below. Select an entry to read its license.",
+        "Pine is built with the open-source software below. Select an entry to open its project page in your browser.",
       search: "Search by name or license",
       noResults: "Nothing matches your search.",
       referenced: "Adapted and bundled projects",
@@ -464,9 +464,6 @@ export default {
         native: "Native library",
         model: "Speech model",
       },
-      homepage: "Homepage",
-      noLicenseText:
-        "This package does not include a license file. Its manifest declares {license}.",
       loadFailed: "The open-source list could not be loaded.",
     },
     groups: {
