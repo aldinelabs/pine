@@ -7,6 +7,7 @@ import {
 export function installWindowShortcuts(
   contents: WebContents,
   onNewWindow: () => void,
+  onCloseWindow: () => void,
 ): void {
   contents.on("before-input-event", (event, input) => {
     if (input.type !== "keyDown") return;
@@ -17,8 +18,8 @@ export function installWindowShortcuts(
     // Ctrl/Cmd+Shift+R (force reload) reloads Pine.
     contents.setIgnoreMenuShortcuts(modified && key === "r" && !input.shift);
     if (!modified) return;
-    // Ctrl/Cmd+W closes the tab, Ctrl/Cmd+N or Ctrl/Cmd+T opens a tab, and
-    // Ctrl/Cmd+Shift+N opens a window.
+    // Ctrl/Cmd+W closes the tab and Ctrl/Cmd+Shift+W the window; Ctrl/Cmd+N
+    // or Ctrl/Cmd+T opens a tab, and Ctrl/Cmd+Shift+N opens a window.
     const action =
       key === "n"
         ? input.shift
@@ -26,8 +27,10 @@ export function installWindowShortcuts(
           : "new-tab"
         : key === "t" && !input.shift
           ? "new-tab"
-          : key === "w" && !input.shift
-            ? "close-tab"
+          : key === "w"
+            ? input.shift
+              ? "close-window"
+              : "close-tab"
             : undefined;
     if (!action) return;
     // Prevent Electron's native menu accelerators as well as the DOM event.
@@ -37,6 +40,8 @@ export function installWindowShortcuts(
       contents.send(CLOSE_TAB_REQUESTED_CHANNEL);
     } else if (action === "new-tab") {
       contents.send(NEW_TAB_REQUESTED_CHANNEL);
+    } else if (action === "close-window") {
+      onCloseWindow();
     } else {
       onNewWindow();
     }

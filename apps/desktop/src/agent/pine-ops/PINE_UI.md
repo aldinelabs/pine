@@ -1386,6 +1386,8 @@ and Quit Pine. Quitting from the menu is the way to stop automations, Remote Con
 
 - Mod+N or Mod+T: new tab
 - Mod+W: close tab (middle-click a tab also closes it)
+- Mod+Shift+W: close the window, the same as its close button (see Tray and
+  menu bar for "Keep running in the background")
 - Mod+Shift+T: reopen the last closed tab
 - Mod+Shift+N: new window
 - Mod+Shift+R: reload the window (plain Mod+R never reloads Pine)

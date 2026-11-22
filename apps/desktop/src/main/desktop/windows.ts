@@ -208,9 +208,15 @@ export class DesktopWindows {
         record("preload:error", { webContentsId, error: error.message });
       },
     );
-    installWindowShortcuts(mainWindow.webContents, () => {
-      if (this.options.canOpenWorkspace?.() ?? true) this.create();
-    });
+    installWindowShortcuts(
+      mainWindow.webContents,
+      () => {
+        if (this.options.canOpenWorkspace?.() ?? true) this.create();
+      },
+      // The same close as the window's own button, so keeping Pine running
+      // in the background still hides the last window.
+      () => mainWindow.close(),
+    );
     const mediaSources = this.options.mediaSources;
     if (mediaSources)
       installMediaContextMenu(mainWindow.webContents, mediaSources);

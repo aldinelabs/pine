@@ -19,7 +19,11 @@ describe("native close shortcut", () => {
         send: vi.fn(),
         setIgnoreMenuShortcuts: vi.fn(),
       });
-      installWindowShortcuts(contents as unknown as WebContents, vi.fn());
+      installWindowShortcuts(
+        contents as unknown as WebContents,
+        vi.fn(),
+        vi.fn(),
+      );
       for (const modifiers of [{ control: true }, { meta: true }]) {
         const event = { preventDefault: vi.fn() };
         contents.emit("before-input-event", event, {
@@ -40,8 +44,8 @@ describe("native close shortcut", () => {
       });
       expect(repeated.preventDefault).toHaveBeenCalledOnce();
       for (const override of [
-        // Shift+N belongs to the new window shortcut.
-        ...(key === "n" ? [] : [{ shift: true }]),
+        // Shift+N and Shift+W belong to the window shortcuts.
+        ...(key === "n" || key === "w" ? [] : [{ shift: true }]),
         { alt: true },
         { control: false },
         { type: "keyUp" },
@@ -66,7 +70,11 @@ describe("native close shortcut", () => {
       setIgnoreMenuShortcuts: vi.fn(),
     });
     const onCreateWindow = vi.fn();
-    installWindowShortcuts(contents as unknown as WebContents, onCreateWindow);
+    installWindowShortcuts(
+      contents as unknown as WebContents,
+      onCreateWindow,
+      vi.fn(),
+    );
 
     for (const modifiers of [{ control: true }, { meta: true }]) {
       const event = { preventDefault: vi.fn() };
@@ -104,12 +112,66 @@ describe("native close shortcut", () => {
     expect(onCreateWindow).toHaveBeenCalledTimes(2);
   });
 
+  it("closes the window on Ctrl/Cmd+Shift+W but ignores repeats and modifiers", () => {
+    const contents = Object.assign(new EventEmitter(), {
+      send: vi.fn(),
+      setIgnoreMenuShortcuts: vi.fn(),
+    });
+    const onCloseWindow = vi.fn();
+    installWindowShortcuts(
+      contents as unknown as WebContents,
+      vi.fn(),
+      onCloseWindow,
+    );
+
+    for (const modifiers of [{ control: true }, { meta: true }]) {
+      const event = { preventDefault: vi.fn() };
+      contents.emit("before-input-event", event, {
+        type: "keyDown",
+        key: "W",
+        shift: true,
+        ...modifiers,
+      });
+      expect(event.preventDefault).toHaveBeenCalledOnce();
+    }
+    expect(onCloseWindow).toHaveBeenCalledTimes(2);
+    expect(contents.send).not.toHaveBeenCalled();
+
+    const repeated = { preventDefault: vi.fn() };
+    contents.emit("before-input-event", repeated, {
+      type: "keyDown",
+      key: "W",
+      shift: true,
+      control: true,
+      isAutoRepeat: true,
+    });
+    expect(repeated.preventDefault).toHaveBeenCalledOnce();
+    expect(onCloseWindow).toHaveBeenCalledTimes(2);
+
+    for (const override of [{ alt: true }, { control: false }]) {
+      const event = { preventDefault: vi.fn() };
+      contents.emit("before-input-event", event, {
+        type: "keyDown",
+        key: "W",
+        shift: true,
+        control: true,
+        ...override,
+      });
+      expect(event.preventDefault).not.toHaveBeenCalled();
+    }
+    expect(onCloseWindow).toHaveBeenCalledTimes(2);
+  });
+
   it("passes Ctrl/Cmd+R to the page but keeps the menu from reloading", () => {
     const contents = Object.assign(new EventEmitter(), {
       send: vi.fn(),
       setIgnoreMenuShortcuts: vi.fn(),
     });
-    installWindowShortcuts(contents as unknown as WebContents, vi.fn());
+    installWindowShortcuts(
+      contents as unknown as WebContents,
+      vi.fn(),
+      vi.fn(),
+    );
     for (const modifiers of [{ control: true }, { meta: true }]) {
       const reload = { preventDefault: vi.fn() };
       contents.emit("before-input-event", reload, {
