@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
@@ -249,17 +251,17 @@ async function compactContext(): Promise<void> {
 
     <PopoverContent side="top" align="start" class="w-72 gap-4">
       <section class="flex flex-col gap-2" data-testid="context-section">
-        <div class="flex items-baseline justify-between gap-4">
-          <span class="text-sm font-medium">
+        <PopoverHeader class="flex-row items-baseline justify-between gap-4">
+          <PopoverTitle class="text-sm">
             {{ t("project.composer.contextUsage.label") }}
-          </span>
+          </PopoverTitle>
           <span
             class="text-lg font-semibold tabular-nums"
             :class="usageToneClass"
           >
             {{ precisePercentText }}
           </span>
-        </div>
+        </PopoverHeader>
         <Progress :model-value="usageFraction * 100" class="h-1.5" />
         <dl class="flex flex-col gap-1 text-sm">
           <div class="flex items-baseline justify-between gap-4">
@@ -303,10 +305,10 @@ async function compactContext(): Promise<void> {
       <Separator />
 
       <section class="flex flex-col gap-2" data-testid="cost-section">
-        <div class="flex items-baseline justify-between gap-4">
-          <span class="text-sm font-medium">
+        <PopoverHeader class="flex-row items-baseline justify-between gap-4">
+          <PopoverTitle class="text-sm">
             {{ t("project.composer.contextUsage.cost") }}
-          </span>
+          </PopoverTitle>
           <span
             class="text-sm font-medium tabular-nums"
             :class="limitReached ? 'text-destructive' : ''"
@@ -319,7 +321,7 @@ async function compactContext(): Promise<void> {
               / {{ currencyStore.format(costLimit, 2) }}
             </span>
           </span>
-        </div>
+        </PopoverHeader>
         <Progress
           v-if="costPercent != null"
           :model-value="costPercent"
@@ -384,8 +386,7 @@ async function compactContext(): Promise<void> {
         </div>
       </section>
 
-      <!-- Like the approval mode menu's last item. The guide opens over the
-           popover's place, so the popover closes. -->
+      <!-- The guide opens over the popover's place, so the popover closes. -->
       <template v-if="appearanceStore.helpGuides">
         <Separator />
         <HelpGuideButton
