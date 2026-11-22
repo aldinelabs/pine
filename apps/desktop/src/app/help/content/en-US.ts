@@ -94,8 +94,8 @@ export default {
           "You can also compact at any time with Compact context now, for example when one stage is done and the next is about to start.",
         ],
         note: {
-          tone: "caution",
-          text: "Compaction loses detail. If exact numbers or wording you gave earlier still matter, mention them again afterwards.",
+          tone: "tip",
+          text: "The summary leaves out some detail, but the full conversation is still kept, and Pine looks back through it when it needs to. If a detail really matters, ask Pine to check the earlier messages, or just say it again; neither has a downside.",
         },
       },
       {
