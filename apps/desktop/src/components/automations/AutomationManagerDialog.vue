@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpGuideBadge from "@/components/help/HelpGuideBadge.vue";
 import { focusDialogContainer } from "@/lib/dialogFocus";
 import {
   HistoryIcon,
@@ -240,7 +241,15 @@ const pendingApprovals = computed(() =>
       ]"
     >
       <DialogHeader>
-        <DialogTitle>{{ t("automations.title") }}</DialogTitle>
+        <!-- The guide sits beside the title, clear of the close button and
+             of the dialog's own actions. -->
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <DialogTitle>{{ t("automations.title") }}</DialogTitle>
+          <HelpGuideBadge
+            topic="automations"
+            :label="t('help.automationsGuide')"
+          />
+        </div>
         <DialogDescription>{{
           t("automations.description")
         }}</DialogDescription>

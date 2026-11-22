@@ -61,9 +61,22 @@ click.
 - Guide button: a question-mark icon and a label naming what it explains,
   as the first item of a composer menu or popover above a divider (for
   example "How approval modes work" in the approval mode menu, "How context
-  works" in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
-  overlays). Guide buttons can be hidden everywhere with Guide buttons in
+  works" in the Context usage popover), or as a small labelled badge beside
+  a manager dialog's title ("How automations work", "How Skills work",
+  "How MCP servers work", "How memory works"). It opens an illustrated
+  guide (see Guides under Dialogs and overlays) on top of whatever is open;
+  closing the guide returns there. Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
+- One-time tip: a muted bar with a lightbulb, one line of text, "Show me"
+  (opens the related guide) and "Got it", shown where a feature first
+  appears until either button is clicked, then never again for that user:
+  at the top of the first approval card ("First approval? See when Pine
+  asks you, and why.", opens the approval card step), below a completed
+  compaction marker (opens the compaction step), at the top of the
+  Artifacts list once it has files (opens the Artifacts step) and in the
+  sidebar below a session's last sub-session (opens "Sub-sessions"). Each
+  tip shows in one place at a time. Guide buttons off hides them all;
+  Pine Settings › General › One-time tips › Show again brings them back.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
@@ -101,7 +114,7 @@ window
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
 │   ├── top menu: Search sessions · New session · Projects · More
-│   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory
+│   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory · Guides
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
 │   │       ├── session folder (collapsible) → session items
@@ -185,6 +198,8 @@ More menu:
 - Skills: opens the Skills manager for the active tab's project.
 - MCP servers: opens the MCP servers manager for the active tab's project.
 - Memory: opens the Memory manager for the active tab's project.
+- Guides: opens the Guides overview (see Guides under Dialogs and
+  overlays). It stays in the menu with Guide buttons off.
 
 ### Content area
 
@@ -1023,8 +1038,10 @@ the user opens themselves do not pulse.
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
     rate, US dollars when rates are unavailable), Guide buttons (on by
-    default; off hides every button and menu item that opens a guide, in
-    every open window), completion signal, attention
+    default; off hides every button and menu item that opens a guide, and
+    the one-time tips, in every open window), One-time tips (shown while
+    Guide buttons is on; Show again, enabled once a tip was dismissed,
+    shows them all again), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
@@ -1208,7 +1225,8 @@ the user opens themselves do not pulse.
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
   their tabs as they are.
-- Automations manager, with tabs: Activity (runs with status such as Running,
+- Automations manager ("How automations work" beside the title opens the
+  "Automations" guide), with tabs: Activity (runs with status such as Running,
   Found something, Nothing new, Failed; Refresh, Mark all as read, Show runs
   with nothing new; opening a run opens its session), Automations (each with
   its triggers and permissions, On/Off/Paused state, Run now, Edit
@@ -1217,11 +1235,14 @@ the user opens themselves do not pulse.
   changeable only in the desktop app). Manage with Pine starts an automation
   draft. Automations run only while Pine is open unless keeping Pine running
   in the background is on.
-- Skills manager: global and project Skills; create, edit, enable per project,
+- Skills manager ("How Skills work" beside the title opens the "Skills"
+  guide): global and project Skills; create, edit, enable per project,
   delete; Manage with Pine.
-- MCP servers manager: servers for this project or all projects; add, edit,
+- MCP servers manager ("How MCP servers work" beside the title opens the
+  "MCP servers" guide): servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
-- Memory manager: the saved notes in two tabs, This project and All
+- Memory manager ("How memory works" beside the title opens the "Memory"
+  guide): the saved notes in two tabs, This project and All
   projects, each note with its name, one-line summary, an Unverified badge
   when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
   with Summary, Details and a Verified switch, plus Delete, which asks first.
@@ -1243,8 +1264,14 @@ the user opens themselves do not pulse.
   makes the model (Google, OpenAI, Black Forest Labs, …), or a generic shield,
   image or video icon when Pine doesn't recognize the maker. The selected
   model's row shows a check mark in its place.
+- Guides overview: opened from the sidebar's More menu › Guides. Every
+  guide in one list, grouped under Getting started, Working with Pine,
+  Extending Pine and Settings explained; each row shows the guide's icon,
+  title and one-line summary. Clicking a row opens that guide on top of the
+  list; closing the guide returns to the list.
 - Guides: one dialog that teaches a feature in plain language, opened from a
-  guide button or menu item such as "How approval modes work". An animated
+  guide button or menu item such as "How approval modes work", or from the
+  Guides overview. An animated
   picture fills the top (it holds still with reduced motion); below it a
   small line names the guide and the step ("Tool calls and approvals · Step 1
   of 4"; one-page guides show only the name), then the step's title, a few paragraphs, sometimes a bullet list,
@@ -1260,14 +1287,31 @@ the user opens themselves do not pulse.
   effort, good habits), "Steering and stopping" (steering while Pine works,
   Withdraw and Send now, stopping, what a stop keeps, good habits) and
   "Projects and folder access" (projects as sets of folders, Read only and
-  Read and write, the sandbox, good habits), plus three one-page guides
-  opened from settings' question marks: "Automatic approval path" (Model
+  Read and write, the sandbox, good habits),
+  "Memory" (asking Pine to remember, project and global notes, the Memory
+  manager, Unverified notes, turning memory off),
+  "Sub-sessions" (one page: splitting work into sub-sessions, where they
+  appear in the sidebar, notices to the parent, limits),
+  "Workbench" (the workbench and its panels; Artifacts with folders,
+  versions and dragging files out),
+  "Work style and Aldine methodology" (one page: work style, communication
+  style, technical background, Aldine methodology),
+  "Skills" (one page: what a Skill is, how Pine picks one, global and
+  project Skills, creating one with Pine),
+  "MCP servers" (one page: what MCP servers add, Project and All
+  projects servers, adding one with Pine, status),
+  "Automations" (what automations are, triggers, creating one with Pine; how
+  runs work, Activity, Secrets, running in the background),
+  "Working well with an agent" (one page: stating the goal, giving material,
+  room to work, having Pine check its work, keeping what works),
+  plus three one-page guides opened from settings' question marks:
+  "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands
   unclear ones to the approval model, falling back to model review without
   OpenRouter), "Context compaction strategy" (recommended settings versus
   Passive compaction) and "Context compaction method" (Model versus Semantic
   algorithm (Beta) and its recall tool). The steering guide has no
-  button of its own yet. The agent can also open any guide at a chosen step, shown
+  button of its own; it opens from the Guides overview. The agent can also open any guide at a chosen step, shown
   only while its conversation is on screen; the transcript then reads
   "Opened the “…” guide". Their text is written in Simplified Chinese and English;
   Traditional Chinese shows the Simplified text and other languages show

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpGuideBadge from "@/components/help/HelpGuideBadge.vue";
 import { focusDialogContainer } from "@/lib/dialogFocus";
 import { BrainIcon, RefreshCwIcon, Trash2Icon } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
@@ -209,7 +210,12 @@ async function confirmDelete(): Promise<void> {
       ]"
     >
       <DialogHeader>
-        <DialogTitle>{{ t("preferences.memory.managerTitle") }}</DialogTitle>
+        <!-- The guide sits beside the title, clear of the close button and
+             of the dialog's own actions. -->
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <DialogTitle>{{ t("preferences.memory.managerTitle") }}</DialogTitle>
+          <HelpGuideBadge topic="memory" :label="t('help.memoryGuide')" />
+        </div>
         <DialogDescription>
           {{ t("preferences.memory.managerDescription") }}
         </DialogDescription>

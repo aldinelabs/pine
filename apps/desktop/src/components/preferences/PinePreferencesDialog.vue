@@ -103,6 +103,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import ModifierShortcut from "@/components/window/ModifierShortcut.vue";
 import { useCurrencyStore } from "@/stores/currency";
 import { useModelsStore } from "@/stores/models";
+import { useFirstUseHintsStore } from "@/stores/firstUseHints";
 import { useUserProfileStore } from "@/stores/userProfile";
 import {
   isProjectColorTheme,
@@ -167,6 +168,7 @@ const hasWeChatRemote =
 // Users share one computer, so only the desktop app manages them.
 const hasUsers = isDesktop && window.pine?.users !== undefined;
 const appearanceStore = useAppearanceStore();
+const firstUseHints = useFirstUseHintsStore();
 const modelsStore = useModelsStore();
 const userProfileStore = useUserProfileStore();
 const currencyStore = useCurrencyStore();
@@ -1445,6 +1447,31 @@ defineExpose({ open });
                       aria-labelledby="pine-help-guides-setting"
                       @update:model-value="appearanceStore.setHelpGuides"
                     />
+                  </Field>
+
+                  <Field
+                    v-if="appearanceStore.helpGuides"
+                    orientation="horizontal"
+                  >
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <FieldTitle id="pine-first-use-hints-setting">
+                        {{ t("help.firstUseHints") }}
+                      </FieldTitle>
+                      <FieldDescription>
+                        {{ t("help.firstUseHintsDescription") }}
+                      </FieldDescription>
+                    </div>
+                    <Button
+                      data-testid="pine-first-use-hints-reset"
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      :disabled="!firstUseHints.hasDismissed"
+                      aria-describedby="pine-first-use-hints-setting"
+                      @click="firstUseHints.reset()"
+                    >
+                      {{ t("help.firstUseHintsReset") }}
+                    </Button>
                   </Field>
                 </FieldGroup>
               </FieldSet>

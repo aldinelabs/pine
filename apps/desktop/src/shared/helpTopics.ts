@@ -12,6 +12,14 @@ export const HELP_TOPIC_IDS = [
   "auto-approval-path",
   "compaction-strategy",
   "compaction-method",
+  "memory",
+  "sub-sessions",
+  "workbench",
+  "work-style",
+  "skills",
+  "mcp",
+  "automations",
+  "best-practices",
 ] as const;
 
 export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];

@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import { nextTick } from "vue";
@@ -21,7 +22,7 @@ describe("ProjectApprovalCard", () => {
     (options) => {
       const wrapper = mount(ProjectApprovalCard, {
         props: { approval, isActive: true },
-        global: { plugins: [createAppI18n("zh-CN")] },
+        global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
       });
       for (const key of ["Enter", "Escape", "/"]) {
         window.dispatchEvent(new KeyboardEvent("keydown", { key, ...options }));
@@ -40,7 +41,7 @@ describe("ProjectApprovalCard", () => {
           autoApprovalFailure: { id: "failure-1", message: "Provider down" },
         },
       },
-      global: { plugins: [createAppI18n("zh-CN")] },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
     });
     expect(wrapper.get('[role="status"]').text()).toBe(
       "自动审批失败，请手动确认",
@@ -65,7 +66,7 @@ describe("ProjectApprovalCard", () => {
           reasonDetail: "The reviewer did not submit a ruling.",
         },
       },
-      global: { plugins: [createAppI18n("zh-CN")] },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
     });
     await wrapper
       .get('[data-slot="approval-details-trigger"]')
@@ -97,7 +98,7 @@ describe("ProjectApprovalCard", () => {
           },
         },
       },
-      global: { plugins: [createAppI18n("zh-CN")] },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
     });
     const text = wrapper.text();
     expect(text).toContain("Pine 想添加 MCP 服务器“github”。");
@@ -138,7 +139,7 @@ describe("ProjectApprovalCard", () => {
           },
         },
       },
-      global: { plugins: [createAppI18n("en-US")] },
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
     });
     const text = wrapper.text();
     expect(text).toContain(
@@ -168,7 +169,7 @@ describe("ProjectApprovalCard", () => {
   it("does not label ordinary manual confirmations as failures", () => {
     const wrapper = mount(ProjectApprovalCard, {
       props: { approval },
-      global: { plugins: [createAppI18n("en-US")] },
+      global: { plugins: [createPinia(), createAppI18n("en-US")] },
     });
     expect(wrapper.find('[role="status"]').exists()).toBe(false);
     expect(wrapper.text()).toContain("Approval required");
@@ -180,7 +181,7 @@ describe("ProjectApprovalCard", () => {
       summary: "Builds the project into dist.",
       risks: ["Overwrites dist.", "Runs project scripts."],
     };
-    const i18n = () => ({ plugins: [createAppI18n("en-US")] });
+    const i18n = () => ({ plugins: [createPinia(), createAppI18n("en-US")] });
     const trigger = '[data-slot="approval-details-trigger"]';
     const details = '[data-slot="approval-details"]';
     const triggerText =

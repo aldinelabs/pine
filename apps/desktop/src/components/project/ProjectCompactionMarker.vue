@@ -7,6 +7,7 @@ import {
 } from "@lucide/vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import FirstUseHint from "@/components/help/FirstUseHint.vue";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import type { PineCompaction } from "@/shared/sessions";
 
@@ -39,4 +40,11 @@ const labelClass = computed(() => {
     </MarkerIcon>
     <MarkerContent :class="labelClass">{{ label }}</MarkerContent>
   </Marker>
+  <FirstUseHint
+    v-if="compaction.status === 'complete'"
+    id="compaction"
+    class="mt-2"
+    :text="t('help.hints.compaction')"
+    :guide="{ topic: 'context-window', step: 2 }"
+  />
 </template>

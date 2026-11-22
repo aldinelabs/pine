@@ -3421,5 +3421,34 @@ export default {
     projectFoldersGuide: "Comment fonctionne l’accès aux dossiers",
     learnWhy: "Comprendre pourquoi",
     whyBlocked: "Pourquoi est-ce bloqué ?",
+    automationsGuide: "Comment fonctionnent les automatisations",
+    skillsGuide: "Comment fonctionnent les Skills",
+    mcpGuide: "Comment fonctionnent les serveurs MCP",
+    memoryGuide: "Comment fonctionne la mémoire",
+    hintShowGuide: "Voir le guide",
+    hintDismiss: "Compris",
+    hints: {
+      approvalCard:
+        "Première approbation ? Découvrez quand Pine vous demande, et pourquoi.",
+      compaction:
+        "Pine vient de compacter le contexte : les messages plus anciens sont devenus un résumé, et l'historique complet est conservé.",
+      artifacts:
+        "Les fichiers livrés par Pine arrivent ici. Vous pouvez les classer, revoir leurs versions et les faire glisser directement ailleurs.",
+      subSessions:
+        "Les sous-sessions travaillent en parallèle et préviennent leur session parente une fois terminées.",
+    },
+    firstUseHints: "Astuces de première fois",
+    firstUseHintsDescription:
+      "De courtes astuces la première fois que vous voyez une approbation, une compaction, un livrable ou une sous-session.",
+    firstUseHintsReset: "Afficher à nouveau",
+    guides: "Guides",
+    guidesDescription:
+      "De courts guides illustrés sur ce que Pine sait faire et comment en tirer le meilleur parti.",
+    groups: {
+      start: "Premiers pas",
+      work: "Travailler avec Pine",
+      extend: "Étendre Pine",
+      settings: "Réglages expliqués",
+    },
   },
 } as const;

@@ -3324,5 +3324,32 @@ export default {
     projectFoldersGuide: "폴더 권한 설정 방법",
     learnWhy: "이유 알아보기",
     whyBlocked: "왜 차단되었나요?",
+    automationsGuide: "자동화 사용법",
+    skillsGuide: "스킬 사용법",
+    mcpGuide: "MCP 서버 사용법",
+    memoryGuide: "메모리 사용법",
+    hintShowGuide: "가이드 보기",
+    hintDismiss: "알겠어요",
+    hints: {
+      approvalCard: "첫 승인인가요? Pine이 언제 물어보는지 알아보세요.",
+      compaction:
+        "Pine이 방금 컨텍스트를 압축했습니다. 이전 대화는 요약이 되었고 전체 기록은 그대로 보관됩니다.",
+      artifacts:
+        "Pine이 전달한 파일은 여기에 모입니다. 폴더로 묶고, 버전을 돌아보고, 바로 끌어다 놓을 수 있습니다.",
+      subSessions: "하위 세션은 병렬로 작업하고 끝나면 상위 세션에 알립니다.",
+    },
+    firstUseHints: "처음 한 번 보는 팁",
+    firstUseHintsDescription:
+      "승인, 압축, 결과물, 하위 세션을 처음 볼 때 짧은 팁을 보여 줍니다.",
+    firstUseHintsReset: "다시 보기",
+    guides: "가이드",
+    guidesDescription:
+      "Pine으로 할 수 있는 일과 더 잘 쓰는 방법을 그림과 함께 짧게 소개합니다.",
+    groups: {
+      start: "시작하기",
+      work: "일상 사용",
+      extend: "Pine 확장하기",
+      settings: "설정 설명",
+    },
   },
 } as const;

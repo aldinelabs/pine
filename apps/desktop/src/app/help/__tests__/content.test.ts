@@ -3,6 +3,7 @@ import { APP_LOCALES } from "@/app/i18n";
 import enUS from "../content/en-US";
 import zhCN from "../content/zh-CN";
 import {
+  HELP_TOPIC_GROUPS,
   HELP_TOPIC_IDS,
   HELP_TOPIC_STEPS,
   helpContentLocale,
@@ -41,6 +42,11 @@ describe("help content", () => {
       HELP_TOPIC_STEPS["approval-modes"],
     );
     expect(topic.locale).toBe("en-US");
+  });
+
+  it("lists every guide in exactly one overview group", () => {
+    const grouped = HELP_TOPIC_GROUPS.flatMap((group) => group.topics);
+    expect([...grouped].sort()).toEqual([...HELP_TOPIC_IDS].sort());
   });
 
   it("recognizes topic ids", () => {

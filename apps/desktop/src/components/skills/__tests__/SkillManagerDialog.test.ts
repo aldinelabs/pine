@@ -1,3 +1,4 @@
+import { createPinia } from "pinia";
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -46,7 +47,7 @@ function mountDialog() {
     attachTo: document.body,
     props: { open: false, projectId: "project-1" },
     global: {
-      plugins: [createAppI18n("zh-CN")],
+      plugins: [createPinia(), createAppI18n("zh-CN")],
       stubs: {
         AlertDialog: alertDialogStub,
         AlertDialogAction: alertDialogActionStub,

@@ -342,4 +342,230 @@ export default {
       },
     ],
   },
+  memory: {
+    title: "Memory",
+    summary:
+      "Pine can remember your preferences and decisions, so you don't have to explain them again.",
+    steps: [
+      {
+        title: "Ask Pine to remember",
+        body: [
+          "A model starts every conversation from scratch. Memory lets Pine keep what's worth keeping as notes: later conversations start with the list of notes and read one in full when it's relevant.",
+          'To have it remember something, just say so, for example "Remember: weekly reports use a table, amounts with two decimals". Pine also saves notes on its own when it learns something worth keeping, such as a correction you made, a detail of your setup or a decision.',
+        ],
+        points: [
+          "Project notes appear only in that project's conversations. Good for project conventions and background.",
+          "Global notes are seen in every project. Good for your personal habits and preferences.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Saving or deleting a note shows as a tool call in the conversation, so you can always see what Pine wrote down.",
+        },
+      },
+      {
+        title: "Review and tidy your memory",
+        body: [
+          "The sidebar's More › Memory lists every note in two tabs, This project and All projects. Each note has a name and a one-line summary; Edit changes the summary and details, or deletes the note.",
+        ],
+        points: [
+          "Notes marked Unverified are things Pine inferred and nobody has confirmed. Pine treats them as leads, not facts; once you know a note is right, turn on Verified.",
+          "The easiest way to correct a note is to tell Pine; it rewrites that note.",
+          "To stop using memory, turn off Remember across sessions in Settings › Agent. Pine then neither reads nor saves notes, and the existing notes stay.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Automation runs neither read nor save memory; each run works only from its own definition.",
+        },
+      },
+    ],
+  },
+  "sub-sessions": {
+    title: "Sub-sessions",
+    summary: "Split a big task so several sub-sessions work on it at once.",
+    steps: [
+      {
+        title: "Let Pine split the work",
+        body: [
+          "When work splits cleanly, such as separate research questions, edits to separate files or a broad search, Pine can start sub-sessions and move them forward in parallel, like sending out helpers. Each sub-session is a full conversation with its own context, so the main session doesn't fill up with details.",
+          'You can ask for this directly, for example "Start three sub-sessions, one to research each of these companies".',
+        ],
+        points: [
+          "Sub-sessions appear in the sidebar under their parent, indented one level. The arrow beside the parent shows or hides them; open any of them to see how it's going.",
+          "When a sub-session finishes a turn or waits for approval, Pine tells the parent, so nothing needs watching.",
+          "Sub-sessions work in the parent's project and go one level deep, and their approval mode is never looser than the parent's. Deleting the parent deletes them too.",
+          "To start a separate conversation in another project, ask Pine for a separate session.",
+        ],
+        note: {
+          tone: "tip",
+          text: "For short tasks, or steps that depend on each other, Pine just does the work itself; there's no need to ask it not to split.",
+        },
+      },
+    ],
+  },
+  workbench: {
+    title: "Workbench",
+    summary:
+      "The panel beside the conversation: collect results, preview files, watch background processes.",
+    steps: [
+      {
+        title: "What's in the workbench",
+        body: [
+          "The workbench is the panel on the right of a session. Open it with Toggle workbench in the title bar or ⌘/Ctrl + Alt + B. It holds up to two cards, one above the other, and each card's switcher picks a panel:",
+        ],
+        points: [
+          "Artifacts: the results Pine delivers to you.",
+          "Preview: the file Pine showed last, or the one you picked in Artifacts.",
+          "Background processes: long-running programs Pine started, with their output.",
+          "Files: the project's file tree and each folder's access.",
+          "Side chat: a separate, read-only discussion about this session that doesn't interrupt the work.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Open in tab, in a card's header, moves the content to the main area for more room.",
+        },
+      },
+      {
+        title: "Artifacts",
+        body: [
+          "When Pine finishes a task, it submits the files it delivers to Artifacts, each with a title and a one-line description, newest first. Files it only showed to report progress or compare options stay out: this list holds results.",
+        ],
+        points: [
+          "When there are many files, Pine files them into folders, such as Reports › Week 1. Folders only organize the list; the files stay where they are on disk. To group them differently, just tell Pine.",
+          "Every submission keeps a copy. A file with a clock badge has several versions; right-click it › Version history to look back and compare.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Drag an artifact straight onto your file manager, the desktop or another app, or into the message box.",
+        },
+      },
+    ],
+  },
+  "work-style": {
+    title: "Work style and Aldine methodology",
+    summary: "Tune how Pine drives the work and how it talks to you.",
+    steps: [
+      {
+        title: "Have Pine work your way",
+        body: [
+          "In Settings › User profile, these settings together shape how Pine works with you:",
+        ],
+        points: [
+          "Work style: Full takeover (the default) lets Pine drive the task, make reasonable calls on its own and stop only where it matters; when it discusses a file it quotes or summarizes, so you needn't open the file alongside. Collaborate assumes you have the file open: Pine points to sections, paragraphs or line numbers, moves in followable steps and asks before key decisions.",
+          "Communication style: Calm & professional, Neutral or Warm & friendly sets the tone. Technical background sets how much Pine explains and how much jargon it uses.",
+          "Aldine methodology (Beta, on by default): Pine talks like a clear-headed dialogue partner, candid, specific and light on pleasantries. It checks what it can check, says precisely what it's unsure of, and tells you when it disagrees.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Changes save on their own and apply from the next message in every conversation. Automation runs always work as Full takeover.",
+        },
+      },
+    ],
+  },
+  skills: {
+    title: "Skills",
+    summary:
+      "Write down a way of working as a Skill, and Pine uses it on its own when a task calls for it.",
+    steps: [
+      {
+        title: "Teach Pine a routine",
+        body: [
+          'A Skill is a reusable set of instructions, such as "write the weekly report on the company template" or "the checklist before a release", optionally with files like templates or scripts. Pine normally sees only each Skill\'s name and When to use; when a task matches, it calls the Skill, reads the full instructions and follows them.',
+        ],
+        points: [
+          "Manage them in the sidebar's More › Skills. Global Skills work in every project and can be switched off in one project; Project Skills belong to the current project only.",
+          'The easiest way to make one is Manage with Pine, or just telling Pine "turn what we just did into a Skill"; it writes the instructions and description for you.',
+          "You can also write one yourself with New Skill. The more specific its When to use, the more reliably Pine picks it.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Pine reads the full instructions only when it uses a Skill, so even many Skills take up almost no context.",
+        },
+      },
+    ],
+  },
+  mcp: {
+    title: "MCP servers",
+    summary: "Connect outside tools and data, and Pine can do even more.",
+    steps: [
+      {
+        title: "Plug more tools into Pine",
+        body: [
+          "MCP (Model Context Protocol) is an open standard for connecting AI to outside tools. Add an MCP server and Pine can use the tools it offers, such as querying a database, working in a project tracker or calling your company's internal services.",
+        ],
+        points: [
+          "Add and manage servers in the sidebar's More › MCP servers. Project servers work only in this project; All projects servers live in a shared configuration file that other MCP apps can use too.",
+          "The easiest way is Manage with Pine: send Pine the service's docs link or install command and it writes the configuration. It asks you before saving.",
+          "A server can be a command that runs on this computer or a URL. The list shows Connected, Needs authorization or Connection failed; Refresh status checks again.",
+          "Changes apply from your next message.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Pine reaches MCP through one entry point and looks up a specific tool when it needs one, so even many servers won't crowd the context.",
+        },
+      },
+    ],
+  },
+  automations: {
+    title: "Automations",
+    summary:
+      "Pine starts work on its own, on a schedule or an event, and gets it done while you're away.",
+    steps: [
+      {
+        title: "Let Pine start on its own",
+        body: [
+          "An automation is work Pine does while you're away. Each one says when it triggers, what to do and which permissions it has; when it triggers, Pine starts a session to do the work. There are four kinds of trigger:",
+        ],
+        points: [
+          "A schedule, such as every weekday at 9 am, at most every 5 minutes.",
+          "A folder change: files added, changed or removed.",
+          "A system event: Pine starting, the computer waking from sleep, unlocking or going idle.",
+          "A website or feed check: Pine looks at a page, feed or API regularly and starts work only when there's something new.",
+        ],
+        note: {
+          tone: "tip",
+          text: 'The easiest way to make one: in the sidebar\'s More › Automations, click Manage with Pine and say what you want in a sentence, such as "every morning, check this site for new job posts". Pine asks a few questions, writes and checks the definition, then asks you to confirm saving it.',
+        },
+      },
+      {
+        title: "How runs work",
+        body: [
+          "Nobody is there to approve during a run, so automations work like Autonomous Work, and only with the permissions in their definition: which folders they may read and write, which addresses they may reach and which tools they may use.",
+        ],
+        points: [
+          "Each run is a session in the project, marked with a workflow icon. The Activity tab lists every run and its result, such as Found something, Nothing new or Failed; open one to see everything it did.",
+          "By default Pine notifies you only when a run finds something; failures always notify.",
+          "Put values such as API tokens in the Secrets tab. They're stored encrypted on this computer and available to runs, and their contents never show in the conversation.",
+          "Automation runs neither read nor save memory, and always work as Full takeover.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Automations run only while Pine is open. To keep them working, turn on Keep running in the background in Settings › General (desktop app on macOS and Windows).",
+        },
+      },
+    ],
+  },
+  "best-practices": {
+    title: "Working well with an agent",
+    summary:
+      "Modern models are very capable. Give one a clear goal and room to work, and it goes far.",
+    steps: [
+      {
+        title: "Hand it over boldly, then let it work",
+        body: [
+          "Pine reads and writes files, runs commands, searches the web, uses a browser and can split big tasks into sub-sessions. The key is to brief it the way you'd brief a capable colleague:",
+        ],
+        points: [
+          'Say where it ends: what to deliver and what counts as done beats step-by-step instructions. For example, "Put together a comparison table covering price, features and user reviews".',
+          "Give it the material: put the relevant folders in the project and include references, examples and links. The more it sees, the better it judges.",
+          "Give it room: start in Auto Approve and let it keep going. When a new idea comes up, just add it as a request; there's no need to stop and start over.",
+          "Have it check its own work: ask it to run the tests, open the result and look, or go through the requirements one by one.",
+          "Keep what works: ask it to remember a good approach or turn it into a Skill, and hand recurring tasks to an automation.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Not sure it can be done? Let it try. The result often goes beyond what you expected.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

@@ -62,7 +62,7 @@ describe("project transcript markers", () => {
       props: {
         compaction: { id: "compaction-1", status: "running" },
       },
-      global: { plugins: [createAppI18n("zh-CN")] },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")] },
     });
 
     expect(wrapper.get('[data-slot="marker-content"]').text()).toBe(

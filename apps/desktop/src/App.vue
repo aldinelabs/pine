@@ -3,6 +3,7 @@ import { storeToRefs } from "pinia";
 import { provide, shallowRef, watch, watchEffect } from "vue";
 import { RouterView } from "vue-router";
 import { formatWindowTitle } from "@/app/windowTitle";
+import HelpOverviewDialog from "@/components/help/HelpOverviewDialog.vue";
 import HelpTutorialDialog from "@/components/help/HelpTutorialDialog.vue";
 import { Toaster } from "@/components/ui/sonner";
 import { syncWindowBackground } from "@/lib/windowBackground";
@@ -62,6 +63,7 @@ watch(
   <main id="pine-root" class="h-full overflow-x-clip">
     <RouterView />
     <Toaster :theme="colorScheme" />
+    <HelpOverviewDialog />
     <HelpTutorialDialog />
   </main>
 </template>

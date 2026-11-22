@@ -1,3 +1,5 @@
+import { createPinia, setActivePinia } from "pinia";
+import { useHelpStore } from "@/stores/help";
 import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
@@ -61,15 +63,24 @@ describe("McpManagerDialog", () => {
         servers: [],
       }),
     } as unknown as Window["pine"];
+    const pinia = createPinia();
+    setActivePinia(pinia);
     const wrapper = mount(McpManagerDialog, {
       props: { open: true, projectId: "project-1" },
       global: {
-        plugins: [createAppI18n("zh-CN")],
+        plugins: [pinia, createAppI18n("zh-CN")],
         stubs,
       },
     });
     await flushPromises();
     expect(wrapper.text()).toContain("尚未配置服务器");
+    // The guide button sits by the title and opens the MCP guide without
+    // closing the manager.
+    const guide = wrapper.get('[data-slot="help-guide-badge"]');
+    expect(guide.text()).toBe("MCP 服务器怎么用");
+    await guide.trigger("click");
+    expect(useHelpStore().topicId).toBe("mcp");
+    expect(wrapper.emitted("update:open")).toBeUndefined();
     const addButtons = wrapper
       .findAll("button")
       .filter((button) => button.text().includes("添加服务器"));
@@ -102,7 +113,7 @@ describe("McpManagerDialog", () => {
     } as unknown as Window["pine"];
     const wrapper = mount(McpManagerDialog, {
       props: { open: true, projectId: "project-1" },
-      global: { plugins: [createAppI18n("zh-CN")], stubs },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")], stubs },
     });
     await flushPromises();
     await wrapper
@@ -123,7 +134,7 @@ describe("McpManagerDialog", () => {
     } as unknown as Window["pine"];
     const wrapper = mount(McpManagerDialog, {
       props: { open: true, projectId: "project-1" },
-      global: { plugins: [createAppI18n("zh-CN")], stubs },
+      global: { plugins: [createPinia(), createAppI18n("zh-CN")], stubs },
     });
     await flushPromises();
     await wrapper.get('[data-testid="mcp-create-with-pine"]').trigger("click");

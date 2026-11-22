@@ -51,6 +51,33 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   ],
   "compaction-strategy": ["Use recommended settings vs Passive compaction"],
   "compaction-method": ["Model vs Semantic algorithm (Beta)"],
+  memory: [
+    "what memory is, project and global notes, asking Pine to remember",
+    "the Memory manager, Unverified notes, turning memory off",
+  ],
+  "sub-sessions": [
+    "splitting work into sub-sessions, where they appear, notices to the parent, limits",
+  ],
+  workbench: [
+    "the workbench and its panels",
+    "Artifacts: deliverables, folders, versions, dragging out",
+  ],
+  "work-style": [
+    "work style (Full takeover, Collaborate), communication style, technical background, Aldine methodology",
+  ],
+  skills: [
+    "what a Skill is, how Pine picks one, global and project Skills, creating one with Pine",
+  ],
+  mcp: [
+    "what MCP servers add, project and all-projects servers, adding one with Pine, status",
+  ],
+  automations: [
+    "what automations are, the four kinds of trigger, creating one with Pine",
+    "how runs work: permissions, Activity, notifications, Secrets, running in the background",
+  ],
+  "best-practices": [
+    "handing over a task well: the goal, material, room to work, self-checks, keeping what works",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

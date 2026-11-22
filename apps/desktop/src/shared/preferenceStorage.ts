@@ -18,6 +18,8 @@ export const REPLY_SUGGESTIONS_PREFERENCE_KEY =
   "pine.composer-reply-suggestions";
 /** The buttons that open Pine's illustrated guides. */
 export const HELP_GUIDES_PREFERENCE_KEY = "pine.help-guides";
+/** The one-time hints the user has already dismissed. */
+export const FIRST_USE_HINTS_PREFERENCE_KEY = "pine.first-use-hints.v1";
 /**
  * Preferences other windows apply as soon as they change. Everything else
  * (tab layouts and the like) is only read when a window opens, so it is
@@ -27,6 +29,7 @@ export const LIVE_PREFERENCE_KEYS: ReadonlySet<string> = new Set([
   COMPOSER_GLOW_PREFERENCE_KEY,
   REPLY_SUGGESTIONS_PREFERENCE_KEY,
   HELP_GUIDES_PREFERENCE_KEY,
+  FIRST_USE_HINTS_PREFERENCE_KEY,
 ]);
 export const MAX_PREFERENCE_KEY_LENGTH = 256;
 export const MAX_PREFERENCE_VALUE_LENGTH = 1_000_000;

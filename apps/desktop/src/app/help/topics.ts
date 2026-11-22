@@ -28,7 +28,48 @@ export const HELP_TOPIC_STEPS = {
   "auto-approval-path": ["approval-path"],
   "compaction-strategy": ["compaction-strategy"],
   "compaction-method": ["compaction-method"],
+  memory: ["memory-notes", "memory-manager"],
+  "sub-sessions": ["sub-sessions"],
+  workbench: ["workbench-panels", "artifacts"],
+  "work-style": ["work-style"],
+  skills: ["skills"],
+  mcp: ["mcp"],
+  automations: ["automation-triggers", "automation-runs"],
+  "best-practices": ["best-practices"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
+
+export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
+
+/**
+ * How the Guides overview groups the guides, in reading order. Every guide
+ * appears in exactly one group.
+ */
+export const HELP_TOPIC_GROUPS: readonly {
+  id: HelpTopicGroupId;
+  topics: readonly HelpTopicId[];
+}[] = [
+  {
+    id: "start",
+    topics: ["best-practices", "approval-modes", "models", "context-window"],
+  },
+  {
+    id: "work",
+    topics: [
+      "steer-stop",
+      "reasoning-effort",
+      "project-folders",
+      "memory",
+      "sub-sessions",
+      "workbench",
+      "work-style",
+    ],
+  },
+  { id: "extend", topics: ["skills", "mcp", "automations"] },
+  {
+    id: "settings",
+    topics: ["auto-approval-path", "compaction-strategy", "compaction-method"],
+  },
+];
 
 export type HelpIllustrationId =
   | "tool-call"
@@ -49,6 +90,17 @@ export type HelpIllustrationId =
   | "approval-path"
   | "compaction-strategy"
   | "compaction-method"
+  | "memory-notes"
+  | "memory-manager"
+  | "sub-sessions"
+  | "workbench-panels"
+  | "artifacts"
+  | "work-style"
+  | "skills"
+  | "mcp"
+  | "automation-triggers"
+  | "automation-runs"
+  | "best-practices"
   | "tips";
 
 export interface HelpStepText {
