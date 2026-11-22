@@ -537,6 +537,49 @@ export class ProjectRuntimeRegistry {
     return false;
   }
 
+  /**
+   * Whether a path sits inside the temporary folder of an open project, where
+   * the agent writes scratch images and drafts. Symlinks are followed on both
+   * sides, so a link placed there cannot reach a file outside it; a path that
+   * does not exist yet passes, letting the caller answer "not found".
+   */
+  async isInsideTemporaryFolder(candidatePath: string): Promise<boolean> {
+    const resolvedPath = path.resolve(candidatePath);
+    const canonicalPath = await realpath(resolvedPath).catch(() => null);
+    for (const runtime of this.allRuntimes()) {
+      const root = runtime.dataPaths.temporaryRoot;
+      if (!root) continue;
+      const canonicalRoot = await realpath(root).catch(() => null);
+      if (!canonicalRoot) continue;
+      if (canonicalPath) {
+        if (pathContains(canonicalRoot, canonicalPath)) return true;
+      } else if (
+        pathContains(root, resolvedPath) ||
+        pathContains(canonicalRoot, resolvedPath)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The canonical path of a file in one open project's temporary folder. */
+  async temporaryFileOf(
+    webContentsId: number,
+    projectId: string,
+    filePath: string,
+  ): Promise<string | null> {
+    const root = this.get(webContentsId, projectId).dataPaths.temporaryRoot;
+    if (!root || !path.isAbsolute(filePath) || filePath.includes("\0"))
+      return null;
+    const canonicalRoot = await realpath(root).catch(() => null);
+    const canonicalPath = await realpath(filePath).catch(() => null);
+    if (!canonicalRoot || !canonicalPath) return null;
+    if (!pathContains(canonicalRoot, canonicalPath)) return null;
+    const metadata = await stat(canonicalPath).catch(() => null);
+    return metadata?.isFile() ? canonicalPath : null;
+  }
+
   /** A session index some window already has open, so reads can reuse it. */
   openSessionService(projectId: string): ProjectSessionService | undefined {
     return this.allRuntimes().find(
@@ -1421,6 +1464,12 @@ export class ProjectRuntimeRegistry {
     artifactPath?: string,
   ): Promise<FilePreviewTarget | null> {
     const runtime = this.get(webContentsId, projectId);
+    // A tool that read or wrote a scratch file outside every project folder
+    // still opens it: the project's own temporary folder is Pine's data.
+    const temporaryFile = artifactPath
+      ? await this.temporaryFileOf(webContentsId, projectId, artifactPath)
+      : null;
+    if (temporaryFile) return { path: temporaryFile, source: "presented" };
     const filePath = await runtime.sessions.presentedFilePath(
       sessionId,
       toolCallId,

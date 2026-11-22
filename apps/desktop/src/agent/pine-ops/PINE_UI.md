@@ -39,7 +39,8 @@ to click.
   authoring tools on for a Skill, an automation or an MCP server.
 - Content tab: a session or a file opened in the main content area. The window
   shows the project of the active tab. A session or file opened casually (from
-  the sidebar, search, the file tree or a tool marker) opens as the preview
+  the sidebar, search, the file tree or a tool marker; a tool marker also
+  opens a scratch file in the project's temporary folder) opens as the preview
   tab and is replaced by the next casual open; keeping it (for example by
   working in it) makes it an ordinary tab.
 - Workbench: the right-hand panel beside the active session.
@@ -306,8 +307,9 @@ From top to bottom:
      charts, numbered steps) and study aids (flashcards that flip when
      clicked, confetti when a goal is reached, none with reduced motion).
      A link in a block asks "Open external link?" before it opens in the
-     browser. An image in a block can show a web picture or a file in the
-     project's folders; one that cannot load shows a crossed-out picture
+     browser. An image in a block can show a web picture, a file in the
+     project's folders or a scratch file the agent saved in the project's
+     temporary folder; one that cannot load shows a crossed-out picture
      with the reason (for example the file is outside the project's
      folders) and its path, also shown on hover.
      "Load earlier messages" appears at the top of long sessions. The

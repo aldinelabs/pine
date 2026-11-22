@@ -553,7 +553,7 @@ function registerAttachmentImageProtocol(): void {
       return new Response("Bad request", { status: 400 });
     }
     const resolvedPath = path.resolve(expandHomePath(requestedPath));
-    if (!core?.isServableAttachmentPath(resolvedPath)) {
+    if (!(await core?.isServableAttachmentRequest(resolvedPath))) {
       return new Response("Forbidden", { status: 403 });
     }
     try {

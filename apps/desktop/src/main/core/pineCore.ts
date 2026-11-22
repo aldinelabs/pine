@@ -566,10 +566,22 @@ export class PineCore {
     return false;
   }
 
+  /**
+   * Whether the desktop attachment protocol may serve a path. Adds the open
+   * projects' temporary folders, where the agent writes scratch images.
+   */
+  async isServableAttachmentRequest(resolvedPath: string): Promise<boolean> {
+    return (
+      this.isServableAttachmentPath(resolvedPath) ||
+      (await this.runtimes.isInsideTemporaryFolder(resolvedPath))
+    );
+  }
+
   private async allowAttachment(filePath: string): Promise<boolean> {
     if (this.isServableAttachmentPath(filePath)) return true;
     if (await this.runtimes.isInsideCanonicalGrantedFolder(filePath))
       return true;
+    if (await this.runtimes.isInsideTemporaryFolder(filePath)) return true;
     for (const paths of this.attachedPreviewPaths.values())
       for (const registered of paths)
         if ((await realpath(registered).catch(() => null)) === filePath)

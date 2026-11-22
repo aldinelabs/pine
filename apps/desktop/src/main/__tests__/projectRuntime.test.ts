@@ -688,6 +688,98 @@ describe("ProjectRuntimeRegistry", () => {
     }
   });
 
+  it("serves files from an open project's temporary folder only", async () => {
+    const registry = new ProjectRuntimeRegistry(
+      createAgentHost(),
+      "/pine/agent",
+    );
+    const { dataRoot, project } = await createRuntimeFixture();
+    const temporaryRoot = path.join(dataRoot, "tmp");
+    const scratchPath = path.join(temporaryRoot, "run", "draft.png");
+    const outsidePath = path.join(dataRoot, "secret.txt");
+    const linkPath = path.join(temporaryRoot, "run", "escape.png");
+    await mkdir(path.dirname(scratchPath), { recursive: true });
+    await Promise.all([
+      writeFile(scratchPath, "png"),
+      writeFile(outsidePath, "secret"),
+    ]);
+    await symlink(outsidePath, linkPath);
+
+    // Closed projects grant nothing.
+    await expect(registry.isInsideTemporaryFolder(scratchPath)).resolves.toBe(
+      false,
+    );
+    try {
+      await registry.open(1, project, {
+        attachmentsRoot: path.join(dataRoot, "attachments"),
+        cacheRoot: path.join(dataRoot, "cache"),
+        projectRoot: dataRoot,
+        sessionsRoot: path.join(dataRoot, "sessions"),
+        temporaryRoot,
+      });
+      const canonicalScratch = await realpath(scratchPath);
+
+      await expect(registry.isInsideTemporaryFolder(scratchPath)).resolves.toBe(
+        true,
+      );
+      await expect(
+        registry.isInsideTemporaryFolder(canonicalScratch),
+      ).resolves.toBe(true);
+      // A missing file passes so the protocol can answer "not found".
+      await expect(
+        registry.isInsideTemporaryFolder(path.join(temporaryRoot, "gone.png")),
+      ).resolves.toBe(true);
+      await expect(registry.isInsideTemporaryFolder(outsidePath)).resolves.toBe(
+        false,
+      );
+      await expect(
+        registry.isInsideTemporaryFolder(
+          path.join(temporaryRoot, "..", "secret.txt"),
+        ),
+      ).resolves.toBe(false);
+      // A symlink placed there cannot reach a file outside it.
+      await expect(registry.isInsideTemporaryFolder(linkPath)).resolves.toBe(
+        false,
+      );
+
+      // A tool marker naming a scratch file reopens it as a presented file.
+      const sessionId = "0198e338-fb55-7e18-a23e-a7028500f999";
+      await expect(
+        registry.reopenPresentedToolFile(
+          1,
+          project.id,
+          sessionId,
+          "read-call",
+          scratchPath,
+        ),
+      ).resolves.toEqual({ path: canonicalScratch, source: "presented" });
+      const historicalPath = vi
+        .spyOn(ProjectSessionService.prototype, "presentedFilePath")
+        .mockResolvedValue(null);
+      await expect(
+        registry.reopenPresentedToolFile(
+          1,
+          project.id,
+          sessionId,
+          "read-call",
+          linkPath,
+        ),
+      ).resolves.toBeNull();
+      await expect(
+        registry.reopenPresentedToolFile(
+          1,
+          project.id,
+          sessionId,
+          "read-call",
+          outsidePath,
+        ),
+      ).resolves.toBeNull();
+      historicalPath.mockRestore();
+    } finally {
+      await registry.dispose(1);
+    }
+  });
+
   it("reuses an explicitly targeted active session", async () => {
     const agentHost = createAgentHost();
     const createSession = vi.spyOn(agentHost, "createSession");

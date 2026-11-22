@@ -258,6 +258,59 @@ describe("ProjectSessionView file drop", () => {
     wrapper.unmount();
   });
 
+  it("opens another tool's scratch file through the temporary folder check", async () => {
+    const { wrapper } = mountView();
+    const sessionId = "0198e338-fb55-7e18-a23e-a7028500f124";
+    const filePath = "/Pine/projects/project/tmp/run/draft.png";
+    const toolCall = {
+      id: "read-call",
+      name: "read",
+      status: "complete" as const,
+      input: { path: filePath },
+    };
+    const reopen = vi
+      .fn()
+      .mockResolvedValueOnce({ source: "presented", path: filePath })
+      .mockRejectedValueOnce(new Error("Project is no longer open."));
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { ...window.pine, reopenPresentedToolFile: reopen },
+    });
+    await wrapper.setProps({ sessionId });
+    useSessionStore().stateFor(sessionId).messages = [
+      {
+        id: "scratch-message",
+        createdAt: "2026-09-03T00:00:00Z",
+        role: "assistant",
+        status: "complete",
+        blocks: [{ type: "toolCall", toolCall }],
+      },
+    ];
+    await flushPromises();
+
+    const openFile = wrapper
+      .findComponent({ name: "ProjectTranscriptMessage" })
+      .props("openFile") as (
+      path: string,
+      call: typeof toolCall,
+    ) => Promise<boolean>;
+    expect(await openFile(filePath, toolCall)).toBe(true);
+    expect(reopen).toHaveBeenCalledWith({
+      projectId: "p1",
+      sessionId,
+      toolCallId: toolCall.id,
+      path: filePath,
+    });
+    expect(
+      useContentTabsStore().tabs.find((tab) => tab.kind === "file"),
+    ).toMatchObject({ path: filePath, source: "presented" });
+    // A rejected request reports failure instead of throwing.
+    expect(
+      await openFile("/elsewhere/other.png", { ...toolCall, id: "read-2" }),
+    ).toBe(false);
+    wrapper.unmount();
+  });
+
   it("keeps the empty state content above the parallax background", async () => {
     const { wrapper } = mountView();
     await flushPromises();

@@ -175,12 +175,17 @@ async function openToolFile(
     tabNavigation.activate(presented.id);
     return true;
   }
-  if (toolCall.name !== "ui_present_file" || !props.sessionId) return false;
-  const target = await window.pine.reopenPresentedToolFile({
-    projectId: props.projectId,
-    sessionId: props.sessionId,
-    toolCallId: toolCall.id,
-  });
+  if (!props.sessionId) return false;
+  // Any other tool's file opens only from the project's temporary folder,
+  // which the main process checks.
+  const target = await window.pine
+    .reopenPresentedToolFile({
+      projectId: props.projectId,
+      sessionId: props.sessionId,
+      toolCallId: toolCall.id,
+      ...(toolCall.name === "ui_present_file" ? {} : { path }),
+    })
+    .catch(() => null);
   if (!target) return false;
   tabNavigation.activate(
     contentTabsStore.presentFile(target, props.projectId, toolCall.id).id,
