@@ -31,6 +31,7 @@ export const HELP_TOPIC_STEPS = {
   memory: ["memory-notes", "memory-manager"],
   "sub-sessions": ["sub-sessions"],
   workbench: ["workbench-panels", "artifacts"],
+  "work-style": ["work-style"],
 } as const satisfies Record<HelpTopicId, readonly HelpIllustrationId[]>;
 
 export type HelpTopicGroupId = "start" | "work" | "extend" | "settings";
@@ -56,6 +57,7 @@ export const HELP_TOPIC_GROUPS: readonly {
       "memory",
       "sub-sessions",
       "workbench",
+      "work-style",
     ],
   },
   { id: "extend", topics: [] },
@@ -89,6 +91,7 @@ export type HelpIllustrationId =
   | "sub-sessions"
   | "workbench-panels"
   | "artifacts"
+  | "work-style"
   | "tips";
 
 export interface HelpStepText {

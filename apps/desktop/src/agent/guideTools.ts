@@ -62,6 +62,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
     "the workbench and its panels",
     "Artifacts: deliverables, folders, versions, dragging out",
   ],
+  "work-style": [
+    "work style (Full takeover, Collaborate), communication style, technical background, Aldine methodology",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

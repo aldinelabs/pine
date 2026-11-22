@@ -1275,6 +1275,8 @@ the user opens themselves do not pulse.
   appear in the sidebar, notices to the parent, limits),
   "Workbench" (the workbench and its panels; Artifacts with folders,
   versions and dragging files out),
+  "Work style and Aldine methodology" (one page: work style, communication
+  style, technical background, Aldine methodology),
   plus three one-page guides opened from settings' question marks:
   "Automatic approval path" (Model
   review versus Decision model (Beta), which screens calls first and hands

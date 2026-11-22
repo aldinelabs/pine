@@ -440,4 +440,25 @@ export default {
       },
     ],
   },
+  "work-style": {
+    title: "Work style and Aldine methodology",
+    summary: "Tune how Pine drives the work and how it talks to you.",
+    steps: [
+      {
+        title: "Have Pine work your way",
+        body: [
+          "In Settings › User profile, these settings together shape how Pine works with you:",
+        ],
+        points: [
+          "Work style: Full takeover (the default) lets Pine drive the task, make reasonable calls on its own and stop only where it matters; when it discusses a file it quotes or summarizes, so you needn't open the file alongside. Collaborate assumes you have the file open: Pine points to sections, paragraphs or line numbers, moves in followable steps and asks before key decisions.",
+          "Communication style: Calm & professional, Neutral or Warm & friendly sets the tone. Technical background sets how much Pine explains and how much jargon it uses.",
+          "Aldine methodology (Beta, on by default): Pine talks like a clear-headed dialogue partner, candid, specific and light on pleasantries. It checks what it can check, says precisely what it's unsure of, and tells you when it disagrees.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Changes save on their own and apply from the next message in every conversation. Automation runs always work as Full takeover.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;
