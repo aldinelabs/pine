@@ -61,7 +61,7 @@ to click.
   it explains (for example "How context works"), or a menu item of the same
   shape. It opens an illustrated guide (see Guides under Dialogs and
   overlays). Guide buttons can be hidden everywhere with Guide buttons in
-  Pine Settings › Appearance.
+  Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
@@ -542,7 +542,7 @@ From top to bottom:
      without user action), YOLO (no permission constraints; asks the user to
      confirm before enabling). The choice is saved with the conversation
      and shared between desktop and remote devices. With Guide buttons on
-     (Appearance settings), the last item of the approval mode menu, "How
+     (General settings), the last item of the approval mode menu, "How
      approval modes work", opens the "Tool calls and approvals" guide.
    - Sessions the agent starts: when asked, the agent can start a separate
      session that works in the background in this or another project. It
@@ -1000,15 +1000,16 @@ the user opens themselves do not pulse.
 - Pine Settings, with sections (a phone shows the section list first):
   - General: language (dropdown), currency (follows the system region by
     default; used for cost and cost limits at the European Central Bank's daily
-    rate, US dollars when rates are unavailable), completion signal, attention
+    rate, US dollars when rates are unavailable), Guide buttons (on by
+    default; off hides every button and menu item that opens a guide, in
+    every open window), completion signal, attention
     notifications, quick composer shortcut, keep running in the background
     (macOS and Windows desktop app), diagnostic logging.
   - Appearance: color mode (System, Light, Dark), Pine default color theme
     (Neutral unless changed; the palettes are Neutral, Olive, Red, Rose,
     Orange, Green, Blue, Yellow, Violet), Working glow (the light running
     along the composer's border while the agent works; on by default,
-    applies to every open window), Guide buttons (on by default; off hides
-    every button and menu item that opens a guide, in every open window), sidebar blur (macOS), Monet font family
+    applies to every open window), sidebar blur (macOS), Monet font family
     (a switch, off by default: a serif reading font for assistant replies,
     session titles, headings, input placeholders and the model picker; your
     own messages, buttons, menus and the sidebar keep the interface font; it

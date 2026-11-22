@@ -9,7 +9,7 @@ import { useHelpStore } from "@/stores/help";
  * A labelled button that opens one of Pine's guides, for places with room
  * for a line of text (popovers, cards). It says what it opens instead of
  * hiding behind a hover tooltip, and disappears with Guide buttons off in
- * Appearance settings. Menus use a menu item of the same shape instead.
+ * General settings. Menus use a menu item of the same shape instead.
  */
 const props = defineProps<{
   topic: HelpTopicId;
