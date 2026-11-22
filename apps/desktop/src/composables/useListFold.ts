@@ -34,7 +34,16 @@ export interface ListFoldOptions {
   canAnimate: () => boolean;
   /** The gap between rows, folded with a row so the rows below follow it. */
   gap?: string;
+  /**
+   * An update that folds more rows than this shows at once: each folding row
+   * animates its own height, so hundreds of them relayout the list every
+   * frame.
+   */
+  maxFoldingRows?: number;
 }
+
+/** Enough for any folder or burst of files a person follows by eye. */
+export const MAX_FOLDING_ROWS = 40;
 
 /**
  * Indexes (into `sequence`) of a longest increasing subsequence: the rows
@@ -73,6 +82,7 @@ export function useListFold<T extends FoldRow>(
   options: ListFoldOptions,
 ) {
   const gap = options.gap ?? "0.125rem";
+  const maxFoldingRows = options.maxFoldingRows ?? MAX_FOLDING_ROWS;
   const displayRows = shallowRef<FoldDisplayRow<T>[]>([]);
   const elements = new Map<string, HTMLElement>();
   const animations = new Map<string, Animation>();
@@ -174,16 +184,25 @@ export function useListFold<T extends FoldRow>(
           .filter((row) => !oldIndex.has(row.key) || moved.has(row.key))
           .map((row) => row.key),
       );
+      // Rows that leave or move, from the old rendering. A moved row folds
+      // twice: out where it was and in where it lands.
+      const rendered = displayRows.value;
+      const departing = rendered.filter(
+        (shown) =>
+          !shown.motion && (!nextKeys.has(shown.key) || moved.has(shown.key)),
+      );
+      if (entering.size + departing.length > maxFoldingRows) {
+        clearLeaving();
+        displayRows.value = compose(next);
+        return;
+      }
       // A row back before it finished leaving no longer leaves.
       leaving = leaving.filter(
         ({ row }) => !nextKeys.has(row.key) || moved.has(row.key),
       );
-      // Copies of the rows that leave or move, made from the old rendering.
-      const rendered = displayRows.value;
+      // Copies of the rows that leave or move.
       const outgoing = new Map<string, FoldDisplayRow<T>>();
-      for (const shown of rendered) {
-        if (shown.motion) continue;
-        if (nextKeys.has(shown.key) && !moved.has(shown.key)) continue;
+      for (const shown of departing) {
         outgoing.set(shown.renderKey, {
           ...shown,
           renderKey: `leave:${ghostId++}:${shown.key}`,

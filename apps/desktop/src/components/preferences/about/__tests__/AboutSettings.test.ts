@@ -182,6 +182,10 @@ it("folds license groups and opens packages in the browser", async () => {
 
   await groups[0].trigger("click");
   expect(groups[0].attributes("aria-expanded")).toBe("true");
+  // One folding container per group, not one animation per package.
+  expect(
+    wrapper.findAll(".license-group-content[data-state=open]"),
+  ).toHaveLength(1);
   const rows = wrapper.findAll('[data-slot="pine-about-package-row"]');
   expect(rows.map((row) => row.text())).toEqual(["vue3.5.42", "zod4.6.6"]);
 
@@ -199,13 +203,11 @@ it("folds license groups and opens packages in the browser", async () => {
   ).toBe(false);
 
   await groups[0].trigger("click");
+  await flushPromises();
   expect(groups[0].attributes("aria-expanded")).toBe("false");
-  // Closed rows only fold out, inert, until their animation ends.
-  expect(
-    wrapper.findAll(
-      '[data-slot="pine-about-package-row"]:not([data-motion="leave"])',
-    ),
-  ).toHaveLength(0);
+  expect(wrapper.findAll('[data-slot="pine-about-package-row"]')).toHaveLength(
+    0,
+  );
 });
 
 it("opens referenced projects at their homepage", async () => {
@@ -222,6 +224,10 @@ it("searches by name or license and opens matching groups", async () => {
   const search = wrapper.get('[data-testid="pine-about-license-search"]');
 
   await search.setValue("apache");
+  // Search opens groups at once, without folding.
+  expect(
+    wrapper.get(".license-group-content").attributes("data-instant"),
+  ).toBeDefined();
   expect(
     wrapper
       .findAll('[data-slot="pine-about-package-row"]')

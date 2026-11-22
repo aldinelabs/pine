@@ -33,8 +33,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useListFold } from "@/composables/useListFold";
+import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import {
   PINE_DOCS_URL,
   PINE_ISSUES_URL,
@@ -49,7 +54,6 @@ import {
   normalizeQuery,
   packageUrl,
   type ThirdPartyLicenseCatalog,
-  type ThirdPartyPackage,
 } from "./licenseCatalog";
 
 /**
@@ -111,57 +115,22 @@ const groups = computed(() =>
     : [],
 );
 
-type PackageRow =
-  | {
-      key: string;
-      kind: "group";
-      license: string;
-      count: number;
-      open: boolean;
-    }
-  | { key: string; kind: "package"; entry: ThirdPartyPackage };
+/**
+ * Groups fold like the session list's: one height animation on the group's
+ * content, however many packages it holds. Search opens groups at once.
+ */
+function isGroupOpen(license: string): boolean {
+  return isSearching.value || openGroups.value.has(license);
+}
 
-/** License groups, each followed by its packages while it is open. */
-const packageRows = computed<PackageRow[]>(() =>
-  groups.value.flatMap(({ license, packages }) => {
-    const open = isSearching.value || openGroups.value.has(license);
-    const header: PackageRow = {
-      key: `group:${license}`,
-      kind: "group",
-      license,
-      count: packages.length,
-      open,
-    };
-    if (!open) return [header];
-    return [
-      header,
-      ...packages.map((entry): PackageRow => ({
-        key: `package:${license}:${entry.name}@${entry.version}`,
-        kind: "package",
-        entry,
-      })),
-    ];
-  }),
-);
-
-/** Groups fold open and closed like the session list; search jumps. */
-let foldNext = false;
-const { displayRows, setElement } = useListFold(packageRows, {
-  canAnimate: () => {
-    const animate = foldNext;
-    foldNext = false;
-    return animate;
-  },
-  gap: "0.25rem",
-});
-
-function toggleGroup(license: string): void {
+function setGroupOpen(license: string, open: boolean): void {
   if (isSearching.value) return;
   const next = new Set(openGroups.value);
-  if (!next.delete(license)) next.add(license);
-  foldNext = true;
+  if (open) next.add(license);
+  else next.delete(license);
   openGroups.value = next;
 }
+
 const referenced = computed(() =>
   catalog.value
     ? filterReferencedProjects(catalog.value.referenced, query.value)
@@ -409,63 +378,116 @@ async function checkForUpdates(): Promise<void> {
               })
             }}
           </h4>
-          <template v-for="row in displayRows" :key="row.renderKey">
-            <Item
-              v-if="row.kind === 'group'"
-              :ref="(element) => setElement(row.renderKey, element)"
-              data-slot="pine-about-license-group"
-              as="button"
-              type="button"
-              size="xs"
-              class="group/license hover:bg-muted active:bg-muted"
-              :class="row.motion && 'pointer-events-none'"
-              :data-state="row.open ? 'open' : 'closed'"
-              :aria-expanded="row.open"
-              :disabled="isSearching"
-              :data-motion="row.motion"
-              :inert="row.motion === 'leave' || undefined"
-              @click="toggleGroup(row.license)"
+          <Collapsible
+            v-for="group in groups"
+            :key="group.license"
+            :open="isGroupOpen(group.license)"
+            @update:open="(open: boolean) => setGroupOpen(group.license, open)"
+          >
+            <CollapsibleTrigger as-child>
+              <Item
+                data-slot="pine-about-license-group"
+                as="button"
+                type="button"
+                size="xs"
+                class="group/license hover:bg-muted active:bg-muted"
+                :disabled="isSearching"
+              >
+                <ItemMedia variant="icon">
+                  <ChevronRightIcon
+                    aria-hidden="true"
+                    class="transition-transform duration-500 ease-out-expo group-data-[state=open]/license:rotate-90 motion-reduce:transition-none"
+                  />
+                </ItemMedia>
+                <ItemContent class="min-w-0">
+                  <ItemTitle class="w-full">
+                    <span class="truncate">{{ group.license }}</span>
+                  </ItemTitle>
+                </ItemContent>
+                <ItemActions class="text-xs text-muted-foreground tabular-nums">
+                  {{ group.packages.length }}
+                </ItemActions>
+              </Item>
+            </CollapsibleTrigger>
+            <CollapsibleContent
+              class="license-group-content overflow-hidden"
+              :data-instant="isSearching || undefined"
+              :style="{
+                animationDuration: `${DURATION_MS}ms`,
+                animationTimingFunction: EASE_OUT_EXPO,
+              }"
             >
-              <ItemMedia variant="icon">
-                <ChevronRightIcon
-                  aria-hidden="true"
-                  class="transition-transform group-data-[state=open]/license:rotate-90 motion-reduce:transition-none"
-                />
-              </ItemMedia>
-              <ItemContent class="min-w-0">
-                <ItemTitle class="w-full">
-                  <span class="truncate">{{ row.license }}</span>
-                </ItemTitle>
-              </ItemContent>
-              <ItemActions class="text-xs text-muted-foreground tabular-nums">
-                {{ row.count }}
-              </ItemActions>
-            </Item>
-            <Item
-              v-else
-              :ref="(element) => setElement(row.renderKey, element)"
-              data-slot="pine-about-package-row"
-              as="button"
-              type="button"
-              size="xs"
-              class="ml-7 w-auto hover:bg-muted active:bg-muted"
-              :class="row.motion && 'pointer-events-none'"
-              :data-motion="row.motion"
-              :inert="row.motion === 'leave' || undefined"
-              @click="openUrl(packageUrl(row.entry))"
-            >
-              <ItemContent class="min-w-0">
-                <ItemTitle class="w-full font-normal">
-                  <span class="truncate">{{ row.entry.name }}</span>
-                </ItemTitle>
-              </ItemContent>
-              <ItemActions class="text-xs text-muted-foreground tabular-nums">
-                {{ row.entry.version }}
-              </ItemActions>
-            </Item>
-          </template>
+              <div class="flex flex-col gap-0.5 pt-0.5 pl-7">
+                <!-- Plain buttons: a group can hold hundreds of packages. -->
+                <button
+                  v-for="entry in group.packages"
+                  :key="`${entry.name}@${entry.version}`"
+                  data-slot="pine-about-package-row"
+                  type="button"
+                  class="license-package-row flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 active:bg-muted"
+                  @click="openUrl(packageUrl(entry))"
+                >
+                  <span class="min-w-0 flex-1 truncate">{{ entry.name }}</span>
+                  <span
+                    class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  >
+                    {{ entry.version }}
+                  </span>
+                </button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </section>
       </div>
     </FieldSet>
   </div>
 </template>
+
+<style scoped>
+.license-group-content[data-state="open"] {
+  animation-name: license-group-expand;
+}
+
+.license-group-content[data-state="closed"] {
+  animation-name: license-group-collapse;
+}
+
+/* Search opens and closes groups at once, as does reduced motion. */
+.license-group-content[data-instant] {
+  animation-name: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .license-group-content[data-state] {
+    animation-name: none;
+  }
+}
+
+/* Rows out of view skip layout and paint until they scroll near. */
+.license-package-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.25rem;
+}
+
+@keyframes license-group-expand {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: var(--reka-collapsible-content-height);
+    opacity: 1;
+  }
+}
+
+@keyframes license-group-collapse {
+  from {
+    height: var(--reka-collapsible-content-height);
+    opacity: 1;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+  }
+}
+</style>

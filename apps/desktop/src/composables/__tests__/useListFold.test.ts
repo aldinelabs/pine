@@ -2,7 +2,7 @@ import { mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DURATION_MS } from "@/lib/motion";
-import { useListFold, type FoldRow } from "../useListFold";
+import { MAX_FOLDING_ROWS, useListFold, type FoldRow } from "../useListFold";
 
 type Row = FoldRow & { depth: number };
 
@@ -93,6 +93,25 @@ describe("useListFold", () => {
     rows.value = rowsOf("f", "a:1", "b");
     await nextTick();
     expect(shown()).toEqual(["f", "~a", "a", "b"]);
+  });
+
+  it("shows a large burst of rows at once instead of folding each", async () => {
+    const many = Array.from(
+      { length: MAX_FOLDING_ROWS + 1 },
+      (_, index) => `n${index}`,
+    );
+    const { rows, shown, folds } = setup(rowsOf("a"));
+    rows.value = rowsOf("a", ...many);
+    await nextTick();
+    await nextTick();
+    expect(shown()).toEqual(["a", ...many]);
+    expect(folds()).toEqual([]);
+
+    rows.value = rowsOf("a");
+    await nextTick();
+    await nextTick();
+    expect(shown()).toEqual(["a"]);
+    expect(folds()).toEqual([]);
   });
 
   it("drops a leaving row that comes back", async () => {
