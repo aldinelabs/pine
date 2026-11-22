@@ -1,6 +1,5 @@
 import path from "node:path";
 import {
-  app,
   BrowserWindow,
   Menu,
   nativeImage,
@@ -42,8 +41,8 @@ interface DesktopBackgroundOptions {
 
 /**
  * Pine living on after its window closes: a tray icon (menu bar on macOS,
- * notification area on Windows), closing the last window hiding it, and the
- * macOS Dock icon following the windows.
+ * notification area on Windows) and closing the last window hiding it. The
+ * macOS Dock icon stays, with its running dot, as long as Pine runs.
  */
 export class DesktopBackground {
   private tray: Tray | null = null;
@@ -104,19 +103,15 @@ export class DesktopBackground {
       event.preventDefault();
       this.hide(window);
     });
-    window.on("show", () => {
-      if (!isAuxiliary()) void app.dock?.show();
-    });
     // Windows closes every window at logoff; hiding would hold it up.
     window.on("session-end", () => this.markQuitting());
   }
 
-  /** Brings back what hiding put away, and the Dock icon with it. */
+  /** Brings back what hiding put away. */
   showHiddenWindows(): boolean {
     const hidden = this.options
       .appWindows()
       .filter((window) => !window.isVisible() && !window.isMinimized());
-    if (hidden.length > 0) void app.dock?.show();
     for (const window of hidden) window.show();
     if (hidden.length > 0) hidden[hidden.length - 1]?.focus();
     return hidden.length > 0;
@@ -136,9 +131,9 @@ export class DesktopBackground {
   private hide(window: BrowserWindow): void {
     const conceal = () => {
       if (window.isDestroyed()) return;
+      // The Dock icon stays: Pine is still running, and clicking it reopens
+      // the window.
       window.hide();
-      // Without a window the app lives in the menu bar alone.
-      if (this.visibleWindows().length === 0) app.dock?.hide();
     };
     // Hiding a native fullscreen window leaves its Space behind.
     if (window.isFullScreen()) {

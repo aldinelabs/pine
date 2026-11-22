@@ -104,6 +104,7 @@ describe("closing windows with Pine in the tray", () => {
 
   beforeEach(() => {
     electron.destroyedTrays.length = 0;
+    electron.dock.hide.mockClear();
     return () => {
       Object.defineProperty(process, "platform", { value: platform });
     };
@@ -116,6 +117,16 @@ describe("closing windows with Pine in the tray", () => {
 
     expect(window.close()).toBe(false);
     expect(window.hide).toHaveBeenCalled();
+  });
+
+  it("keeps the macOS Dock icon while the last window is hidden", () => {
+    const { background, add } = setup();
+    background.start(true);
+    const window = add();
+    window.emit("show");
+    window.close();
+
+    expect(electron.dock.hide).not.toHaveBeenCalled();
   });
 
   it("closes a window while another stays open", () => {

@@ -1381,7 +1381,9 @@ background" with its keys when shortcut hints are on.
 ## Tray and menu bar
 
 With "Keep running in the background" on, closing the last window keeps Pine in
-the menu bar (macOS) or notification area (Windows). Its menu has Open Pine,
+the menu bar (macOS) or notification area (Windows). On macOS the Dock icon and
+its running dot stay as well; clicking the Dock icon reopens the window. The
+tray menu has Open Pine,
 Quick composer, with more than one user a "Switch User" list of every user
 (the current one checked; picking another restarts Pine as them), switches
 for Browser access, Remote Control via Aldine and
