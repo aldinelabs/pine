@@ -57,9 +57,10 @@ to click.
   they keep things apart, not private. Pine runs as one user at a time, and
   only that user's automations and WeChat remote run. With a single user
   (the default) none of this shows anywhere except that Settings section.
-- Guide button: a button with a question-mark icon and a label naming what
-  it explains (for example "How context works"), or a menu item of the same
-  shape. It opens an illustrated guide (see Guides under Dialogs and
+- Guide button: a row with a question-mark icon and a label naming what it
+  explains, at the foot of a menu or popover below a divider (for example
+  "How approval modes work" in the approval mode menu, "How context works"
+  in the Context usage popover). It opens an illustrated guide (see Guides under Dialogs and
   overlays). Guide buttons can be hidden everywhere with Guide buttons in
   Pine Settings › General.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
@@ -650,13 +651,14 @@ From top to bottom:
      once a priced model has
      charged anything; models without pricing show no cost. It opens a
      popover with a Context section (tokens used, context
-     window, utilization, cache hit rate, Compact context now and, with Guide
-     buttons on, "How context works", which closes the popover and opens the
-     "Context and tokens" guide) and a Cost
+     window, utilization, cache hit rate, Compact context now) and a Cost
      section (conversation cost, in the currency chosen in Pine Settings ›
      General) with a Session cost limit switch and amount. Reaching the limit
      stops the running session and blocks new prompts until the limit is raised
      or cleared; it can be set before a session starts.
+     With Guide buttons on, the popover ends with a row below a divider,
+     "How context works", which closes it and opens the "Context and tokens"
+     guide.
    - Action button: Send message when idle; Steer response (adds the message
      to the running turn) or Stop response while the agent works. The Send
      and Steer tooltips also show Option+Enter (Alt+Enter), which sends

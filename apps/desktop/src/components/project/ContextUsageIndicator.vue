@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { formatTokenCount } from "@/lib/format-token-count";
+import { useAppearanceStore } from "@/stores/appearance";
 import { useCurrencyStore } from "@/stores/currency";
 import { useSessionStore } from "@/stores/session";
 
@@ -23,6 +24,7 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const { activeSession, contextUsage: usage } = storeToRefs(sessionStore);
 const currencyStore = useCurrencyStore();
+const appearanceStore = useAppearanceStore();
 const isCompacting = ref(false);
 const isOpen = ref(false);
 
@@ -296,12 +298,6 @@ async function compactContext(): Promise<void> {
               : t("project.composer.contextUsage.compactNow")
           }}
         </Button>
-        <!-- The guide opens over the popover's place, so it closes. -->
-        <HelpGuideButton
-          topic="context-window"
-          :label="t('help.contextWindowGuide')"
-          @open="isOpen = false"
-        />
       </section>
 
       <Separator />
@@ -387,6 +383,17 @@ async function compactContext(): Promise<void> {
           </div>
         </div>
       </section>
+
+      <!-- Like the approval mode menu's last item. The guide opens over the
+           popover's place, so the popover closes. -->
+      <template v-if="appearanceStore.helpGuides">
+        <Separator />
+        <HelpGuideButton
+          topic="context-window"
+          :label="t('help.contextWindowGuide')"
+          @open="isOpen = false"
+        />
+      </template>
     </PopoverContent>
   </Popover>
 </template>
