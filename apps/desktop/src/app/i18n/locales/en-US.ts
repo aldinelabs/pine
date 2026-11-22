@@ -3337,6 +3337,13 @@ export default {
         "Files Pine delivers land here. They can be grouped, keep their versions and drag straight out.",
       subSessions:
         "Sub-sessions work in parallel and tell their parent when they're done.",
+      automationRun:
+        "This is an automation run: Pine did this work on its own.",
+      memorySaved: "Pine saved a note it can use in later conversations.",
+      stopped: "Stopped. Changes so far are kept; just say what's next.",
+      steering: "Pine picks this up after its current step, or use Send now.",
+      skillUsed: "Pine used a Skill and follows its instructions.",
+      mcpUsed: "Pine used an outside tool through an MCP server.",
     },
     firstUseHints: "One-time tips",
     firstUseHintsDescription: "A short tip the first time you meet a feature.",

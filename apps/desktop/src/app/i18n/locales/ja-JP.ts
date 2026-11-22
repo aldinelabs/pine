@@ -3377,6 +3377,15 @@ export default {
         "Pine が納品したファイルはここに並びます。フォルダー分け、版の確認、そのままドラッグでの持ち出しができます。",
       subSessions:
         "サブセッションは並行して作業し、終わると親セッションに知らせます。",
+      automationRun:
+        "これは自動化の実行です。Pine が自分でこの作業をこなしました。",
+      memorySaved: "Pine がメモを保存しました。これからの会話でも役立てます。",
+      stopped:
+        "停止しました。ここまでの変更は残っています。次にやることを伝えてください。",
+      steering:
+        "Pine は今のステップが終わると読みます。「今すぐ送信」もできます。",
+      skillUsed: "Pine がスキルを使い、その手順に沿って作業しています。",
+      mcpUsed: "Pine が MCP サーバー経由で外部ツールを使いました。",
     },
     firstUseHints: "初回のヒント",
     firstUseHintsDescription:

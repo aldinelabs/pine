@@ -3431,6 +3431,17 @@ export default {
         "Hier landen die Dateien, die Pine liefert. Sie lassen sich gruppieren, behalten ihre Versionen und lassen sich direkt herausziehen.",
       subSessions:
         "Untersitzungen arbeiten parallel und melden sich bei ihrer übergeordneten Sitzung, wenn sie fertig sind.",
+      automationRun:
+        "Dies ist ein Automatisierungslauf: Pine hat diese Arbeit selbst erledigt.",
+      memorySaved:
+        "Pine hat eine Notiz gespeichert, die es in späteren Unterhaltungen nutzen kann.",
+      stopped:
+        "Gestoppt. Bisherige Änderungen bleiben erhalten; sagen Sie einfach, wie es weitergeht.",
+      steering:
+        "Pine liest das nach dem aktuellen Schritt, oder nutzen Sie Jetzt senden.",
+      skillUsed: "Pine hat einen Skill verwendet und folgt seinen Anweisungen.",
+      mcpUsed:
+        "Pine hat über einen MCP-Server ein externes Werkzeug verwendet.",
     },
     firstUseHints: "Einmalige Hinweise",
     firstUseHintsDescription:

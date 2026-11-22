@@ -1,5 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watchEffect } from "vue";
 import {
   preferenceStorage,
   subscribePreference,
@@ -13,6 +13,12 @@ export const FIRST_USE_HINT_IDS = [
   "compaction",
   "artifacts",
   "sub-sessions",
+  "automation-run",
+  "memory-saved",
+  "stopped",
+  "steering",
+  "skill-used",
+  "mcp-used",
 ] as const;
 
 export type FirstUseHintId = (typeof FIRST_USE_HINT_IDS)[number];
@@ -45,16 +51,29 @@ function readDismissed(): Set<FirstUseHintId> {
  * first approval card, compaction, artifact, sub-session) until the user
  * dismisses it or opens its guide. Dismissals live in the user's
  * preferences, so they survive restarts and reach every window. Guide
- * buttons off hides them all. Only one place shows a given hint at a time:
- * the first to claim it.
+ * buttons off hides them all. Only one hint shows at a time in a window:
+ * the one on screen keeps its place until it is dismissed or goes, then
+ * the newest waiting moment takes over.
  */
 export const useFirstUseHintsStore = defineStore("first-use-hints", () => {
   const appearance = useAppearanceStore();
   const dismissed = ref<ReadonlySet<FirstUseHintId>>(readDismissed());
-  const holders = ref<ReadonlyMap<FirstUseHintId, symbol>>(new Map());
-
   subscribePreference(FIRST_USE_HINTS_PREFERENCE_KEY, (value) => {
     dismissed.value = parse(value);
+  });
+
+  /** Every place that could show a hint now, in the order they appeared. */
+  const claimants = ref<readonly { id: FirstUseHintId; holder: symbol }[]>([]);
+  /** The one place showing a hint; it keeps it until dismissed or gone. */
+  const active = ref<symbol | null>(null);
+
+  watchEffect(() => {
+    const waiting = claimants.value.filter((claimant) =>
+      isAvailable(claimant.id),
+    );
+    if (waiting.some((claimant) => claimant.holder === active.value)) return;
+    // The newest moment wins: it is the one the user just ran into.
+    active.value = waiting.at(-1)?.holder ?? null;
   });
 
   const hasDismissed = computed(() => dismissed.value.size > 0);
@@ -63,22 +82,20 @@ export const useFirstUseHintsStore = defineStore("first-use-hints", () => {
     return appearance.helpGuides && !dismissed.value.has(id);
   }
 
-  /** Whether `holder` is the place that shows hint `id` right now. */
-  function shows(id: FirstUseHintId, holder: symbol): boolean {
-    if (!isAvailable(id)) return false;
-    return holders.value.get(id) === holder;
+  /** Whether `holder` is the place that shows its hint right now. */
+  function shows(holder: symbol): boolean {
+    return active.value === holder;
   }
 
   function claim(id: FirstUseHintId, holder: symbol): void {
-    if (holders.value.has(id)) return;
-    holders.value = new Map(holders.value).set(id, holder);
+    if (claimants.value.some((claimant) => claimant.holder === holder)) return;
+    claimants.value = [...claimants.value, { id, holder }];
   }
 
-  function release(id: FirstUseHintId, holder: symbol): void {
-    if (holders.value.get(id) !== holder) return;
-    const next = new Map(holders.value);
-    next.delete(id);
-    holders.value = next;
+  function release(holder: symbol): void {
+    claimants.value = claimants.value.filter(
+      (claimant) => claimant.holder !== holder,
+    );
   }
 
   function persist(): void {

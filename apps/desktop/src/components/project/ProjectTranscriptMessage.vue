@@ -57,6 +57,7 @@ import ProjectStoppedMarker from "./ProjectStoppedMarker.vue";
 import ProjectThinkingMarker from "./ProjectThinkingMarker.vue";
 import ProjectToolCallGroup from "./ProjectToolCallGroup.vue";
 import ProjectToolCallMarker from "./ProjectToolCallMarker.vue";
+import ProjectToolHints from "./ProjectToolHints.vue";
 
 const props = defineProps<{
   message: PineTranscriptMessage;
@@ -583,6 +584,13 @@ onUnmounted(stopObservingUserText);
             :reviewing-tool-call-ids="reviewingToolCallIds"
             :awaiting-approval-tool-call-ids="awaitingApprovalToolCallIds"
             :open-file="openFile"
+          />
+          <!-- After the marker, outside the v-if chain above. -->
+          <ProjectToolHints
+            v-if="item.kind === 'toolCall' || item.kind === 'toolRun'"
+            :tool-calls="
+              item.kind === 'toolCall' ? [item.toolCall] : item.toolCalls
+            "
           />
           <Bubble
             v-else-if="item.kind === 'text'"

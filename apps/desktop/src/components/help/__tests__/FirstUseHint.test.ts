@@ -48,6 +48,39 @@ describe("FirstUseHint", () => {
     expect(wrapper.findAll('[data-slot="first-use-hint"]')).toHaveLength(1);
   });
 
+  it("shows one hint at a time, keeping the one on screen", async () => {
+    const later = ref(false);
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () => [
+          h(FirstUseHint, hintProps),
+          later.value
+            ? h(FirstUseHint, {
+                id: "stopped",
+                text: "Stopped.",
+                guide: { topic: "steer-stop", step: 1 },
+              })
+            : null,
+        ],
+      }),
+      { global: { plugins: [pinia, createAppI18n("en-US")] } },
+    );
+    await flushPromises();
+    later.value = true;
+    await flushPromises();
+    const shownHints = () =>
+      wrapper
+        .findAll('[data-slot="first-use-hint"]')
+        .map((hint) => hint.attributes("data-hint"));
+    // The hint already on screen stays; the new moment waits its turn.
+    expect(shownHints()).toEqual(["approval-card"]);
+    await wrapper
+      .get('[data-testid="first-use-hint-dismiss"]')
+      .trigger("click");
+    await flushPromises();
+    expect(shownHints()).toEqual(["stopped"]);
+  });
+
   it("goes for good on Got it, and comes back after a reset", async () => {
     const { wrapper } = mountHints();
     await flushPromises();

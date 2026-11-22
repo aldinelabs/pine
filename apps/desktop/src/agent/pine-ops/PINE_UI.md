@@ -69,14 +69,26 @@ click.
   Pine Settings › General.
 - One-time tip: a muted bar with a lightbulb, one line of text, "Show me"
   (opens the related guide) and "Got it", shown where a feature first
-  appears until either button is clicked, then never again for that user:
-  at the top of the first approval card ("First approval? See when Pine
-  asks you, and why.", opens the approval card step), below a completed
-  compaction marker (opens the compaction step), at the top of the
-  Artifacts list once it has files (opens the Artifacts step) and in the
-  sidebar below a session's last sub-session (opens "Sub-sessions"). Each
-  tip shows in one place at a time. Guide buttons off hides them all;
-  Pine Settings › General › One-time tips › Show again brings them back.
+  appears until either button is clicked, then never again for that user.
+  Where they appear, with the guide each opens:
+  - the top of the first approval card ("First approval? See when Pine
+    asks you, and why."; the approval card step);
+  - below a completed compaction marker (the compaction step);
+  - the top of the Artifacts list once it has files (the Artifacts step);
+  - the sidebar, below a session's last sub-session ("Sub-sessions");
+  - below an automation run's opening card in its session ("This is an
+    automation run: Pine did this work on its own."; the runs step of
+    "Automations");
+  - below a finished tool call or folded run that saved a memory note
+    ("Memory"), used a Skill ("Skills") or called an MCP tool ("MCP
+    servers");
+  - below a "Stopped" marker ("Stopped. Changes so far are kept; just say
+    what's next."; the stopping step of "Steering and stopping");
+  - below staged steering messages while they wait (the steering step).
+    A window shows one tip at a time: the one on screen keeps its place until
+    it is dismissed or its place goes away (for example another conversation
+    is opened), then the newest waiting one appears. Guide buttons off hides them all; Pine Settings ›
+    General › One-time tips › Show again brings them back.
 - Phone layout: below a phone-sized width (also when Pine is opened on a
   paired device) dialogs fill the screen and show lists and details one at a
   time, the new-session background animation is off, and keyboard shortcut
