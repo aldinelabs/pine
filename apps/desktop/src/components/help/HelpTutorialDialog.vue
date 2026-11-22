@@ -147,6 +147,9 @@ function onKeydown(event: KeyboardEvent): void {
           </Transition>
         </div>
 
+        <!-- text-pretty keeps a lone character (common in Chinese) off a
+             paragraph's last line; strict line breaking keeps closing
+             punctuation such as 。 from starting a line. -->
         <!-- The dialog has no padding of its own, so the scrollbar sits at
              its edge (no inset) and the text keeps the same 1.5rem on both
              sides. -->
@@ -155,7 +158,7 @@ function onKeydown(event: KeyboardEvent): void {
           edge-inset="0rem"
           content-inset="1.5rem"
           viewport-class="scroll-fade-y"
-          content-class="flex flex-col gap-3 ps-6 pt-5 pb-2"
+          content-class="flex flex-col gap-3 ps-6 pt-5 pb-2 text-pretty [line-break:strict]"
         >
           <DialogDescription class="text-muted-foreground text-xs">
             {{ topic.title }} ·

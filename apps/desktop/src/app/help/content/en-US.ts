@@ -23,14 +23,14 @@ export default {
           "Commands run in a sandbox that can only touch the project's folders. Only actions beyond that (writing outside the project, deleting, installing from the internet, elevated rights and the like) need approval. The approval mode decides who makes the call:",
         ],
         points: [
-          "Let Me Review: asks you before every such action. The safest choice, and a good place to start.",
-          "Auto Approve: the approval model looks first, lets safe actions through and asks you when it is unsure. A balance of convenience and control.",
-          "Autonomous Work: the approval model decides on its own and never stops to ask; whatever it rejects is not done. For long tasks while you are away.",
+          "Auto Approve: the approval model looks first, lets safe actions through and asks you only when it is unsure. The recommended place to start.",
+          "Autonomous Work: the approval model decides on its own and never stops to wait for you; whatever it rejects is skipped. For long tasks while you are away.",
+          "Let Me Review: asks you before every such action, for tasks you want to check step by step.",
           "YOLO: removes every limit, with no checks and no questions. Not recommended.",
         ],
         note: {
-          tone: "caution",
-          text: "The approval model is a language model too, and it can be wrong. For important data, payments or anything sent to other people, use Let Me Review.",
+          tone: "tip",
+          text: "Today's models are very capable: give them room and they often go further than you expect. For things that can't be undone, such as payments or messages to other people, switch to Let Me Review for that task.",
         },
       },
       {
@@ -45,17 +45,17 @@ export default {
         ],
         note: {
           tone: "tip",
-          text: "If you don't understand it, don't approve it yet. Technical details shows the exact parameters that would run.",
+          text: "Not sure? Open Technical details to see the exact parameters that would run.",
         },
       },
       {
         title: "Getting the most out of it",
         body: ["A few habits that help:"],
         points: [
-          "Run a few tasks in Let Me Review to see what Pine usually does before loosening it.",
-          "Say up front what Pine may change and what to leave alone. You'll see fewer approvals, and the reviews get more accurate.",
-          "Give a project only the folders it needs, and make the ones it shouldn't change Read only.",
-          "The mode is saved with each conversation, so pick it per task: the shield button below the text box, or Mod+R.",
+          "Start with Auto Approve and hand Pine whole tasks; see how far it gets.",
+          "State the goal and the limits up front: what done looks like, which files it may change, what to leave alone. You'll see fewer approvals, and the reviews get more accurate.",
+          "Give a project only the folders it needs, and make the ones it shouldn't change Read only. Clear limits make it easy to give Pine more room.",
+          "The mode is saved with each conversation, so pick it per task: the shield button below the text box, or ⌘/Ctrl + R.",
         ],
       },
     ],
