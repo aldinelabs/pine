@@ -18,6 +18,7 @@ import { DRAFT_PROJECT_OPENER_KEY } from "@/composables/useDraftProjectOpener";
 import type { PineApprovalMode } from "@/shared/agent";
 import type { PineAttachment } from "@/shared/attachments";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
+import { childrenLayoutBounds, layoutRect } from "@/lib/layoutRect";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import {
   QUICK_COMPOSER_ENTRANCE_SCALE,
@@ -212,7 +213,10 @@ async function submit(
 ): Promise<void> {
   const element: unknown = composer.value?.$el;
   if (isSending.value || !(element instanceof HTMLElement)) return;
-  const rect = element.getBoundingClientRect();
+  // As laid out, in case the entrance is still scaling the page.
+  const rect =
+    (backdrop.value && layoutRect(element, backdrop.value)) ??
+    element.getBoundingClientRect();
   const sent = attachments.value;
   isSending.value = true;
   // The composer clears its attachments once it has emitted the message.
@@ -303,28 +307,23 @@ const cardStyle = computed(() =>
     : { display: "none" },
 );
 
+/**
+ * Measured as laid out: the page grows in from 96% as it appears, which is
+ * also when the context's placeholder first shows, and a measure of the
+ * scaled boxes would leave the card and glass off once it settles.
+ */
 function measureCard(): void {
   const element = composerElement.value;
-  if (!element) return;
-  let top = Infinity;
-  let left = Infinity;
-  let right = -Infinity;
-  let bottom = -Infinity;
-  for (const child of element.children) {
-    const rect = child.getBoundingClientRect();
-    if (!rect.width || !rect.height) continue;
-    top = Math.min(top, rect.top);
-    left = Math.min(left, rect.left);
-    right = Math.max(right, rect.right);
-    bottom = Math.max(bottom, rect.bottom);
-  }
-  if (!Number.isFinite(top)) return;
+  const area = backdrop.value;
+  if (!element || !area) return;
+  const bounds = childrenLayoutBounds(element, area);
+  if (!bounds) return;
   const inset = QUICK_COMPOSER_GLASS_INSET;
   const next = {
-    x: left - inset,
-    y: top - inset,
-    width: right - left + 2 * inset,
-    height: bottom - top + 2 * inset,
+    x: bounds.x - inset,
+    y: bounds.y - inset,
+    width: bounds.width + 2 * inset,
+    height: bounds.height + 2 * inset,
   };
   const current = card.value;
   if (
@@ -341,8 +340,10 @@ function measureCard(): void {
     .then((applied) => (hasGlass.value = applied))
     .catch(() => (hasGlass.value = false));
 }
-// The composer grows with its message and attachments.
+// The composer grows with its message and attachments, and moves without
+// resizing when the panel opens shorter on a display with less room.
 useResizeObserver(composerElement, measureCard);
+useResizeObserver(backdrop, measureCard);
 
 /** Hit-testing leaves only what the page draws clickable. */
 let passThrough = true;
