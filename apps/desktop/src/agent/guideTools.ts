@@ -55,6 +55,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
     "what memory is, project and global notes, asking Pine to remember",
     "the Memory manager, Unverified notes, turning memory off",
   ],
+  "sub-sessions": [
+    "splitting work into sub-sessions, where they appear, notices to the parent, limits",
+  ],
 };
 
 const OUTLINE_TEXT = HELP_TOPIC_IDS.map(

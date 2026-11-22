@@ -379,4 +379,27 @@ export default {
       },
     ],
   },
+  "sub-sessions": {
+    title: "Sub-sessions",
+    summary: "Split a big task so several sub-sessions work on it at once.",
+    steps: [
+      {
+        title: "Let Pine split the work",
+        body: [
+          "When work splits cleanly, such as separate research questions, edits to separate files or a broad search, Pine can start sub-sessions and move them forward in parallel, like sending out helpers. Each sub-session is a full conversation with its own context, so the main session doesn't fill up with details.",
+          'You can ask for this directly, for example "Start three sub-sessions, one to research each of these companies".',
+        ],
+        points: [
+          "Sub-sessions appear in the sidebar under their parent, indented one level. The arrow beside the parent shows or hides them; open any of them to see how it's going.",
+          "When a sub-session finishes a turn or waits for approval, Pine tells the parent, so nothing needs watching.",
+          "Sub-sessions work in the parent's project and go one level deep, and their approval mode is never looser than the parent's. Deleting the parent deletes them too.",
+          "To start a separate conversation in another project, ask Pine for a separate session.",
+        ],
+        note: {
+          tone: "tip",
+          text: "For short tasks, or steps that depend on each other, Pine just does the work itself; there's no need to ask it not to split.",
+        },
+      },
+    ],
+  },
 } satisfies HelpContent;

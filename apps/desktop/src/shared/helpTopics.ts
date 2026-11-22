@@ -13,6 +13,7 @@ export const HELP_TOPIC_IDS = [
   "compaction-strategy",
   "compaction-method",
   "memory",
+  "sub-sessions",
 ] as const;
 
 export type HelpTopicId = (typeof HELP_TOPIC_IDS)[number];

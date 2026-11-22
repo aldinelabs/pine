@@ -19,6 +19,7 @@ import SteerMessageIllustration from "./SteerMessageIllustration.vue";
 import StopTurnIllustration from "./StopTurnIllustration.vue";
 import MemoryNotesIllustration from "./MemoryNotesIllustration.vue";
 import MemoryManagerIllustration from "./MemoryManagerIllustration.vue";
+import SubSessionsIllustration from "./SubSessionsIllustration.vue";
 import TipsIllustration from "./TipsIllustration.vue";
 import ToolCallIllustration from "./ToolCallIllustration.vue";
 
@@ -48,5 +49,6 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "compaction-method": CompactionMethodIllustration,
   "memory-notes": MemoryNotesIllustration,
   "memory-manager": MemoryManagerIllustration,
+  "sub-sessions": SubSessionsIllustration,
   tips: TipsIllustration,
 };
