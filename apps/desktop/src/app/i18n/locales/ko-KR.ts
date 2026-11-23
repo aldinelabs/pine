@@ -844,6 +844,10 @@ export default {
       changeDefaultFolder: "변경",
       contextFoldersLabel: "추가 컨텍스트 폴더(선택)",
       addContextFolders: "폴더 추가",
+      overlappingFoldersSkipped:
+        "프로젝트에 이미 있거나 프로젝트 폴더를 포함하거나 그 안에 있는 폴더는 건너뛰었습니다",
+      foldersOverlap:
+        "프로젝트 폴더는 중복되거나 서로 포함될 수 없습니다. 겹치는 폴더를 제거한 뒤 다시 시도하세요",
       removeFolder: "폴더 제거",
       folderName: "표시 이름",
       folderPath: "경로",

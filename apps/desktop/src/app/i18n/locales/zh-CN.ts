@@ -803,6 +803,10 @@ export default {
       changeDefaultFolder: "更改",
       contextFoldersLabel: "额外上下文文件夹（可选）",
       addContextFolders: "添加文件夹",
+      overlappingFoldersSkipped:
+        "已跳过项目中已有的文件夹，以及与项目文件夹相互包含的文件夹",
+      foldersOverlap:
+        "项目里的文件夹不能重复，也不能相互包含。请移除重叠的文件夹后重试",
       removeFolder: "移除文件夹",
       folderName: "显示名称",
       folderPath: "路径",

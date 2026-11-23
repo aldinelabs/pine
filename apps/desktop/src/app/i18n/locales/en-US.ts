@@ -851,6 +851,10 @@ export default {
       changeDefaultFolder: "Change",
       contextFoldersLabel: "Additional context folders (optional)",
       addContextFolders: "Add folders",
+      overlappingFoldersSkipped:
+        "Skipped folders that are already in the project or that contain or sit inside one of its folders",
+      foldersOverlap:
+        "A project's folders can't repeat or sit inside one another. Remove the overlapping folder and try again",
       removeFolder: "Remove folder",
       folderName: "Display name",
       folderPath: "Path",

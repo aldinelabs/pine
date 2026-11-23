@@ -865,6 +865,10 @@ export default {
       changeDefaultFolder: "Changer",
       contextFoldersLabel: "Dossiers de contexte supplémentaires (facultatif)",
       addContextFolders: "Ajouter des dossiers",
+      overlappingFoldersSkipped:
+        "Dossiers ignorés : déjà dans le projet, ou contenant un de ses dossiers ou situés à l'intérieur",
+      foldersOverlap:
+        "Les dossiers d'un projet ne peuvent pas être répétés ni imbriqués les uns dans les autres. Retirez le dossier qui se chevauche et réessayez",
       removeFolder: "Retirer le dossier",
       folderName: "Nom affiché",
       folderPath: "Chemin",

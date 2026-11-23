@@ -31,6 +31,14 @@ const { t } = useI18n();
 const projectStore = useProjectStore();
 const appearanceStore = useAppearanceStore();
 
+/** The main process rejects folders that repeat or nest inside each other. */
+function isFolderOverlapError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes("cannot be duplicated or nested")
+  );
+}
+
 async function save(input: ProjectMutationInput): Promise<void> {
   try {
     const project = props.project
@@ -46,11 +54,13 @@ async function save(input: ProjectMutationInput): Promise<void> {
           ? "errors.projectUpdate.title"
           : "errors.projectCreate.title",
       ),
-      description: t(
-        props.project
-          ? "errors.projectUpdate.description"
-          : "errors.projectCreate.description",
-      ),
+      description: isFolderOverlapError(error)
+        ? t("projects.editor.foldersOverlap")
+        : t(
+            props.project
+              ? "errors.projectUpdate.description"
+              : "errors.projectCreate.description",
+          ),
     });
   }
 }

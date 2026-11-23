@@ -1245,7 +1245,11 @@ the user opens themselves do not pulse.
   folder,
   additional context folders with access (Read only, Read and write); the
   question mark beside "Additional context folders" opens the "Projects and
-  folder access" guide (with Guide buttons on). Saving
+  folder access" guide (with Guide buttons on). A project's folders can't
+  repeat or sit inside one another: choosing a new default folder (Change)
+  removes any folder that contains it or lies inside it (moving the default
+  from A to A/B drops A, while the old default otherwise stays as a context
+  folder), and "Add folders" skips such folders with a notice. Saving
   a new name or folders restarts the project's sessions; a save that changes
   only the icon or accent color applies at once and leaves open sessions and
   their tabs as they are.

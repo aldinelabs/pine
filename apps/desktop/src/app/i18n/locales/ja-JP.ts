@@ -860,6 +860,10 @@ export default {
       changeDefaultFolder: "変更",
       contextFoldersLabel: "追加のコンテキストフォルダ（任意）",
       addContextFolders: "フォルダを追加",
+      overlappingFoldersSkipped:
+        "プロジェクトに既にあるフォルダ、またはプロジェクトのフォルダを含む／その中にあるフォルダはスキップしました",
+      foldersOverlap:
+        "プロジェクトのフォルダは重複したり、互いに入れ子にしたりできません。重なっているフォルダを削除してからやり直してください",
       removeFolder: "フォルダを削除",
       folderName: "表示名",
       folderPath: "パス",

@@ -2,6 +2,7 @@
 import { FolderOpen, FolderPlus, Trash2 } from "@lucide/vue";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { toast } from "vue-sonner";
 import { PineColorSwatches } from "@/components/pine";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ import {
   PROJECT_COLOR_THEME_SETTINGS,
   PROJECT_ICONS,
 } from "@/shared/projects";
+import { projectFoldersOverlap } from "@/shared/projectFolderPaths";
 import { projectColorThemeSettingOptions } from "@/lib/projectColorThemes";
 import { PROJECT_ICON_COMPONENTS } from "@/lib/projectIcons";
 
@@ -136,11 +138,27 @@ function reset(): void {
 }
 
 function mergeContextFolders(selectedFolders: ProjectFolderInput[]): void {
-  const existingPaths = new Set(folders.value.map((folder) => folder.path));
-  const additions = selectedFolders
-    .filter((folder) => !existingPaths.has(folder.path))
-    .map((folder) => ({ ...folder, isAvailable: true }));
-  folders.value = [...folders.value, ...additions];
+  // A folder already in the project, or one that contains or sits inside a
+  // project folder, would make the project invalid, so it is left out.
+  const merged = [...folders.value];
+  let skipped = 0;
+  for (const folder of selectedFolders) {
+    if (
+      merged.some((existing) =>
+        projectFoldersOverlap(existing.path, folder.path),
+      )
+    ) {
+      skipped += 1;
+      continue;
+    }
+    merged.push({ ...folder, isAvailable: true });
+  }
+  folders.value = merged;
+  if (skipped > 0) {
+    toast.warning(t("projects.editor.overlappingFoldersSkipped"), {
+      id: "project.editor.overlapping-folders",
+    });
+  }
 }
 
 function chooseDefaultFolder([selectedFolder]: ProjectFolderInput[]): void {
@@ -149,15 +167,21 @@ function chooseDefaultFolder([selectedFolder]: ProjectFolderInput[]): void {
   const existingFolder = folders.value.find(
     (folder) => folder.path === selectedFolder.path,
   );
-  if (existingFolder) {
-    existingFolder.access = "read-write";
-    existingFolder.isAvailable = true;
-    defaultFolderId.value = existingFolder.id;
-    return;
-  }
-
-  folders.value = [...folders.value, { ...selectedFolder, isAvailable: true }];
-  defaultFolderId.value = selectedFolder.id;
+  const chosen: EditorProjectFolder = existingFolder ?? {
+    ...selectedFolder,
+  };
+  chosen.access = "read-write";
+  chosen.isAvailable = true;
+  // Folders that contain the new default or sit inside it cannot stay
+  // alongside it: moving the default from A into A/B drops A rather than
+  // keeping it as a context folder the project would then reject.
+  const kept = folders.value.filter(
+    (folder) =>
+      folder.id === chosen.id ||
+      !projectFoldersOverlap(folder.path, chosen.path),
+  );
+  folders.value = existingFolder ? kept : [...kept, chosen];
+  defaultFolderId.value = chosen.id;
 }
 
 function removeFolder(folderId: string): void {

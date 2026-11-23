@@ -868,6 +868,10 @@ export default {
       changeDefaultFolder: "Ändern",
       contextFoldersLabel: "Zusätzliche Kontextordner (optional)",
       addContextFolders: "Ordner hinzufügen",
+      overlappingFoldersSkipped:
+        "Ordner übersprungen, die bereits im Projekt sind oder einen Projektordner enthalten bzw. darin liegen",
+      foldersOverlap:
+        "Die Ordner eines Projekts dürfen sich nicht wiederholen oder ineinander liegen. Entferne den überlappenden Ordner und versuche es erneut",
       removeFolder: "Ordner entfernen",
       folderName: "Anzeigename",
       folderPath: "Pfad",

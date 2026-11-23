@@ -1,5 +1,5 @@
 import { createPinia } from "pinia";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
 import type { PineProject } from "@/shared/projects";
@@ -186,6 +186,98 @@ describe("ProjectEditor", () => {
     expect(wrapper.find('[data-testid="context-folder-table"]').exists()).toBe(
       false,
     );
+  });
+
+  function stubPicker(...results: { path: string; name: string }[][]) {
+    const pickProjectFolders = vi.fn();
+    results.forEach((folders, index) =>
+      pickProjectFolders.mockResolvedValueOnce({
+        folders: folders.map((folder, folderIndex) => ({
+          access: "read-write",
+          id: `00000000-0000-4000-8000-00000000000${index}${folderIndex}`,
+          ...folder,
+        })),
+      }),
+    );
+    Object.defineProperty(window, "pine", {
+      configurable: true,
+      value: { pickProjectFolders },
+    });
+  }
+
+  async function submittedFolders(
+    wrapper: ReturnType<typeof mountEditor>,
+  ): Promise<{ defaultPath: string | undefined; paths: string[] }> {
+    await wrapper.get("form").trigger("submit");
+    const input = wrapper.emitted("submit")?.[0]?.[0] as {
+      defaultFolderId: string;
+      folders: { id: string; path: string }[];
+    };
+    return {
+      defaultPath: input.folders.find(
+        (folder) => folder.id === input.defaultFolderId,
+      )?.path,
+      paths: input.folders.map((folder) => folder.path),
+    };
+  }
+
+  it("drops the old default folder when the new default is inside it", async () => {
+    stubPicker([{ name: "B", path: "/Users/kw/Downloads/B" }]);
+    const wrapper = mountEditor();
+
+    await wrapper.get('[data-testid="change-default-folder"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="context-folder-row"]').exists()).toBe(
+      false,
+    );
+    expect(await submittedFolders(wrapper)).toEqual({
+      defaultPath: "/Users/kw/Downloads/B",
+      paths: ["/Users/kw/Downloads/B"],
+    });
+  });
+
+  it("drops folders inside a new default that contains them", async () => {
+    stubPicker([{ name: "kw", path: "/Users/kw" }]);
+    const wrapper = mountEditor({
+      ...project,
+      folders: [
+        ...project.folders,
+        {
+          access: "read-only",
+          id: "6f0e4f61-0b39-4c34-9d2f-3b8f4f0a3a11",
+          isAvailable: true,
+          name: "Elsewhere",
+          path: "/Volumes/Data",
+        },
+      ],
+    });
+
+    await wrapper.get('[data-testid="change-default-folder"]').trigger("click");
+    await flushPromises();
+
+    expect(await submittedFolders(wrapper)).toEqual({
+      defaultPath: "/Users/kw",
+      paths: ["/Volumes/Data", "/Users/kw"],
+    });
+  });
+
+  it("skips context folders that repeat or nest inside project folders", async () => {
+    stubPicker([
+      { name: "Downloads", path: "/Users/kw/Downloads" },
+      { name: "Sub", path: "/Users/kw/Downloads/Sub" },
+      { name: "kw", path: "/Users/kw" },
+      { name: "Docs", path: "/Users/kw-docs" },
+    ]);
+    const wrapper = mountEditor();
+
+    await wrapper.get('[data-testid="add-context-folders"]').trigger("click");
+    await flushPromises();
+
+    expect(await submittedFolders(wrapper)).toEqual({
+      defaultPath: "/Users/kw/Downloads",
+      paths: ["/Users/kw/Downloads", "/Users/kw-docs"],
+    });
   });
 
   it("uses separate native picker modes for default and context folders", async () => {

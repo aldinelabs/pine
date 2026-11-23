@@ -805,6 +805,10 @@ export default {
       changeDefaultFolder: "更改",
       contextFoldersLabel: "額外上下文資料夾（可選）",
       addContextFolders: "新增資料夾",
+      overlappingFoldersSkipped:
+        "已略過專案中已有的資料夾，以及與專案資料夾相互包含的資料夾",
+      foldersOverlap:
+        "專案裡的資料夾不能重複，也不能相互包含。請移除重疊的資料夾後重試",
       removeFolder: "移除資料夾",
       folderName: "顯示名稱",
       folderPath: "路徑",

@@ -864,6 +864,10 @@ export default {
       changeDefaultFolder: "Cambiar",
       contextFoldersLabel: "Carpetas de contexto adicionales (opcional)",
       addContextFolders: "Añadir carpetas",
+      overlappingFoldersSkipped:
+        "Se omitieron carpetas que ya están en el proyecto o que contienen una de sus carpetas o están dentro de ella",
+      foldersOverlap:
+        "Las carpetas de un proyecto no pueden repetirse ni estar unas dentro de otras. Quita la carpeta superpuesta e inténtalo de nuevo",
       removeFolder: "Quitar carpeta",
       folderName: "Nombre visible",
       folderPath: "Ruta",
