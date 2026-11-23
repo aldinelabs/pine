@@ -16,6 +16,8 @@ final class SourcePipeline: @unchecked Sendable {
   private var resultsTask: Task<Void, Never>?
   private let lock = NSLock()
   private var converter: AVAudioConverter?
+  /// Raises quiet input (a far-off speaker) for the transcriber only.
+  private var gain = InputGain()
   /// Where the next buffer starts on the capture timeline, in seconds.
   private var nextTime: Double = 0
   private var nextFrame: Int64 = 0
@@ -167,7 +169,9 @@ final class SourcePipeline: @unchecked Sendable {
     let start = CMTime(value: nextFrame, timescale: CMTimeScale(format.sampleRate))
     nextFrame += Int64(output.frameLength)
     nextTime = Double(nextFrame) / format.sampleRate
+    // Speaker labels read the audio as captured: the tracker copies it here.
     tracker?.append(output)
+    gain.apply(to: output)
     input.yield(AnalyzerInput(buffer: output, bufferStartTime: start))
   }
 
@@ -222,6 +226,7 @@ final class SourcePipeline: @unchecked Sendable {
   func resetConverter() {
     lock.withLock {
       converter = nil
+      gain = InputGain()
       lastLevel = (0, 0)
     }
     tracker?.restart()
