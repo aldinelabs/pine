@@ -154,6 +154,12 @@ export interface LiveContextStatus {
   speakersDegraded?: "reduced" | "paused";
   /** The system source has heard nothing for a while: access may be off. */
   systemSilent?: boolean;
+  /**
+   * People seem to speak this language rather than `locale` (one of
+   * `LIVE_CONTEXT_LOCALES`), after a long stretch of speech; set at most
+   * once per capture.
+   */
+  suggestedLocale?: string;
   /** The capture translates its final segments. */
   translation?: LiveContextTranslationStatus;
   lastError?: LiveContextError;

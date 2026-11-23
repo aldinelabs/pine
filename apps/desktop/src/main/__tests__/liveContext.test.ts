@@ -296,6 +296,19 @@ describe("LiveContextService", () => {
     });
   });
 
+  it("suggests the language people seem to speak, once per capture", async () => {
+    await startListening();
+    // Its own language, and ones Pine cannot capture, are ignored.
+    helper.write({ type: "language", source: "mic", locale: "zh-CN" });
+    helper.write({ type: "language", source: "mic", locale: "xx-XX" });
+    await tick();
+    expect(service.status().suggestedLocale).toBeUndefined();
+    helper.write({ type: "language", source: "mic", locale: "en-US" });
+    helper.write({ type: "language", source: "system", locale: "ja-JP" });
+    await tick();
+    expect(service.status().suggestedLocale).toBe("en-US");
+  });
+
   it("broadcasts input levels while listening and never saves them", async () => {
     await startListening();
     helper.write({

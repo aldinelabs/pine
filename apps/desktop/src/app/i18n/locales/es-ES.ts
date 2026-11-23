@@ -1195,6 +1195,12 @@ export default {
           description:
             "Si algo se está reproduciendo, permite Pine en Ajustes del Sistema › Privacidad y seguridad › Grabación de pantalla y audio del sistema.",
         },
+        languageMismatch: {
+          title: "Parece {language}",
+          description:
+            "El contexto en directo está reconociendo {current}. Al cambiar, la transcripción se conserva y continúa en {language}.",
+          action: "Cambiar a {language}",
+        },
         transcript: "Transcripción",
         waiting: "Esperando las primeras palabras…",
         waitingPaused: "En pausa. Reanuda para seguir transcribiendo.",

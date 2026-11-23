@@ -926,6 +926,13 @@ close the card. The panels are:
   with" (choose a live translation model in Settings › Models, then turn
   translation on again) or "Translation isn't working right now" (Pine
   keeps trying); transcription goes on either way, and the × dismisses it.
+  When about 15 seconds of speech sound like another language than the one
+  chosen (for example an English lecture captured as Chinese), a plain
+  grey notice with an amber languages icon says "Sounds like <language>"
+  with "Switch to <language>": it stops and restarts the capture in that
+  language, with the same sources, and the transcript goes on in the same
+  conversation. The × closes it for that conversation until Pine
+  restarts; Pine never switches on its own.
   Before any text the transcript explains what live context does (or says
   "Listening for the first words…" while capturing). Each block starts
   with who spoke and the time; a speaker's consecutive lines stay under

@@ -1176,6 +1176,12 @@ export default {
           description:
             "If something is playing, allow Pine under System Settings › Privacy & Security › Screen & System Audio Recording.",
         },
+        languageMismatch: {
+          title: "Sounds like {language}",
+          description:
+            "Live context is listening for {current}. Switching keeps the transcript and goes on in {language}.",
+          action: "Switch to {language}",
+        },
         transcript: "Transcript",
         waiting: "Listening for the first words…",
         waitingPaused: "Paused. Resume to keep transcribing.",

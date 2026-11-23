@@ -1195,6 +1195,12 @@ export default {
           description:
             "Si un son est en cours, autorisez Pine dans Réglages Système › Confidentialité et sécurité › Enregistrement de l’écran et de l’audio système.",
         },
+        languageMismatch: {
+          title: "On dirait du {language}",
+          description:
+            "Le contexte en direct écoute en {current}. Changer conserve la transcription et continue en {language}.",
+          action: "Passer en {language}",
+        },
         transcript: "Transcription",
         waiting: "En attente des premiers mots…",
         waitingPaused: "En pause. Reprenez pour continuer la transcription.",

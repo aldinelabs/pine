@@ -1166,6 +1166,12 @@ export default {
           description:
             "소리가 재생 중이라면 시스템 설정 › 개인정보 보호 및 보안 › 화면 및 시스템 오디오 녹음에서 Pine을 허용하세요.",
         },
+        languageMismatch: {
+          title: "{language}로 들립니다",
+          description:
+            "실시간 컨텍스트가 {current}로 인식하고 있습니다. 전환해도 기록은 유지되고 {language}로 이어집니다.",
+          action: "{language}로 전환",
+        },
         transcript: "받아 적은 내용",
         waiting: "첫 마디를 기다리는 중…",
         waitingPaused: "일시정지됨. 계속하면 이어서 받아 적습니다.",

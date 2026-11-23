@@ -334,6 +334,54 @@ function dismissError(): void {
   dismissedError.value = status.value.lastError;
 }
 
+function languageName(code: string): string {
+  return (
+    new Intl.DisplayNames([uiLocale.value], { type: "language" }).of(code) ??
+    code
+  );
+}
+
+/** Another language people seem to speak in this capture, until closed. */
+const localeSuggestion = computed(() => {
+  const here = target.value;
+  const suggested =
+    here && isHere.value
+      ? liveContext.localeSuggestionOf(here.sessionId)
+      : undefined;
+  if (!suggested) return undefined;
+  const current = status.value.locale ?? locale.value;
+  return {
+    locale: suggested,
+    language: languageName(suggested),
+    current: languageName(current),
+  };
+});
+
+function dismissLocaleSuggestion(): void {
+  const here = target.value;
+  if (here) liveContext.dismissLocaleSuggestion(here.sessionId);
+}
+
+/**
+ * Listens again in the suggested language: the capture restarts with the
+ * same sources and goes on in the same transcript.
+ */
+function switchLocale(next: string): void {
+  const here = target.value;
+  if (!here) return;
+  liveContext.dismissLocaleSuggestion(here.sessionId);
+  locale.value = next;
+  void run(async () => {
+    await liveContext.stop();
+    await liveContext.start(
+      here,
+      sources.value,
+      next,
+      translationLanguage.value,
+    );
+  });
+}
+
 // Translation stopping is a side note: transcription goes on.
 const dismissedTranslationError = ref<string>();
 const translationError = computed(() => {
@@ -469,6 +517,42 @@ watch(
               @click="openSettings('system')"
             >
               {{ t("project.workbench.liveContext.openSettings") }}
+            </Button>
+          </template>
+        </LiveContextNotice>
+        <LiveContextNotice
+          v-if="localeSuggestion"
+          :icon="LanguagesIcon"
+          icon-tone="warning"
+          :title="
+            t('project.workbench.liveContext.languageMismatch.title', {
+              language: localeSuggestion.language,
+            })
+          "
+          :description="
+            t('project.workbench.liveContext.languageMismatch.description', {
+              language: localeSuggestion.language,
+              current: localeSuggestion.current,
+            })
+          "
+          :dismiss-label="t('project.workbench.liveContext.dismiss')"
+          data-testid="live-context-language-mismatch"
+          :data-locale="localeSuggestion.locale"
+          @dismiss="dismissLocaleSuggestion"
+        >
+          <template #actions>
+            <Button
+              size="xs"
+              variant="outline"
+              :disabled="isBusy"
+              data-testid="live-context-switch-locale"
+              @click="switchLocale(localeSuggestion.locale)"
+            >
+              {{
+                t("project.workbench.liveContext.languageMismatch.action", {
+                  language: localeSuggestion.language,
+                })
+              }}
             </Button>
           </template>
         </LiveContextNotice>

@@ -956,6 +956,54 @@ describe("WorkbenchLiveContextPanel", () => {
     expect(api.openPrivacySettings).toHaveBeenCalledWith("system");
   });
 
+  it("offers to switch to the language people seem to speak", async () => {
+    const { api } = stubApi({
+      ...listeningHere,
+      locale: "zh-CN",
+      suggestedLocale: "en-US",
+    });
+    const wrapper = await mountPanel();
+    const notice = wrapper.get("[data-testid=live-context-language-mismatch]");
+    expect(notice.text()).toContain("Sounds like American English");
+    expect(notice.text()).toContain("listening for Chinese (China)");
+    await wrapper
+      .get("[data-testid=live-context-switch-locale]")
+      .trigger("click");
+    await flushPromises();
+    expect(api.stop).toHaveBeenCalled();
+    expect(api.start).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "session-1",
+        sources: ["mic", "system"],
+        locale: "en-US",
+      }),
+    );
+    expect(
+      wrapper.find("[data-testid=live-context-language-mismatch]").exists(),
+    ).toBe(false);
+  });
+
+  it("keeps a closed language suggestion closed for the conversation", async () => {
+    const suggesting: LiveContextStatus = {
+      ...listeningHere,
+      locale: "en-US",
+      suggestedLocale: "zh-CN",
+    };
+    const { emit } = stubApi(suggesting);
+    const wrapper = await mountPanel();
+    await wrapper
+      .get(
+        "[data-testid=live-context-language-mismatch] [data-testid=live-context-dismiss-error]",
+      )
+      .trigger("click");
+    // Later status updates carry the suggestion again.
+    emit({ kind: "status", status: { ...suggesting } });
+    await flushPromises();
+    expect(
+      wrapper.find("[data-testid=live-context-language-mismatch]").exists(),
+    ).toBe(false);
+  });
+
   it("keeps one speaker's consecutive lines under one label", async () => {
     stubApi(idle, {
       segments: [

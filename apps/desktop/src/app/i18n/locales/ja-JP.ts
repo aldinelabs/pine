@@ -1184,6 +1184,12 @@ export default {
           description:
             "音声を再生中なら、システム設定 › プライバシーとセキュリティ › 画面収録とシステムオーディオ録音 で Pine を許可してください。",
         },
+        languageMismatch: {
+          title: "{language}のようです",
+          description:
+            "ライブコンテキストは{current}で認識しています。切り替えても文字起こしは残り、{language}で続けます。",
+          action: "{language}に切り替え",
+        },
         transcript: "文字起こし",
         waiting: "最初の言葉を待っています…",
         waitingPaused: "一時停止中です。再開すると文字起こしを続けます。",

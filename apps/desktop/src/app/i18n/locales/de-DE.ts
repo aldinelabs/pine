@@ -1200,6 +1200,12 @@ export default {
           description:
             "Wenn etwas abgespielt wird, erlaube Pine unter Systemeinstellungen › Datenschutz & Sicherheit › Bildschirm- & Systemaudioaufnahme.",
         },
+        languageMismatch: {
+          title: "Klingt nach {language}",
+          description:
+            "Live-Kontext erkennt gerade {current}. Beim Wechsel bleibt das Transkript erhalten und es geht auf {language} weiter.",
+          action: "Zu {language} wechseln",
+        },
         transcript: "Transkript",
         waiting: "Warte auf die ersten Worte…",
         waitingPaused: "Pausiert. Fortsetzen, um weiter zu transkribieren.",

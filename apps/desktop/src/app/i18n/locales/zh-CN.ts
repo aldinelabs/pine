@@ -1109,6 +1109,12 @@ export default {
           description:
             "如果正在播放声音，请在 系统设置 › 隐私与安全性 › 录屏与系统录音 中允许 Pine。",
         },
+        languageMismatch: {
+          title: "听起来像是{language}",
+          description:
+            "实时上下文正在按{current}识别。切换后转录会保留，并改用{language}继续。",
+          action: "切换到{language}",
+        },
         transcript: "转写内容",
         waiting: "等待第一句话…",
         waitingPaused: "已暂停，继续后接着转写。",

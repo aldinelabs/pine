@@ -26,6 +26,8 @@ final class SourcePipeline: @unchecked Sendable {
   /// jump in buffer times garbles what follows.
   private var offsets: [(at: Double, offset: Double)] = [(0, 0)]
   private var segmentIndex = 0
+  /// Whether people speak the capture's language; read on the results task.
+  private var languageCheck: LanguageCheck
   private let startedAt: Date
   private var peak: Float = 0
   /// Input level since the last `takeLevel()`, for the app's waveform.
@@ -44,6 +46,7 @@ final class SourcePipeline: @unchecked Sendable {
     self.format = format
     self.input = input
     self.startedAt = startedAt
+    languageCheck = LanguageCheck(locale: transcriber.selectedLocales.first?.identifier(.bcp47) ?? "")
   }
 
   static func makeTranscriber(locale: Locale) -> SpeechTranscriber {
@@ -51,7 +54,7 @@ final class SourcePipeline: @unchecked Sendable {
       locale: locale,
       transcriptionOptions: [],
       reportingOptions: [.volatileResults, .fastResults],
-      attributeOptions: [.audioTimeRange])
+      attributeOptions: [.audioTimeRange, .transcriptionConfidence])
   }
 
   static func start(source: String, locale: Locale, startedAt: Date) async throws
@@ -108,10 +111,29 @@ final class SourcePipeline: @unchecked Sendable {
           }
         }
         Output.emit(event)
+        if let locale = languageCheck.judge(
+          text: text, confidence: confidence(of: result.text),
+          seconds: result.range.duration.seconds, final: final)
+        {
+          Output.emit(["type": "language", "source": source, "locale": locale])
+        }
       }
     } catch {
       Output.error("transcription_failed", error.localizedDescription, source: source)
     }
+  }
+
+  /// How sure the transcriber is of the text: its runs' confidence, by length.
+  private func confidence(of text: AttributedString) -> Double? {
+    var weighted = 0.0
+    var total = 0
+    for run in text.runs {
+      guard let value = run.transcriptionConfidence else { continue }
+      let length = text[run.range].characters.count
+      weighted += value * Double(length)
+      total += length
+    }
+    return total > 0 ? weighted / Double(total) : nil
   }
 
   /// Where each timed run of the text starts (UTF-16 offset into the

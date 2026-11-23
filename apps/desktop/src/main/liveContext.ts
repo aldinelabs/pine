@@ -3,6 +3,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import type { Readable, Writable } from "node:stream";
 import {
+  LIVE_CONTEXT_LOCALES,
   LIVE_CONTEXT_SOURCES,
   type LiveContextError,
   type LiveContextEvent,
@@ -188,6 +189,10 @@ export function readTranslations(
 
 function isSource(value: unknown): value is LiveContextSource {
   return LIVE_CONTEXT_SOURCES.some((source) => source === value);
+}
+
+function isLiveContextLocale(value: unknown): value is string {
+  return LIVE_CONTEXT_LOCALES.some((locale) => locale === value);
 }
 
 /**
@@ -971,6 +976,16 @@ export class LiveContextService {
         if (levels) this.options.emit({ kind: "levels", levels });
         return;
       }
+      case "language":
+        // The helper judged a long stretch of speech to be in another of
+        // the languages Pine captures.
+        if (
+          isLiveContextLocale(event.locale) &&
+          event.locale !== this.current.locale &&
+          !this.current.suggestedLocale
+        )
+          this.update({ suggestedLocale: event.locale });
+        return;
       case "speakers-state":
         this.update({
           speakersDegraded:

@@ -99,6 +99,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
   const translations = reactive(new Map<string, LiveContextTranslations>());
   /** Segments of the capturing session waiting for their translation. */
   const pendingTranslations = reactive(new Map<string, Set<string>>());
+  /** Conversations whose language suggestion the user closed (this run). */
+  const dismissedLocaleSuggestions = reactive(new Set<string>());
 
   function addTranslations(
     sessionId: string,
@@ -359,6 +361,26 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     );
   }
 
+  /**
+   * The language people seem to speak in the session's capture, unless the
+   * user closed the suggestion for this conversation.
+   */
+  function localeSuggestionOf(sessionId: string): string | undefined {
+    const suggested = status.value.suggestedLocale;
+    if (
+      !suggested ||
+      status.value.sessionId !== sessionId ||
+      status.value.state === "idle" ||
+      dismissedLocaleSuggestions.has(sessionId)
+    )
+      return undefined;
+    return suggested;
+  }
+
+  function dismissLocaleSuggestion(sessionId: string): void {
+    dismissedLocaleSuggestions.add(sessionId);
+  }
+
   async function pause(): Promise<void> {
     if (api) setStatus(await api.pause());
   }
@@ -408,6 +430,8 @@ export const useLiveContextStore = defineStore("liveContext", () => {
     renameSpeaker,
     mergeSpeakers,
     volatileOf,
+    localeSuggestionOf,
+    dismissLocaleSuggestion,
     start,
     pause,
     resume,
