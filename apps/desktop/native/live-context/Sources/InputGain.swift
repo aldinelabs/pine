@@ -4,7 +4,7 @@ import AVFoundation
 /// room reaches the microphone 20–25 dB below someone at the keyboard, and
 /// SpeechTranscriber loses words on such quiet input; raising it toward
 /// speech level cut word errors on far-field English lecture audio from
-/// 20.6% to 14.1% with no change on close speech (bench, 2026-11).
+/// 20.6% to 15.6% with no change on close speech (bench, 2026-11).
 ///
 /// The level follows the loudest recent audio (quick to rise, slow to fall),
 /// so pauses between sentences are not pumped up; the gain never cuts and
