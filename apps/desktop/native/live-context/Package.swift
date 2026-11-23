@@ -13,6 +13,9 @@ let package = Package(
     .target(name: "CSherpaOnnx", path: "CSherpaOnnx"),
     .executableTarget(
       name: "pine-live-context", dependencies: ["CSherpaOnnx"], path: "Sources"),
+    // `swift test` from this folder; not part of the app build.
+    .testTarget(
+      name: "pine-live-context-tests", dependencies: ["pine-live-context"], path: "__tests__"),
   ],
   swiftLanguageModes: [.v5]
 )
