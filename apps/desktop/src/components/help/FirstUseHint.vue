@@ -94,7 +94,6 @@ function fold(element: Element, motion: "in" | "out", done: () => void) {
     marginTop: style.marginTop,
     marginBottom: style.marginBottom,
     opacity: 1,
-    transform: "translateY(0)",
   };
   const folded = {
     height: "0px",
@@ -102,7 +101,6 @@ function fold(element: Element, motion: "in" | "out", done: () => void) {
     paddingBottom: "0px",
     ...foldedMargins(element),
     opacity: 0,
-    transform: "translateY(-0.25rem)",
   };
   element.style.overflow = "hidden";
   // A leaving hint cannot be clicked again.
