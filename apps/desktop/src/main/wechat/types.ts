@@ -196,12 +196,21 @@ export interface StoredMedia {
   sizeBytes?: number;
   ref: string;
 }
+/** A voice message without the server's transcript, for transcription on this computer. Secret like `StoredMedia`. */
+export interface StoredVoice {
+  ref: string;
+  encodeType?: number;
+  sampleRate?: number;
+  playtimeMs?: number;
+}
 export interface StoredInbound {
   id: string;
   createdAtMs: number;
   pollStartedAtMs: number;
   text?: string;
   voice?: boolean;
+  /** Set when `voice` came without a transcript and the recording can be downloaded. */
+  voiceMedia?: StoredVoice;
   quotedText?: string;
   media: StoredMedia[];
   /** Set in the same write that takes the entry off the queue. */

@@ -17,6 +17,7 @@ import type {
   AutomationPowerEvents,
 } from "../automation/service";
 import type { ProjectFileNativeActions } from "../projectFileOperations";
+import type { WeChatHostPorts } from "../wechat/ports";
 import type { TinyFishSafeStorage } from "../tinyfishCredentials";
 
 /**
@@ -82,6 +83,12 @@ export interface PineHost {
   wechatChanged?(status: WeChatStatus): void;
   /** Shows something WeChat remote did or needs at the OS level. */
   notifyWeChat?(notification: WeChatNotification): void;
+  /**
+   * Transcribes a WeChat voice message on this computer. Desktop only, on
+   * macOS 26+ with the Live Context helper: elsewhere such a message without
+   * the server's transcript is answered with `E-VOICE`.
+   */
+  transcribeVoice?: WeChatHostPorts["transcribeVoice"];
   /**
    * The session's Live Context, sliced for its agent. Desktop only: without
    * it no session has live context.

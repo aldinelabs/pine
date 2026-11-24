@@ -613,6 +613,9 @@ export class WeChatBridge implements WeChatBridgeApi {
       owner: () => (this.isBound() ? store.secure().owner : undefined),
       paused: () => store.secure().paused,
       pause: () => this.setPaused(true).then(() => undefined),
+      ...(host.transcribeVoice
+        ? { transcribeVoice: host.transcribeVoice }
+        : {}),
       download: (ref, maxBytes, signal) => {
         const channel = this.channel;
         if (!channel) {

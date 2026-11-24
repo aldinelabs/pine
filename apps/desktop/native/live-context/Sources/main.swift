@@ -10,6 +10,9 @@
 // Closing stdin stops the capture and exits, so the helper never outlives Pine.
 // `speakers` is optional; without it nothing about diarization is loaded.
 //
+// `--transcribe x.wav --locale zh-CN` transcribes one recording, prints
+// one transcript and exits (FileTranscription.swift).
+//
 // For a terminal test, `--start --sources mic,system --locale zh-CN` starts
 // at once, and `--check` prints what this Mac supports. `--file x.wav`
 // (with `--speed 4`) plays a file into the first source instead of a device,
@@ -168,19 +171,7 @@ final class Controller: @unchecked Sendable {
   }
 
   private func installAssets(for locale: Locale) async throws {
-    let probe = SourcePipeline.makeTranscriber(locale: locale)
-    guard let request = try await AssetInventory.assetInstallationRequest(supporting: [probe])
-    else { return }
-    Output.status("downloading", ["progress": 0])
-    let progress = request.progress
-    let reporter = Task {
-      while !Task.isCancelled {
-        Output.status("downloading", ["progress": (progress.fractionCompleted * 100).rounded() / 100])
-        try? await Task.sleep(for: .seconds(1))
-      }
-    }
-    defer { reporter.cancel() }
-    try await request.downloadAndInstall()
+    try await installTranscriptionAssets(for: SourcePipeline.makeTranscriber(locale: locale))
   }
 
   private func microphoneAllowed() async -> Bool {
@@ -291,6 +282,13 @@ Output.emit(["type": "ready", "protocol": protocolVersion, "pid": ProcessInfo.pr
 if CommandLine.arguments.contains("--check") {
   await controller.check()
   exit(0)
+}
+
+// A WeChat voice message: one file in, one transcript out.
+if let file = argument("--transcribe") {
+  exit(
+    await FileTranscription.run(
+      path: file, localeIdentifier: argument("--locale") ?? Locale.current.identifier))
 }
 
 // Testing: files stand in for devices, whether the capture starts from the

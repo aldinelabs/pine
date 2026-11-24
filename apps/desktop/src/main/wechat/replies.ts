@@ -1089,6 +1089,7 @@ export interface ReplyData {
   "R-PAGE": PageInfo;
   "R-DROP": { count: number };
   "R-ATTACH": { name: string; sizeBytes: number };
+  "R-VOICE-LOCAL": { text: string };
   "R-NEW": {
     project: string;
     text: string;
@@ -1566,6 +1567,12 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       ),
     );
   },
+  "R-VOICE-LOCAL": (lang, { text }) =>
+    pick(
+      lang,
+      `（本机转写）${echo(text)}`,
+      `(Transcribed on this computer) ${echo(text)}`,
+    ),
   "R-NEW": (lang, data) => {
     const facts = [modeLabel(lang, data.mode)];
     if (data.model) facts.push(inline(data.model, 40));
