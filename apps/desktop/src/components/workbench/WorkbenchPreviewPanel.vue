@@ -56,6 +56,7 @@ const versions = useArtifactVersionStore();
 const {
   key: versionViewKey,
   source: versionSource,
+  submissions: versionSubmissions,
   view: versionView,
 } = useWorkbenchArtifactVersions();
 watch(
@@ -65,6 +66,10 @@ watch(
   },
   { immediate: true },
 );
+// The agent submitted the file again: its new version joins the history.
+watch(versionSubmissions, () => {
+  if (versionViewKey.value) void versions.refresh(versionViewKey.value);
+});
 // Another file, or the same one picked again, shows as it is now.
 watch(current, () => {
   if (versionViewKey.value) versions.showCurrent(versionViewKey.value);

@@ -131,6 +131,21 @@ describe("artifact version store", () => {
     });
   });
 
+  it("reads the history again on refresh only once it was read", async () => {
+    const store = useArtifactVersionStore();
+    store.bind("k", source);
+    await store.refresh("k");
+    expect(pine.artifactVersions).not.toHaveBeenCalled();
+
+    await store.load("k");
+    await store.refresh("k");
+    expect(pine.artifactVersions).toHaveBeenCalledTimes(2);
+
+    pine.artifactVersions.mockRejectedValueOnce(new Error("offline"));
+    await store.refresh("k");
+    expect(store.viewOf("k")?.history).toEqual(history);
+  });
+
   it("starts over when the preview shows another artifact", async () => {
     const store = await loaded();
     await store.show("k", store.viewOf("k")!.history!.versions[1]);
