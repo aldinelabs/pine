@@ -19,6 +19,8 @@ interface Internals {
 function fixture() {
   const assistant = {
     report: vi.fn(() => Promise.resolve()),
+    observe: vi.fn(),
+    turnEnded: vi.fn(() => Promise.resolve()),
   };
   const core = Object.create(PineCore.prototype) as PineCore;
   Object.assign(core, {

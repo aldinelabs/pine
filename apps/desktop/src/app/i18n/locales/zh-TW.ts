@@ -95,6 +95,11 @@ export default {
       wakesOnReport: "派出的對話回報時讓助理回覆",
       wakesOnReportDescription:
         "關閉時，回報留在對話裡，等你下次傳訊息時一起處理，不產生費用；開啟後，助理收到回報就立即回覆。",
+      costReminder: "費用提醒",
+      costReminderDescription:
+        "它派出的工作階段或它自己的對話花費超過這個金額時，助理會在回報裡指出，之後每多一倍再提醒一次。",
+      costReminderOff: "關閉",
+      costReminderAmount: "{amount} 美元",
       memory: "助理筆記",
       memoryDescription: "助理記住的內容，例如你對專案的稱呼。",
       openMemory: "查看筆記",
@@ -1805,6 +1810,7 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
+      watchNotice: "提醒：{label}",
       sessionNotice: {
         finished: "子會話 {name} 已完成",
         failed: "子會話 {name} 失敗了",

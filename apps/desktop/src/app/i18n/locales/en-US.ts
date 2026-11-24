@@ -98,6 +98,11 @@ export default {
       wakesOnReport: "Reply when dispatched work reports",
       wakesOnReportDescription:
         "Off: reports wait in the conversation until you next write, at no cost. On: the Assistant answers each report right away.",
+      costReminder: "Cost reminder",
+      costReminderDescription:
+        "The Assistant points out when a session it dispatched, or its own conversation, has cost more than this, and again at each further multiple.",
+      costReminderOff: "Off",
+      costReminderAmount: "US${amount}",
       memory: "Assistant notes",
       memoryDescription:
         "What the Assistant remembers, such as the names you use for projects.",
@@ -1895,6 +1900,7 @@ export default {
         minutes: "{minutes}m {seconds}s",
         seconds: "{value}s",
       },
+      watchNotice: "Reminder: {label}",
       sessionNotice: {
         finished: "Sub-session {name} finished",
         failed: "Sub-session {name} failed",

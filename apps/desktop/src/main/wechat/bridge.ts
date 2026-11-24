@@ -22,6 +22,7 @@ import type {
   MessageChannel,
 } from "./channel";
 import { AskBook } from "./asks";
+import { PRIORITY_MIN_REMAINING } from "./budget";
 import { InboundAttachments } from "./attachments";
 import { createClawBotChannels } from "./clawbotChannel";
 import { HandleTables, Pager } from "./handles";
@@ -401,6 +402,43 @@ export class WeChatBridge implements WeChatBridgeApi {
 
   automationsChanged(): void {
     this.guarded(() => this.parts?.sessions.automationsChanged());
+  }
+
+  /** The number WeChat shows an approval or question card under, if it does. */
+  cardNumberOf(requestId: string): number | undefined {
+    return this.parts?.asks.byRequest(requestId)?.number;
+  }
+
+  /**
+   * Whether a push would reach WeChat now: bound, not paused, and with
+   * enough of the reply budget left for a result (P2). Without it a
+   * reminder set from WeChat falls back to a desktop notification.
+   */
+  canPushNow(): boolean {
+    const parts = this.parts;
+    if (!parts || !this.isListening()) return false;
+    return parts.outbound.remaining() >= PRIORITY_MIN_REMAINING[2];
+  }
+
+  /**
+   * A reminder set from WeChat woke the Assistant: its reply is pushed to
+   * WeChat. False when it would not reach WeChat now; nothing changes then.
+   */
+  async expectAssistantReply(
+    sessionId: string,
+    projectId: string,
+  ): Promise<boolean> {
+    if (!this.canPushNow()) return false;
+    try {
+      await this.parts?.sessions.expectAssistantReply(sessionId, projectId);
+      return true;
+    } catch (error) {
+      console.error(
+        "WeChat could not expect the Assistant's reply.",
+        describe(error),
+      );
+      return false;
+    }
   }
 
   sessionDispatched(sessionId: string, projectId: string): void {

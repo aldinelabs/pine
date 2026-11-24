@@ -99,6 +99,11 @@ export default {
       wakesOnReport: "依頼した作業の報告に返信する",
       wakesOnReportDescription:
         "オフでは、報告は次にメッセージを送るまで会話に残り、費用はかかりません。オンでは、アシスタントが報告にすぐ返信します。",
+      costReminder: "コストの通知",
+      costReminderDescription:
+        "アシスタントが送ったセッションや自身の会話の費用がこの額を超えると、報告の中で知らせます。その後も倍数ごとに知らせます。",
+      costReminderOff: "オフ",
+      costReminderAmount: "{amount} 米ドル",
       memory: "アシスタントのメモ",
       memoryDescription:
         "プロジェクトの呼び名など、アシスタントが覚えている内容です。",
@@ -1905,6 +1910,7 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
+      watchNotice: "リマインダー：{label}",
       sessionNotice: {
         finished: "サブセッション {name} が完了しました",
         failed: "サブセッション {name} が失敗しました",

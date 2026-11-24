@@ -21,6 +21,7 @@ export function collapsesTranscriptGap(
   if (
     firstBlock?.type !== "toolCall" &&
     firstBlock?.type !== "sessionNotice" &&
+    firstBlock?.type !== "watchNotice" &&
     firstBlock?.type !== "backgroundTask"
   )
     return false;

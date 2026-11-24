@@ -102,6 +102,25 @@ async function fixture() {
       }),
     ),
     deleteSession: vi.fn(() => Promise.resolve(true)),
+    contextUsageOf: vi.fn<(id: string) => { cost: number } | undefined>(
+      () => undefined,
+    ),
+    hasPendingApproval: vi.fn(() => true),
+  };
+  const automations = {
+    list: vi.fn(() => Promise.resolve([] as unknown[])),
+    get: vi.fn(),
+    setEnabled: vi.fn(() => Promise.resolve()),
+    runNow: vi.fn(),
+    pendingApprovals: vi.fn(() => [] as unknown[]),
+  };
+  const wechat = {
+    status: vi.fn(() => ({
+      bound: false,
+      paused: false,
+      settings: { allowHighRiskApprovals: false },
+    })),
+    cardNumberOf: vi.fn((): number | undefined => undefined),
   };
   const agentHost = {
     notifySession: vi.fn(() => Promise.resolve({ delivered: true })),
@@ -119,7 +138,10 @@ async function fixture() {
     },
     runtimes,
     agentHost,
+    automations,
+    wechat,
     sessionActivity: vi.fn(() => "running"),
+    displayCurrency: vi.fn(() => ({ currency: "USD", rate: 1 })),
     notifyLibraryChanged: vi.fn(),
     notifySessionsDeleted: vi.fn(),
   } as unknown as PineCore;
@@ -128,6 +150,8 @@ async function fixture() {
     core,
     runtimes,
     agentHost,
+    automations,
+    wechat,
     service: new AssistantService(core),
   };
 }
@@ -364,6 +388,7 @@ describe("the Assistant's desktop conversation", () => {
     await expect(service.settings()).resolves.toEqual({
       approvalMode: "autonomous",
       wakesOnReport: true,
+      costReminderUsd: 5,
       model: MODEL,
     });
   });
@@ -644,5 +669,333 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
       dispatch,
     );
     expect(result).toMatchObject({ approvalMode: "let-me-review" });
+  });
+});
+
+const ASSISTANT = {
+  sessionId: ASSISTANT_SESSION,
+  ownerId: ASSISTANT_CLIENT_ID,
+};
+
+/** The Assistant's conversation has started and Blog has a session. */
+async function started() {
+  const context = await fixture();
+  await context.service.prompt(9, { locale: "zh-CN", message: "你好" });
+  listProjectSessions.mockResolvedValue([
+    { id: ASSISTANT_SESSION },
+    { id: ELSEWHERE, name: "改样式" },
+  ]);
+  return context;
+}
+
+describe("cost reminders", () => {
+  it("points out a dispatched session past the threshold once per multiple", async () => {
+    const { service, agentHost, runtimes } = await fixture();
+    await service.answer(ASSISTANT, dispatch);
+    runtimes.contextUsageOf.mockImplementation((id: string) =>
+      id === DISPATCHED ? { cost: 6 } : undefined,
+    );
+
+    await service.report(DISPATCHED, "finished");
+    await service.report(DISPATCHED, "finished");
+    runtimes.contextUsageOf.mockImplementation((id: string) =>
+      id === DISPATCHED ? { cost: 10.5 } : undefined,
+    );
+    await service.report(DISPATCHED, "finished");
+
+    const contents = agentHost.notifySession.mock.calls.map(
+      (call) => (call as unknown as [string, unknown, string])[2],
+    );
+    expect(contents[0]).toContain(
+      "<cost-reminder>This session has cost about US$6.00",
+    );
+    expect(contents[1]).not.toContain("<cost-reminder>");
+    expect(contents[2]).toContain("US$11");
+  });
+
+  it("points out the Assistant's own cost, and stays quiet when turned off", async () => {
+    const { service, agentHost, runtimes } = await fixture();
+    await service.answer(ASSISTANT, dispatch);
+    runtimes.contextUsageOf.mockImplementation((id: string) =>
+      id === ASSISTANT_SESSION ? { cost: 7 } : { cost: 100 },
+    );
+    await service.saveSettings({
+      approvalMode: "auto-approve",
+      wakesOnReport: false,
+      costReminderUsd: 0,
+    });
+    await service.report(DISPATCHED, "finished");
+    await service.saveSettings({
+      approvalMode: "auto-approve",
+      wakesOnReport: false,
+      costReminderUsd: 5,
+    });
+    await service.report(DISPATCHED, "finished");
+
+    const contents = agentHost.notifySession.mock.calls.map(
+      (call) => (call as unknown as [string, unknown, string])[2],
+    );
+    expect(contents[0]).not.toContain("<cost-reminder>");
+    expect(contents[1]).toContain(
+      "Your own conversation with the user has cost",
+    );
+  });
+});
+
+describe("watches", () => {
+  it("wakes the Assistant when a watched session finishes", async () => {
+    const { service, agentHost } = await started();
+    const created = await service.answer(ASSISTANT, {
+      op: "watch-create",
+      label: "改样式跑完告诉我",
+      trigger: { kind: "session", projectId: BLOG, sessionId: ELSEWHERE },
+    });
+    if (created.op !== "watch-create") throw new Error(created.op);
+    expect(created.watch.sessionTitle).toBe("修首页");
+
+    await service.report(ELSEWHERE, "finished");
+
+    expect(agentHost.notifySession).toHaveBeenCalledExactlyOnceWith(
+      ASSISTANT_SESSION,
+      { watchId: created.watch.id, label: "改样式跑完告诉我" },
+      expect.stringContaining("<status>finished</status>"),
+      { triggerTurn: true },
+    );
+    const listed = await service.answer(ASSISTANT, { op: "watch-list" });
+    expect(listed).toEqual({ op: "watch-list", watches: [] });
+  });
+
+  it("refuses to watch a session that is not working", async () => {
+    const { service, core } = await started();
+    (
+      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
+    ).sessionActivity.mockReturnValue("idle");
+    await expect(
+      service.answer(ASSISTANT, {
+        op: "watch-create",
+        label: "跑完告诉我",
+        trigger: { kind: "session", projectId: BLOG, sessionId: ELSEWHERE },
+      }),
+    ).rejects.toThrow(/not working on anything now/);
+  });
+
+  it("answers a WeChat reminder in WeChat, or on the desktop when WeChat cannot take it", async () => {
+    const { service, core } = await started();
+    (
+      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
+    ).sessionActivity.mockReturnValue("idle");
+    await service.send("每天 18 点给我简报", {
+      locale: "zh-CN",
+      source: "wechat",
+    });
+    const notify = vi.fn();
+    service.notify = notify;
+    service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
+    vi.useFakeTimers({ now: new Date("2026-11-24T09:59:00.000Z") });
+    try {
+      await service.answer(ASSISTANT, {
+        op: "watch-create",
+        label: "每日简报",
+        trigger: {
+          kind: "schedule",
+          rrule: "FREQ=DAILY;BYHOUR=10;BYMINUTE=0",
+          timezone: "UTC",
+        },
+      });
+      vi.setSystemTime(new Date("2026-11-24T10:00:01.000Z"));
+      await service.watches.tick();
+      expect(service.onWakeForWeChat).toHaveBeenCalledWith(ASSISTANT_SESSION);
+      await service.turnEnded(ASSISTANT_SESSION, "idle");
+      expect(notify).not.toHaveBeenCalled();
+
+      // The next day WeChat's reply budget is spent.
+      service.onWakeForWeChat = vi.fn(() => Promise.resolve(false));
+      vi.setSystemTime(new Date("2026-11-25T10:00:01.000Z"));
+      await service.watches.tick();
+      await service.turnEnded(ASSISTANT_SESSION, "idle");
+      expect(notify).toHaveBeenCalledExactlyOnceWith({
+        title: "Assistant",
+        body: "首页已修好。",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("forgets its reminders when the conversation is cleared", async () => {
+    const { service } = await started();
+    await service.answer(ASSISTANT, {
+      op: "watch-create",
+      label: "提醒我",
+      trigger: {
+        kind: "at",
+        at: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    });
+    await service.clear();
+    await expect(service.watches.list()).resolves.toEqual([]);
+  });
+});
+
+describe("approvals the Assistant can list", () => {
+  it("lists cards as they come and go, never its own", async () => {
+    const { service, wechat, automations } = await fixture();
+    wechat.cardNumberOf.mockReturnValue(12);
+    automations.pendingApprovals.mockReturnValue([
+      {
+        requestId: "auto-1",
+        projectId: BLOG,
+        projectName: "Blog",
+        kind: "enable",
+        automationId: "a-1",
+        facts: { name: "日报" },
+        warnings: [],
+        createdAt: "2026-11-24T00:00:00.000Z",
+      },
+    ]);
+    const request = (sessionId: string, requestId: string) =>
+      ({
+        type: "approval-request",
+        sessionId,
+        requestId,
+        toolCallId: "c",
+        toolName: "bash",
+        trigger: "destructive-pattern",
+        input: { subject: "rm -rf build" },
+      }) as const;
+    service.observe(request(ELSEWHERE, "r-1"));
+    service.observe(request(ASSISTANT_SESSION, "r-own"));
+
+    const listed = await service.answer(ASSISTANT, { op: "approvals" });
+    expect(listed).toEqual({
+      op: "approvals",
+      approvals: [
+        expect.objectContaining({
+          kind: "approval",
+          projectName: "Blog",
+          sessionId: ELSEWHERE,
+          what: "bash",
+          subject: "rm -rf build",
+          wechatCard: 12,
+          localOnly: true,
+        }),
+        expect.objectContaining({ kind: "automation", localOnly: true }),
+      ],
+    });
+
+    service.observe({
+      type: "approval-decided",
+      sessionId: ELSEWHERE,
+      requestId: "r-1",
+      toolCallId: "c",
+      verdict: "approved",
+      decidedBy: "user",
+    });
+    automations.pendingApprovals.mockReturnValue([]);
+    await expect(
+      service.answer(ASSISTANT, { op: "approvals" }),
+    ).resolves.toEqual({ op: "approvals", approvals: [] });
+  });
+});
+
+describe("automations from the Assistant", () => {
+  const daily = {
+    id: "a-1",
+    projectId: BLOG,
+    projectName: "Blog",
+    name: "日报",
+    revision: 1,
+    status: "active",
+    triggers: ["schedule"],
+    running: false,
+  };
+
+  it("runs one only within WeChat's two conditions", async () => {
+    const { service, automations, runtimes } = await fixture();
+    automations.list.mockResolvedValue([daily]);
+    const run = {
+      op: "automation-run" as const,
+      projectId: BLOG,
+      automationId: "a-1",
+    };
+
+    // Auto Approve is below Autonomous Work, which automations run as.
+    await expect(service.answer(ASSISTANT, run)).rejects.toThrow(
+      /Autonomous Work/,
+    );
+    runtimes.approvalModeOfLiveSession.mockReturnValue("autonomous");
+    automations.list.mockResolvedValue([{ ...daily, status: "off" }]);
+    await expect(service.answer(ASSISTANT, run)).rejects.toThrow(/not on/);
+    automations.list.mockResolvedValue([daily]);
+    await expect(service.answer(ASSISTANT, run)).resolves.toEqual({
+      op: "automation-run",
+      name: "日报",
+    });
+    expect(automations.runNow).toHaveBeenCalledExactlyOnceWith(BLOG, "a-1");
+  });
+
+  it("holds a WeChat turn to WeChat's ceiling", async () => {
+    const { service, automations, runtimes } = await fixture();
+    runtimes.approvalModeOfLiveSession.mockReturnValue("autonomous");
+    automations.list.mockResolvedValue([daily]);
+    await service.send("跑一下日报", {
+      locale: "zh-CN",
+      source: "wechat",
+      ceiling: "auto-approve",
+    });
+    await expect(
+      service.answer(ASSISTANT, {
+        op: "automation-run",
+        projectId: BLOG,
+        automationId: "a-1",
+      }),
+    ).rejects.toThrow(/auto-approve/);
+    expect(automations.runNow).not.toHaveBeenCalled();
+  });
+
+  it("turns one off, never on", async () => {
+    const { service, automations } = await fixture();
+    automations.list.mockResolvedValue([daily]);
+    await expect(
+      service.answer(ASSISTANT, {
+        op: "automation-disable",
+        projectId: BLOG,
+        automationId: "a-1",
+      }),
+    ).resolves.toEqual({
+      op: "automation-disable",
+      name: "日报",
+      changed: true,
+    });
+    expect(automations.setEnabled).toHaveBeenCalledExactlyOnceWith(
+      { projectId: BLOG, source: "web" },
+      "a-1",
+      false,
+    );
+  });
+});
+
+describe("sessions the Assistant may act on", () => {
+  it("needs the user's confirmation for one it did not dispatch", async () => {
+    const { service } = await started();
+    await expect(
+      service.answer(ASSISTANT, {
+        op: "session-rename",
+        projectId: BLOG,
+        sessionId: ELSEWHERE,
+        title: "新标题",
+        confirmed: false,
+      }),
+    ).rejects.toThrow(/has to confirm/);
+  });
+
+  it("reads settings it cannot change", async () => {
+    const { service } = await fixture();
+    const result = await service.answer(ASSISTANT, { op: "settings" });
+    if (result.op !== "settings") throw new Error(result.op);
+    expect(result.settings).toContainEqual({
+      where: "Settings › Assistant › Cost reminder",
+      value: "US$5.00",
+    });
   });
 });

@@ -6,6 +6,8 @@ import {
 } from "../shared/promptRewrite";
 import {
   PINE_SESSION_NOTICE_TYPE,
+  PINE_WATCH_NOTICE_TYPE,
+  isWatchNotice,
   PINE_LIVE_CONTEXT_ENTRY,
   PINE_SUB_SESSION_ENTRY,
   PINE_TITLE_SUGGESTION_ENTRY,
@@ -19,6 +21,7 @@ import {
   type TitleSuggestionReply,
   subSessionParentOf,
   type PineSessionNotice,
+  type PineWatchNotice,
   type PineSessionSummary,
   type SessionRenamer,
 } from "../shared/sessions";
@@ -2184,6 +2187,12 @@ export class PineAgentRuntime {
           requestHost: (request) => this.requestHost(live, request),
           getApprovalMode: () => live.approvalMode,
           getLocale: () => live.locale,
+          // Its cards always go to the user: no reviewer, whatever its mode.
+          requestApproval: (input) =>
+            this.requestUserApproval(live, {
+              trigger: "pre-execution",
+              ...input,
+            }),
           // Its project notes are the Assistant's own (assistant/memory).
           memory: {
             repository: memoryRepository,
@@ -2713,7 +2722,7 @@ export class PineAgentRuntime {
    */
   async notifySession(
     sessionId: string,
-    notice: PineSessionNotice,
+    notice: PineSessionNotice | PineWatchNotice,
     content: string,
     triggerTurn = true,
   ): Promise<{ delivered: boolean }> {
@@ -2722,7 +2731,9 @@ export class PineAgentRuntime {
     await this.deliverBackgroundTaskNotification(
       live,
       {
-        customType: PINE_SESSION_NOTICE_TYPE,
+        customType: isWatchNotice(notice)
+          ? PINE_WATCH_NOTICE_TYPE
+          : PINE_SESSION_NOTICE_TYPE,
         content,
         display: true,
         details: notice,
@@ -2737,10 +2748,11 @@ export class PineAgentRuntime {
     message:
       | BackgroundTaskNotificationMessage
       | {
-          customType: typeof PINE_SESSION_NOTICE_TYPE;
+          customType:
+            typeof PINE_SESSION_NOTICE_TYPE | typeof PINE_WATCH_NOTICE_TYPE;
           content: string;
           display: true;
-          details: PineSessionNotice;
+          details: PineSessionNotice | PineWatchNotice;
         },
     options: { triggerTurn: boolean },
   ): Promise<void> {

@@ -289,6 +289,57 @@ describe("the Assistant's conversation", () => {
       ]);
   });
 
+  it("offers the management tools of P3 but none that delete or author", async () => {
+    const provider = await mockProvider([
+      {
+        toolCall: { name: "ui_project_delete", arguments: { projectId: "x" } },
+      },
+      { toolCall: { name: "automation_save", arguments: {} } },
+      { text: "I can't do that here." },
+    ]);
+    const hostRequests: PineAgentEvent[] = [];
+    const runtime = testRuntime(hostRequests);
+    const location = await assistantLocation(provider.port);
+    const created = await runtime.createSession(location);
+    const session = liveSession(runtime, created.session.id);
+
+    await session.prompt("把旧项目删了，再建个自动化");
+
+    const offered = provider.requests[0]?.tools?.map(
+      (tool) => tool.function.name,
+    );
+    for (const name of [
+      "watch",
+      "watch_list",
+      "watch_cancel",
+      "approvals_list",
+      "settings_read",
+      "automation_list",
+      "automation_get",
+      "automation_set_enabled",
+      "automation_run_now",
+      "ui_project_list",
+      "ui_project_create",
+      "ui_project_update",
+      "ui_session_send",
+      "ui_session_stop",
+      "ui_session_rename",
+    ])
+      expect(offered).toContain(name);
+    const results = session.messages.filter(
+      (message) => message.role === "toolResult",
+    );
+    expect(results.map((result) => text(result.content))).toEqual([
+      "Tool ui_project_delete not found",
+      "Tool automation_save not found",
+    ]);
+    expect(hostRequests).toEqual([]);
+    for (const request of provider.requests)
+      expect(request.tools?.map((tool) => tool.function.name)).toEqual([
+        ...ASSISTANT_TOOL_NAMES,
+      ]);
+  });
+
   it("works in an empty directory it leaves empty", async () => {
     const provider = await mockProvider([{ text: "OK." }]);
     const runtime = testRuntime();

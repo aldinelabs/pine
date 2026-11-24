@@ -61,6 +61,7 @@ import type {
 import type { PineSessionMutator } from "../shared/sessionMutators";
 import type {
   PineSessionNotice,
+  PineWatchNotice,
   SessionRenamer,
   TitleSuggestionReply,
 } from "../shared/sessions";
@@ -133,7 +134,7 @@ export interface AgentHost {
   ): Promise<AgentWorkerSessionResult>;
   notifySession(
     sessionId: string,
-    notice: PineSessionNotice,
+    notice: PineSessionNotice | PineWatchNotice,
     content: string,
     options?: { triggerTurn?: boolean },
   ): Promise<{ delivered: boolean }>;
@@ -418,7 +419,7 @@ export class AgentProcessHost implements AgentHost {
 
   notifySession(
     sessionId: string,
-    notice: PineSessionNotice,
+    notice: PineSessionNotice | PineWatchNotice,
     content: string,
     options: { triggerTurn?: boolean } = {},
   ): Promise<{ delivered: boolean }> {

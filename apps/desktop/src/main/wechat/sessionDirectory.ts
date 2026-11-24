@@ -1987,6 +1987,32 @@ export class SessionDirectory {
     });
   }
 
+  /**
+   * A reminder the user set from WeChat woke the Assistant: its reply to
+   * that wake-up is pushed like its reply to a WeChat message, within the
+   * same reply budget.
+   */
+  async expectAssistantReply(
+    sessionId: string,
+    projectId: string,
+  ): Promise<void> {
+    const obs = this.touch(sessionId);
+    obs.projectId = projectId;
+    if (obs.state === "running") obs.bridgeRun = true;
+    else obs.pendingPrompt = true;
+    const now = this.deps.now();
+    await this.deps.store.update((draft) => {
+      addTracked(
+        draft.tracked,
+        sessionId,
+        projectId,
+        "assistant",
+        now,
+        this.isBusy,
+      );
+    });
+  }
+
   // -------------------------------------------------------------------------
 
   private notifyLocal<K extends WeChatNotificationKind>(

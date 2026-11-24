@@ -63,6 +63,16 @@ export type AssistantTurnSource = "wechat" | "desktop";
 export const PINE_OVERVIEW_TOOL_NAME = "pine_overview" as const;
 export const DISPATCH_TASK_TOOL_NAME = "dispatch_task" as const;
 export const SESSION_DIGEST_TOOL_NAME = "session_digest" as const;
+export const WATCH_TOOL_NAME = "watch" as const;
+export const WATCH_LIST_TOOL_NAME = "watch_list" as const;
+export const WATCH_CANCEL_TOOL_NAME = "watch_cancel" as const;
+export const APPROVALS_LIST_TOOL_NAME = "approvals_list" as const;
+export const SETTINGS_READ_TOOL_NAME = "settings_read" as const;
+
+/** The Assistant's reminders, watches and briefings. */
+export const ASSISTANT_WATCHES_FILE = "watches.json" as const;
+/** Watches kept at once; more are refused. */
+export const ASSISTANT_WATCHES_MAX = 30;
 
 /** The Assistant's settings, kept in its data folder as settings.json. */
 export const ASSISTANT_SETTINGS_FILE = "settings.json" as const;
@@ -89,11 +99,22 @@ export interface AssistantSettings {
    * dispatched work costs no Assistant tokens on its own (§3.8).
    */
   wakesOnReport: boolean;
+  /**
+   * In US dollars: a dispatched session, or the Assistant's own
+   * conversation, that costs more than this is pointed out in its next
+   * report. Only a reminder, never a limit; 0 turns it off.
+   */
+  costReminderUsd: number;
 }
+
+/** The choices Settings › Assistant offers for the cost reminder, in USD. */
+export const ASSISTANT_COST_REMINDER_OPTIONS = [0, 1, 5, 20, 50] as const;
+export const DEFAULT_ASSISTANT_COST_REMINDER_USD = 5;
 
 export const DEFAULT_ASSISTANT_SETTINGS: AssistantSettings = {
   approvalMode: ASSISTANT_APPROVAL_MODE,
   wakesOnReport: false,
+  costReminderUsd: DEFAULT_ASSISTANT_COST_REMINDER_USD,
 };
 
 /** What a window needs to open the Assistant. */
@@ -170,6 +191,92 @@ export interface AssistantDigest {
   lastRequest?: string;
 }
 
+/**
+ * When a watch wakes the Assistant: once at an instant, on an automation-style
+ * schedule (an RRULE in a time zone), or when a session ends its turn.
+ */
+export type AssistantWatchTrigger =
+  | { kind: "at"; at: string }
+  | { kind: "schedule"; rrule: string; timezone: string }
+  | { kind: "session"; projectId: string; sessionId: string };
+
+/**
+ * A reminder, watch or briefing the user asked for. It only wakes the
+ * Assistant, which then reports; it never does any work itself.
+ */
+export interface AssistantWatch {
+  id: string;
+  /** What the user asked to be told, in their words. */
+  label: string;
+  trigger: AssistantWatchTrigger;
+  /** Where the user asked, so the Assistant answers there. */
+  source: AssistantTurnSource;
+  createdAt: string;
+  /** The next time it wakes the Assistant, for `at` and `schedule`. */
+  nextAt?: string;
+  lastFiredAt?: string;
+  /** The watched session's title and project, for `session`. */
+  sessionTitle?: string;
+  projectName?: string;
+}
+
+/** An approval card or question waiting for the user, as the Assistant lists it. */
+export interface AssistantPendingApproval {
+  kind: "approval" | "question" | "automation";
+  projectId: string;
+  projectName: string;
+  sessionId?: string;
+  sessionTitle?: string;
+  /** The tool or request it is about, such as bash or "enable automation". */
+  what: string;
+  /** Pine's one-line subject of the card, when it has one. */
+  subject?: string;
+  since: string;
+  /** Its number in WeChat, when WeChat shows it as a card. */
+  wechatCard?: number;
+  /** Only the computer can decide it. */
+  localOnly?: true;
+}
+
+/** A setting the Assistant may read, never change. */
+export interface AssistantSettingFact {
+  /** Where the user finds it, such as "Settings › Assistant › Model". */
+  where: string;
+  value: string;
+}
+
+export interface AssistantAutomationFact {
+  id: string;
+  projectId: string;
+  projectName: string;
+  name: string;
+  description?: string;
+  status: "active" | "paused" | "off";
+  triggers: string[];
+  nextRunAt?: string;
+  lastRun?: { status: string; at: string };
+  running: boolean;
+}
+
+export interface AssistantAutomationDetail extends AssistantAutomationFact {
+  /** Folders it reads and writes, and hosts it reaches. */
+  reads: string[];
+  writes: string[];
+  network: string[];
+  /** Why it cannot run now, if it cannot: the WeChat `.auto N run` rules. */
+  runRefusal?: string;
+}
+
+export interface AssistantSessionFact {
+  sessionId: string;
+  projectId: string;
+  projectName: string;
+  title?: string;
+  state: AssistantSessionState;
+  /** The Assistant dispatched it, so it may act on it without asking. */
+  dispatched: boolean;
+}
+
 /** What the Assistant's tools ask of the main process. */
 export type AssistantHostOperation =
   | { op: "overview" }
@@ -181,7 +288,54 @@ export type AssistantHostOperation =
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
     }
-  | { op: "digest"; projectId: string; sessionId: string };
+  | { op: "digest"; projectId: string; sessionId: string }
+  | {
+      op: "watch-create";
+      label: string;
+      trigger:
+        | { kind: "at"; at: string }
+        | { kind: "schedule"; rrule: string; timezone?: string }
+        | { kind: "session"; projectId: string; sessionId: string };
+    }
+  | { op: "watch-list" }
+  | { op: "watch-cancel"; watchId: string }
+  | { op: "approvals" }
+  | { op: "settings" }
+  | { op: "projects" }
+  | { op: "automations"; projectId?: string }
+  | { op: "automation"; projectId: string; automationId: string }
+  | { op: "automation-disable"; projectId: string; automationId: string }
+  | { op: "automation-run"; projectId: string; automationId: string }
+  | { op: "session"; projectId: string; sessionId: string }
+  | {
+      op: "session-send";
+      projectId: string;
+      sessionId: string;
+      message: string;
+      locale: "en-US" | "zh-CN";
+      /** The user confirmed acting on a session the Assistant did not dispatch. */
+      confirmed: boolean;
+    }
+  | {
+      op: "session-stop";
+      projectId: string;
+      sessionId: string;
+      confirmed: boolean;
+    }
+  | {
+      op: "session-rename";
+      projectId: string;
+      sessionId: string;
+      title: string;
+      confirmed: boolean;
+    };
+
+export interface AssistantProjectFact {
+  id: string;
+  name: string;
+  folders: { path: string; readOnly: boolean }[];
+  temporaryWorkspace?: true;
+}
 
 export type AssistantHostResult =
   | { op: "overview"; overview: AssistantOverview }
@@ -192,4 +346,18 @@ export type AssistantHostResult =
       projectName: string;
       approvalMode: PineApprovalMode;
     }
-  | { op: "digest"; digest: AssistantDigest };
+  | { op: "digest"; digest: AssistantDigest }
+  | { op: "watch-create"; watch: AssistantWatch }
+  | { op: "watch-list"; watches: AssistantWatch[] }
+  | { op: "watch-cancel"; cancelled: boolean; label?: string }
+  | { op: "approvals"; approvals: AssistantPendingApproval[] }
+  | { op: "settings"; settings: AssistantSettingFact[] }
+  | { op: "projects"; projects: AssistantProjectFact[] }
+  | { op: "automations"; automations: AssistantAutomationFact[] }
+  | { op: "automation"; automation: AssistantAutomationDetail }
+  | { op: "automation-disable"; name: string; changed: boolean }
+  | { op: "automation-run"; name: string }
+  | { op: "session"; session: AssistantSessionFact }
+  | { op: "session-send"; delivered: "steer" | "turn" }
+  | { op: "session-stop"; stopped: boolean }
+  | { op: "session-rename"; title: string };

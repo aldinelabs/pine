@@ -26,6 +26,7 @@ import {
   type ProjectStorageResult,
   type ProjectStorageUsage,
 } from "../../../shared/projects";
+import { isAssistantProject } from "../../../shared/assistant";
 import { isVirtualClient } from "../../../shared/webControl";
 import {
   clearProjectStorage,
@@ -194,6 +195,8 @@ export async function answerProjectOperation(
 
   if (isTemporaryWorkspace(parsed.projectId))
     throw new Error("No Project cannot be changed or deleted.");
+  if (isAssistantProject(parsed.projectId))
+    throw new Error("That project does not exist.");
   const project = await repository.get(parsed.projectId);
   const ownProject =
     runtimes.projectOfLiveSession(requester.sessionId)?.id === project.id;

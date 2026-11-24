@@ -100,6 +100,11 @@ export default {
       wakesOnReport: "Responder cuando el trabajo encargado informe",
       wakesOnReportDescription:
         "Desactivado: los informes esperan en la conversación hasta tu próximo mensaje, sin coste. Activado: el Asistente responde a cada informe enseguida.",
+      costReminder: "Aviso de coste",
+      costReminderDescription:
+        "El Asistente avisa cuando una sesión que lanzó, o su propia conversación, ha costado más que esta cantidad, y de nuevo en cada múltiplo siguiente.",
+      costReminderOff: "Desactivado",
+      costReminderAmount: "{amount} US$",
       memory: "Notas del Asistente",
       memoryDescription:
         "Lo que el Asistente recuerda, como los nombres que usas para tus proyectos.",
@@ -1931,6 +1936,7 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      watchNotice: "Recordatorio: {label}",
       sessionNotice: {
         finished: "Subsesión {name} terminada",
         failed: "La subsesión {name} falló",

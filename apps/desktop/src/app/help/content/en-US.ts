@@ -412,12 +412,18 @@ export default {
         body: [
           "Assistant, at the top of the sidebar, is one lasting conversation that belongs to no project. Tell it what you need and it finds the right project, starts a session there with the work, and reports back here. It only dispatches and reports; sessions in your projects do the work.",
           "You can also send to the Assistant from the quick composer. Messages that arrive from WeChat are marked From WeChat.",
+          "Ask the Assistant to tell you when a session finishes, to remind you at a time, or to brief you every day. When the time comes a Reminder marker appears and the Assistant answers, in WeChat if you asked from WeChat, otherwise with a desktop notification.",
+          "It can also list your automations, turn one off or run one now, list, create and rename projects, read your settings and tell you what is waiting for your approval.",
         ],
         points: [
           "Each dispatch leaves a card in the conversation showing Project › Session and how it's going. Click it to open that session.",
           "Sessions the Assistant dispatched carry a From Assistant mark in their project's session list and on their tabs. Dispatched by the Assistant, at the top of such a session, takes you back to the Assistant.",
           "A dispatched session tells the Assistant when it finishes a turn or waits for approval. You still decide approvals on the usual approval card; the Assistant can't answer them for you.",
-          "In Settings › Assistant you can choose its model and reasoning effort, set its permission mode limit, choose whether it replies as soon as a report arrives, view its notes and clear its conversation.",
+          "In Settings › Assistant you can choose its model and reasoning effort, set its permission mode limit, choose whether it replies as soon as a report arrives, set a cost reminder, view its notes and clear its conversation.",
+          'Ask "what reminders do I have?" to see them, or ask it to cancel one. Clearing the conversation removes them.',
+          "Before it sends to, stops or renames a session it didn't dispatch, or runs an automation, it asks you on an approval card.",
+          "Turning automations on, deleting projects, changing settings and answering approvals stay with you; the Assistant tells you where to do them.",
+          "When a dispatched session or the Assistant's own conversation costs more than the cost reminder, its report says so.",
         ],
         note: {
           tone: "tip",

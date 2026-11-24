@@ -431,6 +431,8 @@ export interface PineCompaction {
 
 /** Custom message a sub-session's progress leaves in its parent. */
 export const PINE_SESSION_NOTICE_TYPE = "pine.session-notice" as const;
+/** A reminder or watch the user set with the Assistant came due. */
+export const PINE_WATCH_NOTICE_TYPE = "pine.watch-notice" as const;
 /** Marks a session file as a sub-session of the session that started it. */
 export const PINE_SUB_SESSION_ENTRY = "pine.sub-session" as const;
 /**
@@ -501,6 +503,31 @@ export function sessionNoticeOf(
   };
 }
 
+/** What a watch that woke the Assistant shows in its conversation. */
+export interface PineWatchNotice {
+  watchId: string;
+  label: string;
+}
+
+export function isWatchNotice(
+  notice: PineSessionNotice | PineWatchNotice,
+): notice is PineWatchNotice {
+  return "watchId" in notice;
+}
+
+/** The watch notice a stored or live custom message carries, if it is one. */
+export function watchNoticeOf(message: unknown): PineWatchNotice | undefined {
+  if (typeof message !== "object" || message === null) return undefined;
+  const record = message as Record<string, unknown>;
+  if (record.customType !== PINE_WATCH_NOTICE_TYPE) return undefined;
+  const details = record.details;
+  if (typeof details !== "object" || details === null) return undefined;
+  const notice = details as Record<string, unknown>;
+  if (typeof notice.watchId !== "string" || typeof notice.label !== "string")
+    return undefined;
+  return { watchId: notice.watchId, label: notice.label };
+}
+
 export interface PineSessionError {
   message: string;
 }
@@ -517,6 +544,8 @@ export type PineContentBlock =
   | { type: "backgroundTask"; task: BackgroundTaskSnapshot }
   /** What a sub-session reported to the session that started it. */
   | { type: "sessionNotice"; notice: PineSessionNotice }
+  /** A reminder or watch that woke the Assistant. */
+  | { type: "watchNotice"; notice: PineWatchNotice }
   | { type: "error"; error: PineSessionError }
   /** The user stopped the run before the assistant finished. */
   | { type: "stopped" };
@@ -630,6 +659,8 @@ export function parseMessageBlocks(message: unknown): PineContentBlock[] {
     if (task) return [{ type: "backgroundTask", task }];
     const notice = sessionNoticeOf(record);
     if (notice) return [{ type: "sessionNotice", notice }];
+    const watch = watchNoticeOf(record);
+    if (watch) return [{ type: "watchNotice", notice: watch }];
     const toolCall = sessionMutationToolCall(
       record,
       typeof record.timestamp === "number" ||
@@ -701,6 +732,7 @@ export function transcriptRole(message: unknown): "assistant" | "user" | null {
     record.role === "custom" &&
     (backgroundTaskNotificationTask(record) ||
       sessionNoticeOf(record) ||
+      watchNoticeOf(record) ||
       sessionMutationToolCall(record, ""))
   )
     return "assistant";

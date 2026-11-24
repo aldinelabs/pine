@@ -740,7 +740,27 @@ It is a session tab with these differences:
   approval") appears in the conversation. Clicking a card that names a
   session opens that session.
 - Approvals the Assistant needs use the usual Approval required card; only
-  the user can answer it.
+  the user can answer it. The Assistant asks this way before it sends to,
+  stops or renames a session it did not dispatch, and before it runs an
+  automation now.
+- A reminder the user asked for ("tell me when X finishes", "remind me at
+  9 tomorrow", "brief me every day at 18:00") shows as a bell marker
+  "Reminder: …" when it goes off, and the Assistant then answers. A reminder
+  set from WeChat is answered in WeChat; when WeChat cannot take another
+  reply, or the reminder was set on the desktop, the answer also shows as a
+  desktop notification titled "Assistant". Reminders are listed and
+  cancelled by asking the Assistant; clearing the conversation removes them.
+- Besides dispatching, the Assistant can on request list automations, turn
+  one off or run one now (only when its permission mode limit and, from
+  WeChat, WeChat's limit allow Autonomous Work), list, create (in a folder
+  the user names) and rename projects, read settings, and list what is
+  waiting for approval. It cannot turn automations on, create or edit them,
+  delete projects, change settings or answer approvals: for those it points
+  the user to the place on the computer (for example More › Automations, or
+  `.auto <name> on` in WeChat).
+- When a session it dispatched, or its own conversation, has cost more than
+  the Cost reminder in Settings › Assistant, the Assistant says so in its
+  report, again at each further multiple.
 - After compaction the earlier conversation stays readable above the
   compaction marker, as in any session.
 
@@ -1179,7 +1199,9 @@ the user opens themselves do not pulse.
     Work; the Assistant runs in it and every session it dispatches runs in it
     or a more supervised mode); "Reply when dispatched work reports" (off by
     default: reports wait in the conversation until the user next writes; on:
-    the Assistant answers each report right away); Assistant notes (View
+    the Assistant answers each report right away); Cost reminder (Off,
+    US$1, US$5, US$20 or US$50, US$5 by default: the Assistant points out
+    sessions it dispatched, or its own conversation, that cost more); Assistant notes (View
     notes opens the Memory manager for the Assistant's notes, where they can
     be read and deleted); Clear conversation (asks first, then deletes the
     Assistant's conversation; sessions it dispatched stay where they are).
@@ -1395,7 +1417,9 @@ the user opens themselves do not pulse.
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
   appear in the sidebar, notices to the parent, limits),
   "Assistant" (one page: handing work to the Assistant, dispatch cards,
-  "From Assistant" marks, approvals, Settings › Assistant),
+  "From Assistant" marks, approvals, Settings › Assistant; reminders and
+  briefings, what else it can manage, what stays with the user, cost
+  reminders),
   "Workbench" (the workbench and its panels; Artifacts with folders,
   versions and dragging files out),
   "Work style and Aldine methodology" (one page: work style, communication

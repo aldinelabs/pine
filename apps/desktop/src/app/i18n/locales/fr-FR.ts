@@ -101,6 +101,11 @@ export default {
       wakesOnReport: "Répondre quand un travail confié fait son rapport",
       wakesOnReportDescription:
         "Désactivé : les rapports attendent dans la conversation jusqu’à votre prochain message, sans frais. Activé : l’Assistant répond tout de suite à chaque rapport.",
+      costReminder: "Rappel de coût",
+      costReminderDescription:
+        "L’Assistant signale quand une session qu’il a lancée, ou sa propre conversation, a coûté plus que ce montant, puis à chaque multiple suivant.",
+      costReminderOff: "Désactivé",
+      costReminderAmount: "{amount} $ US",
       memory: "Notes de l’Assistant",
       memoryDescription:
         "Ce que l’Assistant retient, comme les noms que vous donnez à vos projets.",
@@ -1934,6 +1939,7 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      watchNotice: "Rappel : {label}",
       sessionNotice: {
         finished: "Sous-session {name} terminée",
         failed: "Échec de la sous-session {name}",

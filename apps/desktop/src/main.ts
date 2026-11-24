@@ -548,6 +548,9 @@ function desktopHost(dataDirectory: string): PineHost {
     },
     notifyWeChat: (notification) =>
       showWeChatNotification(notification, wechatNotificationWindow),
+    // A reminder the user set with the Assistant; clicking shows Pine.
+    notifyAssistant: (notification) =>
+      showWeChatNotification(notification, wechatNotificationWindow),
     ...wechatVoice(),
     // Automation approvals appear in this app's windows.
     localAutomationApprovals: true,

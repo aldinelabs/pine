@@ -98,6 +98,11 @@ export default {
       wakesOnReport: "Отвечать на отчёты поручённой работы",
       wakesOnReportDescription:
         "Выключено: отчёты бесплатно ждут в разговоре до вашего следующего сообщения. Включено: Ассистент сразу отвечает на каждый отчёт.",
+      costReminder: "Напоминание о стоимости",
+      costReminderDescription:
+        "Ассистент сообщает, когда запущенный им сеанс или его собственный разговор обошёлся дороже этой суммы, и затем при каждом следующем кратном.",
+      costReminderOff: "Выкл.",
+      costReminderAmount: "{amount} долл. США",
       memory: "Заметки Ассистента",
       memoryDescription:
         "То, что запоминает Ассистент, например как вы называете проекты.",
@@ -1909,6 +1914,7 @@ export default {
         minutes: "{minutes} мин {seconds} с",
         seconds: "{value} с",
       },
+      watchNotice: "Напоминание: {label}",
       sessionNotice: {
         finished: "Подсеанс {name} завершён",
         failed: "Подсеанс {name} завершился с ошибкой",

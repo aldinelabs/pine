@@ -100,6 +100,11 @@ export default {
       wakesOnReport: "Antworten, wenn übergebene Arbeit berichtet",
       wakesOnReportDescription:
         "Aus: Berichte warten kostenlos in der Unterhaltung, bis du das nächste Mal schreibst. An: Der Assistent antwortet sofort auf jeden Bericht.",
+      costReminder: "Kostenhinweis",
+      costReminderDescription:
+        "Der Assistent weist darauf hin, wenn eine von ihm gestartete Sitzung oder sein eigenes Gespräch mehr als diesen Betrag gekostet hat, und erneut bei jedem weiteren Vielfachen.",
+      costReminderOff: "Aus",
+      costReminderAmount: "{amount} US$",
       memory: "Notizen des Assistenten",
       memoryDescription:
         "Was der Assistent sich merkt, etwa wie du deine Projekte nennst.",
@@ -1941,6 +1946,7 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
+      watchNotice: "Erinnerung: {label}",
       sessionNotice: {
         finished: "Untersitzung {name} abgeschlossen",
         failed: "Untersitzung {name} fehlgeschlagen",

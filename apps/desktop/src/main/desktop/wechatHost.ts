@@ -122,7 +122,9 @@ const shown = new Set<Notification>();
  * window `window` picks for the notification's project and session forward.
  */
 export function showWeChatNotification(
-  notification: WeChatNotification,
+  // The Assistant's reminders use it too, without a WeChat kind.
+  notification: Omit<WeChatNotification, "kind"> &
+    Partial<Pick<WeChatNotification, "kind">>,
   window: (target: WeChatNotificationTarget) => BrowserWindow | undefined,
 ): void {
   if (!Notification.isSupported()) return;

@@ -88,6 +88,10 @@ import { agentHostProject, answerProjectOperation } from "./requests/projects";
 import { notifyParentOf, unlinkSession } from "./subSessions";
 import { AssistantService } from "./assistant";
 import {
+  ASSISTANT_PROJECT_ID,
+  isAssistantProject,
+} from "../../shared/assistant";
+import {
   answerSessionOperation,
   sessionLibrary,
   startBackgroundSession,
@@ -204,6 +208,8 @@ export class PineCore {
       .catch((error: unknown) =>
         console.error("Automations failed to start.", error),
       );
+    // The Assistant's reminders, including any that came due while Pine was off.
+    core.assistant.start();
     return core;
   }
 
@@ -444,6 +450,12 @@ export class PineCore {
           : {}),
       },
     });
+    // A reminder set from WeChat answers there while WeChat can take it.
+    this.assistant.onWakeForWeChat = (thread) =>
+      this.wechat.expectAssistantReply(thread, ASSISTANT_PROJECT_ID);
+    this.assistant.notify = (notification) =>
+      host.notifyAssistant?.(notification);
+    this.assistant.locale = () => host.locale?.() ?? "en-US";
     // Sessions the Assistant dispatches in a WeChat turn report to WeChat.
     this.assistant.onDispatched = (dispatch, turn) => {
       if (turn.source === "wechat")
@@ -739,6 +751,7 @@ export class PineCore {
     this.remote.stop();
     await this.wechat.stop().catch(() => undefined);
     await this.automations.stop().catch(() => undefined);
+    this.assistant.stop();
     const stopped = Promise.allSettled([
       this.agentHost.dispose(),
       this.stopWeb(),
@@ -759,6 +772,7 @@ export class PineCore {
     this.remote.stop();
     this.tellWeChat((wechat) => wechat.dispose());
     void this.automations.stop();
+    this.assistant.stop();
     void this.stopWeb();
     this.projectFileWatchers?.dispose();
     this.filePreviewWatchers.dispose();
@@ -822,6 +836,7 @@ export class PineCore {
     this.trackSessionWork(agentEvent);
     this.host.observeAgentEvent?.(agentEvent, ownerId);
     this.tellWeChat((wechat) => wechat.observeAgentEvent(agentEvent, ownerId));
+    this.assistant.observe(agentEvent);
     if (agentEvent.type === "present-file") {
       void this.forwardPresentedFile(agentEvent, ownerId);
       return;
@@ -877,6 +892,16 @@ export class PineCore {
       ? this.abortsInFlight.get(agentEvent.sessionId)
       : undefined;
     if (finished) {
+      void this.assistant
+        .turnEnded(
+          agentEvent.sessionId,
+          agentEvent.type === "run-state" && agentEvent.state === "failed"
+            ? "failed"
+            : "idle",
+        )
+        .catch((error: unknown) =>
+          console.error("Failed to deliver an Assistant reminder.", error),
+        );
       this.abortsInFlight.delete(agentEvent.sessionId);
       teleportProjectId = this.runtimes.takeScheduledTeleport(
         agentEvent.sessionId,
@@ -1126,8 +1151,11 @@ export class PineCore {
             },
           };
         }
+        // The Assistant's hidden project is never one to list or move to.
         const projects = (await this.repository.list()).filter(
-          (project) => !isTemporaryWorkspace(project.id),
+          (project) =>
+            !isTemporaryWorkspace(project.id) &&
+            !isAssistantProject(project.id),
         );
         if (event.request.kind === "list-projects") {
           const currentId = this.runtimes.projectOfLiveSession(

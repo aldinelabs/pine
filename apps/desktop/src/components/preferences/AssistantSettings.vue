@@ -34,6 +34,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   ASSISTANT_APPROVAL_MODES,
+  ASSISTANT_COST_REMINDER_OPTIONS,
   ASSISTANT_PROJECT_ID,
   type AssistantApprovalMode,
   type AssistantSettings,
@@ -154,6 +155,19 @@ function updateApprovalMode(value: unknown): void {
     (ASSISTANT_APPROVAL_MODES as readonly string[]).includes(value)
   )
     void save({ approvalMode: value as AssistantApprovalMode });
+}
+
+/** "US$5" for a threshold, "Off" for 0. */
+function costReminderLabel(usd: number): string {
+  return usd === 0
+    ? t("preferences.assistant.costReminderOff")
+    : t("preferences.assistant.costReminderAmount", { amount: usd });
+}
+
+function updateCostReminder(value: unknown): void {
+  const usd = Number(value);
+  if ((ASSISTANT_COST_REMINDER_OPTIONS as readonly number[]).includes(usd))
+    void save({ costReminderUsd: usd });
 }
 
 async function clear(): Promise<void> {
@@ -311,6 +325,43 @@ async function clear(): Promise<void> {
           (value: boolean) => void save({ wakesOnReport: value })
         "
       />
+    </Field>
+
+    <Field orientation="responsive">
+      <div class="flex min-w-0 flex-1 flex-col gap-1">
+        <FieldTitle id="pine-assistant-cost">
+          {{ t("preferences.assistant.costReminder") }}
+        </FieldTitle>
+        <FieldDescription>
+          {{ t("preferences.assistant.costReminderDescription") }}
+        </FieldDescription>
+      </div>
+      <Skeleton v-if="!assistant.isLoaded" class="h-8 w-28 rounded-2xl" />
+      <Select
+        v-else
+        :model-value="String(assistant.settings.costReminderUsd)"
+        :disabled="isBusy"
+        @update:model-value="updateCostReminder"
+      >
+        <SelectTrigger
+          data-testid="pine-assistant-cost"
+          class="w-fit"
+          aria-labelledby="pine-assistant-cost"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem
+              v-for="usd in ASSISTANT_COST_REMINDER_OPTIONS"
+              :key="usd"
+              :value="String(usd)"
+            >
+              {{ costReminderLabel(usd) }}
+            </SelectItem>
+          </SelectGroup>
+        </SelectContent>
+      </Select>
     </Field>
 
     <FieldSeparator />

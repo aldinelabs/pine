@@ -61,6 +61,7 @@ import {
 } from "@/components/assistant/dispatchEntry";
 import { readAssistantMessage } from "@/shared/assistant";
 import ProjectSessionNoticeMarker from "./ProjectSessionNoticeMarker.vue";
+import ProjectWatchNoticeMarker from "./ProjectWatchNoticeMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
 import ProjectStoppedMarker from "./ProjectStoppedMarker.vue";
@@ -621,6 +622,12 @@ onUnmounted(stopObservingUserText);
           <ProjectSessionNoticeMarker
             v-else-if="
               item.kind === 'block' && item.block.type === 'sessionNotice'
+            "
+            :notice="item.block.notice"
+          />
+          <ProjectWatchNoticeMarker
+            v-else-if="
+              item.kind === 'block' && item.block.type === 'watchNotice'
             "
             :notice="item.block.notice"
           />

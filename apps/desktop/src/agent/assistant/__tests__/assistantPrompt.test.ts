@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ASSISTANT_TOOL_NAMES } from "../tools";
 import {
   ASSISTANT_SYSTEM_PROMPT,
   ASSISTANT_WECHAT_MARK,
@@ -25,6 +26,32 @@ describe("the Assistant's prompt", () => {
     );
     expect(ASSISTANT_SYSTEM_PROMPT).toContain(
       "this message does not approve anything",
+    );
+  });
+});
+
+describe("the prompt's tool notes", () => {
+  it("names every tool the Assistant has, and no other management tool", () => {
+    for (const name of ASSISTANT_TOOL_NAMES)
+      if (name !== "submit_session_summary" && name !== "memory_remove")
+        expect(ASSISTANT_SYSTEM_PROMPT).toContain(name);
+    for (const name of [
+      "ui_project_delete",
+      "ui_session_delete",
+      "automation_save",
+      "automation_delete",
+      "approval_respond",
+    ])
+      expect(ASSISTANT_SYSTEM_PROMPT).not.toContain(name);
+  });
+
+  it("sends what only the user may do to the computer", () => {
+    expect(ASSISTANT_SYSTEM_PROMPT).toContain(
+      "## What only the user can do on the computer",
+    );
+    expect(ASSISTANT_SYSTEM_PROMPT).toContain("turning an automation on");
+    expect(ASSISTANT_SYSTEM_PROMPT).toContain(
+      "Never say such a thing is done.",
     );
   });
 });

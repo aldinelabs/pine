@@ -48,11 +48,13 @@ describe("the Assistant store", () => {
     await store.saveSettings({
       approvalMode: "autonomous",
       wakesOnReport: false,
+      costReminderUsd: 5,
     });
 
     expect(api.setAssistantSettings).toHaveBeenCalledWith({
       approvalMode: "autonomous",
       wakesOnReport: false,
+      costReminderUsd: 5,
     });
     expect(store.settings.approvalMode).toBe("autonomous");
   });

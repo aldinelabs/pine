@@ -98,6 +98,11 @@ export default {
       wakesOnReport: "맡긴 작업이 보고하면 답하기",
       wakesOnReportDescription:
         "끄면 보고는 다음 메시지를 보낼 때까지 대화에 남아 비용이 들지 않습니다. 켜면 어시스턴트가 보고마다 바로 답합니다.",
+      costReminder: "비용 알림",
+      costReminderDescription:
+        "어시스턴트가 보낸 세션이나 자신의 대화 비용이 이 금액을 넘으면 보고에서 알려 주고, 이후 배수마다 다시 알려 줍니다.",
+      costReminderOff: "끄기",
+      costReminderAmount: "{amount}달러",
       memory: "어시스턴트 메모",
       memoryDescription:
         "프로젝트를 부르는 이름처럼 어시스턴트가 기억하는 내용입니다.",
@@ -1882,6 +1887,7 @@ export default {
         minutes: "{minutes}분 {seconds}초",
         seconds: "{value}초",
       },
+      watchNotice: "알림: {label}",
       sessionNotice: {
         finished: "하위 세션 {name} 완료됨",
         failed: "하위 세션 {name} 실패함",

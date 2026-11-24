@@ -84,6 +84,11 @@ export interface PineHost {
   /** Shows something WeChat remote did or needs at the OS level. */
   notifyWeChat?(notification: WeChatNotification): void;
   /**
+   * Shows the Assistant's answer to a reminder at the OS level, when it
+   * cannot go to WeChat or was set on the computer.
+   */
+  notifyAssistant?(notification: { title: string; body: string }): void;
+  /**
    * Transcribes a WeChat voice message on this computer. Desktop only, on
    * macOS 26+ with the Live Context helper: elsewhere such a message without
    * the server's transcript is answered with `E-VOICE`.
