@@ -13,6 +13,7 @@ Every release section here has a matching section in the Chinese changelog.
 
 ### Added
 
+- **Background send feedback**: After sending from the quick composer in the background with `Control + Enter`, the Dock icon on macOS bounces once to confirm the message was sent.
 - **Wrong-language reminder**: When Live Context hears speech in a language other than the one selected for recognition (an English lecture with Chinese selected, say), it shows "Sounds like …" above the controls; "Switch to …" carries on transcribing in that language and keeps the transcript so far, and × hides the reminder for the rest of the session.
 
 ### Changed
