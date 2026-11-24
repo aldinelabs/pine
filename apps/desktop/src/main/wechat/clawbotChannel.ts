@@ -30,6 +30,7 @@ import type {
   ChannelInboundMessage,
   ChannelSendResult,
   ChannelState,
+  ChannelVoiceInfo,
   MessageChannel,
 } from "./channel";
 
@@ -129,6 +130,12 @@ function hasLocation(
   return Boolean(media && (media.encrypt_query_param || media.full_url));
 }
 
+function positiveInteger(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : undefined;
+}
+
 function mediaOf(item: MessageItem): ChannelInboundMedia | undefined {
   switch (itemKind(item)) {
     case MessageItemType.IMAGE:
@@ -152,11 +159,27 @@ function mediaOf(item: MessageItem): ChannelInboundMedia | undefined {
       }
       return media;
     }
-    case MessageItemType.VOICE:
+    case MessageItemType.VOICE: {
       // A voice message with a transcript is text; without one it is
-      // reported so the user can be told it was not understood.
-      if (nonEmpty(item.voice_item?.text?.trim())) return undefined;
-      return { kind: "voice", ref: mediaRef(item, "voice") };
+      // reported so Pine can transcribe it, or say it was not understood.
+      const voice = item.voice_item;
+      if (nonEmpty(voice?.text?.trim())) return undefined;
+      const media: ChannelInboundMedia = {
+        kind: "voice",
+        ref: mediaRef(item, "voice"),
+      };
+      if (hasLocation(voice?.media)) {
+        const info: ChannelVoiceInfo = {};
+        const encodeType = positiveInteger(voice?.encode_type);
+        const sampleRate = positiveInteger(voice?.sample_rate);
+        const playtimeMs = positiveInteger(voice?.playtime);
+        if (encodeType !== undefined) info.encodeType = encodeType;
+        if (sampleRate !== undefined) info.sampleRate = sampleRate;
+        if (playtimeMs !== undefined) info.playtimeMs = playtimeMs;
+        media.voice = info;
+      }
+      return media;
+    }
     default:
       return undefined;
   }

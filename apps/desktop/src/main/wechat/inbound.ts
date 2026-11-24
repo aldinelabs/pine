@@ -23,6 +23,8 @@ import {
   INBOX_MAX,
   PAUSED_NOTICE_INTERVAL_MS,
   STALE_MS,
+  VOICE_MAX_BYTES,
+  VOICE_TRANSCRIBE_MS,
 } from "./constants";
 import type { HandleTables, Pager } from "./handles";
 import type {
@@ -32,7 +34,11 @@ import type {
 } from "./handlers/types";
 import type { Outbound } from "./outbound";
 import { autoActionOf, parseCommand, splitAskPrefix } from "./parseCommand";
-import type { InboundAttachmentsApi, WeChatCorePorts } from "./ports";
+import type {
+  InboundAttachmentsApi,
+  WeChatCorePorts,
+  WeChatHostPorts,
+} from "./ports";
 import type { RateLimits } from "./rateLimit";
 import { joinReplies, parseMode, render } from "./replies";
 import { WeChatRefusal, type SessionDirectory } from "./sessionDirectory";
@@ -83,6 +89,8 @@ export interface InboundPipelineDeps {
   paused: () => boolean;
   /** `ctx.bridge.pause()`: sets the pause flag and invalidates open asks. */
   pause: () => Promise<void>;
+  /** On-device transcription of voice messages without a transcript; without it they get `E-VOICE`. */
+  transcribeVoice?: WeChatHostPorts["transcribeVoice"];
   /** Downloads a media reference over the current channel. */
   download: (
     ref: string,
@@ -138,7 +146,10 @@ export function toStoredInbound(message: ChannelInboundMessage): StoredInbound {
   if (message.quotedText?.trim()) entry.quotedText = message.quotedText;
   for (const media of message.media) {
     if (media.kind === "voice") {
-      if (entry.text === undefined) entry.voice = true;
+      if (entry.text === undefined) {
+        entry.voice = true;
+        if (media.voice) entry.voiceMedia = { ref: media.ref, ...media.voice };
+      }
       continue;
     }
     const stored: StoredMedia = { kind: media.kind, ref: media.ref };
@@ -586,9 +597,14 @@ export class InboundPipeline {
     };
     let result: CommandResult;
     let parsed: Parsed | undefined;
+    let heard: string | undefined;
     try {
       const staged = worker ? await this.stageMedia(entry) : { replies: [] };
-      parsed = classify(entry);
+      heard = worker ? await this.transcribeVoice(entry) : undefined;
+      // A local transcript reads like the server's: a plain message.
+      parsed = classify(
+        heard === undefined ? entry : { ...entry, text: heard },
+      );
       if (staged.failure !== undefined) {
         result = { text: staged.failure };
       } else if (parsed) {
@@ -605,9 +621,81 @@ export class InboundPipeline {
     } catch (error) {
       result = { text: this.errorText(error, parsed) };
     }
+    const silent = !result.text?.trim();
+    if (heard !== undefined) {
+      // Shows what Pine heard, so a misheard message can be corrected.
+      result = {
+        ...result,
+        text: joinReplies(
+          render("R-VOICE-LOCAL", lang, { text: heard }),
+          result.text,
+        ),
+      };
+    }
     await this.deliver(result, parsed);
+    // The note went out instead of the silent reply: still "typing…".
+    if (heard !== undefined && silent && parsed?.kind === "message") {
+      this.deps.outbound.setTyping(true);
+    }
     await this.remove([id]);
     await this.deps.sessions.noteAccepted(this.deps.now());
+  }
+
+  /**
+   * A voice message without the server's transcript, transcribed on this
+   * computer (the worker only). The text is stored before it runs, so a
+   * restart never sends it twice. Undefined when that cannot be done:
+   * then the entry gets `E-VOICE`.
+   */
+  private async transcribeVoice(
+    entry: StoredInbound,
+  ): Promise<string | undefined> {
+    const transcribe = this.deps.transcribeVoice;
+    const voice = entry.voiceMedia;
+    if (!transcribe || !voice || !entry.voice || entry.text !== undefined) {
+      return undefined;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), VOICE_TRANSCRIBE_MS);
+    timer.unref?.();
+    this.deps.outbound.setTyping(true);
+    let text: string | undefined;
+    try {
+      const data = await this.deps.download(
+        voice.ref,
+        VOICE_MAX_BYTES,
+        controller.signal,
+      );
+      const clip = {
+        data,
+        ...(voice.encodeType !== undefined
+          ? { encodeType: voice.encodeType }
+          : {}),
+        ...(voice.sampleRate !== undefined
+          ? { sampleRate: voice.sampleRate }
+          : {}),
+        ...(voice.playtimeMs !== undefined
+          ? { playtimeMs: voice.playtimeMs }
+          : {}),
+      };
+      text = (await transcribe(clip, controller.signal))?.text.trim();
+    } catch (error) {
+      console.error(
+        "WeChat voice message could not be transcribed.",
+        describe(error),
+      );
+      return undefined;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!text) return undefined;
+    await this.deps.store.update((draft) => {
+      const stored = draft.inbox.find((item) => item.id === entry.id);
+      if (!stored) return;
+      stored.text = text;
+      delete stored.voiceMedia;
+    });
+    return text;
   }
 
   /** Downloads and stages the entry's media (the worker only). */

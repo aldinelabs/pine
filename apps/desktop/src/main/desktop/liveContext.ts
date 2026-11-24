@@ -33,6 +33,11 @@ import type {
   LiveTranslationResult,
 } from "../../shared/liveTranslation";
 import { LiveContextService } from "../liveContext";
+import { defaultCaptureLocale } from "../liveContextCapture";
+import {
+  createVoiceTranscriber,
+  type VoiceTranscriber,
+} from "../voiceTranscription";
 import {
   bundledSpeakerModels,
   removeDownloadedSpeakerModels,
@@ -41,7 +46,7 @@ import {
 } from "../liveContextSpeakerModels";
 
 /** Packaged apps carry it in Resources; dev runs use the build folder. */
-function helperPath(): string | undefined {
+export function liveContextHelperPath(): string | undefined {
   return [
     path.join(process.resourcesPath, "pine-live-context"),
     path.join(app.getAppPath(), "native/live-context/build/pine-live-context"),
@@ -53,7 +58,7 @@ function helperPath(): string | undefined {
  * scripts/build-native.mjs); a build without either has no speaker labels.
  */
 function speakerModels(): SpeakerModelPaths | undefined {
-  const helper = helperPath();
+  const helper = liveContextHelperPath();
   if (!helper) return undefined;
   const folder = path.dirname(helper);
   if (
@@ -69,7 +74,29 @@ function unavailableReason(): LiveContextUnavailableReason | null {
   if (process.platform !== "darwin") return "platform";
   const major = Number.parseInt(process.getSystemVersion(), 10);
   if (!(major >= 26)) return "platform";
-  return helperPath() ? null : "helper-missing";
+  return liveContextHelperPath() ? null : "helper-missing";
+}
+
+/**
+ * WeChat voice messages without the server's transcript, transcribed by the
+ * helper's one-shot `--transcribe` mode in Pine's interface language (the
+ * helper retries another language when the text points to one). Undefined
+ * where Live Context cannot run.
+ */
+export function createWeChatVoiceTranscriber(options: {
+  uiLocale(): string;
+  temporaryDirectory: string;
+}): VoiceTranscriber | undefined {
+  return createVoiceTranscriber({
+    available: () => unavailableReason() === null,
+    spawn: (args) => {
+      const file = liveContextHelperPath();
+      if (!file) throw new Error("The Live Context helper is missing.");
+      return spawn(file, [...args], { stdio: ["ignore", "pipe", "ignore"] });
+    },
+    locale: () => defaultCaptureLocale(options.uiLocale()),
+    temporaryDirectory: options.temporaryDirectory,
+  });
 }
 
 function broadcast(event: LiveContextEvent): void {
@@ -131,7 +158,7 @@ export function createLiveContext(options: {
   const service = new LiveContextService({
     unavailableReason,
     spawnHelper: () => {
-      const file = helperPath();
+      const file = liveContextHelperPath();
       if (!file) throw new Error("The Live Context helper is missing.");
       // A child of Pine, so macOS asks for microphone and system audio
       // access on Pine's behalf and lists Pine in Privacy & Security.

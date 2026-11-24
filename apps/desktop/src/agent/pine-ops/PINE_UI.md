@@ -1230,7 +1230,12 @@ the user opens themselves do not pulse.
     from WeChat, a session is switched to YOLO from WeChat, WeChat needs a new
     scan, WeChat remote is paused, or its settings were reset. Clicking one
     brings Pine's window forward. The tray menu has a "WeChat remote" switch
-    (see Tray and menu bar).
+    (see Tray and menu bar). A WeChat voice message is sent to the session
+    as plain text (never as a command): WeChat's own transcript when it has
+    one; otherwise, on macOS 26 or later, Pine transcribes the recording on
+    this computer (in Pine's language, or the language it hears) and its
+    reply starts with "(Transcribed on this computer)" and the text it heard.
+    When that is not possible, the reply asks the user to type instead.
   - About (always last): Pine's icon, "Version X.Y.Z", "By" followed by the
     Aldine logo (light or dark to match the theme) and
     a one-line description. "Check for updates" (desktop app only) opens the

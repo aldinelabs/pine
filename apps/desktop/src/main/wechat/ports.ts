@@ -56,6 +56,15 @@ export interface WeChatCorePorts {
   listMcpServers(projectId: string): Promise<PineMcpCatalog>;
 }
 
+/** A voice message's recording, for transcription on this computer. */
+export interface WeChatVoiceClip {
+  data: Buffer;
+  /** 1 pcm, 2 adpcm, 3 feature, 4 speex, 5 amr, 6 silk, 7 mp3, 8 ogg-speex. */
+  encodeType?: number;
+  sampleRate?: number;
+  playtimeMs?: number;
+}
+
 export interface WeChatHostPorts {
   version: string;
   computerName: string;
@@ -71,6 +80,16 @@ export interface WeChatHostPorts {
   localAutomationApprovals: boolean;
   changed(status: WeChatStatus): void;
   notify(notification: WeChatNotification): void;
+  /**
+   * Transcribes a voice message that came without the server's transcript,
+   * on this computer; undefined when nothing was said. Missing where it
+   * cannot run (not macOS 26+, the headless server): such messages get
+   * `E-VOICE`.
+   */
+  transcribeVoice?: (
+    clip: WeChatVoiceClip,
+    signal?: AbortSignal,
+  ) => Promise<{ text: string } | undefined>;
 }
 
 /** Media received from WeChat, staged until a prompt uses it. Implemented by attachments.ts. */

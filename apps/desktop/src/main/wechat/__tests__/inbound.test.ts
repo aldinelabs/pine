@@ -8,7 +8,12 @@ import type {
   CommandResult,
   HandlerRegistry,
 } from "../handlers/types";
-import { InboundPipeline, classify } from "../inbound";
+import {
+  InboundPipeline,
+  classify,
+  toStoredInbound,
+  type InboundPipelineDeps,
+} from "../inbound";
 import { render } from "../replies";
 import { refuse } from "../sessionDirectory";
 import {
@@ -53,6 +58,7 @@ function setup(
     commands?: Partial<Record<CommandName, CommandHandler>>;
     message?: (ctx: CommandContext, text: string) => Promise<CommandResult>;
     state?: Partial<ReturnType<TestContext["store"]["get"]>>;
+    transcribeVoice?: InboundPipelineDeps["transcribeVoice"];
   } = {},
 ) {
   const ctx = createTestContext();
@@ -113,6 +119,9 @@ function setup(
     owner: () => ({ userId: OWNER_USER_ID, botId: BOT_ID }),
     paused: () => paused,
     pause,
+    ...(options.transcribeVoice
+      ? { transcribeVoice: options.transcribeVoice }
+      : {}),
     download: (ref, maxBytes, signal) =>
       ctx.fake.channel.downloadMedia(ref, maxBytes, signal),
     sendDirect: (text, token) => {
@@ -547,6 +556,133 @@ describe("inbox replay", () => {
     expect(t.calls.map((call) => call.name)).toEqual(["new"]);
     expect(t.texts()).toEqual(["started"]);
     expect(t.ctx.store.get().inbox).toEqual([]);
+  });
+});
+
+describe("voice messages transcribed on this computer", () => {
+  const voice = (ref = "voice-1") => ({
+    text: undefined,
+    media: [
+      {
+        kind: "voice" as const,
+        ref,
+        voice: { encodeType: 6, sampleRate: 16000, playtimeMs: 3200 },
+      },
+    ],
+  });
+
+  it("stores the recording's reference and what the client said about it", () => {
+    const t = setup();
+    const entry = toStoredInbound(t.message(voice()));
+    expect(entry).toMatchObject({
+      voice: true,
+      voiceMedia: {
+        ref: "voice-1",
+        encodeType: 6,
+        sampleRate: 16000,
+        playtimeMs: 3200,
+      },
+      media: [],
+    });
+    expect(entry.text).toBeUndefined();
+  });
+
+  it("sends the local transcript as a plain message, never a command", async () => {
+    const transcribe = vi.fn(() => Promise.resolve({ text: ".pause" }));
+    const t = setup({ transcribeVoice: transcribe });
+    t.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await t.deliver([voice()]);
+    expect(transcribe).toHaveBeenCalledWith(
+      {
+        data: Buffer.from("silk"),
+        encodeType: 6,
+        sampleRate: 16000,
+        playtimeMs: 3200,
+      },
+      expect.any(AbortSignal),
+    );
+    expect(t.pause).not.toHaveBeenCalled();
+    expect(t.calls.map((call) => [call.kind, call.name])).toEqual([
+      ["message", ".pause"],
+    ]);
+    expect(t.texts()).toEqual([
+      `${render("R-VOICE-LOCAL", "en", { text: ".pause" })}\n\nsent .pause`,
+    ]);
+    expect(t.ctx.store.get().inbox).toEqual([]);
+  });
+
+  it("keeps showing typing when the message itself has no reply", async () => {
+    const t = setup({
+      transcribeVoice: () => Promise.resolve({ text: "run the tests" }),
+      message: () => Promise.resolve({}),
+    });
+    t.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await t.deliver([voice()]);
+    expect(t.texts()).toEqual([
+      render("R-VOICE-LOCAL", "en", { text: "run the tests" }),
+    ]);
+    expect(t.ctx.fake.channel.typing.at(-1)).toBe(true);
+  });
+
+  it("stores the transcript before running it, so a restart never sends it twice", async () => {
+    const gate = deferred<CommandResult>();
+    const t = setup({
+      transcribeVoice: () => Promise.resolve({ text: "run the tests" }),
+      message: () => gate.promise,
+    });
+    t.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await t.pipeline.onMessages([t.message(voice())], undefined);
+    await vi.waitFor(() => expect(t.calls).toHaveLength(1));
+    const [stored] = t.ctx.store.get().inbox;
+    expect(stored).toMatchObject({ text: "run the tests", voice: true });
+    expect(stored?.voiceMedia).toBeUndefined();
+    expect(classify(stored)).toEqual({
+      kind: "message",
+      text: "run the tests",
+    });
+    gate.resolve({ text: "sent" });
+    await t.pipeline.idle();
+  });
+
+  it("falls back to E-VOICE when transcription fails, finds nothing or cannot run", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const failing = setup({
+      transcribeVoice: () => Promise.reject(new Error("timed out")),
+    });
+    failing.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await failing.deliver([voice()]);
+    expect(failing.texts()).toEqual([render("E-VOICE", "en")]);
+    expect(failing.calls).toHaveLength(0);
+
+    const silent = setup({ transcribeVoice: () => Promise.resolve(undefined) });
+    silent.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await silent.deliver([voice()]);
+    expect(silent.texts()).toEqual([render("E-VOICE", "en")]);
+
+    // The download fails: the recording is not on the fake CDN.
+    const missing = setup({
+      transcribeVoice: () => Promise.resolve({ text: "never" }),
+    });
+    await missing.deliver([voice("gone")]);
+    expect(missing.texts()).toEqual([render("E-VOICE", "en")]);
+    expect(missing.calls).toHaveLength(0);
+
+    // Not on macOS 26+: no transcriber at all.
+    const unavailable = setup();
+    unavailable.ctx.fake.channel.media.set("voice-1", Buffer.from("silk"));
+    await unavailable.deliver([voice()]);
+    expect(unavailable.texts()).toEqual([render("E-VOICE", "en")]);
+  });
+
+  it("leaves typed text and server transcripts alone", async () => {
+    const transcribe = vi.fn(() => Promise.resolve({ text: "local" }));
+    const t = setup({ transcribeVoice: transcribe });
+    await t.deliver([
+      { text: undefined, voiceTranscript: "spoken words" },
+      { text: "typed", media: voice().media },
+    ]);
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(t.texts()).toEqual(["sent spoken words", "sent typed"]);
   });
 });
 

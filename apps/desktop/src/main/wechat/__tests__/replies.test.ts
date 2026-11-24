@@ -112,6 +112,7 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
   "R-PAGE": { index: 1, count: 3, truncated: false },
   "R-DROP": { count: 2 },
   "R-ATTACH": { name: SECRET_PATH, sizeBytes: 2048 },
+  "R-VOICE-LOCAL": { text: "run the tests" },
   "R-NEW": {
     project: "pine",
     text: "跑一遍测试".repeat(20),

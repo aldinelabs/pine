@@ -64,6 +64,14 @@ const storedInboundSchema = z.object({
   pollStartedAtMs: z.number(),
   text: z.string().optional(),
   voice: z.boolean().optional(),
+  voiceMedia: z
+    .object({
+      ref: z.string(),
+      encodeType: z.number().optional(),
+      sampleRate: z.number().optional(),
+      playtimeMs: z.number().optional(),
+    })
+    .optional(),
   quotedText: z.string().optional(),
   media: z.array(storedMediaSchema),
   startedAtMs: z.number().optional(),

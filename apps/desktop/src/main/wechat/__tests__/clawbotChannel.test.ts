@@ -190,6 +190,35 @@ describe("inbound messages", () => {
     await until(() => received.length === 1);
     expect(received[0]?.voiceTranscript).toBeUndefined();
     expect(received[0]?.media.map((media) => media.kind)).toEqual(["voice"]);
+    expect(received[0]?.media[0]?.voice).toEqual({});
+  });
+
+  it("passes on the recording's format for transcription on this computer", async () => {
+    openChannel();
+    mock.pushUserMessage({
+      item_list: [
+        {
+          type: MessageItemType.VOICE,
+          voice_item: {
+            media: { encrypt_query_param: "voice-2", aes_key: "AAAA" },
+            encode_type: 6,
+            sample_rate: 24000,
+            playtime: 4100,
+          },
+        },
+        // Without a downloadable recording there is nothing to transcribe.
+        { type: MessageItemType.VOICE, voice_item: { playtime: 900 } },
+      ],
+    });
+    await until(() => received.length === 1);
+    const [first, second] = received[0]?.media ?? [];
+    expect(first?.voice).toEqual({
+      encodeType: 6,
+      sampleRate: 24000,
+      playtimeMs: 4100,
+    });
+    expect(second?.kind).toBe("voice");
+    expect(second?.voice).toBeUndefined();
   });
 });
 

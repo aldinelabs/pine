@@ -425,6 +425,9 @@ export class PineCore {
         localAutomationApprovals: host.localAutomationApprovals ?? false,
         changed: (status) => host.wechatChanged?.(status),
         notify: (notification) => host.notifyWeChat?.(notification),
+        ...(host.transcribeVoice
+          ? { transcribeVoice: host.transcribeVoice }
+          : {}),
       },
     });
     registerCoreRequests(this);

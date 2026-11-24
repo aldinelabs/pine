@@ -112,7 +112,7 @@ final class SourcePipeline: @unchecked Sendable {
         }
         Output.emit(event)
         if let locale = languageCheck.judge(
-          text: text, confidence: confidence(of: result.text),
+          text: text, confidence: transcriptConfidence(of: result.text),
           seconds: result.range.duration.seconds, final: final)
         {
           Output.emit(["type": "language", "source": source, "locale": locale])
@@ -121,19 +121,6 @@ final class SourcePipeline: @unchecked Sendable {
     } catch {
       Output.error("transcription_failed", error.localizedDescription, source: source)
     }
-  }
-
-  /// How sure the transcriber is of the text: its runs' confidence, by length.
-  private func confidence(of text: AttributedString) -> Double? {
-    var weighted = 0.0
-    var total = 0
-    for run in text.runs {
-      guard let value = run.transcriptionConfidence else { continue }
-      let length = text[run.range].characters.count
-      weighted += value * Double(length)
-      total += length
-    }
-    return total > 0 ? weighted / Double(total) : nil
   }
 
   /// Where each timed run of the text starts (UTF-16 offset into the
