@@ -7,7 +7,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PineAgentEvent } from "../../../shared/agent";
 import { PineAgentRuntime } from "../../runtime";
-import { ASSISTANT_SYSTEM_PROMPT } from "../prompt";
+import { ASSISTANT_SYSTEM_PROMPT, markWeChatMessage } from "../prompt";
 import { ASSISTANT_TOOL_NAMES } from "../tools";
 
 /**
@@ -215,6 +215,40 @@ describe("the Assistant's conversation", () => {
     );
     expect(system.startsWith(ASSISTANT_SYSTEM_PROMPT)).toBe(true);
     expect(system).not.toContain("privileged_bash");
+  });
+
+  it("keeps the prompt and tools fixed while desktop and WeChat messages mix", async () => {
+    const provider = await mockProvider([
+      { text: "OK." },
+      { text: "OK." },
+      { text: "OK." },
+    ]);
+    const runtime = testRuntime();
+    const location = await assistantLocation(provider.port);
+    const created = await runtime.createSession(location);
+    const session = liveSession(runtime, created.session.id);
+
+    await session.prompt("看看现在都在跑什么");
+    await session.prompt(markWeChatMessage("导航那个好了没"));
+    await session.prompt("把周报的会话打开");
+
+    expect(provider.requests).toHaveLength(3);
+    const systems = provider.requests.map((request) =>
+      text(
+        request.messages.find((message) => message.role === "system")?.content,
+      ),
+    );
+    expect(new Set(systems).size).toBe(1);
+    expect(systems[0]?.startsWith(ASSISTANT_SYSTEM_PROMPT)).toBe(true);
+    for (const request of provider.requests)
+      expect(request.tools?.map((tool) => tool.function.name)).toEqual([
+        ...ASSISTANT_TOOL_NAMES,
+      ]);
+    // The WeChat mark rides on the user message itself, not the prompt.
+    const users = provider.requests[2]?.messages
+      .filter((message) => message.role === "user")
+      .map((message) => text(message.content));
+    expect(users).toContain(markWeChatMessage("导航那个好了没"));
   });
 
   it("refuses a tool that is not on the list, and runs one that is", async () => {

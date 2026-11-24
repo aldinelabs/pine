@@ -26,6 +26,7 @@ export const COMMAND_NAMES = [
   "sessions",
   "search",
   "use",
+  "home",
   "last",
   "history",
   "stop",
@@ -178,7 +179,8 @@ export type Ask = ApprovalAsk | QuestionAsk | ConfirmAsk | HeldAsk;
 export interface TrackedSession {
   sessionId: string;
   projectId: string;
-  origin: "wechat" | "adopted" | "spawned";
+  /** `dispatched`: the Assistant started it in a WeChat turn; `assistant`: the Assistant's own conversation. */
+  origin: "wechat" | "adopted" | "spawned" | "dispatched" | "assistant";
   trackedAtMs: number;
   lastUsedAtMs: number;
 }
@@ -196,12 +198,21 @@ export interface StoredMedia {
   sizeBytes?: number;
   ref: string;
 }
+/** A voice message without the server's transcript, for transcription on this computer. Secret like `StoredMedia`. */
+export interface StoredVoice {
+  ref: string;
+  encodeType?: number;
+  sampleRate?: number;
+  playtimeMs?: number;
+}
 export interface StoredInbound {
   id: string;
   createdAtMs: number;
   pollStartedAtMs: number;
   text?: string;
   voice?: boolean;
+  /** Set when `voice` came without a transcript and the recording can be downloaded. */
+  voiceMedia?: StoredVoice;
   quotedText?: string;
   media: StoredMedia[];
   /** Set in the same write that takes the entry off the queue. */
@@ -264,6 +275,10 @@ export interface WeChatPersistedState {
   /** At most OUT_QUEUE_MAX. */
   outQueue: QueuedOutbound[];
   lastPausedNoticeAtMs?: number;
+  /** `.home` / `.u` chose where plain text goes; cleared when the setting changes. */
+  route?: "assistant" | "session";
+  /** The one-time note about the Assistant for a setup that predates it. */
+  routeIntro?: "due" | "sent";
 }
 
 /** The sealed blob, written through the host's credential storage. */
@@ -295,6 +310,8 @@ export interface WeChatStateStore {
   reloadLanguage(): Promise<void>;
   /** True when a blob read in this run still held the old `settings.keepAwake: true` (sticky; migration only). */
   legacyKeepAwake(): boolean;
+  /** True when a bound blob read in this run had no `plainTarget`: set up before the Assistant (sticky). */
+  legacyPlainTarget(): boolean;
   /** Removes token and owner, resets the permission settings, and resets the plain state except language. */
   clearBinding(): Promise<void>;
 }

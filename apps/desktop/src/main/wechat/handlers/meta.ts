@@ -5,7 +5,12 @@
 
 import { lookupCommand, specOf, suggestCommand } from "../commandSpec";
 import { notice } from "../notices";
-import { render, type AskSummary, type SessionState } from "../replies";
+import {
+  joinReplies,
+  render,
+  type AskSummary,
+  type SessionState,
+} from "../replies";
 import { clampMode, projectLabel } from "../sessionDirectory";
 import type { Ask, HandleRow, ReplyLanguage } from "../types";
 import type { CommandContext, CommandHandlers, CommandResult } from "./types";
@@ -40,6 +45,85 @@ const LANGUAGES: Record<string, ReplyLanguage | "auto"> = {
   自动: "auto",
 };
 
+/** `.status` without the routing line. */
+async function status(ctx: CommandContext): Promise<CommandResult> {
+  const state = ctx.store.get();
+  const current = state.current;
+  if (!current) {
+    const projectId = state.currentProjectId;
+    let project = projectLabel(undefined, ctx.lang);
+    if (projectId !== undefined) {
+      try {
+        project = projectLabel(
+          await ctx.core.repository.get(projectId),
+          ctx.lang,
+        );
+      } catch {
+        // A project that went away reads as "No Project".
+      }
+    }
+    return {
+      text: render("R-STATUS0", ctx.lang, {
+        project,
+        mode: clampMode(ctx.settings.defaultMode, ctx.settings.ceilingMode),
+      }),
+    };
+  }
+  const view = await ctx.sessions.view(current.sessionId, current.projectId);
+  const others: {
+    n: number;
+    state: SessionState;
+    title: string;
+    project: string;
+  }[] = [];
+  const rows: HandleRow[] = [];
+  for (const entry of state.tracked) {
+    if (others.length >= STATUS_OTHERS_MAX) break;
+    // The Assistant's own conversation is not a work session.
+    if (entry.origin === "assistant") continue;
+    if (entry.sessionId === current.sessionId) continue;
+    const runState = ctx.sessions.runState(entry.sessionId);
+    if (runState !== "running" && runState !== "waiting") continue;
+    try {
+      const other = await ctx.sessions.view(entry.sessionId, entry.projectId);
+      others.push({
+        n: others.length + 1,
+        state: runState,
+        title: other.title,
+        project: other.project,
+      });
+      rows.push({
+        id: entry.sessionId,
+        label: other.title,
+        projectId: entry.projectId,
+      });
+    } catch {
+      // A session whose project cannot be opened is left out.
+    }
+  }
+  if (rows.length > 0) ctx.handles.set("session", rows);
+  const usage = view.contextUsage;
+  return {
+    text: render("R-STATUS", ctx.lang, {
+      at: { project: view.project, title: view.title },
+      state: view.state,
+      ...(view.runStartedAtMs !== undefined
+        ? { runningMs: ctx.now - view.runStartedAtMs }
+        : {}),
+      ...(view.todos ? { todos: view.todos } : {}),
+      ...(usage?.percent !== undefined && usage.percent !== null
+        ? { contextPercent: usage.percent }
+        : {}),
+      ...(usage && usage.cost > 0
+        ? { costUsd: usage.cost, currency: ctx.host.currency?.() }
+        : {}),
+      asks: view.asks.map((ask) => askSummary(ask)),
+      others,
+    }),
+    ...(rows.length > 0 ? { numbered: { kind: "session" as const } } : {}),
+  };
+}
+
 export const metaHandlers: CommandHandlers = {
   help: (ctx, command) => {
     const topic = command.args[0]?.replace(/^[.。．｡]+/u, "");
@@ -49,6 +133,9 @@ export const metaHandlers: CommandHandlers = {
           computer: ctx.host.computerName,
           ceiling: ctx.settings.ceilingMode,
           files: ctx.settings.allowFileSending,
+          ...(ctx.sessions.hasAssistant()
+            ? { route: ctx.sessions.plainRoute() }
+            : {}),
         }),
       });
     if (topic === "2")
@@ -68,78 +155,15 @@ export const metaHandlers: CommandHandlers = {
   },
 
   status: async (ctx) => {
-    const state = ctx.store.get();
-    const current = state.current;
-    if (!current) {
-      const projectId = state.currentProjectId;
-      let project = projectLabel(undefined, ctx.lang);
-      if (projectId !== undefined) {
-        try {
-          project = projectLabel(
-            await ctx.core.repository.get(projectId),
-            ctx.lang,
-          );
-        } catch {
-          // A project that went away reads as "No Project".
-        }
-      }
-      return {
-        text: render("R-STATUS0", ctx.lang, {
-          project,
-          mode: clampMode(ctx.settings.defaultMode, ctx.settings.ceilingMode),
-        }),
-      };
-    }
-    const view = await ctx.sessions.view(current.sessionId, current.projectId);
-    const others: {
-      n: number;
-      state: SessionState;
-      title: string;
-      project: string;
-    }[] = [];
-    const rows: HandleRow[] = [];
-    for (const entry of state.tracked) {
-      if (others.length >= STATUS_OTHERS_MAX) break;
-      if (entry.sessionId === current.sessionId) continue;
-      const runState = ctx.sessions.runState(entry.sessionId);
-      if (runState !== "running" && runState !== "waiting") continue;
-      try {
-        const other = await ctx.sessions.view(entry.sessionId, entry.projectId);
-        others.push({
-          n: others.length + 1,
-          state: runState,
-          title: other.title,
-          project: other.project,
-        });
-        rows.push({
-          id: entry.sessionId,
-          label: other.title,
-          projectId: entry.projectId,
-        });
-      } catch {
-        // A session whose project cannot be opened is left out.
-      }
-    }
-    if (rows.length > 0) ctx.handles.set("session", rows);
-    const usage = view.contextUsage;
+    const result = await status(ctx);
+    if (!ctx.sessions.hasAssistant() || result.text === undefined)
+      return result;
     return {
-      text: render("R-STATUS", ctx.lang, {
-        at: { project: view.project, title: view.title },
-        state: view.state,
-        ...(view.runStartedAtMs !== undefined
-          ? { runningMs: ctx.now - view.runStartedAtMs }
-          : {}),
-        ...(view.todos ? { todos: view.todos } : {}),
-        ...(usage?.percent !== undefined && usage.percent !== null
-          ? { contextPercent: usage.percent }
-          : {}),
-        ...(usage && usage.cost > 0
-          ? { costUsd: usage.cost, currency: ctx.host.currency?.() }
-          : {}),
-        asks: view.asks.map((ask) => askSummary(ask)),
-        others,
-      }),
-      ...(rows.length > 0 ? { numbered: { kind: "session" as const } } : {}),
+      ...result,
+      text: joinReplies(
+        result.text,
+        render("R-ROUTEMODE", ctx.lang, { route: ctx.sessions.plainRoute() }),
+      ),
     };
   },
 

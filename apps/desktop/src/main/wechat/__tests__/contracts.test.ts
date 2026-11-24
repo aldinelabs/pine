@@ -24,6 +24,7 @@ const wide: WeChatSettings = {
   defaultProjectId: "project-1",
   allowHighRiskApprovals: true,
   allowFileSending: true,
+  plainTarget: "session",
 };
 
 describe("notification kinds", () => {
@@ -92,6 +93,8 @@ describe("settings", () => {
     expect(resetWeChatPermissions(wide)).toEqual({
       ...DEFAULT_WECHAT_SETTINGS,
       defaultProjectId: "project-1",
+      // Where plain text goes is a preference, not a permission.
+      plainTarget: "session",
     });
   });
 });

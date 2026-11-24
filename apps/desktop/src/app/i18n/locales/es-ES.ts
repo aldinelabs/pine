@@ -292,6 +292,11 @@ export default {
         "Las sesiones que solo WeChat mantiene se detendrán y los permisos de WeChat volverán a sus valores predeterminados.",
       defaultProject: "Proyecto predeterminado",
       defaultProjectDescription: "Dónde empieza una sesión nueva desde WeChat.",
+      plainTarget: "Los mensajes normales van a",
+      plainTargetDescription:
+        "Adónde va un mensaje de WeChat que no es un comando con punto. El asistente puede iniciar sesiones en cualquier proyecto e informar del resultado; en WeChat, .u y .home cambian el destino.",
+      plainTargetAssistant: "Asistente",
+      plainTargetSession: "Sesión actual",
       ceiling: "Modo de aprobación máximo",
       ceilingDescription:
         "Las sesiones controladas desde WeChat nunca se ejecutan con menos supervisión que esta.",
@@ -315,7 +320,7 @@ export default {
         "Un proxy o una salida de red en el extranjero pueden estar bloqueados.",
       noteOneComputer: "Una cuenta de WeChat se conecta a un solo equipo.",
       noteHelp:
-        "En WeChat, envía .help (o .?) para ver los comandos. El texto normal va a la sesión actual.",
+        "En WeChat, envía .help (o .?) para ver los comandos. El texto normal va adonde indica «Los mensajes normales van a»; responde 批准 12 o .y 12 para aprobar la tarjeta 12.",
       noteStale:
         "Las tareas que llegan a Pine más de 10 minutos después de enviarlas esperan a que las confirmes en WeChat.",
       serverGuide: "Ejecutar Pine en un servidor",

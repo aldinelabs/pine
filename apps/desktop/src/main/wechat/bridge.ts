@@ -243,6 +243,11 @@ export class WeChatBridge implements WeChatBridgeApi {
       }
       draft.settings = next;
     });
+    // The setting decides again; a `.home` or `.u` from before no longer does.
+    if (patch.plainTarget !== undefined && this.store.get().route !== undefined)
+      await this.store.update((draft) => {
+        delete draft.route;
+      });
     await this.parts?.sessions.settingsChanged().catch(() => undefined);
     return this.settingsChanged();
   }
@@ -398,6 +403,12 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.guarded(() => this.parts?.sessions.automationsChanged());
   }
 
+  sessionDispatched(sessionId: string, projectId: string): void {
+    this.guarded(() =>
+      this.parts?.sessions.sessionDispatched(sessionId, projectId),
+    );
+  }
+
   originOf(sessionId: string): "wechat" | "wechat-used" | undefined {
     if (this.parts) return this.parts.sessions.originOf(sessionId);
     if (!this.storeInstance && !this.options.store) return undefined;
@@ -536,8 +547,20 @@ export class WeChatBridge implements WeChatBridgeApi {
   }
 
   private ready(): Promise<void> {
-    this.loading ??= this.store.load().then((result) => {
+    this.loading ??= this.store.load().then(async (result) => {
       if (result === "reset") this.settingsReset();
+      // A setup from before the Assistant hears about it once, with its
+      // next reply; the plain-text setting stays as it was.
+      if (
+        this.options.core.assistant &&
+        this.store.legacyPlainTarget() &&
+        this.store.get().routeIntro === undefined
+      )
+        await this.store
+          .update((draft) => {
+            draft.routeIntro = "due";
+          })
+          .catch(() => undefined);
       this.compose();
     });
     return this.loading;
@@ -594,6 +617,7 @@ export class WeChatBridge implements WeChatBridgeApi {
       settings: () => store.secure().settings,
       lang,
       now,
+      pager,
     });
     const inbound = new InboundPipeline({
       store,
@@ -613,6 +637,9 @@ export class WeChatBridge implements WeChatBridgeApi {
       owner: () => (this.isBound() ? store.secure().owner : undefined),
       paused: () => store.secure().paused,
       pause: () => this.setPaused(true).then(() => undefined),
+      ...(host.transcribeVoice
+        ? { transcribeVoice: host.transcribeVoice }
+        : {}),
       download: (ref, maxBytes, signal) => {
         const channel = this.channel;
         if (!channel) {
@@ -1140,6 +1167,9 @@ export class WeChatBridge implements WeChatBridgeApi {
           computer: this.options.host.computerName,
           ceiling: secure.settings.ceilingMode,
           files: secure.settings.allowFileSending,
+          ...(this.options.core.assistant
+            ? { route: secure.settings.plainTarget }
+            : {}),
         }),
       )
       .catch(() => undefined);

@@ -1,0 +1,203 @@
+// @vitest-environment node
+// WeChat in front of Pine's Assistant (docs/orchestrator-proposal.md P1),
+// against the real bridge, ClawBot channel and mock iLink server. The
+// Assistant is a stand-in that holds one conversation as its own client;
+// what it decides is played by the test.
+import { readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { type Harness, createHarness, sleep, waitFor } from "./e2eHarness";
+
+const harnesses: Harness[] = [];
+
+afterEach(async () => {
+  for (const harness of harnesses.splice(0).reverse()) await harness.close();
+});
+
+async function harness(
+  options: Parameters<typeof createHarness>[0] = {},
+): Promise<Harness> {
+  const created = await createHarness({ assistant: true, ...options });
+  harnesses.push(created);
+  return created;
+}
+
+function cardNumber(text: string): number {
+  const match = /`\.y (\d{2})`/.exec(text);
+  if (!match) throw new Error(`no approvable card in ${JSON.stringify(text)}`);
+  return Number(match[1]);
+}
+
+/** Texts sent after the first `from` messages. */
+function after(h: Harness, from: number): string[] {
+  return h.texts().slice(from);
+}
+
+describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
+  it("dispatches from plain text, carries the card, takes .y and reports the result", async () => {
+    const h = await harness();
+
+    // 1. Plain text goes to the Assistant, word for word, and nowhere else.
+    const before = h.texts().length;
+    h.push("帮我在博客项目里修一下首页样式");
+    await waitFor(() => h.assistantCalls.length === 1);
+    expect(h.assistantCalls[0]).toEqual({
+      message: "帮我在博客项目里修一下首页样式",
+      ceiling: "auto-approve",
+      steer: false,
+    });
+    await h.settle();
+    // The reply is the Assistant's; the bridge only shows "typing…".
+    expect(after(h, before)).toEqual([]);
+
+    // 2. Its turn dispatches a session and ends with a reply, pushed as is.
+    const assistant = h.assistantSession();
+    h.running(assistant);
+    const work = await h.dispatch("修一下首页样式");
+    h.finish(assistant, "已派给「修首页样式」会话（Garden），完成后告诉你。");
+    const reply = await h.sent((text) => text.includes("修首页样式"));
+    expect(reply).toMatch(/^\*\*(Assistant|助理)\*\*/);
+    expect(reply).toContain("已派给「修首页样式」会话（Garden）");
+
+    // 3. The dispatched session's approval reaches WeChat as a card.
+    h.running(work);
+    const requestId = h.approval(work, { subject: "npm run build" });
+    const card = await h.sent((text) => text.includes("npm run build"));
+    const number = cardNumber(card);
+
+    // 4. `.y NN` approves it, without the Assistant.
+    await h.say(`.y ${number}`);
+    await waitFor(() => h.agentHost.respondApproval.mock.calls.length === 1);
+    expect(h.agentHost.respondApproval.mock.calls[0]?.[0]).toBe(requestId);
+    expect(h.agentHost.respondApproval.mock.calls[0]?.[1]).toMatchObject({
+      kind: "allow",
+    });
+
+    // 5. Its result is pushed with the usual template; the Assistant is not woken.
+    h.finish(work, "首页样式已修好，按钮间距统一为 8px。");
+    const done = await h.sent((text) => text.includes("按钮间距统一为 8px"));
+    expect(done).toContain("Garden");
+    expect(h.assistantCalls).toHaveLength(1);
+  });
+
+  it("takes 批准 NN as the bridge's own .y NN", async () => {
+    const h = await harness();
+    h.push("修首页");
+    await waitFor(() => h.assistantCalls.length === 1);
+    const work = await h.dispatch("修首页");
+    h.running(work);
+    const requestId = h.approval(work, { subject: "git push" });
+    const number = cardNumber(
+      await h.sent((text) => text.includes("git push")),
+    );
+
+    await h.say(`批准 ${number}`);
+    await waitFor(() => h.agentHost.respondApproval.mock.calls.length === 1);
+    expect(h.agentHost.respondApproval.mock.calls[0]?.[0]).toBe(requestId);
+    expect(h.assistantCalls).toHaveLength(1);
+  });
+
+  it("talks to a session directly after .u and goes back with .home", async () => {
+    const h = await harness();
+    h.push("修首页");
+    await waitFor(() => h.assistantCalls.length === 1);
+    const work = await h.dispatch("修首页");
+    h.running(work);
+    h.finish(work, "修好了");
+    await h.sent((text) => text.includes("修好了"));
+
+    const use = await h.say(".u 9");
+    expect(use).toContain(".home");
+    h.push("再把标题调大一点");
+    await waitFor(() =>
+      h.agentHost.prompt.mock.calls.some(
+        ([sessionId, message]) =>
+          sessionId === work && String(message).includes("再把标题调大一点"),
+      ),
+    );
+    expect(h.assistantCalls).toHaveLength(1);
+    expect(await h.say(".")).toMatch(/current session|当前会话/);
+
+    const home = await h.say(".home");
+    expect(home).toMatch(/Assistant|助理/);
+    h.push("现在都在跑什么？");
+    await waitFor(() => h.assistantCalls.length === 2);
+    expect(h.assistantCalls[1]?.message).toBe("现在都在跑什么？");
+  });
+
+  it("keeps staged files out of the Assistant", async () => {
+    const h = await harness();
+    const reply = await h
+      .say("看看这张图", {
+        item_list: [
+          {
+            type: 2,
+            image_item: {
+              media: { encrypt_query_param: "q", aes_key: "k" },
+            },
+          },
+        ],
+      })
+      .catch(() => "");
+    void reply;
+    await h.settle();
+    // Whatever the download did, nothing with files reached the Assistant.
+    for (const call of h.assistantCalls)
+      expect(call.message).not.toContain("pine_attachments");
+  });
+
+  it("sends nothing to the Assistant where Pine has none", async () => {
+    const h = await harness({ assistant: false });
+    await h.say("修首页");
+    await waitFor(() => h.agentHost.createSession.mock.calls.length === 1);
+    expect(h.assistantCalls).toHaveLength(0);
+  });
+});
+
+describe(
+  "a WeChat remote set up before the Assistant",
+  { timeout: 30_000 },
+  () => {
+    it("keeps plain text on the current session and says so once", async () => {
+      const first = await createHarness({ assistant: true });
+      // Rewrite the sealed blob as an older Pine wrote it: no plainTarget.
+      await first.bridge.stop();
+      first.bridge.dispose();
+      await first.bridge.state.flush();
+      const blobPath = path.join(first.dataDirectory, "wechat-remote-secure");
+      const sealed = (await readFile(blobPath, "utf8")).trim();
+      const hex = Buffer.from(sealed, "base64")
+        .toString("utf8")
+        .slice("sealed:".length);
+      const blob = JSON.parse(Buffer.from(hex, "hex").toString("utf8")) as {
+        settings: Record<string, unknown>;
+      };
+      delete blob.settings.plainTarget;
+      await writeFile(
+        blobPath,
+        Buffer.from(
+          `sealed:${Buffer.from(JSON.stringify(blob)).toString("hex")}`,
+        ).toString("base64"),
+      );
+      const h = await createHarness({
+        assistant: true,
+        reuse: first,
+        bind: false,
+      });
+      harnesses.push(first, h);
+
+      expect(h.bridge.status().settings.plainTarget).toBe("session");
+      await waitFor(() => h.bridge.status().connection === "online");
+      // Messages queued before the first poll after a restart are backlog.
+      await sleep(500);
+      const reply = await h.say(".");
+      expect(reply).toContain(".home");
+      await h.say("修一下登录页");
+      await waitFor(() => h.agentHost.createSession.mock.calls.length === 1);
+      expect(h.assistantCalls).toHaveLength(0);
+      // Once only.
+      const next = await h.say(".");
+      expect(next).not.toMatch(/New: Pine now has|新功能/);
+    });
+  },
+);

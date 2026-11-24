@@ -285,6 +285,11 @@ export default {
         "WeChat만 보유한 세션은 중지되고, WeChat 권한 설정은 기본값으로 돌아갑니다.",
       defaultProject: "기본 프로젝트",
       defaultProjectDescription: "WeChat에서 만든 새 세션이 시작되는 곳입니다.",
+      plainTarget: "일반 메시지 받는 곳",
+      plainTargetDescription:
+        "점 명령이 아닌 WeChat 메시지가 가는 곳입니다. 어시스턴트는 어느 프로젝트에서든 세션을 시작하고 결과를 알려 줍니다. WeChat에서 .u와 .home으로도 바꿀 수 있습니다.",
+      plainTargetAssistant: "어시스턴트",
+      plainTargetSession: "현재 세션",
       ceiling: "최고 승인 모드",
       ceilingDescription:
         "WeChat으로 진행하는 세션은 이보다 감독이 적은 모드로 실행되지 않습니다.",
@@ -306,7 +311,7 @@ export default {
       noteNetwork: "프록시나 해외 네트워크 출구는 차단될 수 있습니다.",
       noteOneComputer: "WeChat 계정 하나는 컴퓨터 한 대에만 연결됩니다.",
       noteHelp:
-        "WeChat에서 .help(또는 .?)를 보내면 명령어를 볼 수 있습니다. 그냥 보낸 텍스트는 현재 세션으로 전달됩니다.",
+        "WeChat에서 .help(또는 .?)를 보내면 명령어를 볼 수 있습니다. 그냥 보낸 텍스트는 '일반 메시지 받는 곳'으로 전달됩니다. 카드 12를 승인하려면 批准 12 또는 .y 12로 답장하세요.",
       noteStale:
         "보낸 지 10분이 지나서 Pine에 도착한 작업은 WeChat에서 확인해야 실행됩니다.",
       serverGuide: "서버에서 Pine 실행",

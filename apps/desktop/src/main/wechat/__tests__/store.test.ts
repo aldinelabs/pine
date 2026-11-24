@@ -336,6 +336,7 @@ describe("WeChatStore sealed blob", () => {
         defaultProjectId: "project-1",
         allowHighRiskApprovals: true,
         allowFileSending: true,
+        plainTarget: "session",
       };
     });
     await store.update((draft) => {
@@ -349,6 +350,8 @@ describe("WeChatStore sealed blob", () => {
     expect(store.secure().settings).toEqual({
       ...DEFAULT_WECHAT_SETTINGS,
       defaultProjectId: "project-1",
+      // Where plain text goes is a preference, not a permission.
+      plainTarget: "session",
     });
     expect(store.get()).toMatchObject({
       language: "en",
@@ -359,6 +362,38 @@ describe("WeChatStore sealed blob", () => {
     await again.load();
     expect(again.secure().token).toBeUndefined();
     expect(again.get().language).toBe("en");
+  });
+
+  it("keeps plain text on the session for a remote bound before the Assistant", async () => {
+    const { open, securePath } = await setup();
+    const storage = fakeStorage();
+    const older: Partial<typeof DEFAULT_WECHAT_SETTINGS> = {
+      ...DEFAULT_WECHAT_SETTINGS,
+    };
+    delete older.plainTarget;
+    const write = (blob: Record<string, unknown>) =>
+      writeFile(
+        securePath,
+        storage.encryptString(JSON.stringify(blob)).toString("base64"),
+      );
+
+    await write({
+      version: 1,
+      paused: false,
+      settings: older,
+      owner: OWNER,
+      token: "t",
+    });
+    const bound = open();
+    await bound.load();
+    expect(bound.secure().settings.plainTarget).toBe("session");
+    expect(bound.legacyPlainTarget()).toBe(true);
+
+    await write({ version: 1, paused: false, settings: older });
+    const unbound = open();
+    await unbound.load();
+    expect(unbound.secure().settings.plainTarget).toBe("assistant");
+    expect(unbound.legacyPlainTarget()).toBe(false);
   });
 
   it("reads the old keep-awake switch once for migration and drops it from settings", async () => {

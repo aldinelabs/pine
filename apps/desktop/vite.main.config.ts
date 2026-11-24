@@ -14,6 +14,8 @@ export default defineConfig({
         // Remote Control loads it on first use, from its own prebuilt package.
         "node-datachannel",
         "node:sqlite",
+        // WeChat voice decoding loads its silk.wasm from its own package.
+        "silk-wasm",
       ],
     },
   },

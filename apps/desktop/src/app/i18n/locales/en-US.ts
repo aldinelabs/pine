@@ -286,6 +286,11 @@ export default {
         "Sessions that only WeChat holds will stop, and the WeChat permission settings return to their defaults.",
       defaultProject: "Default project",
       defaultProjectDescription: "Where a new session from WeChat starts.",
+      plainTarget: "Plain messages go to",
+      plainTargetDescription:
+        "Where a WeChat message that is not a dot command goes. The Assistant can start sessions in any project and report back; .u and .home switch from WeChat.",
+      plainTargetAssistant: "Assistant",
+      plainTargetSession: "Current session",
       ceiling: "Highest approval mode",
       ceilingDescription:
         "Sessions driven from WeChat never run with less supervision than this.",
@@ -308,7 +313,7 @@ export default {
       noteNetwork: "A proxy or an overseas network exit may be blocked.",
       noteOneComputer: "One WeChat account connects to one computer.",
       noteHelp:
-        "In WeChat, send .help (or .?) to see the commands. Plain text goes to the current session.",
+        'In WeChat, send .help (or .?) to see the commands. Plain text goes where "Plain messages go to" says; reply 批准 12 or .y 12 to approve card 12.',
       noteStale:
         "Tasks that reach Pine more than 10 minutes after you sent them wait until you confirm them in WeChat.",
       serverGuide: "Run Pine on a server",

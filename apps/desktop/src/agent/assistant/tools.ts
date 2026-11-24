@@ -21,7 +21,16 @@ import {
   type AssistantOverview,
   type AssistantOverviewSession,
 } from "../../shared/assistant";
+import {
+  MEMORY_READ_TOOL_NAME,
+  MEMORY_REMOVE_TOOL_NAME,
+  MEMORY_SAVE_TOOL_NAME,
+} from "../../shared/memory";
 import { sessionSearchQuery } from "../../shared/sessions";
+import {
+  createAssistantMemoryToolDefinitions,
+  type AssistantMemoryOptions,
+} from "./memory";
 import { createDatetimeToolDefinition } from "../datetimeTool";
 import type {
   AgentHostRequest,
@@ -48,6 +57,9 @@ export const ASSISTANT_TOOL_NAMES = [
   UI_SESSION_SEARCH_TOOL_NAME,
   UI_SESSION_READ_TOOL_NAME,
   DATETIME_TOOL_NAME,
+  MEMORY_READ_TOOL_NAME,
+  MEMORY_SAVE_TOOL_NAME,
+  MEMORY_REMOVE_TOOL_NAME,
   SUBMIT_SESSION_SUMMARY_TOOL_NAME,
 ] as const;
 
@@ -83,6 +95,8 @@ export interface AssistantToolContext {
   requestHost(request: AgentHostRequest): Promise<AgentHostResponse>;
   getApprovalMode(): PineApprovalMode;
   getLocale(): "en-US" | "zh-CN";
+  /** Its notes; the memory tools are listed without it and refuse every call. */
+  memory?: AssistantMemoryOptions;
 }
 
 async function callAssistantHost<Op extends AssistantHostOperation["op"]>(
@@ -359,6 +373,7 @@ export function createAssistantToolDefinitions(
     searchTool,
     readTool,
     createDatetimeToolDefinition(),
+    ...createAssistantMemoryToolDefinitions(context.memory),
     createSubmitSessionSummaryToolDefinition(),
   ] as ToolDefinition[];
   // The allowlist and the registry must name the same tools in one order.

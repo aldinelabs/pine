@@ -29,11 +29,13 @@ const AGENT_RUNTIME_ENTRYPOINTS = [
   "@earendil-works/pi-ai",
   "pi-mcp-adapter",
 ] as const;
-// Native addons the main process loads at runtime; optional per platform, so
-// a missing one is skipped.
+// Packages the main process loads at runtime from their own folder (native
+// addons, a wasm file); optional per platform, so a missing one is skipped.
 const MAIN_RUNTIME_ENTRYPOINTS = [
   "electron-liquid-glass",
   "node-datachannel",
+  // WeChat voice messages: SILK decoding, which reads silk.wasm beside it.
+  "silk-wasm",
 ] as const;
 
 const LIVE_CONTEXT_HELPER = "native/live-context/build/pine-live-context";

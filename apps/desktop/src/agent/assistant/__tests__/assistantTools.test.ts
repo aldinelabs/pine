@@ -75,7 +75,6 @@ describe("the Assistant's tools", () => {
       "ui_session_new",
       "ui_session_send",
       "ui_project_create",
-      "memory_save",
       "automation_run_now",
       "activate_computer_use",
       "activate_pine_ops",

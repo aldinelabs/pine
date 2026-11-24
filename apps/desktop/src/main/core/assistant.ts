@@ -3,7 +3,9 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
+  APPROVAL_MODE_ORDER,
   approvalModeWithin,
+  type PineApprovalMode,
   type PromptSessionRequest,
   type PromptSessionResult,
 } from "../../shared/agent";
@@ -22,7 +24,9 @@ import {
   type AssistantOverviewSession,
   type AssistantSettings,
   type AssistantState,
+  type AssistantTurnSource,
   type ClearAssistantResult,
+  withAssistantMessageSource,
 } from "../../shared/assistant";
 import type { PineModelSelection } from "../../shared/models";
 import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
@@ -213,9 +217,41 @@ export function dispatchNoticeContent(
     .join("\n");
 }
 
+/** Where the latest message to the Assistant came from, and its limit. */
+interface AssistantTurn {
+  source: AssistantTurnSource;
+  /** Dispatches of this turn run at most this unsupervised (WeChat's ceiling). */
+  ceiling?: PineApprovalMode;
+}
+
+export interface AssistantSendOptions {
+  locale: "en-US" | "zh-CN";
+  source: AssistantTurnSource;
+  ceiling?: PineApprovalMode;
+  /** The Assistant is mid-turn: the message steers it. */
+  steer?: boolean;
+}
+
+/** The more supervised of two modes. */
+function lowerMode(a: PineApprovalMode, b: PineApprovalMode): PineApprovalMode {
+  return APPROVAL_MODE_ORDER.indexOf(a) <= APPROVAL_MODE_ORDER.indexOf(b)
+    ? a
+    : b;
+}
+
 export class AssistantService {
   /** Serializes writes of the dispatch registry. */
   private writes: Promise<unknown> = Promise.resolve();
+  /** The latest message's source; a dispatch reads it, never the model. */
+  private turn: AssistantTurn = { source: "desktop" };
+  /**
+   * Each session the Assistant dispatches, with the turn it belonged to.
+   * PineCore hands WeChat-started ones to the WeChat bridge.
+   */
+  onDispatched?: (
+    dispatch: { sessionId: string; projectId: string },
+    turn: { source: AssistantTurnSource },
+  ) => void;
   /** The dispatch registry as last read or written. */
   private known: Promise<Record<string, Dispatch>> | undefined;
   /** The same once read, for callers that cannot wait, such as the tray. */
@@ -380,6 +416,7 @@ export class AssistantService {
     clientId: number,
     request: AssistantPromptRequest,
     options: { focus?: boolean } = {},
+    turn: AssistantTurn = { source: "desktop" },
   ): Promise<PromptSessionResult> {
     const { runtimes } = this.core;
     const sender = runtimes.isOpen(clientId, ASSISTANT_PROJECT_ID)
@@ -390,6 +427,15 @@ export class AssistantService {
       this.thread(),
       this.settings(),
     ]);
+    // A message into a running turn keeps that turn's limit: the desktop
+    // cannot lift a WeChat ceiling mid-turn.
+    const ceiling =
+      request.streamingBehavior && this.turn.ceiling
+        ? turn.ceiling
+          ? lowerMode(turn.ceiling, this.turn.ceiling)
+          : this.turn.ceiling
+        : turn.ceiling;
+    this.turn = { source: turn.source, ...(ceiling ? { ceiling } : {}) };
     const result = await runtimes.prompt(
       sender,
       {
@@ -420,6 +466,32 @@ export class AssistantService {
         sessionId: result.session.id,
       });
     return result;
+  }
+
+  /**
+   * Sends the user's message from elsewhere than a window, such as WeChat,
+   * into the same conversation as the desktop's, marked with its source.
+   * Resolves once the message is accepted. `ceiling` bounds what this turn
+   * dispatches, below the Assistant's own mode.
+   */
+  async send(
+    message: string,
+    options: AssistantSendOptions,
+  ): Promise<{ sessionId: string; projectId: string }> {
+    const result = await this.prompt(
+      ASSISTANT_CLIENT_ID,
+      {
+        locale: options.locale,
+        message: withAssistantMessageSource(options.source, message),
+        ...(options.steer ? { streamingBehavior: "steer" as const } : {}),
+      },
+      { focus: false },
+      {
+        source: options.source,
+        ...(options.ceiling ? { ceiling: options.ceiling } : {}),
+      },
+    );
+    return { sessionId: result.session.id, projectId: ASSISTANT_PROJECT_ID };
   }
 
   /**
@@ -568,6 +640,13 @@ export class AssistantService {
         throw new Error(
           `The Assistant runs in ${callerMode}; it cannot dispatch a session in ${parsed.approvalMode}.`,
         );
+      // A turn from WeChat dispatches within WeChat's ceiling, like `.new`:
+      // the mode is lowered to it rather than refused, since the model
+      // asks for its own mode by default.
+      const turn = this.turn;
+      const approvalMode = turn.ceiling
+        ? lowerMode(parsed.approvalMode, turn.ceiling)
+        : parsed.approvalMode;
       // Like WeChat: a window that shows the project owns the new session,
       // so its approvals appear there; otherwise the Assistant holds it.
       if (!runtimes.isOpen(requester.ownerId, project.id))
@@ -584,10 +663,19 @@ export class AssistantService {
         ownerId,
         project,
         message: `[Dispatched by Pine's Assistant. Pine reports your reply to the Assistant each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
-        approvalMode: parsed.approvalMode,
+        approvalMode,
         locale: parsed.locale,
         ...(parsed.title ? { title: parsed.title } : {}),
       });
+      // Before the registry write: the session's first card may be close.
+      try {
+        this.onDispatched?.(
+          { sessionId: result.session.id, projectId: project.id },
+          { source: turn.source },
+        );
+      } catch (error) {
+        console.error("Failed to report a dispatch.", error);
+      }
       await this.recordDispatch(result.session.id, {
         projectId: project.id,
         assistantSessionId: requester.sessionId,
@@ -601,7 +689,7 @@ export class AssistantService {
         sessionId: result.session.id,
         projectId: project.id,
         projectName: this.projectName(project),
-        approvalMode: parsed.approvalMode,
+        approvalMode,
       };
     }
 

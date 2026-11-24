@@ -33,6 +33,8 @@ import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 import { MODIFIER_HOLD_DELAY_MS } from "@/composables/useModifierHold";
 
 interface ComposerProps {
+  projectId?: string;
+  assistantTarget?: boolean;
   edgeInset?: boolean;
   context?: PineAttachment[];
   contextPending?: boolean;

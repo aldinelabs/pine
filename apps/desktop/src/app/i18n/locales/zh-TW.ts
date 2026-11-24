@@ -273,6 +273,11 @@ export default {
         "只由微信持有的工作階段會停止，微信的權限設定會恢復為預設值。",
       defaultProject: "預設專案",
       defaultProjectDescription: "從微信新建的工作階段在這裡開始。",
+      plainTarget: "一般訊息傳給",
+      plainTargetDescription:
+        "不是點命令的微信訊息傳到哪裡。助理可以在任何專案裡開工作階段並回報結果；在微信裡也能用 .u 和 .home 切換。",
+      plainTargetAssistant: "助理",
+      plainTargetSession: "目前的工作階段",
       ceiling: "最高核准模式",
       ceilingDescription: "由微信驅動的工作階段，監管程度不會低於這一檔。",
       yoloWarning:
@@ -293,7 +298,7 @@ export default {
       noteNetwork: "代理或境外網路出口可能被攔截。",
       noteOneComputer: "一個微信帳號只能連接一台電腦。",
       noteHelp:
-        "在微信裡傳送 .help（或 .?）查看指令，直接傳文字會發給目前的工作階段。",
+        "在微信裡傳送 .help（或 .?）查看指令；直接傳文字會發到「一般訊息傳給」選的地方，回覆 批准 12 或 .y 12 即可核准 12 號卡片。",
       noteStale:
         "傳出超過 10 分鐘才到達 Pine 的任務，要在微信裡確認後才會執行。",
       serverGuide: "在伺服器上執行 Pine",

@@ -106,7 +106,10 @@ import {
   createPowerBlocker,
   registerRemoteKeepAwakeIpc,
 } from "./main/desktop/remoteKeepAwake";
-import { createLiveContext } from "./main/desktop/liveContext";
+import {
+  createLiveContext,
+  createWeChatVoiceTranscriber,
+} from "./main/desktop/liveContext";
 import { answerLiveContextOperation } from "./shared/liveContextAgent";
 import { answerLiveContextCapture } from "./main/liveContextCapture";
 import {
@@ -438,6 +441,15 @@ function wechatNotificationWindow(
 }
 
 /** What the shared application needs from Electron. */
+/** On-device transcription of WeChat voice messages, where it can run. */
+function wechatVoice(): Pick<PineHost, "transcribeVoice"> {
+  const transcribeVoice = createWeChatVoiceTranscriber({
+    uiLocale: currentAppLocale,
+    temporaryDirectory: path.join(app.getPath("temp"), "pine-wechat-voice"),
+  });
+  return transcribeVoice ? { transcribeVoice } : {};
+}
+
 function desktopHost(dataDirectory: string): PineHost {
   return {
     dataDirectory,
@@ -536,6 +548,7 @@ function desktopHost(dataDirectory: string): PineHost {
     },
     notifyWeChat: (notification) =>
       showWeChatNotification(notification, wechatNotificationWindow),
+    ...wechatVoice(),
     // Automation approvals appear in this app's windows.
     localAutomationApprovals: true,
   };

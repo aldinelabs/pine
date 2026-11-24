@@ -3,6 +3,7 @@ import type { AskUserQuestionParams } from "@pine/rpiv-ask-user-question";
 import { describe, expect, it } from "vitest";
 import { COMMANDS } from "../commandSpec";
 import {
+  naturalAskCommand,
   parseAnswers,
   parseCommand,
   resolveRef,
@@ -453,5 +454,35 @@ describe("resolveRef", () => {
     });
     expect(resolveRef(rows, "zzz")).toEqual({ kind: "none" });
     expect(resolveRef(rows, "  ")).toEqual({ kind: "none" });
+  });
+});
+
+describe("naturalAskCommand", () => {
+  it("reads a whole message of 批准/拒绝 NN as .y/.d NN", () => {
+    for (const text of [
+      "批准 12",
+      "批准12",
+      "同意 #12",
+      "批准 12。",
+      "Approve 12",
+      "批准 １２！",
+    ])
+      expect(naturalAskCommand(text)).toEqual(parseCommand(".y 12"));
+    for (const text of ["拒绝 34", "reject 34", "Deny #34."])
+      expect(naturalAskCommand(text)).toEqual(parseCommand(".d 34"));
+  });
+
+  it("ignores anything else, including numbers outside the ask range", () => {
+    for (const text of [
+      "批准",
+      "批准 1",
+      "批准 123",
+      "批准 12 然后继续",
+      "请批准 12",
+      "帮我 .y 12",
+      "批准 10",
+      "12",
+    ])
+      expect(naturalAskCommand(text)).toBeUndefined();
   });
 });

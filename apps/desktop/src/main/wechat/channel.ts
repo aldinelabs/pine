@@ -16,6 +16,17 @@ export interface ChannelInboundMedia {
   sizeBytes?: number;
   /** Opaque, secret reference passed back to `downloadMedia`. */
   ref: string;
+  /** A voice message: what the sender's client said about the recording. */
+  voice?: ChannelVoiceInfo;
+}
+
+export interface ChannelVoiceInfo {
+  /** 1 pcm, 2 adpcm, 3 feature, 4 speex, 5 amr, 6 silk, 7 mp3, 8 ogg-speex. */
+  encodeType?: number;
+  /** Hz. */
+  sampleRate?: number;
+  /** Milliseconds. */
+  playtimeMs?: number;
 }
 
 export interface ChannelInboundMessage {
