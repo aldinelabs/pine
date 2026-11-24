@@ -106,6 +106,7 @@ import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
 import type { AutomationApprovalRequest } from "@/shared/automation";
+import { isAssistantProject } from "@/shared/assistant";
 import {
   serializeAttachmentMessage,
   isPastedImageMimeType,
@@ -480,6 +481,10 @@ const highlightedIndex = ref(0);
 const chooserListId = `${messageId}-projects`;
 /** Only the composer whose chip is moving carries the name, so it is unique. */
 const PROJECT_MOVE_TRANSITION_NAME = "pine-draft-project";
+/** The Assistant reads no files, also while the quick composer targets it. */
+const takesFiles = computed(
+  () => !props.assistant && !isAssistantProject(props.projectId),
+);
 const canMention = computed(
   () =>
     !props.assistant &&
@@ -1245,7 +1250,7 @@ interface PastedImage {
 async function handlePaste(event: ClipboardEvent): Promise<void> {
   const files = Array.from(event.clipboardData?.files ?? []);
   // The Assistant reads no files; pasted text still goes in.
-  if (props.assistant) {
+  if (!takesFiles.value) {
     if (files.length > 0) event.preventDefault();
     return;
   }
@@ -1582,7 +1587,7 @@ function handleRootSubmit(event: Event): void {
                    focuses only an <input>, never this textarea, and a
                    disabled button lets the pointer through to it. -->
               <InputGroupAddon
-                v-if="!props.assistant"
+                v-if="takesFiles"
                 class="cursor-default self-end py-1.5 pl-2.5"
                 align="inline-start"
               >

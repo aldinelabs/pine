@@ -195,6 +195,28 @@ describe("tray menu", () => {
     expect(manage).toBe(keepAwake + 1);
   });
 
+  it("tells what the Assistant's dispatched sessions are doing", () => {
+    const status = (
+      state: typeof idle & {
+        assistant?: { running: number; awaitingApproval: number };
+      },
+      chinese = false,
+    ) =>
+      trayMenu(state, chinese)
+        .filter((entry) => entry.type === "status")
+        .map((entry) => entry.label);
+
+    expect(
+      status({ ...idle, assistant: { running: 0, awaitingApproval: 0 } }),
+    ).toEqual([]);
+    expect(
+      status({ ...idle, assistant: { running: 2, awaitingApproval: 1 } }),
+    ).toEqual(["Assistant: 2 running, 1 awaiting approval"]);
+    expect(
+      status({ ...idle, assistant: { running: 1, awaitingApproval: 0 } }, true),
+    ).toEqual(["助理：1 个任务运行中，0 个待审批"]);
+  });
+
   it("shows a paused WeChat account as switched off but switchable", () => {
     const wechat = trayMenu({ ...idle, wechatBound: true }, false).find(
       (entry) => entry.type === "toggle" && entry.action === "toggle-wechat",

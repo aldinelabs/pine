@@ -1,4 +1,5 @@
 import { nextTick } from "vue";
+import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { describe, expect, it, vi } from "vitest";
@@ -700,6 +701,17 @@ describe("ProjectSessionComposer", () => {
     expect(wrapper.emitted("submit")?.[0]?.[0]).toMatch(
       /<\/pine_attachments>$/,
     );
+  });
+
+  it("offers no attachments while the Assistant is the target", async () => {
+    const wrapper = mountComposer({
+      projectId: ASSISTANT_PROJECT_ID,
+      assistantTarget: true,
+    });
+    await flushPromises();
+
+    expect(wrapper.find('button[aria-label="添加附件"]').exists()).toBe(false);
+    wrapper.unmount();
   });
 
   it("selects a conversation from the reused session palette and attaches its JSONL file", async () => {

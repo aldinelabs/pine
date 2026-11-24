@@ -218,6 +218,8 @@ export class AssistantService {
   private writes: Promise<unknown> = Promise.resolve();
   /** The dispatch registry as last read or written. */
   private known: Promise<Record<string, Dispatch>> | undefined;
+  /** The same once read, for callers that cannot wait, such as the tray. */
+  private knownNow: Record<string, Dispatch> = {};
 
   constructor(private readonly core: PineCore) {}
 
@@ -239,9 +241,25 @@ export class AssistantService {
 
   dispatches(): Promise<Record<string, Dispatch>> {
     this.known ??= readJson(this.dispatchesFile(), DispatchesFileSchema).then(
-      (file) => file?.dispatches ?? {},
+      (file) => (this.knownNow = file?.dispatches ?? {}),
     );
     return this.known;
+  }
+
+  /**
+   * What the tray says of the Assistant: its dispatched sessions that work
+   * or wait for approval now. Reads what is already known, never the disk.
+   */
+  trayStatus(): { running: number; awaitingApproval: number } {
+    void this.dispatches().catch(() => undefined);
+    let running = 0;
+    let awaitingApproval = 0;
+    for (const id of Object.keys(this.knownNow)) {
+      const state = this.core.sessionActivity(id);
+      if (state === "running") running += 1;
+      else if (state === "awaiting-approval") awaitingApproval += 1;
+    }
+    return { running, awaitingApproval };
   }
 
   /** Whether the Assistant dispatched the session, for "From Assistant". */
@@ -258,6 +276,7 @@ export class AssistantService {
       const dispatches = Object.fromEntries(entries);
       await writeJson(this.dispatchesFile(), { version: 1, dispatches });
       this.known = Promise.resolve(dispatches);
+      this.knownNow = dispatches;
     });
     this.writes = write.catch(() => undefined);
     return write;

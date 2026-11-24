@@ -720,7 +720,8 @@ From top to bottom:
 The Assistant is one lasting conversation that belongs to no project: the user
 says what they need, it hands the work to a session in the right project and
 reports back. It never does the work itself. There is only one Assistant
-conversation; every message sent to the Assistant goes into it. If another window already shows it,
+conversation; every message sent to the Assistant, from the sidebar entry, the
+quick composer or WeChat, goes into it. If another window already shows it,
 that window comes forward instead.
 
 It is a session tab with these differences:
@@ -1422,7 +1423,10 @@ the user opens themselves do not pulse.
 A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
-then hands the new conversation to the main window. The context shows as a
+then hands the new conversation to the main window. Its project picker also
+offers "Assistant" ("Hands the work to the right project"): the message then
+goes to the Assistant's conversation, without the captured context, and
+the attachments ("+") menu goes away (files already attached are removed). The context shows as a
 strip above the input: from the moment the composer appears, a grey placeholder
 holds its place while the app is captured, and the screenshot, app and window
 name fill it in once ready. The × button at the strip's right end, or Backspace
@@ -1454,7 +1458,9 @@ for Browser access, Remote Control via Aldine and
 connected), a "WeChat: scan again needed" line when WeChat's login has to be
 renewed, a "Keep computer awake for remote control" checkbox (the same
 setting as in Settings › Remote control), "Manage more settings…" (opens
-Pine Settings › Remote control), a count of running sessions while any run,
+Pine Settings › Remote control), while sessions the Assistant dispatched are
+working a line such as "Assistant: 2 running, 1 awaiting approval", a count of
+running sessions while any run,
 and Quit Pine. Quitting from the menu is the way to stop automations, Remote Control and WeChat remote.
 
 ## Keyboard shortcuts

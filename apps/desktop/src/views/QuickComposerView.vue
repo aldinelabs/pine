@@ -8,6 +8,7 @@ import {
   provide,
   ref,
   useTemplateRef,
+  watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -18,6 +19,7 @@ import { DRAFT_PROJECT_OPENER_KEY } from "@/composables/useDraftProjectOpener";
 import type { PineApprovalMode } from "@/shared/agent";
 import type { PineAttachment } from "@/shared/attachments";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
+import { isAssistantProject } from "@/shared/assistant";
 import { childrenLayoutBounds, layoutRect } from "@/lib/layoutRect";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import {
@@ -46,6 +48,10 @@ const cardElement = useTemplateRef<HTMLElement>("card");
 const projectId = ref<string>(TEMPORARY_WORKSPACE_PROJECT_ID);
 const draft = ref("");
 const attachments = ref<PineAttachment[]>([]);
+// The Assistant reads no files, so choosing it lets go of those attached.
+watch(projectId, (id) => {
+  if (isAssistantProject(id)) attachments.value = [];
+});
 const approvalMode = ref<PineApprovalMode>("auto-approve");
 /**
  * The controls below the input sit in from the card's round corners, and
@@ -227,7 +233,10 @@ async function submit(
       message,
       approvalMode: approvalMode.value,
       projectId: projectId.value,
-      withContext: context.value.length > 0 || contextPending.value,
+      // The Assistant reads no files, so what was captured stays behind.
+      withContext:
+        !isAssistantProject(projectId.value) &&
+        (context.value.length > 0 || contextPending.value),
       ...(options?.background ? { background: true } : {}),
       composerRect: {
         x: rect.x,
@@ -425,6 +434,7 @@ useEventListener(window, "keydown", (event: KeyboardEvent) => {
         :rows-animate="contextAnimates"
         :edge-inset="!isExpanding"
         background-send
+        assistant-target
         @dismiss-context="dismissContext"
         @select-project="projectId = $event"
         @submit="submit"

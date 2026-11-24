@@ -169,6 +169,21 @@ describe("the Assistant's dispatches", () => {
     );
   });
 
+  it("counts its dispatched sessions' work for the tray", async () => {
+    const { core, service } = await fixture();
+    expect(service.trayStatus()).toEqual({ running: 0, awaitingApproval: 0 });
+
+    await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+    expect(service.trayStatus()).toEqual({ running: 1, awaitingApproval: 0 });
+    (
+      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
+    ).sessionActivity.mockReturnValue("awaiting-approval");
+    expect(service.trayStatus()).toEqual({ running: 0, awaitingApproval: 1 });
+  });
+
   it("reports each turn of a dispatched session back to the Assistant", async () => {
     const { service, agentHost, runtimes } = await fixture();
     await service.answer(
