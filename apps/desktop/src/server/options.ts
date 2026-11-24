@@ -73,6 +73,8 @@ WeChat remote:
     --allow-high-risk <yes|no>   Approve privileged and destructive requests
                               from WeChat
     --allow-files <yes|no>    Send files the agent presented to WeChat
+    --plain-text <assistant|session>  Where plain WeChat text goes: Pine's
+                              Assistant, or the current session
     --language <zh|en|auto>   Language of the replies in WeChat
     --pause                   Stop acting on WeChat messages
     --resume                  Act on WeChat messages again
@@ -185,6 +187,7 @@ const WECHAT_CONFIG_OPTIONS = [
   "default-project",
   "allow-high-risk",
   "allow-files",
+  "plain-text",
   "language",
   "pause",
   "resume",
@@ -206,6 +209,7 @@ function readWeChatCommand(
       "default-project": { type: "string" },
       "allow-high-risk": { type: "string" },
       "allow-files": { type: "string" },
+      "plain-text": { type: "string" },
       language: { type: "string" },
       pause: { type: "boolean" },
       resume: { type: "boolean" },
@@ -254,6 +258,14 @@ function readWeChatCommand(
     );
   if (values["allow-files"] !== undefined)
     patch.allowFileSending = yesNo("--allow-files", values["allow-files"]);
+  const plainText = values["plain-text"]?.trim().toLowerCase();
+  if (plainText !== undefined) {
+    if (plainText !== "assistant" && plainText !== "session")
+      throw new Error(
+        `--plain-text must be assistant or session, got "${values["plain-text"]}".`,
+      );
+    patch.plainTarget = plainText;
+  }
 
   const action: WeChatAction = { kind: "config", patch };
   if (values.language !== undefined) {

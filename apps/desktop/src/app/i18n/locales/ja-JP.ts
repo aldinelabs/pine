@@ -266,6 +266,11 @@ export default {
       defaultProject: "既定のプロジェクト",
       defaultProjectDescription:
         "WeChat から作成したセッションを開始する場所です。",
+      plainTarget: "通常のメッセージの送り先",
+      plainTargetDescription:
+        "ドットコマンド以外の WeChat メッセージの送り先です。アシスタントはどのプロジェクトでもセッションを始めて結果を報告できます。WeChat から .u と .home でも切り替えられます。",
+      plainTargetAssistant: "アシスタント",
+      plainTargetSession: "現在のセッション",
       ceiling: "最も緩い承認モード",
       ceilingDescription:
         "WeChat から操作するセッションは、これより監督の少ないモードでは動きません。",
@@ -290,7 +295,7 @@ export default {
       noteOneComputer:
         "1 つの WeChat アカウントは 1 台のコンピュータにだけ接続できます。",
       noteHelp:
-        "WeChat で .help（または .?）を送るとコマンド一覧が表示されます。そのまま送ったテキストは現在のセッションに届きます。",
+        "WeChat で .help（または .?）を送るとコマンド一覧が表示されます。そのまま送ったテキストは「通常のメッセージの送り先」に届きます。カード 12 を承認するには 批准 12 または .y 12 と返信します。",
       noteStale:
         "送信から 10 分以上たって Pine に届いたタスクは、WeChat で確認するまで実行されません。",
       serverGuide: "サーバーで Pine を実行",

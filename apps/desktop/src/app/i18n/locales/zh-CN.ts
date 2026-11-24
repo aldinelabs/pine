@@ -250,6 +250,11 @@ export default {
         "只由微信持有的会话会停止，微信的权限设置会恢复为默认值。",
       defaultProject: "默认项目",
       defaultProjectDescription: "从微信新建的会话在这里开始。",
+      plainTarget: "普通消息发给",
+      plainTargetDescription:
+        "不是点命令的微信消息发到哪里。助理可以在任意项目里开会话并回报结果；在微信里也能用 .u 和 .home 切换。",
+      plainTargetAssistant: "助理",
+      plainTargetSession: "当前会话",
       ceiling: "最高审批模式",
       ceilingDescription: "由微信驱动的会话，监管程度不会低于这一档。",
       yoloWarning: "选择“干就完了”后，任何进入你微信账号的人都能控制这台电脑。",
@@ -268,7 +273,7 @@ export default {
       noteNetwork: "代理或境外网络出口可能被拦截。",
       noteOneComputer: "一个微信账号只能连接一台电脑。",
       noteHelp:
-        "在微信里发送 .help（或 .?）查看命令，直接发文字会发给当前会话。",
+        "在微信里发送 .help（或 .?）查看命令；直接发文字会发到“普通消息发给”选的地方，回复 批准 12 或 .y 12 即可批准 12 号卡片。",
       noteStale:
         "发出超过 10 分钟才到达 Pine 的任务，要在微信里确认后才会执行。",
       serverGuide: "在服务器上运行 Pine",

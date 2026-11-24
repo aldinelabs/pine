@@ -81,6 +81,7 @@ export function formatWeChatSettings(
     `Default project: ${defaultProject}`,
     `Allow high-risk approvals: ${yesNo(settings.allowHighRiskApprovals)}`,
     `Send files to WeChat: ${yesNo(settings.allowFileSending)}`,
+    `Plain text goes to: ${settings.plainTarget === "assistant" ? "the Assistant" : "the current session"}`,
     `Reply language: ${language}`,
   ];
   if (settings.ceilingMode === "YOLO")

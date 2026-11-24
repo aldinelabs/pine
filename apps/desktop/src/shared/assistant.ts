@@ -13,6 +13,19 @@ export const ASSISTANT_DISPLAY_NAME = {
 } as const;
 
 /**
+ * Product decisions still open (docs/orchestrator-proposal.md §5), kept
+ * together so a later answer changes one place. One Assistant per Pine
+ * user, no web search for it and the user's default model are not settings:
+ * they follow from how the Assistant is built.
+ */
+export const ASSISTANT_DECISIONS = {
+  /** Where plain WeChat text goes for someone who connects WeChat now. */
+  wechatPlainTargetForNewSetups: "assistant",
+  /** …and for someone whose WeChat remote was set up before the Assistant. */
+  wechatPlainTargetForExistingSetups: "session",
+} as const;
+
+/**
  * The Assistant lives in a hidden built-in project with fixed ids, so it
  * reuses project runtimes and session storage. Its data sits in the data
  * directory's `assistant/` folder, beside `projects/`, so project listings
@@ -40,6 +53,9 @@ export const ASSISTANT_APPROVAL_MODE: PineApprovalMode = "auto-approve";
 export function isAssistantProject(projectId: string | undefined): boolean {
   return projectId === ASSISTANT_PROJECT_ID;
 }
+
+/** Where an Assistant turn came from: dispatches of a WeChat turn stay within WeChat's limits. */
+export type AssistantTurnSource = "wechat" | "desktop";
 
 export const PINE_OVERVIEW_TOOL_NAME = "pine_overview" as const;
 export const DISPATCH_TASK_TOOL_NAME = "dispatch_task" as const;

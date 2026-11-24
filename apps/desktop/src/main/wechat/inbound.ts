@@ -31,7 +31,12 @@ import type {
   HandlerRegistry,
 } from "./handlers/types";
 import type { Outbound } from "./outbound";
-import { autoActionOf, parseCommand, splitAskPrefix } from "./parseCommand";
+import {
+  autoActionOf,
+  naturalAskCommand,
+  parseCommand,
+  splitAskPrefix,
+} from "./parseCommand";
 import type { InboundAttachmentsApi, WeChatCorePorts } from "./ports";
 import type { RateLimits } from "./rateLimit";
 import { joinReplies, parseMode, render } from "./replies";
@@ -149,11 +154,18 @@ export function toStoredInbound(message: ChannelInboundMessage): StoredInbound {
   return entry;
 }
 
-/** How an entry reads: a transcript is always a plain message. */
+/**
+ * How an entry reads: a transcript is always a plain message. Typed text
+ * that is exactly "批准 12" / "拒绝 12" reads as `.y 12` / `.d 12` here, in
+ * the bridge, so it never reaches a model and goes through every gate of
+ * the command (stale rule, priority lane, card checks).
+ */
 export function classify(entry: StoredInbound): Parsed | undefined {
   if (entry.text === undefined) return undefined;
   if (entry.voice) return { kind: "message", text: entry.text };
-  return parseCommand(entry.text);
+  const parsed = parseCommand(entry.text);
+  if (parsed.kind !== "message") return parsed;
+  return naturalAskCommand(parsed.text) ?? parsed;
 }
 
 /** Too old, without a usable time, or dated in the future. */
@@ -693,9 +705,17 @@ export class InboundPipeline {
   ): Promise<number | undefined> {
     const digest = this.digest;
     this.digest = undefined;
-    const message = joinReplies(digest, text);
+    const intro =
+      text !== undefined && this.deps.store.get().routeIntro === "due"
+        ? render("R-ASSISTANT-INTRO", this.deps.lang())
+        : undefined;
+    const message = joinReplies(digest, text, intro);
     if (!message) return undefined;
     const sentAt = await this.deps.outbound.reply(message);
+    if (sentAt !== undefined && intro !== undefined)
+      await this.deps.store.update((draft) => {
+        draft.routeIntro = "sent";
+      });
     if (
       sentAt === undefined &&
       digest !== undefined &&

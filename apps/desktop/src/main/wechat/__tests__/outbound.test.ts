@@ -61,6 +61,7 @@ function memoryStore(): WeChatStateStore {
     reloadSecure: () => Promise.resolve("ok"),
     reloadLanguage: () => Promise.resolve(),
     legacyKeepAwake: () => false,
+    legacyPlainTarget: () => false,
     clearBinding: () => Promise.resolve(),
   };
 }

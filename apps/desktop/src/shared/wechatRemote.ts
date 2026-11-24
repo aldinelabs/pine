@@ -1,4 +1,5 @@
 import { APPROVAL_MODE_ORDER, type PineApprovalMode } from "./agent";
+import { ASSISTANT_DECISIONS } from "./assistant";
 
 /** The WeChat bridge's place among the clients that hold project runtimes. */
 export const WECHAT_CLIENT_ID = -2;
@@ -35,6 +36,12 @@ export const WECHAT_REQUEST_CHANNELS = [
   SET_WECHAT_SETTINGS_CHANNEL,
 ] as const;
 
+/**
+ * Where plain WeChat text goes: Pine's Assistant, or straight to the current
+ * session as before the Assistant existed. Dot commands never depend on it.
+ */
+export type WeChatPlainTarget = "assistant" | "session";
+
 /** What the bound WeChat account may do on this computer. */
 export interface WeChatSettings {
   /** The least supervised approval mode a session driven from WeChat may use. */
@@ -47,6 +54,8 @@ export interface WeChatSettings {
   allowHighRiskApprovals: boolean;
   /** Lets WeChat receive files the agent presented. */
   allowFileSending: boolean;
+  /** Where plain text goes; `.u` and `.home` switch it until the next change here. */
+  plainTarget: WeChatPlainTarget;
 }
 
 /** `defaultProjectId: null` clears the field (back to "No Project"); `undefined` leaves it. */
@@ -59,6 +68,7 @@ export const DEFAULT_WECHAT_SETTINGS: WeChatSettings = {
   defaultMode: "auto-approve",
   allowHighRiskApprovals: false,
   allowFileSending: false,
+  plainTarget: ASSISTANT_DECISIONS.wechatPlainTargetForNewSetups,
 };
 
 function modeRank(mode: PineApprovalMode): number {
@@ -87,6 +97,7 @@ export function applyWeChatSettingsPatch(
   if (patch.allowFileSending !== undefined) {
     next.allowFileSending = patch.allowFileSending;
   }
+  if (patch.plainTarget !== undefined) next.plainTarget = patch.plainTarget;
   if (patch.defaultProjectId === null) {
     delete next.defaultProjectId;
   } else if (patch.defaultProjectId !== undefined) {

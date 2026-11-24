@@ -1203,7 +1203,14 @@ the user opens themselves do not pulse.
     "Scan again" when needed, "Disconnect" (asks first: sessions only WeChat
     holds stop and the WeChat permission settings return to their defaults),
     "Receive tasks from WeChat" (off pauses it; only this computer can turn
-    it back on), "Default project" (projects or "No Project"), "Highest
+    it back on), "Plain messages go to" ("Assistant" or "Current session":
+    where a WeChat message that is not a dot command goes; the Assistant can
+    start sessions in any project, relays their approval cards and reports
+    back, while results of the sessions it started arrive as the usual
+    pushes; new connections start on Assistant, connections made before the
+    Assistant existed stay on Current session and get a one-time note in
+    WeChat; in WeChat `.u` talks to a session directly and `.home` (or 助理)
+    goes back to the Assistant), "Default project" (projects or "No Project"), "Highest
     approval mode" (Let Me Review, Auto Approve, Autonomous Work, YOLO, with
     a warning under YOLO; choosing YOLO asks for confirmation first),
     "Default approval mode" (only modes within the
@@ -1217,7 +1224,10 @@ the user opens themselves do not pulse.
     and the computer is awake, messages pass through Tencent's servers, the
     account can read session titles, search results and replies of every project, a proxy may be
     blocked, one WeChat account connects to one computer, in WeChat .help
-    (or .?) lists the commands and plain text goes to the current session,
+    (or .?) lists the commands, plain text goes where "Plain messages go
+    to" says, and replying 批准 12 or .y 12 approves card 12 (拒绝 12 or .d 12
+    rejects it; only the whole message counts, never a voice message, and
+    the Assistant can never approve),
     and tasks that reach Pine more than 10 minutes after they were sent wait
     until they are confirmed in WeChat. Below the notes, the "Run Pine on a
     server" row has a "View docs" button that opens the server guide. If the

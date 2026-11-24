@@ -434,7 +434,7 @@ describe("WeChat remote settings", () => {
     });
     await flushPromises();
     const defaultModes = () =>
-      selectOf(wrapper, 2)
+      selectOf(wrapper, 3)
         .findAll("[data-option]")
         .map((option) => option.attributes("data-value"));
     expect(
@@ -473,7 +473,7 @@ describe("WeChat remote settings", () => {
     );
     await flushPromises();
 
-    const projectOptions = selectOf(wrapper, 0)
+    const projectOptions = selectOf(wrapper, 1)
       .findAll("[data-option]")
       .map((option) => option.text());
     expect(projectOptions).toEqual(["No Project", "Website"]);
@@ -485,12 +485,20 @@ describe("WeChat remote settings", () => {
       patches.push(patch);
       expect(setWeChatSettings).toHaveBeenLastCalledWith(patch);
     };
+    expect(
+      selectOf(wrapper, 0)
+        .findAll("[data-option]")
+        .map((option) => option.text()),
+    ).toEqual(["Assistant", "Current session"]);
+    await expectPatch({ plainTarget: "session" }, () =>
+      selectOf(wrapper, 0).vm.$emit("update:modelValue", "session"),
+    );
     await expectPatch({ defaultProjectId: "p1" }, () =>
-      selectOf(wrapper, 0).vm.$emit("update:modelValue", "p1"),
+      selectOf(wrapper, 1).vm.$emit("update:modelValue", "p1"),
     );
     // YOLO waits for the confirmation dialog.
     const before = setWeChatSettings.mock.calls.length;
-    selectOf(wrapper, 1).vm.$emit("update:modelValue", "YOLO");
+    selectOf(wrapper, 2).vm.$emit("update:modelValue", "YOLO");
     await flushPromises();
     expect(setWeChatSettings).toHaveBeenCalledTimes(before);
     expect(document.body.textContent).toContain(
@@ -500,7 +508,7 @@ describe("WeChat remote settings", () => {
       byTestId<HTMLButtonElement>("pine-wechat-confirm-yolo")!.click(),
     );
     await expectPatch({ defaultMode: "let-me-review" }, () =>
-      selectOf(wrapper, 2).vm.$emit("update:modelValue", "let-me-review"),
+      selectOf(wrapper, 3).vm.$emit("update:modelValue", "let-me-review"),
     );
     await expectPatch({ allowHighRiskApprovals: true }, () =>
       switchOf(wrapper, "pine-wechat-high-risk").vm.$emit(
@@ -520,9 +528,9 @@ describe("WeChat remote settings", () => {
 
     // "No Project" clears the default project instead of naming one.
     await push(withSettings({ defaultProjectId: "p1" }));
-    expect(selectOf(wrapper, 0).attributes("data-value")).toBe("p1");
+    expect(selectOf(wrapper, 1).attributes("data-value")).toBe("p1");
     await expectPatch({ defaultProjectId: null }, () =>
-      selectOf(wrapper, 0).vm.$emit("update:modelValue", "no-project"),
+      selectOf(wrapper, 1).vm.$emit("update:modelValue", "no-project"),
     );
     wrapper.unmount();
   });

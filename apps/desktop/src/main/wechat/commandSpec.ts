@@ -196,6 +196,18 @@ export const COMMANDS: readonly CommandSpec[] = [
     example: ".u 2",
   }),
   row({
+    name: "home",
+    zhAliases: ["助理"],
+    cls: "M",
+    stale: "drop",
+    params: "",
+    summary: {
+      zh: "普通消息改回发给助理（.u 直连某个会话）",
+      en: "Send plain text to the Assistant again (.u talks to a session directly)",
+    },
+    example: ".home",
+  }),
+  row({
     name: "last",
     aliases: ["r", "result"],
     zhAliases: ["结果"],

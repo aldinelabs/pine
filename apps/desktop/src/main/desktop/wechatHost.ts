@@ -50,6 +50,7 @@ export const wechatSettingsPatchSchema: z.ZodType<WeChatSettingsPatch> = z
     defaultProjectId: z.uuid().nullable().optional(),
     allowHighRiskApprovals: z.boolean().optional(),
     allowFileSending: z.boolean().optional(),
+    plainTarget: z.enum(["assistant", "session"]).optional(),
   })
   .strict();
 
