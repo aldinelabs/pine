@@ -9,6 +9,23 @@ Every release section here has a matching section in the Chinese changelog.
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-11-24
+
+### Added
+
+- **Wrong-language reminder**: When Live Context hears speech in a language other than the one selected for recognition (an English lecture with Chinese selected, say), it shows "Sounds like …" above the controls; "Switch to …" carries on transcribing in that language and keeps the transcript so far, and × hides the reminder for the rest of the session.
+
+### Changed
+
+- **Clearer far-off speakers**: Live Context raises quiet far-field audio before transcribing it, so a lecturer heard from the back of a room loses far fewer words; close speech is unaffected.
+- **One-time tips fold in and out**: A tip unfolds and fades in when it appears, and fades and folds away after "Show me" or "Got it", with what's around it following smoothly instead of jumping.
+- **Dock icon stays**: While Pine keeps running in the menu bar after you close its main window, its Dock icon and running indicator stay too.
+
+### Fixed
+
+- Moving a project's default folder into a subfolder of the old default made saving the project fail with an update error; folders that contain or sit inside the new default are now removed automatically, and a duplicate or nested folder is explained when saving.
+- With a file open in the preview, the Version history button and new versions appeared only after closing and reopening the preview when the agent submitted that file; they now appear at once.
+
 ## [0.24.0] - 2026-11-22
 
 > **Highlights**: Illustrated guides explain Pine's features, opened from buttons in menus, settings and managers or from the Guides overview in the sidebar, with one-time tips where a feature first appears; Settings gains an About page with open-source licenses; artifacts can be filed into folders; the quick composer can send in the background and notify you when the answer is ready; images can be generated with your ChatGPT plan.
