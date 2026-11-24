@@ -64,6 +64,7 @@ import type {
 import {
   questionCardAnswerable,
   render,
+  renderAssistantBubbles,
   renderAssistantPages,
   type ReplyData,
   type SessionRef,
@@ -1002,12 +1003,18 @@ export class SessionDirectory {
     }
     const [first, ...rest] = renderAssistantPages(lang, result.text);
     if (first === undefined) return;
-    this.deps.pager?.set(rest);
+    const bubbles = renderAssistantBubbles(lang, result.text);
+    const pager = this.deps.pager;
+    // Bubbles leave nothing for `.more`; the single form may, once it is sent.
+    pager?.set(bubbles ? [] : rest);
     this.deps.outbound.push({
       key: `result:${sessionId}`,
       priority: 2,
       text: first,
       digest: { kind: "done", title: assistantLabel(lang) },
+      ...(bubbles
+        ? { bubbles, ...(pager ? { onSingle: () => pager.set(rest) } : {}) }
+        : {}),
     });
   }
 

@@ -7,6 +7,10 @@ import {
   ASSISTANT_CLIENT_ID,
   ASSISTANT_PROJECT_ID,
 } from "../../../shared/assistant";
+import {
+  markWeChatMessage,
+  readAssistantMessage,
+} from "../../../agent/assistant/prompt";
 import type { PineProject } from "../../../shared/projects";
 import type { PineTextMessage } from "../../../shared/sessions";
 import { AssistantService, ASSISTANT_WAKES_ON_REPORT } from "../assistant";
@@ -270,7 +274,8 @@ describe("the Assistant from WeChat", () => {
     expect(runtimes.prompt).toHaveBeenCalledWith(
       ASSISTANT_CLIENT_ID,
       expect.objectContaining({
-        message: "帮我修一下博客首页",
+        // Marked as typed in WeChat, for the prompt's WeChat style.
+        message: "[WeChat]\n帮我修一下博客首页",
         target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
         approvalMode: "auto-approve",
       }),
@@ -302,10 +307,33 @@ describe("the Assistant from WeChat", () => {
           projectId: ASSISTANT_PROJECT_ID,
           sessionId: ASSISTANT_SESSION,
         },
+        message: markWeChatMessage("再加一句"),
         streamingBehavior: "steer",
       }),
       { focus: false },
     );
+  });
+
+  it("marks only what came from WeChat", async () => {
+    const { runtimes, service } = await fixture();
+    const lastMessage = (message: string) =>
+      expect(runtimes.prompt).toHaveBeenLastCalledWith(
+        ASSISTANT_CLIENT_ID,
+        expect.objectContaining({ message }),
+        { focus: false },
+      );
+    await service.send("看看现在在跑啥", {
+      locale: "zh-CN",
+      source: "desktop",
+    });
+    lastMessage("看看现在在跑啥");
+    await service.send("看看现在在跑啥", { locale: "zh-CN", source: "wechat" });
+    const marked = markWeChatMessage("看看现在在跑啥");
+    lastMessage(marked);
+    expect(readAssistantMessage(marked)).toEqual({
+      text: "看看现在在跑啥",
+      fromWeChat: true,
+    });
   });
 
   it("dispatches a WeChat turn's work within the WeChat ceiling and reports it", async () => {

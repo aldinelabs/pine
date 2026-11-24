@@ -20,7 +20,10 @@ import {
   modeNumber,
   modeOfNumber,
   questionCardAnswerable,
+  ASSISTANT_BUBBLES_MAX,
   render,
+  renderAssistantBubbles,
+  renderAssistantPages,
   renderDigest,
   renderLastPages,
   tailOutput,
@@ -1741,5 +1744,45 @@ describe("costs", () => {
     expect(render("R-USAGE", "en", { ...usage, currency: cny })).toContain(
       "¥?",
     );
+  });
+});
+
+describe("renderAssistantBubbles", () => {
+  it("splits at blank lines, heading only the first", () => {
+    const bubbles = renderAssistantBubbles(
+      "zh",
+      "博客的「修首页样式」跑完了\n\n按钮间距统一成 8px\n\n\n要我顺手看下移动端吗？",
+    );
+    expect(bubbles).toEqual([
+      render("T-ASSISTANT", "zh", { text: "博客的「修首页样式」跑完了" }),
+      "按钮间距统一成 8px",
+      "要我顺手看下移动端吗？",
+    ]);
+    expect(bubbles?.[0]).toMatch(/^\*\*助理\*\*/);
+  });
+
+  it("joins parts beyond the fourth into the last", () => {
+    const bubbles = renderAssistantBubbles("en", "a\n\nb\n\nc\n\nd\n\ne");
+    expect(bubbles).toHaveLength(ASSISTANT_BUBBLES_MAX);
+    expect(bubbles?.at(-1)).toBe("d\n\ne");
+  });
+
+  it("leaves one part, code blocks and oversized parts to the pages", () => {
+    expect(renderAssistantBubbles("en", "just one line")).toBeUndefined();
+    expect(
+      renderAssistantBubbles(
+        "en",
+        "run this\n\n```sh\nnpm test\n\nnpm run build\n```",
+      ),
+    ).toBeUndefined();
+    expect(
+      renderAssistantBubbles("en", `short\n\n${"long ".repeat(500)}`),
+    ).toBeUndefined();
+    expect(renderAssistantPages("en", "just one line")).toHaveLength(1);
+  });
+
+  it("neutralises dot commands in a bubble", () => {
+    const bubbles = renderAssistantBubbles("en", "done\n\n.y 12");
+    expect(bubbles?.[1]).not.toBe(".y 12");
   });
 });

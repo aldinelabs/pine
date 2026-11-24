@@ -47,7 +47,7 @@ main/core/pineCore.ts          main/desktop/wechatHost.ts（仅 Electron：IPC�
 
 不以点开头的文字（包括带转写的语音）先看路由：`state.route` 有值时用它，否则用密封设置里的 `plainTarget`（“Plain messages go to”，`pine-server wechat config --plain-text assistant|session`）。没有助理（`ports.assistant` 不存在）时总是发给当前会话。
 
-- **助理**（`assistant`）：文字原样交给 `ports.assistant.send`，以助理的虚拟客户端（`ASSISTANT_CLIENT_ID = -3`）发出，上限是本机的“Highest approval mode”；助理正在运行时作为 steering。桥接器只显示“输入中”，助理这一轮的回复按 `T-ASSISTANT` 推送（优先级 2，过长时分页给 `.more`），失败时 `T-ASSISTANT-FAILED`；它不记为最新推送。暂存的附件不交给助理（`E-ASSIST-FILES`，附件保留），只有引用没有文字时 `E-QUOTE`。
+- **助理**（`assistant`）：文字交给 `ports.assistant.send`，由核心在第一行加上 `[WeChat]` 标记（`markWeChatMessage`，提示词据此用微信的说话方式；桌面显示用 `readAssistantMessage` 去掉），以助理的虚拟客户端（`ASSISTANT_CLIENT_ID = -3`）发出，上限是本机的“Highest approval mode”；助理正在运行时作为 steering。桥接器只显示“输入中”，助理这一轮的回复按空行拆成最多 4 条微信消息（`renderAssistantBubbles`，第一条带 `T-ASSISTANT` 标题），优先级 2，不与其他推送合并、排在同一窗口的卡片之后；每条都计入额度，并且发完后至少留一次卡片能用的额度，不够时把后面几条合成一条，再不够或含代码块、某条超长时退回单条 `T-ASSISTANT`（过长时分页给 `.more`），失败时 `T-ASSISTANT-FAILED`；它不记为最新推送。暂存的附件不交给助理（`E-ASSIST-FILES`，附件保留），只有引用没有文字时 `E-QUOTE`。
 - 助理派出的会话（`sessionDispatched`）被跟踪为 `dispatched`：审批卡片、完成（`T-DONE`）、失败和摘要都走原有模板，不唤醒助理。窗口没有打开的项目也一样，回应经 `responder` 落到 `-3`。
 - `.u` 把路由改成 `session`，直连那个会话；`.new` 带文字时同样；`.home`（`.助理`）改回 `assistant`。修改 `plainTarget` 时清掉 `state.route`。
 - 新绑定的微信默认 `assistant`；密封数据里没有 `plainTarget` 且已绑定（助理出现之前的配置）时读作 `session`，并在下一条回复末尾附一次 `R-ASSISTANT-INTRO`（`routeIntro`: `due` → `sent`）。

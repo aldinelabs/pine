@@ -30,6 +30,7 @@ import {
 } from "../../shared/sessions";
 import { isVirtualClient } from "../../shared/webControl";
 import { listProjectSessions } from "../recentSessions";
+import { markWeChatMessage } from "../../agent/assistant/prompt";
 import type { PineCore } from "./pineCore";
 import { sessionLibrary, startBackgroundSession } from "./requests/sessions";
 import { messageText } from "./subSessions";
@@ -576,6 +577,10 @@ export class AssistantService {
   ): Promise<{ sessionId: string; projectId: string }> {
     const { runtimes } = this.core;
     await this.holdAssistant();
+    // The prompt picks its WeChat style by this mark; displays strip it
+    // with readAssistantMessage.
+    const text =
+      options.source === "wechat" ? markWeChatMessage(message) : message;
     this.turn = {
       source: options.source,
       ...(options.ceiling ? { ceiling: options.ceiling } : {}),
@@ -585,7 +590,7 @@ export class AssistantService {
         ASSISTANT_CLIENT_ID,
         {
           locale: options.locale,
-          message,
+          message: text,
           target: {
             kind: "session",
             projectId: ASSISTANT_PROJECT_ID,
@@ -602,7 +607,7 @@ export class AssistantService {
       ASSISTANT_CLIENT_ID,
       {
         locale: options.locale,
-        message,
+        message: text,
         target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
         approvalMode: ASSISTANT_APPROVAL_MODE,
       },

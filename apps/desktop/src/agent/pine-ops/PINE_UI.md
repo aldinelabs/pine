@@ -1206,7 +1206,7 @@ the user opens themselves do not pulse.
     it back on), "Plain messages go to" ("Assistant" or "Current session":
     where a WeChat message that is not a dot command goes; the Assistant can
     start sessions in any project, relays their approval cards and reports
-    back, while results of the sessions it started arrive as the usual
+    back, its WeChat replies arriving as up to four short messages, while results of the sessions it started arrive as the usual
     pushes; new connections start on Assistant, connections made before the
     Assistant existed stay on Current session and get a one-time note in
     WeChat; in WeChat `.u` talks to a session directly and `.home` (or 助理)

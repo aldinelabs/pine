@@ -80,6 +80,29 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     expect(h.assistantCalls).toHaveLength(1);
   });
 
+  it("sends a reply's blank-line parts as separate WeChat messages", async () => {
+    const h = await harness();
+    h.push("现在都在跑啥");
+    await waitFor(() => h.assistantCalls.length === 1);
+    const assistant = h.assistantSession();
+    h.running(assistant);
+    const before = h.texts().length;
+    h.finish(
+      assistant,
+      "博客的「修首页样式」还在跑\n\n别的都停了\n\n要我催一下吗？",
+    );
+    await waitFor(() => h.texts().length >= before + 3);
+    await h.settle();
+    const bubbles = after(h, before);
+    expect(bubbles).toHaveLength(3);
+    expect(bubbles[0]).toMatch(/^\*\*(Assistant|助理)\*\*/);
+    expect(bubbles[0]).toContain("还在跑");
+    expect(bubbles[1]).toBe("别的都停了");
+    expect(bubbles[2]).toBe("要我催一下吗？");
+    // Nothing is left for .more.
+    expect(await h.say(".more")).not.toContain("别的都停了");
+  });
+
   it("takes 批准 NN as the bridge's own .y NN", async () => {
     const h = await harness();
     h.push("修首页");
