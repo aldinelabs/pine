@@ -3,7 +3,10 @@ import type { BrowserWindow, Rectangle } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const workArea = { x: 0, y: 25, width: 1512, height: 920 };
+const dockBounce = vi.hoisted(() => vi.fn());
+
 vi.mock("electron", () => ({
+  app: { dock: { bounce: dockBounce } },
   screen: {
     getCursorScreenPoint: () => ({ x: 10, y: 10 }),
     getDisplayNearestPoint: () => ({ workArea }),
@@ -402,6 +405,10 @@ describe("QuickComposerController", () => {
 
     expect(controller.submit({ ...request, background: true })).toBeNull();
     expect(panel.visible).toBe(false);
+    if (process.platform === "darwin") {
+      // The Dock bounces once to say the message was taken.
+      expect(dockBounce).toHaveBeenCalledExactlyOnceWith("informational");
+    }
     await expect(taken).resolves.toEqual({
       message: "Hello",
       approvalMode: "auto-approve",

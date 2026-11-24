@@ -1,4 +1,5 @@
 import {
+  app,
   screen,
   systemPreferences,
   type BrowserWindow,
@@ -408,6 +409,9 @@ export class QuickComposerController {
       target.kept = true;
     }
     this.hide();
+    // One informational Dock bounce: the message was taken and is being
+    // answered out of sight.
+    if (process.platform === "darwin") app.dock?.bounce("informational");
     const send = (context: PineAttachment[]) => {
       const handoff: QuickComposerHandoff = {
         message: request.message,

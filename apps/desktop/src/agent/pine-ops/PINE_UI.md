@@ -1382,8 +1382,9 @@ or \ in an empty message, removes it, also while it is still a placeholder;
 what was being captured is then thrown away. Files, pasted images and long
 pasted text can be attached before the conversation opens in a window. Enter
 opens the conversation in a window. Control+Enter (Alt+Enter on Windows and
-Linux) sends it in the background instead: the composer disappears at once and
-no window comes forward. Context still being captured is waited for and sent
+Linux) sends it in the background instead: the composer disappears at once, no
+window comes forward, and on macOS the Dock icon bounces once to confirm it was
+sent. Context still being captured is waited for and sent
 along. When Pine has answered, a system notification titled with the
 conversation shows the start of the reply (or says the answer could not be
 finished); clicking it opens Pine at that conversation. This notification comes
