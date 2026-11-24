@@ -86,6 +86,7 @@ import { answerAutomationOperation } from "./requests/automations";
 import { answerMcpOperation, listMcpCatalog } from "./requests/mcp";
 import { agentHostProject, answerProjectOperation } from "./requests/projects";
 import { notifyParentOf, unlinkSession } from "./subSessions";
+import { AssistantService } from "./assistant";
 import {
   answerSessionOperation,
   sessionLibrary,
@@ -124,6 +125,8 @@ export class PineCore {
   readonly remote: RemoteHost;
   /** Lets the bound WeChat account send tasks to Pine. */
   readonly wechat: WeChatBridge;
+  /** Pine's Assistant: its tools, dispatches and reports (main/core/assistant.ts). */
+  readonly assistant: AssistantService;
   readonly presentedFiles = new PresentedFileRegistry();
   readonly workbenchStateRequests = new WorkbenchStateRequests();
   readonly modelRecommendations = new ModelRecommendationService();
@@ -398,6 +401,7 @@ export class PineCore {
     // WeChat calls the core directly, as its own client, never the router.
     this.runtimes.isWeChatSession = (sessionId) =>
       this.wechat.originOf(sessionId) !== undefined;
+    this.assistant = new AssistantService(this);
     this.wechat = new WeChatBridge({
       core: {
         runtimes: this.runtimes,
@@ -676,6 +680,11 @@ export class PineCore {
     void notifyParentOf(this, sessionId, state).catch((error: unknown) =>
       console.error("Failed to tell a session about its sub-session.", error),
     );
+    void this.assistant
+      .report(sessionId, state)
+      .catch((error: unknown) =>
+        console.error("Failed to tell the Assistant about a session.", error),
+      );
   }
 
   /** What a session is doing now, as its relatives see it. */
@@ -777,6 +786,7 @@ export class PineCore {
         void this.answerAutomationRequest(agentEvent, true);
       return;
     }
+    this.assistant.observe(agentEvent);
     const sideChat = this.runtimes.sideChatOf(agentEvent.sessionId);
     if (sideChat) {
       this.routeSideChatEvent(agentEvent, sideChat);
@@ -989,6 +999,20 @@ export class PineCore {
         sessionReply = { ok: false, error: toErrorMessage(error) };
       }
       this.agentHost.respondHostRequest(event.requestId, sessionReply);
+      return;
+    }
+    if (event.request.kind === "assistant") {
+      let assistantReply: AgentHostReply;
+      try {
+        const result = await this.assistant.answer(
+          { sessionId: event.sessionId, ownerId },
+          event.request.operation,
+        );
+        assistantReply = { ok: true, response: { kind: "assistant", result } };
+      } catch (error) {
+        assistantReply = { ok: false, error: toErrorMessage(error) };
+      }
+      this.agentHost.respondHostRequest(event.requestId, assistantReply);
       return;
     }
     if (event.request.kind === "project") {

@@ -12,6 +12,13 @@ import {
 import path from "node:path";
 import { z } from "zod";
 import {
+  ASSISTANT_DIRECTORY,
+  ASSISTANT_FOLDER_ID,
+  ASSISTANT_PROJECT_ID,
+  ASSISTANT_WORKSPACE_DIRECTORY,
+  isAssistantProject,
+} from "../../shared/assistant";
+import {
   PROJECT_CACHE_DIRECTORY,
   PROJECT_ATTACHMENTS_DIRECTORY,
   PROJECT_METADATA_FILE,
@@ -94,7 +101,13 @@ function assertEditable(id: string): void {
   if (isTemporaryWorkspace(id)) {
     throw new Error("The temporary workspace cannot be changed or deleted.");
   }
+  if (isAssistantProject(id)) {
+    throw new Error("The Assistant cannot be changed or deleted.");
+  }
 }
+
+/** Stored name; the Assistant's user-facing name is ASSISTANT_DISPLAY_NAME. */
+const ASSISTANT_PROJECT_NAME = "Assistant";
 
 function legacyColorTheme(
   setting: ProjectColorThemeSetting,
@@ -423,6 +436,9 @@ export class ProjectRepository {
 
   private projectRoot(id: string): string {
     const projectId = z.uuid().parse(id);
+    // Beside projects/, so listing projects never finds it.
+    if (isAssistantProject(projectId))
+      return path.join(path.dirname(this.projectsRoot), ASSISTANT_DIRECTORY);
     return path.join(this.projectsRoot, projectId);
   }
 
@@ -473,8 +489,53 @@ export class ProjectRepository {
     }
   }
 
+  /**
+   * Create the Assistant's hidden project on first use and pin its fixed
+   * fields. Its one folder is an empty, read-only working directory shared
+   * with nothing, so even a tool that reached it would find no files.
+   */
+  async ensureAssistantProject(): Promise<void> {
+    const id = ASSISTANT_PROJECT_ID;
+    const projectRoot = this.projectRoot(id);
+    const workspacePath = path.join(projectRoot, ASSISTANT_WORKSPACE_DIRECTORY);
+    await mkdir(workspacePath, { recursive: true });
+
+    let current: StoredProject | null = null;
+    try {
+      current = parseProject(await readFile(this.metadataPath(id), "utf8"));
+    } catch {
+      // Missing or damaged metadata is rebuilt from the fixed fields.
+    }
+    const now = new Date().toISOString();
+    const pinned: StoredProject = {
+      createdAt: current?.createdAt ?? now,
+      defaultFolderId: ASSISTANT_FOLDER_ID,
+      folders: [
+        {
+          access: "read-only",
+          id: ASSISTANT_FOLDER_ID,
+          name: ASSISTANT_PROJECT_NAME,
+          path: workspacePath,
+        },
+      ],
+      id,
+      ...(current?.lastOpenedAt ? { lastOpenedAt: current.lastOpenedAt } : {}),
+      name: ASSISTANT_PROJECT_NAME,
+      projectColorTheme: "olive",
+      projectIcon: "inbox",
+      schemaVersion: PROJECT_SCHEMA_VERSION,
+      sessionGroups: [],
+      sessionParents: {},
+      updatedAt: current?.updatedAt ?? now,
+    };
+    if (JSON.stringify(current) !== JSON.stringify(pinned)) {
+      await this.write(pinned);
+    }
+  }
+
   private async read(id: string): Promise<StoredProject> {
     if (isTemporaryWorkspace(id)) await this.ensureTemporaryWorkspace();
+    if (isAssistantProject(id)) await this.ensureAssistantProject();
     try {
       return parseProject(await readFile(this.metadataPath(id), "utf8"));
     } catch (error) {

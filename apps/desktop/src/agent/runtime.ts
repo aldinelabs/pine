@@ -147,6 +147,12 @@ import {
   sideChatPassage,
   writeForkFile,
 } from "./sideChat";
+import {
+  ASSISTANT_TOOL_NAMES,
+  createAssistantToolDefinitions,
+  createAssistantToolGuardExtension,
+} from "./assistant/tools";
+import { ASSISTANT_SYSTEM_PROMPT } from "./assistant/prompt";
 import { ForegroundPromoter } from "./foreground-promotion";
 import { createModelToolDefinitions, listUsableModels } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
@@ -1676,6 +1682,7 @@ export class PineAgentRuntime {
       ),
       ...(location.automation ? { automation: location.automation } : {}),
       ...(sideChat ? { sideChat } : {}),
+      ...(location.orchestrator ? { orchestrator: true as const } : {}),
       ...(location.tinyFishApiKey
         ? { tinyFishApiKey: location.tinyFishApiKey }
         : {}),
@@ -1732,507 +1739,528 @@ export class PineAgentRuntime {
       }),
       scratchDirectory: await projectTemporaryDirectory(location),
     });
-    const resourceLoader = new DefaultResourceLoader({
-      cwd: location.cwd,
-      agentDir: location.agentDir,
-      settingsManager,
-      noExtensions: true,
-      additionalSkillPaths: piProjectSkillPaths(location.cwd),
-      extensionFactories: [
-        {
-          name: "pine-approval-mode",
-          factory: (pi) => {
-            pi.on("before_agent_start", () => {
-              // The mode lives in the conversation, not the system prompt or
-              // tool list, so a mid-session switch keeps the cached prefix.
-              if (
-                announcedApprovalMode(live.session.messages) ===
-                live.approvalMode
-              )
-                return undefined;
-              return {
-                message: {
-                  customType: PINE_APPROVAL_MODE_NOTICE,
-                  content: approvalModeNotice(live.approvalMode),
-                  display: false,
-                  details: { approvalMode: live.approvalMode },
-                },
-              };
-            });
-          },
-        },
-        {
-          name: "pine-activation-guard",
-          factory: (pi) => {
-            pi.on("tool_call", async (event, ctx) => {
-              if (!isActivationToolName(event.toolName)) return undefined;
-              if (live.preapprovedActivations.delete(event.toolName)) {
-                return undefined;
-              }
-              const tokens = live.session.getContextUsage()?.tokens;
-              if (
-                !shouldConfirmLongContextActivation({
-                  toolName: event.toolName,
-                  activeToolNames: live.session.getActiveToolNames(),
-                  model: live.session.model,
-                  contextTokens: tokens,
-                  attended:
-                    !live.automation &&
-                    live.approvalMode !== "autonomous" &&
-                    live.approvalMode !== "YOLO",
-                })
-              ) {
-                return undefined;
-              }
-              const decision = await this.requestUserApproval(live, {
-                trigger: "long-context-activation",
-                toolCallId: event.toolCallId,
-                toolName: event.toolName,
-                subject: describeContextTokens(tokens ?? 0),
-                signal: ctx.signal,
-              });
-              // Allowing activates as requested. The card's other two answers
-              // carry a choice; any other denial is an abort or a closed
-              // session, and the call must not run.
-              if (decision.kind === "allow") return undefined;
-              if (decision.choice === "compact") {
-                live.preapprovedActivations.add(event.toolName);
-                this.compactThenResume(live, event.toolName);
-                return {
-                  block: true,
-                  terminate: true,
-                  reason:
-                    "The user chose to compress the conversation before this activation. Pine compresses it now and resumes automatically with the activation applied; end this turn without further tool calls.",
-                };
-              }
-              if (decision.choice === "abort") ctx.abort();
-              return {
-                block: true,
-                terminate: true,
-                reason:
-                  decision.reason ?? "The user cancelled this activation.",
-              };
-            });
-          },
-        },
-        {
-          name: "pine-context-notices",
-          factory: (pi) => {
-            pi.on("before_agent_start", async (event) => {
-              const settings = await readPineAgentSettings(live.agentDir);
-              const userProfile =
-                settings.userProfile ?? createDefaultPineUserProfile();
-              // One fixed text per style, set at run start: switching styles
-              // adds a system update at the next run and keeps the prefix. An
-              // automation run has nobody to collaborate with.
-              event.systemPromptOptions.sections.pine_work_style =
-                workStyleSystemPrompt(
-                  live.automation ? "takeover" : userProfile.workStyle,
-                );
-              // Present or absent, never edited.
-              if (userProfile.aldineMethodologyEnabled)
-                event.systemPromptOptions.sections.pine_aldine_methodology =
-                  ALDINE_METHODOLOGY_SYSTEM_PROMPT;
-              // Applied for this run: pi keeps a tool list set here.
-              this.applyInterimAnswersSetting(
-                live,
-                userProfile.interimAnswersEnabled,
-              );
-              const notices: PineContextNoticeState = {
-                workspace,
-                user_profile: systemPromptWithUserProfile(
-                  "",
-                  userProfile,
-                ).trim(),
-              };
-              // Fixed text, present or absent like the methodology above. A
-              // session that was given it as a notice keeps the notice, so
-              // the text never reaches the model twice.
-              if (userProfile.interactiveAnswersEnabled) {
-                if (
-                  announcedContextNotices(live.session.messages)
-                    .interface_elements !== undefined
-                )
-                  notices.interface_elements = intelligentUiSystemPrompt();
-                else
-                  event.systemPromptOptions.sections.pine_interface_elements =
-                    intelligentUiSystemPrompt();
-              }
-              const toolGroups = resolvePineToolGroups(settings.toolGroups);
-              this.applyToolGroupsSetting(live, toolGroups);
-              const disabledTools = disabledToolsNotice(
-                toolGroups,
-                live.session.getAllTools().map((tool) => tool.name),
-              );
-              if (disabledTools) notices.disabled_tools = disabledTools;
-              const skillList = toolGroups.skills
-                ? skillRepository.promptList()
-                : undefined;
-              if (skillList) notices.skills = skillList;
-              // An automation run is unattended and keeps no memory.
-              const memoryEnabled =
-                !live.automation &&
-                (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
-              this.applyMemorySetting(live, memoryEnabled);
-              // The guide is fixed text; only the note list is per project.
-              if (memoryEnabled) {
-                event.systemPromptOptions.sections.pine_memory =
-                  MEMORY_SYSTEM_PROMPT;
-                notices.memory = memoryNotice(await memoryRepository.list());
-              }
-              const networkRegion = networkRegionSystemPrompt(
-                localNetworkRegionSignals(),
-              );
-              if (networkRegion) notices.network_region = networkRegion;
-              // Fixed for the session's life, like the setting above.
-              if (live.promptChannel === "wechat")
-                notices.wechat = WECHAT_SESSION_NOTICE;
-              if (
-                settings.approximateLocationEnabled ??
-                DEFAULT_APPROXIMATE_LOCATION_ENABLED
-              ) {
-                const location = await this.approximateLocation(live);
-                // A failed lookup keeps the last estimate rather than
-                // withdrawing and re-announcing it.
-                notices.approximate_location = location
-                  ? approximateLocationNotice(location)
-                  : announcedContextNotices(live.session.messages)
-                      .approximate_location;
-              }
-              const message = contextNoticeMessage(
-                live.session.messages,
-                notices,
-              );
-              return message ? { message } : undefined;
-            });
-          },
-        },
-        {
-          name: "pine-live-context",
-          factory: (pi) => {
-            pi.on("before_agent_start", async () => {
-              // A side chat does not inherit its conversation's transcript;
-              // an automation run belongs to no conversation. Switched off
-              // under Tools, the transcript stays out of the model's view.
-              if (
-                live.sideChat ||
-                live.automation ||
-                !live.toolGroups.liveContext
-              )
-                return undefined;
-              const result = await this.liveContextHostCall(
-                live,
-                {
-                  op: "increment",
-                  after: liveContextCursor(live.session.messages),
-                },
-                LIVE_CONTEXT_NOTICE_TIMEOUT_MS,
-              ).catch(() => undefined);
-              // Pine could not answer: leave the model where it was.
-              if (!result || result.op !== "increment") return undefined;
-              const message = liveContextNoticeMessage(
-                live.session.messages,
-                result.increment,
-              );
-              return message ? { message } : undefined;
-            });
-          },
-        },
-        computerUse.extension,
-        skillTools.extension,
-        ...(location.automation
-          ? [
-              createAutomationRunExtension(location.automation, () =>
-                live.session.messages.some(
-                  (message) =>
-                    message.role === "custom" &&
-                    message.customType === PINE_AUTOMATION_PAYLOAD,
-                ),
-              ),
-            ]
-          : [
-              createAutomationAuthoringExtension({
-                call: (operation) => this.automationHostCall(live, operation),
-                getApprovalMode: () => live.approvalMode,
-                getGate: () => live.gate,
-                explain: (spec, previous) =>
-                  this.explainAutomation(live, spec, previous),
-                afterExternalContent: () => this.turnReadExternalContent(live),
-                currentModel: () => this.currentModelSelection(live),
-                activated: () => this.activateAuthoring(live, "automation"),
-              }),
-              createMcpAuthoringExtension({
-                call: (operation) => this.mcpHostCall(live, operation),
-                requestApproval: (input) =>
-                  this.requestUserApproval(live, {
-                    trigger: "privileged-execution",
-                    ...input,
-                  }),
-                reloadWhenIdle: () => this.reloadMcpWhenIdle(live),
-                activated: () => this.activateAuthoring(live, "mcp"),
-              }),
-            ]),
-        ...(location.automation
-          ? location.automation.mcp
-            ? ([
-                this.mcpApprovalExtension(live, (request) =>
-                  isGrantedMcpTool(
-                    location.automation?.mcp?.grants ?? [],
-                    request.serverName,
-                    request.originalToolName,
-                  ),
-                ),
-                {
-                  name: "pi-mcp-adapter",
-                  factory: createMcpAdapter({
-                    config: automationMcpConfig(
-                      path.join(location.agentDir, "mcp.json"),
-                      location.automation.mcp.cwd,
-                      location.automation.mcp.grants,
-                    ),
-                  }),
-                },
-              ] satisfies InlineExtension[])
-            : []
-          : ([
-              this.mcpApprovalExtension(live),
-              createSemanticCompactionExtension({
-                agentDir: location.agentDir,
-                isEnabled: () => live.contextCompactionRoute === "semantic",
-              }),
-              createSessionSummaryCompactionExtension({
-                getSession: () => live.session,
-                isEnabled: () => live.contextCompactionRoute === "model",
-              }),
-              {
-                name: "pi-mcp-adapter",
-                factory: createMcpAdapter({
-                  configPath: path.join(location.agentDir, "mcp.json"),
-                }),
+    const resourceLoader = location.orchestrator
+      ? this.assistantResourceLoader(live, location, settingsManager)
+      : new DefaultResourceLoader({
+          cwd: location.cwd,
+          agentDir: location.agentDir,
+          settingsManager,
+          noExtensions: true,
+          additionalSkillPaths: piProjectSkillPaths(location.cwd),
+          extensionFactories: [
+            {
+              name: "pine-approval-mode",
+              factory: (pi) => {
+                pi.on("before_agent_start", () => {
+                  // The mode lives in the conversation, not the system prompt or
+                  // tool list, so a mid-session switch keeps the cached prefix.
+                  if (
+                    announcedApprovalMode(live.session.messages) ===
+                    live.approvalMode
+                  )
+                    return undefined;
+                  return {
+                    message: {
+                      customType: PINE_APPROVAL_MODE_NOTICE,
+                      content: approvalModeNotice(live.approvalMode),
+                      display: false,
+                      details: { approvalMode: live.approvalMode },
+                    },
+                  };
+                });
               },
-            ] satisfies InlineExtension[])),
-        createProgressRemindersExtension(),
-        createArtifactRemindersExtension({ cwd: location.cwd }),
-        ...(sideChat
-          ? [
-              createSideChatExtension({
-                hasNotice: () =>
-                  live.session.messages.some(
-                    (message) =>
-                      message.role === "custom" &&
-                      message.customType === PINE_SIDE_CHAT_NOTICE,
+            },
+            {
+              name: "pine-activation-guard",
+              factory: (pi) => {
+                pi.on("tool_call", async (event, ctx) => {
+                  if (!isActivationToolName(event.toolName)) return undefined;
+                  if (live.preapprovedActivations.delete(event.toolName)) {
+                    return undefined;
+                  }
+                  const tokens = live.session.getContextUsage()?.tokens;
+                  if (
+                    !shouldConfirmLongContextActivation({
+                      toolName: event.toolName,
+                      activeToolNames: live.session.getActiveToolNames(),
+                      model: live.session.model,
+                      contextTokens: tokens,
+                      attended:
+                        !live.automation &&
+                        live.approvalMode !== "autonomous" &&
+                        live.approvalMode !== "YOLO",
+                    })
+                  ) {
+                    return undefined;
+                  }
+                  const decision = await this.requestUserApproval(live, {
+                    trigger: "long-context-activation",
+                    toolCallId: event.toolCallId,
+                    toolName: event.toolName,
+                    subject: describeContextTokens(tokens ?? 0),
+                    signal: ctx.signal,
+                  });
+                  // Allowing activates as requested. The card's other two answers
+                  // carry a choice; any other denial is an abort or a closed
+                  // session, and the call must not run.
+                  if (decision.kind === "allow") return undefined;
+                  if (decision.choice === "compact") {
+                    live.preapprovedActivations.add(event.toolName);
+                    this.compactThenResume(live, event.toolName);
+                    return {
+                      block: true,
+                      terminate: true,
+                      reason:
+                        "The user chose to compress the conversation before this activation. Pine compresses it now and resumes automatically with the activation applied; end this turn without further tool calls.",
+                    };
+                  }
+                  if (decision.choice === "abort") ctx.abort();
+                  return {
+                    block: true,
+                    terminate: true,
+                    reason:
+                      decision.reason ?? "The user cancelled this activation.",
+                  };
+                });
+              },
+            },
+            {
+              name: "pine-context-notices",
+              factory: (pi) => {
+                pi.on("before_agent_start", async (event) => {
+                  const settings = await readPineAgentSettings(live.agentDir);
+                  const userProfile =
+                    settings.userProfile ?? createDefaultPineUserProfile();
+                  // One fixed text per style, set at run start: switching styles
+                  // adds a system update at the next run and keeps the prefix. An
+                  // automation run has nobody to collaborate with.
+                  event.systemPromptOptions.sections.pine_work_style =
+                    workStyleSystemPrompt(
+                      live.automation ? "takeover" : userProfile.workStyle,
+                    );
+                  // Present or absent, never edited.
+                  if (userProfile.aldineMethodologyEnabled)
+                    event.systemPromptOptions.sections.pine_aldine_methodology =
+                      ALDINE_METHODOLOGY_SYSTEM_PROMPT;
+                  // Applied for this run: pi keeps a tool list set here.
+                  this.applyInterimAnswersSetting(
+                    live,
+                    userProfile.interimAnswersEnabled,
+                  );
+                  const notices: PineContextNoticeState = {
+                    workspace,
+                    user_profile: systemPromptWithUserProfile(
+                      "",
+                      userProfile,
+                    ).trim(),
+                  };
+                  // Fixed text, present or absent like the methodology above. A
+                  // session that was given it as a notice keeps the notice, so
+                  // the text never reaches the model twice.
+                  if (userProfile.interactiveAnswersEnabled) {
+                    if (
+                      announcedContextNotices(live.session.messages)
+                        .interface_elements !== undefined
+                    )
+                      notices.interface_elements = intelligentUiSystemPrompt();
+                    else
+                      event.systemPromptOptions.sections.pine_interface_elements =
+                        intelligentUiSystemPrompt();
+                  }
+                  const toolGroups = resolvePineToolGroups(settings.toolGroups);
+                  this.applyToolGroupsSetting(live, toolGroups);
+                  const disabledTools = disabledToolsNotice(
+                    toolGroups,
+                    live.session.getAllTools().map((tool) => tool.name),
+                  );
+                  if (disabledTools) notices.disabled_tools = disabledTools;
+                  const skillList = toolGroups.skills
+                    ? skillRepository.promptList()
+                    : undefined;
+                  if (skillList) notices.skills = skillList;
+                  // An automation run is unattended and keeps no memory.
+                  const memoryEnabled =
+                    !live.automation &&
+                    (settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED);
+                  this.applyMemorySetting(live, memoryEnabled);
+                  // The guide is fixed text; only the note list is per project.
+                  if (memoryEnabled) {
+                    event.systemPromptOptions.sections.pine_memory =
+                      MEMORY_SYSTEM_PROMPT;
+                    notices.memory = memoryNotice(
+                      await memoryRepository.list(),
+                    );
+                  }
+                  const networkRegion = networkRegionSystemPrompt(
+                    localNetworkRegionSignals(),
+                  );
+                  if (networkRegion) notices.network_region = networkRegion;
+                  // Fixed for the session's life, like the setting above.
+                  if (live.promptChannel === "wechat")
+                    notices.wechat = WECHAT_SESSION_NOTICE;
+                  if (
+                    settings.approximateLocationEnabled ??
+                    DEFAULT_APPROXIMATE_LOCATION_ENABLED
+                  ) {
+                    const location = await this.approximateLocation(live);
+                    // A failed lookup keeps the last estimate rather than
+                    // withdrawing and re-announcing it.
+                    notices.approximate_location = location
+                      ? approximateLocationNotice(location)
+                      : announcedContextNotices(live.session.messages)
+                          .approximate_location;
+                  }
+                  const message = contextNoticeMessage(
+                    live.session.messages,
+                    notices,
+                  );
+                  return message ? { message } : undefined;
+                });
+              },
+            },
+            {
+              name: "pine-live-context",
+              factory: (pi) => {
+                pi.on("before_agent_start", async () => {
+                  // A side chat does not inherit its conversation's transcript;
+                  // an automation run belongs to no conversation. Switched off
+                  // under Tools, the transcript stays out of the model's view.
+                  if (
+                    live.sideChat ||
+                    live.automation ||
+                    !live.toolGroups.liveContext
+                  )
+                    return undefined;
+                  const result = await this.liveContextHostCall(
+                    live,
+                    {
+                      op: "increment",
+                      after: liveContextCursor(live.session.messages),
+                    },
+                    LIVE_CONTEXT_NOTICE_TIMEOUT_MS,
+                  ).catch(() => undefined);
+                  // Pine could not answer: leave the model where it was.
+                  if (!result || result.op !== "increment") return undefined;
+                  const message = liveContextNoticeMessage(
+                    live.session.messages,
+                    result.increment,
+                  );
+                  return message ? { message } : undefined;
+                });
+              },
+            },
+            computerUse.extension,
+            skillTools.extension,
+            ...(location.automation
+              ? [
+                  createAutomationRunExtension(location.automation, () =>
+                    live.session.messages.some(
+                      (message) =>
+                        message.role === "custom" &&
+                        message.customType === PINE_AUTOMATION_PAYLOAD,
+                    ),
                   ),
-                passage: () =>
-                  sideChatPassage(live.session.sessionManager.getEntries()),
-              }),
-            ]
-          : []),
-      ],
-      noThemes: true,
-      skillsOverride: filterPineManagedSkills(
-        skillRepository,
-        location.cwd,
-        location.agentDir,
-        loadSkills,
-      ),
-      systemPromptOverride: () => systemPromptForPlatform(PINE_SYSTEM_PROMPT),
-    });
+                ]
+              : [
+                  createAutomationAuthoringExtension({
+                    call: (operation) =>
+                      this.automationHostCall(live, operation),
+                    getApprovalMode: () => live.approvalMode,
+                    getGate: () => live.gate,
+                    explain: (spec, previous) =>
+                      this.explainAutomation(live, spec, previous),
+                    afterExternalContent: () =>
+                      this.turnReadExternalContent(live),
+                    currentModel: () => this.currentModelSelection(live),
+                    activated: () => this.activateAuthoring(live, "automation"),
+                  }),
+                  createMcpAuthoringExtension({
+                    call: (operation) => this.mcpHostCall(live, operation),
+                    requestApproval: (input) =>
+                      this.requestUserApproval(live, {
+                        trigger: "privileged-execution",
+                        ...input,
+                      }),
+                    reloadWhenIdle: () => this.reloadMcpWhenIdle(live),
+                    activated: () => this.activateAuthoring(live, "mcp"),
+                  }),
+                ]),
+            ...(location.automation
+              ? location.automation.mcp
+                ? ([
+                    this.mcpApprovalExtension(live, (request) =>
+                      isGrantedMcpTool(
+                        location.automation?.mcp?.grants ?? [],
+                        request.serverName,
+                        request.originalToolName,
+                      ),
+                    ),
+                    {
+                      name: "pi-mcp-adapter",
+                      factory: createMcpAdapter({
+                        config: automationMcpConfig(
+                          path.join(location.agentDir, "mcp.json"),
+                          location.automation.mcp.cwd,
+                          location.automation.mcp.grants,
+                        ),
+                      }),
+                    },
+                  ] satisfies InlineExtension[])
+                : []
+              : ([
+                  this.mcpApprovalExtension(live),
+                  createSemanticCompactionExtension({
+                    agentDir: location.agentDir,
+                    isEnabled: () => live.contextCompactionRoute === "semantic",
+                  }),
+                  createSessionSummaryCompactionExtension({
+                    getSession: () => live.session,
+                    isEnabled: () => live.contextCompactionRoute === "model",
+                  }),
+                  {
+                    name: "pi-mcp-adapter",
+                    factory: createMcpAdapter({
+                      configPath: path.join(location.agentDir, "mcp.json"),
+                    }),
+                  },
+                ] satisfies InlineExtension[])),
+            createProgressRemindersExtension(),
+            createArtifactRemindersExtension({ cwd: location.cwd }),
+            ...(sideChat
+              ? [
+                  createSideChatExtension({
+                    hasNotice: () =>
+                      live.session.messages.some(
+                        (message) =>
+                          message.role === "custom" &&
+                          message.customType === PINE_SIDE_CHAT_NOTICE,
+                      ),
+                    passage: () =>
+                      sideChatPassage(live.session.sessionManager.getEntries()),
+                  }),
+                ]
+              : []),
+          ],
+          noThemes: true,
+          skillsOverride: filterPineManagedSkills(
+            skillRepository,
+            location.cwd,
+            location.agentDir,
+            loadSkills,
+          ),
+          systemPromptOverride: () =>
+            systemPromptForPlatform(PINE_SYSTEM_PROMPT),
+        });
     await resourceLoader.reload();
     live.gate = this.createGate(
       live,
       live.approvalMode === "let-me-review" ? "user" : "auto",
     );
     const modelRuntime = await this.getModelRuntime(location.agentDir);
-    const pineTools = await createPineToolDefinitions(
-      location,
-      live.gate,
-      attachedPaths,
-      {
-        getApprovalMode: () => live.approvalMode,
-        getGate: () => live.gate,
-        getSkillAuthoringFolders: () =>
-          live.skillAuthoringActive
-            ? skillRepository.authoringDirectories().map((skillDirectory) => ({
-                access: "read-write" as const,
-                path: skillDirectory,
-              }))
-            : [],
-        getTinyFishApiKey: () => live.tinyFishApiKey,
-        mediaGeneration: {
-          activate: () => {
-            if (live.mediaGenerationActive) return;
-            live.mediaGenerationActive = true;
-            live.session.sessionManager.appendCustomEntry(
-              PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
-              { active: true },
-            );
-            this.syncActiveTools(live);
-          },
-          videoModelId: async () =>
-            (await readPineAgentSettings(live.agentDir)).videoModel?.modelId,
-          imageModelSelection: async () =>
-            effectiveImageModelSelection(
-              (await readPineAgentSettings(live.agentDir)).imageModel,
-              {
-                chatGpt: modelRuntime.hasConfiguredAuth(
-                  CHATGPT_AUTH_PROVIDER_ID,
-                ),
-                openRouter: modelRuntime.hasConfiguredAuth(
-                  IMAGE_MODEL_PROVIDER_ID,
-                ),
-              },
-            ),
-          resolveOpenRouterApiKey: async () =>
-            (await modelRuntime.getAuth(IMAGE_MODEL_PROVIDER_ID))?.auth.apiKey,
-          resolveChatGptAccessToken: async () =>
-            (await modelRuntime.getAuth(CHATGPT_AUTH_PROVIDER_ID))?.auth.apiKey,
-        },
-        requestQuestionnaire: (toolCallId, params, signal) =>
-          this.requestQuestionnaire(live, toolCallId, params, signal),
-        presentFile: (toolCallId, filePath, reveal, display) =>
-          this.presentFile(live, toolCallId, filePath, reveal, display),
-        workbench: {
-          readState: async () => {
-            const response = await this.requestHost(live, {
-              kind: "workbench-state",
-            });
-            if (response.kind !== "workbench-state")
-              throw new Error("Pine returned an unexpected workbench state.");
-            return response.state;
-          },
-          sendCommand: (toolCallId, command) =>
-            this.options.emit({
-              type: "workbench-command",
-              sessionId: live.session.sessionId,
-              toolCallId,
-              command,
-            }),
-        },
-        guide: {
-          openGuide: (toolCallId, topic, step) =>
-            this.options.emit({
-              type: "open-guide",
-              sessionId: live.session.sessionId,
-              toolCallId,
-              topic,
-              ...(step === undefined ? {} : { step }),
-            }),
-        },
-        workspace: {
-          requestHost: (request) => this.requestHost(live, request),
-          getLocale: () => live.locale,
-        },
-        sessions: {
-          requestHost: (request) => this.requestHost(live, request),
-          getLocale: () => live.locale,
-          renameCurrentSession: (title) => this.retitleByAgent(live, title),
-          getParentSessionId: () =>
-            subSessionParentOf(live.session.sessionManager.getEntries()),
-          attachedSessions: () =>
-            attachedSessionsFromSessionEntries(
-              live.session.sessionManager.getEntries(),
-            ),
-          usableModels: async () =>
-            listUsableModels(
-              await this.modelService.getModelCatalog(live.agentDir),
-              this.currentModelSelection(live),
-            ),
-          reviewOutOfScope: (input) =>
-            live.approvalMode === "YOLO"
-              ? Promise.resolve({ kind: "allow" as const })
-              : live.gate.reviewDenial("authorize", input),
-          requestApproval: (input) =>
-            this.requestUserApproval(live, {
-              trigger: "pre-execution",
-              ...input,
-            }),
-        },
-        backgroundTasks: {
-          onChange: () => this.scheduleBackgroundTasksEvent(live),
-          sendCompletionNotification: (message, options) =>
-            this.deliverBackgroundTaskNotification(live, message, options),
-          attach: (registry) => {
-            live.backgroundTasks = registry;
-          },
-          promoter: live.foregroundPromoter,
-        },
-      },
-    );
-    const customTools = [
-      ...pineTools,
-      createActivatePineOpsToolDefinition(),
-      ...(location.automation
-        ? [
-            createAutomationReportTool(location.automation.runId, (operation) =>
-              this.automationHostCall(live, operation),
-            ),
-          ]
-        : [
-            ...createModelToolDefinitions({
-              current: () => this.currentModelSelection(live),
-              catalog: () => this.modelService.getModelCatalog(live.agentDir),
-            }),
-            // Always listed so a compaction request never changes the tools.
-            createSubmitSessionSummaryToolDefinition(),
-            // Listed in every session, whether or not it has a transcript,
-            // so live context never changes the tool list.
-            createReadLiveTranscriptToolDefinition((operation) =>
-              this.liveContextHostCall(
-                live,
-                operation,
-                LIVE_CONTEXT_READ_TIMEOUT_MS,
+    const pineTools = location.orchestrator
+      ? []
+      : await createPineToolDefinitions(location, live.gate, attachedPaths, {
+          getApprovalMode: () => live.approvalMode,
+          getGate: () => live.gate,
+          getSkillAuthoringFolders: () =>
+            live.skillAuthoringActive
+              ? skillRepository
+                  .authoringDirectories()
+                  .map((skillDirectory) => ({
+                    access: "read-write" as const,
+                    path: skillDirectory,
+                  }))
+              : [],
+          getTinyFishApiKey: () => live.tinyFishApiKey,
+          mediaGeneration: {
+            activate: () => {
+              if (live.mediaGenerationActive) return;
+              live.mediaGenerationActive = true;
+              live.session.sessionManager.appendCustomEntry(
+                PINE_MEDIA_GENERATION_ACTIVE_ENTRY,
+                { active: true },
+              );
+              this.syncActiveTools(live);
+            },
+            videoModelId: async () =>
+              (await readPineAgentSettings(live.agentDir)).videoModel?.modelId,
+            imageModelSelection: async () =>
+              effectiveImageModelSelection(
+                (await readPineAgentSettings(live.agentDir)).imageModel,
+                {
+                  chatGpt: modelRuntime.hasConfiguredAuth(
+                    CHATGPT_AUTH_PROVIDER_ID,
+                  ),
+                  openRouter: modelRuntime.hasConfiguredAuth(
+                    IMAGE_MODEL_PROVIDER_ID,
+                  ),
+                },
               ),
-            ),
-            createLiveContextCaptureToolDefinition({
-              call: async (operation) => {
-                const result = await this.liveContextHostCall(
-                  live,
-                  operation,
-                  LIVE_CONTEXT_CAPTURE_TIMEOUT_MS,
-                );
-                if (result.op !== "capture")
-                  throw new Error("Pine returned an unexpected Live Context.");
-                return result.capture;
-              },
-              // Starting to listen always asks, whatever the approval mode.
-              requestApproval: (request) =>
-                this.requestUserApproval(live, {
-                  trigger: "privileged-execution",
-                  ...request,
+            resolveOpenRouterApiKey: async () =>
+              (await modelRuntime.getAuth(IMAGE_MODEL_PROVIDER_ID))?.auth
+                .apiKey,
+            resolveChatGptAccessToken: async () =>
+              (await modelRuntime.getAuth(CHATGPT_AUTH_PROVIDER_ID))?.auth
+                .apiKey,
+          },
+          requestQuestionnaire: (toolCallId, params, signal) =>
+            this.requestQuestionnaire(live, toolCallId, params, signal),
+          presentFile: (toolCallId, filePath, reveal, display) =>
+            this.presentFile(live, toolCallId, filePath, reveal, display),
+          workbench: {
+            readState: async () => {
+              const response = await this.requestHost(live, {
+                kind: "workbench-state",
+              });
+              if (response.kind !== "workbench-state")
+                throw new Error("Pine returned an unexpected workbench state.");
+              return response.state;
+            },
+            sendCommand: (toolCallId, command) =>
+              this.options.emit({
+                type: "workbench-command",
+                sessionId: live.session.sessionId,
+                toolCallId,
+                command,
+              }),
+          },
+          guide: {
+            openGuide: (toolCallId, topic, step) =>
+              this.options.emit({
+                type: "open-guide",
+                sessionId: live.session.sessionId,
+                toolCallId,
+                topic,
+                ...(step === undefined ? {} : { step }),
+              }),
+          },
+          workspace: {
+            requestHost: (request) => this.requestHost(live, request),
+            getLocale: () => live.locale,
+          },
+          sessions: {
+            requestHost: (request) => this.requestHost(live, request),
+            getLocale: () => live.locale,
+            renameCurrentSession: (title) => this.retitleByAgent(live, title),
+            getParentSessionId: () =>
+              subSessionParentOf(live.session.sessionManager.getEntries()),
+            attachedSessions: () =>
+              attachedSessionsFromSessionEntries(
+                live.session.sessionManager.getEntries(),
+              ),
+            usableModels: async () =>
+              listUsableModels(
+                await this.modelService.getModelCatalog(live.agentDir),
+                this.currentModelSelection(live),
+              ),
+            reviewOutOfScope: (input) =>
+              live.approvalMode === "YOLO"
+                ? Promise.resolve({ kind: "allow" as const })
+                : live.gate.reviewDenial("authorize", input),
+            requestApproval: (input) =>
+              this.requestUserApproval(live, {
+                trigger: "pre-execution",
+                ...input,
+              }),
+          },
+          backgroundTasks: {
+            onChange: () => this.scheduleBackgroundTasksEvent(live),
+            sendCompletionNotification: (message, options) =>
+              this.deliverBackgroundTaskNotification(live, message, options),
+            attach: (registry) => {
+              live.backgroundTasks = registry;
+            },
+            promoter: live.foregroundPromoter,
+          },
+        });
+    const customTools = location.orchestrator
+      ? createAssistantToolDefinitions({
+          requestHost: (request) => this.requestHost(live, request),
+          getApprovalMode: () => live.approvalMode,
+          getLocale: () => live.locale,
+        })
+      : [
+          ...pineTools,
+          createActivatePineOpsToolDefinition(),
+          ...(location.automation
+            ? [
+                createAutomationReportTool(
+                  location.automation.runId,
+                  (operation) => this.automationHostCall(live, operation),
+                ),
+              ]
+            : [
+                ...createModelToolDefinitions({
+                  current: () => this.currentModelSelection(live),
+                  catalog: () =>
+                    this.modelService.getModelCatalog(live.agentDir),
                 }),
-              sendCommand: (toolCallId, command) =>
-                this.options.emit({
-                  type: "workbench-command",
-                  sessionId: live.session.sessionId,
-                  toolCallId,
-                  command,
+                // Always listed so a compaction request never changes the tools.
+                createSubmitSessionSummaryToolDefinition(),
+                // Listed in every session, whether or not it has a transcript,
+                // so live context never changes the tool list.
+                createReadLiveTranscriptToolDefinition((operation) =>
+                  this.liveContextHostCall(
+                    live,
+                    operation,
+                    LIVE_CONTEXT_READ_TIMEOUT_MS,
+                  ),
+                ),
+                createLiveContextCaptureToolDefinition({
+                  call: async (operation) => {
+                    const result = await this.liveContextHostCall(
+                      live,
+                      operation,
+                      LIVE_CONTEXT_CAPTURE_TIMEOUT_MS,
+                    );
+                    if (result.op !== "capture")
+                      throw new Error(
+                        "Pine returned an unexpected Live Context.",
+                      );
+                    return result.capture;
+                  },
+                  // Starting to listen always asks, whatever the approval mode.
+                  requestApproval: (request) =>
+                    this.requestUserApproval(live, {
+                      trigger: "privileged-execution",
+                      ...request,
+                    }),
+                  sendCommand: (toolCallId, command) =>
+                    this.options.emit({
+                      type: "workbench-command",
+                      sessionId: live.session.sessionId,
+                      toolCallId,
+                      command,
+                    }),
                 }),
-            }),
-            ...createMemoryToolDefinitions({
-              repository: memoryRepository,
-              getApprovalMode: () => live.approvalMode,
-              getGate: () => live.gate,
-              isEnabled: () => live.memoryEnabled,
-              afterExternalContent: () => this.turnReadExternalContent(live),
-              sessionId: () => live.session.sessionId,
-            }),
-          ]),
-    ];
-    live.availableToolNames = [
-      ...customTools.map((tool) => tool.name),
-      ACTIVATE_COMPUTER_USE_TOOL_NAME,
-      ...COMPUTER_USE_DYNAMIC_TOOL_NAMES,
-      INVOKE_SKILL_TOOL_NAME,
-      LIST_SKILL_RESOURCES_TOOL_NAME,
-      READ_SKILL_RESOURCE_TOOL_NAME,
-      ACTIVATE_SKILL_AUTHORING_TOOL_NAME,
-      ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
-      ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
-      ...AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
-      ACTIVATE_MCP_AUTHORING_TOOL_NAME,
-      ...MCP_AUTHORING_DYNAMIC_TOOL_NAMES,
-      RECALL_TOOL_NAME,
-    ];
+                ...createMemoryToolDefinitions({
+                  repository: memoryRepository,
+                  getApprovalMode: () => live.approvalMode,
+                  getGate: () => live.gate,
+                  isEnabled: () => live.memoryEnabled,
+                  afterExternalContent: () =>
+                    this.turnReadExternalContent(live),
+                  sessionId: () => live.session.sessionId,
+                }),
+              ]),
+        ];
+    live.availableToolNames = location.orchestrator
+      ? [...ASSISTANT_TOOL_NAMES]
+      : [
+          ...customTools.map((tool) => tool.name),
+          ACTIVATE_COMPUTER_USE_TOOL_NAME,
+          ...COMPUTER_USE_DYNAMIC_TOOL_NAMES,
+          INVOKE_SKILL_TOOL_NAME,
+          LIST_SKILL_RESOURCES_TOOL_NAME,
+          READ_SKILL_RESOURCE_TOOL_NAME,
+          ACTIVATE_SKILL_AUTHORING_TOOL_NAME,
+          ...SKILL_AUTHORING_DYNAMIC_TOOL_NAMES,
+          ACTIVATE_AUTOMATION_AUTHORING_TOOL_NAME,
+          ...AUTOMATION_AUTHORING_DYNAMIC_TOOL_NAMES,
+          ACTIVATE_MCP_AUTHORING_TOOL_NAME,
+          ...MCP_AUTHORING_DYNAMIC_TOOL_NAMES,
+          RECALL_TOOL_NAME,
+        ];
 
     const { session } = await createAgentSession({
       cwd: location.cwd,
@@ -2242,6 +2270,9 @@ export class PineAgentRuntime {
       sessionManager,
       settingsManager,
       customTools,
+      // The Assistant's registry holds its allowlist and nothing else, for
+      // good: no tool to do work with can be activated later.
+      ...(location.orchestrator ? { tools: [...ASSISTANT_TOOL_NAMES] } : {}),
     });
     live.session = session;
     await session.bindExtensions({ mode: "rpc" });
@@ -2281,6 +2312,75 @@ export class PineAgentRuntime {
       ...(session.sessionFile ? { sessionFile: session.sessionFile } : {}),
       ...(contextUsage ? { contextUsage } : {}),
     };
+  }
+
+  /**
+   * The Assistant's resources: its own fixed system prompt, no skills,
+   * prompt templates or context files, and only the extensions that never
+   * add a tool: the permission mode notice, the user profile, the tool guard
+   * and compaction. Its tools come from createAssistantToolDefinitions.
+   */
+  private assistantResourceLoader(
+    live: LiveAgentSession,
+    location: AgentSessionLocation,
+    settingsManager: SettingsManager,
+  ): DefaultResourceLoader {
+    return new DefaultResourceLoader({
+      cwd: location.cwd,
+      agentDir: location.agentDir,
+      settingsManager,
+      noExtensions: true,
+      noSkills: true,
+      noPromptTemplates: true,
+      noContextFiles: true,
+      noThemes: true,
+      extensionFactories: [
+        createAssistantToolGuardExtension(),
+        {
+          name: "pine-approval-mode",
+          factory: (pi) => {
+            pi.on("before_agent_start", () =>
+              announcedApprovalMode(live.session.messages) === live.approvalMode
+                ? undefined
+                : {
+                    message: {
+                      customType: PINE_APPROVAL_MODE_NOTICE,
+                      content: approvalModeNotice(live.approvalMode),
+                      display: false,
+                      details: { approvalMode: live.approvalMode },
+                    },
+                  },
+            );
+          },
+        },
+        {
+          name: "pine-context-notices",
+          factory: (pi) => {
+            pi.on("before_agent_start", async () => {
+              const settings = await readPineAgentSettings(live.agentDir);
+              const userProfile =
+                settings.userProfile ?? createDefaultPineUserProfile();
+              const message = contextNoticeMessage(live.session.messages, {
+                user_profile: systemPromptWithUserProfile(
+                  "",
+                  userProfile,
+                ).trim(),
+              });
+              return message ? { message } : undefined;
+            });
+          },
+        },
+        createSemanticCompactionExtension({
+          agentDir: location.agentDir,
+          isEnabled: () => live.contextCompactionRoute === "semantic",
+        }),
+        createSessionSummaryCompactionExtension({
+          getSession: () => live.session,
+          isEnabled: () => live.contextCompactionRoute === "model",
+        }),
+      ],
+      systemPromptOverride: () => ASSISTANT_SYSTEM_PROMPT,
+    });
   }
 
   private createGate(live: LiveAgentSession, mode: "user" | "auto"): ToolGate {
@@ -2442,6 +2542,15 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     options: { canonicalOrder?: boolean } = {},
   ): void {
+    // The Assistant's tools are fixed for its life; no setting changes them.
+    if (live.orchestrator) {
+      const fixed = [...ASSISTANT_TOOL_NAMES];
+      if (live.session.getActiveToolNames().join() !== fixed.join()) {
+        live.session.setActiveToolsByName([]);
+        live.session.setActiveToolsByName(fixed);
+      }
+      return;
+    }
     const activeToolNames = live.session.getActiveToolNames();
     const mcpToolNames = this.mcpToolNames(live);
     const toolNamesForState = live.automation

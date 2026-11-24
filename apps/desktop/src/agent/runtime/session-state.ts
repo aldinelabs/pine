@@ -124,6 +124,8 @@ export interface LiveAgentSession {
   toolOrder: string[];
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
+  /** The Assistant's conversation: a fixed prompt and tool list (shared/assistant.ts). */
+  orchestrator?: true;
   /** Set for an unattended automation run; its envelope replaces the tool list. */
   automation?: AgentAutomationRun;
   tinyFishApiKey?: string;

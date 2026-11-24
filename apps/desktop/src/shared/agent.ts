@@ -1,3 +1,4 @@
+import type { AssistantHostOperation } from "./assistant";
 import type { AutomationHostOperation } from "./automation";
 import type { ProjectHostOperation } from "./projects";
 import type {
@@ -482,7 +483,8 @@ export type PineHostRequest =
   | { kind: "approximate-location" }
   | { kind: "live-context"; operation: LiveContextHostOperation }
   | { kind: "automation"; operation: AutomationHostOperation }
-  | { kind: "mcp"; operation: McpHostOperation };
+  | { kind: "mcp"; operation: McpHostOperation }
+  | { kind: "assistant"; operation: AssistantHostOperation };
 
 /** Main asks only the session's owning window for its live layout. */
 export interface PineWorkbenchStateRequestEvent {

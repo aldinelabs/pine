@@ -99,6 +99,10 @@ function fixture({
       observeAgentEvent: vi.fn(() => false),
       projectsChanged: vi.fn(() => Promise.resolve()),
     },
+    assistant: {
+      observe: vi.fn(),
+      report: vi.fn(() => Promise.resolve()),
+    },
     repository: {
       list: vi.fn(() => Promise.resolve([targetProject])),
       open: vi.fn(() => Promise.resolve(targetProject)),

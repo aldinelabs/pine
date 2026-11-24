@@ -1,3 +1,7 @@
+import type {
+  AssistantHostOperation,
+  AssistantHostResult,
+} from "../shared/assistant";
 import type { KeptReplySuggestion } from "../shared/sessions";
 import type {
   PromptRewriteContext,
@@ -111,6 +115,11 @@ export interface AgentSessionLocation {
   tinyFishApiKey?: string;
   /** Pine's built-in temporary workspace ("No Project"). */
   temporaryWorkspace?: boolean;
+  /**
+   * The Assistant's conversation (shared/assistant.ts): its own system
+   * prompt and a fixed tool list that has no tool to do work with.
+   */
+  orchestrator?: boolean;
   /** The user-facing name of the session's project, for the agent's context. */
   projectName?: string;
   /** Initial permission mode for the session. YOLO bypasses all Pine sandbox,
@@ -170,7 +179,9 @@ export type AgentHostRequest =
   /** The session's own Live Context transcript; see docs/live-context.md §7. */
   | { kind: "live-context"; operation: LiveContextHostOperation }
   | { kind: "automation"; operation: AutomationHostOperation }
-  | { kind: "mcp"; operation: McpHostOperation };
+  | { kind: "mcp"; operation: McpHostOperation }
+  /** Only the Assistant's own tools ask this; see shared/assistant.ts. */
+  | { kind: "assistant"; operation: AssistantHostOperation };
 
 export type AgentHostResponse =
   | { kind: "list-projects"; projects: AgentHostProject[] }
@@ -181,7 +192,8 @@ export type AgentHostResponse =
   | { kind: "session"; result: SessionHostResult }
   | { kind: "project"; result: ProjectHostResult }
   | { kind: "automation"; result: PineJsonValue }
-  | { kind: "mcp"; result: PineJsonValue };
+  | { kind: "mcp"; result: PineJsonValue }
+  | { kind: "assistant"; result: AssistantHostResult };
 
 export type AgentHostReply =
   { ok: true; response: AgentHostResponse } | { ok: false; error: string };

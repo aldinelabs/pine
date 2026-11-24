@@ -1,4 +1,11 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,6 +13,10 @@ import {
   TEMPORARY_WORKSPACE_FOLDER_ID,
   TEMPORARY_WORKSPACE_PROJECT_ID,
 } from "../../shared/projects";
+import {
+  ASSISTANT_FOLDER_ID,
+  ASSISTANT_PROJECT_ID,
+} from "../../shared/assistant";
 import { ProjectRepository } from "../projects/projectRepository";
 
 const temporaryDirectories: string[] = [];
@@ -113,6 +124,40 @@ describe("ProjectRepository", () => {
     await expect(
       repository.get(TEMPORARY_WORKSPACE_PROJECT_ID),
     ).resolves.toMatchObject({ sessionGroups: groups });
+  });
+
+  it("keeps the Assistant in its own empty folder, outside every project list", async () => {
+    const userData = await createTemporaryDirectory("pine-user-data-");
+    const repository = new ProjectRepository(path.join(userData, "projects"));
+
+    const assistant = await repository.get(ASSISTANT_PROJECT_ID);
+    const workspace = path.join(userData, "assistant", "workspace");
+
+    expect(assistant.folders).toEqual([
+      expect.objectContaining({
+        access: "read-only",
+        id: ASSISTANT_FOLDER_ID,
+        path: workspace,
+        isAvailable: true,
+      }),
+    ]);
+    expect(repository.dataPaths(ASSISTANT_PROJECT_ID).sessionsRoot).toBe(
+      path.join(userData, "assistant", "sessions"),
+    );
+    expect(await readdir(workspace)).toEqual([]);
+    expect(
+      (await repository.list()).map((project) => project.id),
+    ).not.toContain(ASSISTANT_PROJECT_ID);
+    await expect(
+      repository.update(ASSISTANT_PROJECT_ID, {
+        defaultFolderId: ASSISTANT_FOLDER_ID,
+        folders: assistant.folders,
+        name: "Mine now",
+      }),
+    ).rejects.toThrow("The Assistant cannot be changed or deleted.");
+    await expect(repository.delete(ASSISTANT_PROJECT_ID)).rejects.toThrow(
+      "The Assistant cannot be changed or deleted.",
+    );
   });
 
   it("rejects duplicate and nested project folders", async () => {

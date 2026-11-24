@@ -17,6 +17,10 @@ interface Internals {
 
 /** A PineCore built without its constructor: only what routing a run touches. */
 function fixture() {
+  const assistant = {
+    observe: vi.fn(),
+    report: vi.fn(() => Promise.resolve()),
+  };
   const core = Object.create(PineCore.prototype) as PineCore;
   Object.assign(core, {
     host: {
@@ -34,6 +38,7 @@ function fixture() {
       clearSessionInteractions: vi.fn(),
     },
     automations: { observeAgentEvent: vi.fn(() => false) },
+    assistant,
     web: {
       server: { publish: vi.fn() },
       publishSession: vi.fn(),
@@ -46,7 +51,7 @@ function fixture() {
     agentStops: new Map(),
     abortsInFlight: new Map(),
   });
-  return { core, internals: core as unknown as Internals };
+  return { core, assistant, internals: core as unknown as Internals };
 }
 
 function runState(state: "running" | "aborting" | "idle" | "failed") {
@@ -67,6 +72,19 @@ describe("a sub-session's stopped turn", () => {
 
     expect(notifyParentOf).toHaveBeenCalledExactlyOnceWith(
       core,
+      sessionId,
+      "finished",
+    );
+  });
+
+  it("reports the same end of the turn to the Assistant", () => {
+    const { assistant, internals } = fixture();
+
+    internals.routeAgentEvent(runState("running"));
+    internals.routeAgentEvent(runState("idle"));
+
+    expect(assistant.observe).toHaveBeenCalledTimes(2);
+    expect(assistant.report).toHaveBeenCalledExactlyOnceWith(
       sessionId,
       "finished",
     );
