@@ -5,7 +5,15 @@ import {
   dragContainsAttachments,
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
-import { FilesIcon, MessageCircleIcon } from "@lucide/vue";
+import {
+  ConciergeBellIcon,
+  FilesIcon,
+  MessageCircleIcon,
+  MessageSquareShareIcon,
+} from "@lucide/vue";
+import { assistantViewKey } from "@/components/assistant/context";
+import { useAssistantEntry } from "@/composables/useAssistantEntry";
+import { isAssistantProject } from "@/shared/assistant";
 import { useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -90,6 +98,13 @@ const props = defineProps<{
   sessionId?: string;
   tabId: string;
 }>();
+/**
+ * The Assistant's conversation: it dispatches rather than works, so it has
+ * no files, attachments, mode or model of its own to choose here.
+ */
+const isAssistant = computed(() => isAssistantProject(props.projectId));
+provide(assistantViewKey, isAssistantProject(props.projectId));
+const { openAssistant } = useAssistantEntry();
 const automationsStore = useAutomationsStore();
 const automationApprovals = computed(() =>
   automationsStore.approvalsFor(props.sessionId),
@@ -368,6 +383,10 @@ const approvalMode = computed<PineApprovalMode>({
         .catch(() => undefined);
   },
 });
+/** Dispatched by the Assistant: a link back to it above the transcript. */
+const isFromAssistant = computed(
+  () => !!props.sessionId && sessionStore.isFromAssistant(props.sessionId),
+);
 /** "From WeChat" or "Used from WeChat", shown above the transcript. */
 const weChatOriginLabel = computed(() => {
   if (!props.sessionId) return undefined;
@@ -847,14 +866,14 @@ async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
 }
 
 function handleDragEnter(event: DragEvent): void {
-  if (!dragContainsAttachments(event)) return;
+  if (isAssistant.value || !dragContainsAttachments(event)) return;
   event.preventDefault();
   fileDragDepth += 1;
   isDraggingFiles.value = true;
 }
 
 function handleDragOver(event: DragEvent): void {
-  if (!dragContainsAttachments(event)) return;
+  if (isAssistant.value || !dragContainsAttachments(event)) return;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
 }
@@ -867,7 +886,7 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 async function handleDrop(event: DragEvent): Promise<void> {
-  if (!dragContainsAttachments(event)) return;
+  if (isAssistant.value || !dragContainsAttachments(event)) return;
   event.preventDefault();
   fileDragDepth = 0;
   isDraggingFiles.value = false;
@@ -933,6 +952,16 @@ async function handleDrop(event: DragEvent): Promise<void> {
               class="session-transcript-content mx-auto py-8"
               spacer-class="h-16"
             >
+              <button
+                v-if="isFromAssistant"
+                type="button"
+                data-slot="session-assistant-origin"
+                class="mx-auto flex cursor-pointer items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                @click="openAssistant"
+              >
+                <MessageSquareShareIcon class="size-3.5" aria-hidden="true" />
+                {{ t("sessions.dispatchedByAssistant") }}
+              </button>
               <p
                 v-if="weChatOriginLabel"
                 data-slot="session-wechat-origin"
@@ -941,7 +970,20 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 <MessageCircleIcon class="size-3.5" aria-hidden="true" />
                 {{ weChatOriginLabel }}
               </p>
-              <Empty v-if="showsWelcome">
+              <Empty v-if="showsWelcome && isAssistant">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <ConciergeBellIcon />
+                  </EmptyMedia>
+                  <EmptyTitle class="font-semibold">
+                    {{ t("assistant.emptyTitle") }}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {{ t("assistant.emptyDescription") }}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+              <Empty v-else-if="showsWelcome">
                 <EmptyHeader>
                   <PineCharacter decorative size="lg" />
                   <EmptyTitle class="font-semibold">
@@ -1038,6 +1080,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
         :pending-automation-approval="automationApprovals[0] ?? null"
         :project-id="props.projectId"
         :session-id="props.sessionId"
+        :assistant="isAssistant"
         @select-project="selectDraftProject"
         @remove-authoring="removeDraftAuthoring"
         @abort="abort"

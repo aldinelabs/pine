@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDownIcon, PlusIcon } from "@lucide/vue";
+import { ChevronDownIcon, ConciergeBellIcon, PlusIcon } from "@lucide/vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -19,6 +19,7 @@ import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { isTemporaryWorkspace, type PineProject } from "@/shared/projects";
+import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
 import { useProjectStore } from "@/stores/project";
 import ProjectDialog from "./ProjectDialog.vue";
 
@@ -31,6 +32,8 @@ const props = defineProps<{
   projectId: string;
   /** Pairs the trigger with the composer's chooser chip while it moves here. */
   transitionName?: string;
+  /** Offers the Assistant too, as the floating composer does. */
+  allowAssistant?: boolean;
 }>();
 const emit = defineEmits<{ select: [projectId: string] }>();
 
@@ -40,7 +43,11 @@ const { projects } = storeToRefs(projectStore);
 const displayName = useProjectDisplayName();
 const isCreateOpen = ref(false);
 const openForDraft = useDraftProjectOpener();
+const isAssistantSelected = computed(() => isAssistantProject(props.projectId));
 const selected = computed(() => projectStore.projectById(props.projectId));
+const selectedName = computed(() =>
+  isAssistantSelected.value ? t("assistant.name") : displayName(selected.value),
+);
 
 async function select(projectId: unknown): Promise<void> {
   if (typeof projectId !== "string" || projectId === props.projectId) return;
@@ -71,16 +78,19 @@ function created(project: PineProject): void {
             : undefined
         "
         size="sm"
-        :aria-label="
-          t('project.composer.sendTo', { name: displayName(selected) })
-        "
+        :aria-label="t('project.composer.sendTo', { name: selectedName })"
         :title="t('project.composer.sendToLabel')"
       >
-        <component
-          :is="projectIconComponent(selected)"
+        <ConciergeBellIcon
+          v-if="isAssistantSelected"
           data-icon="inline-start"
         />
-        <span class="truncate">{{ displayName(selected) }}</span>
+        <component
+          :is="projectIconComponent(selected)"
+          v-else
+          data-icon="inline-start"
+        />
+        <span class="truncate">{{ selectedName }}</span>
         <ChevronDownIcon data-icon="inline-end" />
       </InputGroupButton>
     </DropdownMenuTrigger>
@@ -93,6 +103,20 @@ function created(project: PineProject): void {
         :model-value="props.projectId"
         @update:model-value="select"
       >
+        <DropdownMenuRadioItem
+          v-if="props.allowAssistant"
+          data-slot="project-target-option"
+          data-testid="project-target-assistant"
+          :value="ASSISTANT_PROJECT_ID"
+        >
+          <ConciergeBellIcon />
+          <span class="flex min-w-0 flex-col gap-0.5">
+            <span class="truncate">{{ t("assistant.name") }}</span>
+            <span class="truncate text-xs font-normal text-muted-foreground">
+              {{ t("assistant.targetDescription") }}
+            </span>
+          </span>
+        </DropdownMenuRadioItem>
         <DropdownMenuRadioItem
           v-for="project in projects"
           :key="project.id"

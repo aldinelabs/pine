@@ -138,6 +138,15 @@ describe("SessionHistoryItem", () => {
     );
   });
 
+  it("marks sessions the Assistant dispatched", () => {
+    const marker = (item: typeof session) =>
+      mountItem(item).find('[data-slot="session-assistant-origin"]');
+    expect(marker(session).exists()).toBe(false);
+    expect(
+      marker({ ...session, fromAssistant: true }).attributes("title"),
+    ).toBe("From Assistant");
+  });
+
   it("puts what waits on the user first in the indent column", async () => {
     const wrapper = mountItem();
     const status = () =>

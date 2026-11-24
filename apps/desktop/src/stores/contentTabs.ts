@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { reactive, ref, watch } from "vue";
 import { readContentTabs, writeContentTabs } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
+import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import type { PineApprovalMode } from "@/shared/agent";
 import type { PineSessionSummary } from "@/shared/sessions";
@@ -431,9 +432,12 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
      * takes its place instead of adding a tab. */
     replaceActivePreview?: string;
   } = {}): DraftSessionTab {
+    // The Assistant's tab is never anyone's new session.
     const existingDraft = tabs.value.find(
       (tab): tab is DraftSessionTab =>
-        tab.kind === "session" && tab.state === "draft",
+        tab.kind === "session" &&
+        tab.state === "draft" &&
+        !isAssistantProject(tab.projectId),
     );
     if (reuseDraft && existingDraft) {
       if (projectId) setDraftProject(existingDraft.id, projectId);
@@ -468,6 +472,34 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     } else {
       tabs.value = [...tabs.value, tab];
     }
+    composerFocusTabId.value = tab.id;
+    return tab;
+  }
+
+  /**
+   * The Assistant's one tab: the open one if any, else its conversation, or
+   * a draft that starts it. A draft already open binds to a conversation
+   * started meanwhile, as from WeChat.
+   */
+  function openAssistant(session?: PineSessionSummary): ProjectContentTab {
+    const existing = tabs.value.find(
+      (tab) => tab.kind === "session" && isAssistantProject(tab.projectId),
+    );
+    if (existing?.kind === "session") {
+      keepTab(existing.id);
+      if (existing.state === "draft" && session)
+        return bindSession(existing.id, session) ?? existing;
+      if (
+        existing.state === "bound" &&
+        session &&
+        existing.sessionId !== session.id
+      )
+        return bindSession(existing.id, session) ?? existing;
+      return existing;
+    }
+    if (session) return openSession(session, ASSISTANT_PROJECT_ID);
+    const tab = makeDraftTab(ASSISTANT_PROJECT_ID);
+    tabs.value = [...tabs.value, tab];
     composerFocusTabId.value = tab.id;
     return tab;
   }
@@ -818,6 +850,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     moveSessionToProject,
     moveTab,
     mutatorsFor,
+    openAssistant,
     openFile,
     openSession,
     presentFile,

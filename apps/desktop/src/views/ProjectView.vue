@@ -34,7 +34,9 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { isTemporaryWorkspace } from "@/shared/projects";
+import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
+import { useAssistantStore } from "@/stores/assistant";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -98,7 +100,10 @@ async function loadProjects(): Promise<void> {
     return;
   }
   // Restored tabs of a project deleted meanwhile cannot open again.
-  const known = new Set(projectStore.projects.map((project) => project.id));
+  const known = new Set([
+    ASSISTANT_PROJECT_ID,
+    ...projectStore.projects.map((project) => project.id),
+  ]);
   for (const projectId of new Set([
     ...contentTabsStore.tabs.map((tab) => tab.projectId),
     contentTabsStore.lastDraftProjectId,
@@ -326,6 +331,13 @@ watch(
     if (sessionId) void backgroundTasks.load(sessionId).catch(() => undefined);
   },
   { immediate: true },
+);
+
+// The Assistant's composer asks for its settings.
+const assistantStore = useAssistantStore();
+watch(
+  () => assistantStore.settingsRequests,
+  () => preferencesDialog.value?.open("assistant"),
 );
 
 // The tray's "manage more settings" opens a preferences section; one asked for

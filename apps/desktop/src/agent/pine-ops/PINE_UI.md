@@ -125,7 +125,7 @@ window
 │   ├── leading: [Windows: Pine logo, Pine Settings] · Toggle left sidebar
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
-│   ├── top menu: Search sessions · New session · Projects · More
+│   ├── top menu: Assistant · Search sessions · New session · Projects · More
 │   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory · Guides
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
@@ -156,6 +156,10 @@ window
 
 Top menu:
 
+- Assistant: opens the Assistant's tab (see Assistant tab). It belongs to no
+  project and stays above every project. Its row shows a small spinner while
+  the Assistant works and a breathing amber dot while its conversation waits
+  for the user's approval or answer.
 - Search sessions: opens the session search overlay, which searches titles and
   conversation content across every project.
 - New session: opens a new session tab.
@@ -184,7 +188,8 @@ Session list, one collapsible group per project:
   also shimmers. An automation run shows a workflow
   icon and, when idle, the time it started. A session started from WeChat
   shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to
-  shows the same icon labelled "Used from WeChat". A session with sub-sessions shows
+  shows the same icon labelled "Used from WeChat". A session the Assistant
+  dispatched shows a forwarded-message icon ("From Assistant"). A session with sub-sessions shows
   a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
   sub-sessions ({count})") that expands or collapses them (clicking the row of the
   session already open, or the Right and Left arrow keys while the row has
@@ -236,7 +241,9 @@ Tab bar ("Open content"):
 - A running session's tab title shimmers; a tab for an automation run keeps a
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
-  other session tabs.
+  other session tabs. The Assistant's tab is titled "Assistant" with a
+  concierge bell; a session the Assistant dispatched shows a forwarded-message
+  icon.
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
   computers. The workbench header has the same button.
@@ -708,6 +715,37 @@ From top to bottom:
      and Steer tooltips also show Option+Enter (Alt+Enter), which sends
      without scrolling to the bottom; Stop's shows esc.
 
+#### Assistant tab
+
+The Assistant is one lasting conversation that belongs to no project: the user
+says what they need, it hands the work to a session in the right project and
+reports back. It never does the work itself. There is only one Assistant
+conversation; every message sent to the Assistant goes into it. If another window already shows it,
+that window comes forward instead.
+
+It is a session tab with these differences:
+
+- Empty, it shows "Tell the Assistant what you need" and a line on what the
+  Assistant does.
+- The composer has no attachments ("+") menu, no folder picker, no @ mentions
+  and no model or permission mode menus; pasted files are ignored. In their
+  place an "Assistant settings" button opens Pine Settings › Assistant.
+- Each user message shows where it came from: "From desktop" or "From
+  WeChat".
+- Each dispatch shows as a card with its state ("Dispatching…",
+  "Dispatched", "Could not dispatch") and "Project › Session". When a
+  dispatched session finishes a turn, fails, stops or waits for approval, a
+  card with that state ("Finished", "Failed", "Stopped", "Waiting for your
+  approval") appears in the conversation. Clicking a card that names a
+  session opens that session.
+- Approvals the Assistant needs use the usual Approval required card; only
+  the user can answer it.
+- After compaction the earlier conversation stays readable above the
+  compaction marker, as in any session.
+
+A session the Assistant dispatched shows "Dispatched by the Assistant" at the
+top of its transcript; clicking it opens the Assistant's tab.
+
 #### File tab
 
 A preview of one file, with controls that depend on the format: Rendered or
@@ -1134,6 +1172,16 @@ the user opens themselves do not pulse.
       and the agent is told which families are off so it can point the user
       back here. Reading and editing files, the to-do list, the clock,
       questions to the user and Pine's own UI reference have no switch.
+  - Assistant: Model ("Same as the default model" or any model of a
+    connected provider) and, when that model offers levels, Reasoning
+    effort; Permission mode limit (Let Me Review, Auto Approve or Autonomous
+    Work; the Assistant runs in it and every session it dispatches runs in it
+    or a more supervised mode); "Reply when dispatched work reports" (off by
+    default: reports wait in the conversation until the user next writes; on:
+    the Assistant answers each report right away); Assistant notes (View
+    notes opens the Memory manager for the Assistant's notes, where they can
+    be read and deleted); Clear conversation (asks first, then deletes the
+    Assistant's conversation; sessions it dispatched stay where they are).
   - User profile, top to bottom: Aldine methodology (a switch with a Beta
     badge, on by default: Pine talks like a clear-headed dialogue partner,
     candid, specific and light on pleasantries; it shapes how Pine thinks,

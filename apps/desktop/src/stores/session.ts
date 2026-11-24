@@ -2430,6 +2430,18 @@ export const useSessionStore = defineStore("session", () => {
     );
   }
 
+  /** Whether Pine's Assistant dispatched the session ("From Assistant"). */
+  function isFromAssistant(sessionId: string): boolean {
+    const projectId = sessionProjects.get(sessionId);
+    return !!(
+      sessionCache.get(sessionId)?.summary?.fromAssistant ??
+      recentSessionsFor(projectId).find((session) => session.id === sessionId)
+        ?.fromAssistant ??
+      allRecentSessions.value.find((session) => session.id === sessionId)
+        ?.fromAssistant
+    );
+  }
+
   /** Whether the session is mid-run; false for sessions never loaded here. */
   function isSessionRunning(sessionId: string): boolean {
     return sessionCache.get(sessionId)?.isRunning ?? false;
@@ -2486,6 +2498,7 @@ export const useSessionStore = defineStore("session", () => {
     activeSession,
     automationRunOf,
     originOf,
+    isFromAssistant,
     allRecentSessions,
     isLoadingAllRecent,
     loadAllRecent,

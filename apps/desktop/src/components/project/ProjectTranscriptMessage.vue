@@ -3,6 +3,7 @@ import type { PineAttachment } from "@/shared/attachments";
 import { CheckIcon, CopyIcon, PencilIcon } from "@lucide/vue";
 import {
   computed,
+  inject,
   nextTick,
   onMounted,
   onUnmounted,
@@ -50,6 +51,15 @@ import { serializeQuoteMessage } from "@/shared/quotes";
 import ProjectAutomationRunMessage from "./ProjectAutomationRunMessage.vue";
 import ProjectBackgroundTaskMarker from "./ProjectBackgroundTaskMarker.vue";
 import ProjectRelaySource from "./ProjectRelaySource.vue";
+import AssistantDispatchCard from "@/components/assistant/AssistantDispatchCard.vue";
+import AssistantMessageSource from "@/components/assistant/AssistantMessageSource.vue";
+import { assistantViewKey } from "@/components/assistant/context";
+import {
+  dispatchEntryOfNotice,
+  dispatchEntryOfToolCall,
+  isDispatchToolCall,
+} from "@/components/assistant/dispatchEntry";
+import { parseAssistantMessageSource } from "@/shared/assistant";
 import ProjectSessionNoticeMarker from "./ProjectSessionNoticeMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
@@ -186,9 +196,16 @@ const text = computed(() => contentBlocksToText(props.message.blocks));
  * A message Pine routed in from another session: its routing line shows as
  * a link to that session above the bubble, which shows only the message.
  */
-const relay = computed(() =>
-  isUser.value ? parseRelayPrefix(text.value) : { body: text.value },
-);
+const inAssistant = inject(assistantViewKey, false);
+const relay = computed(() => {
+  if (!isUser.value) return { body: text.value };
+  const parsed = parseRelayPrefix(text.value);
+  if (!inAssistant) return parsed;
+  // A message to the Assistant shows where it was written, without the
+  // marker another entry point put in front of it.
+  const { source, body } = parseAssistantMessageSource(parsed.body);
+  return { ...parsed, body, messageSource: source };
+});
 /** The message an automation run starts with, shown as a card. */
 const automationRun = computed(() =>
   isUser.value ? parseAutomationRunMessage(text.value) : undefined,
@@ -234,6 +251,8 @@ type RenderItem = { key: string } & (
     }
   | { kind: "toolCall"; toolCall: PineToolCall }
   | { kind: "toolRun"; toolCalls: PineToolCall[] }
+  /** The Assistant's dispatch_task call, as a card of its own. */
+  | { kind: "dispatch"; toolCall: PineToolCall }
   | {
       kind: "thinking";
       message: PineTranscriptMessage;
@@ -366,12 +385,35 @@ const renderItems = computed<RenderItem[]>(() => {
           item.type === "toolCall" ? item.toolCall : undefined,
         )
         .filter((item): item is PineToolCall => item !== undefined);
-      const toolCalls = stableToolCalls(key, calls);
-      // A single tool call renders in full instead of being folded away.
-      if (toolCalls.length === 1) {
-        items.push({ key, kind: "toolCall", toolCall: toolCalls[0] });
-      } else {
-        items.push({ key, kind: "toolRun", toolCalls });
+      // In the Assistant's conversation each dispatch is a card of its own,
+      // between the runs of its other calls.
+      const runs: { key: string; calls: PineToolCall[] }[] = [];
+      let run: PineToolCall[] = [];
+      const flush = () => {
+        if (run.length) runs.push({ key: `${key}:${runs.length}`, calls: run });
+        run = [];
+      };
+      for (const call of calls) {
+        if (inAssistant && isDispatchToolCall(call)) {
+          flush();
+          items.push({
+            key: `${key}:dispatch:${call.id}`,
+            kind: "dispatch",
+            toolCall: call,
+          });
+        } else run.push(call);
+      }
+      flush();
+      for (const part of runs) {
+        // Without a dispatch the run keeps the key it always had.
+        const runKey = part.calls.length === calls.length ? key : part.key;
+        const toolCalls = stableToolCalls(runKey, part.calls);
+        // A single tool call renders in full instead of being folded away.
+        if (toolCalls.length === 1) {
+          items.push({ key: runKey, kind: "toolCall", toolCall: toolCalls[0] });
+        } else {
+          items.push({ key: runKey, kind: "toolRun", toolCalls });
+        }
       }
     } else if (block.type === "text") {
       // Blank text (a progress report whose content has not arrived, or an
@@ -560,6 +602,18 @@ onUnmounted(stopObservingUserText);
             "
             :task="item.block.task"
           />
+          <AssistantDispatchCard
+            v-else-if="
+              inAssistant &&
+              item.kind === 'block' &&
+              item.block.type === 'sessionNotice'
+            "
+            :entry="dispatchEntryOfNotice(item.block.notice)"
+          />
+          <AssistantDispatchCard
+            v-else-if="item.kind === 'dispatch'"
+            :entry="dispatchEntryOfToolCall(item.toolCall)"
+          />
           <ProjectSessionNoticeMarker
             v-else-if="
               item.kind === 'block' && item.block.type === 'sessionNotice'
@@ -662,6 +716,10 @@ onUnmounted(stopObservingUserText);
           class="max-w-[80%] self-end py-0"
           :quotes="quotes"
           surface="message"
+        />
+        <AssistantMessageSource
+          v-if="!isEditing && 'messageSource' in relay && relay.messageSource"
+          :source="relay.messageSource"
         />
         <ProjectRelaySource
           v-if="!isEditing && !automationRun && relay.source"

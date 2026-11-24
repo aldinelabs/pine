@@ -86,6 +86,33 @@ export default {
     failed: "No se pudo instalar la actualización.",
   },
   preferences: {
+    assistant: {
+      model: "Modelo",
+      modelDescription:
+        "El modelo con el que el Asistente responde y encarga el trabajo.",
+      defaultModel: "Igual que el modelo predeterminado",
+      thinkingLevel: "Esfuerzo de razonamiento",
+      thinkingLevelDescription:
+        "Cuánto piensa el Asistente antes de responder.",
+      approvalMode: "Límite del modo de permisos",
+      approvalModeDescription:
+        "El Asistente funciona en este modo, y cada sesión que encarga usa este modo u otro más supervisado.",
+      wakesOnReport: "Responder cuando el trabajo encargado informe",
+      wakesOnReportDescription:
+        "Desactivado: los informes esperan en la conversación hasta tu próximo mensaje, sin coste. Activado: el Asistente responde a cada informe enseguida.",
+      memory: "Notas del Asistente",
+      memoryDescription:
+        "Lo que el Asistente recuerda, como los nombres que usas para tus proyectos.",
+      openMemory: "Ver notas",
+      clear: "Borrar conversación",
+      clearDescription:
+        "Elimina la conversación del Asistente. Las sesiones que encargó se mantienen.",
+      clearAction: "Borrar conversación",
+      clearConfirmTitle: "¿Borrar la conversación del Asistente?",
+      clearConfirmDescription:
+        "Sus mensajes se eliminan para siempre. Tu próximo mensaje empieza una conversación nueva.",
+      cleared: "Conversación borrada",
+    },
     remoteControl: {
       browserAccess: "Acceso desde el navegador",
       browserAccessDescription:
@@ -433,6 +460,7 @@ export default {
       appearance: "Apariencia",
       models: "Modelos",
       agent: "Agente",
+      assistant: "Asistente",
       personalization: "Perfil de usuario",
       projects: "Proyectos",
       remote: "Control remoto",
@@ -998,6 +1026,8 @@ export default {
     current: "Actual",
     noSessions: "Aún no hay sesiones",
     fromWeChat: "Desde WeChat",
+    fromAssistant: "Del Asistente",
+    dispatchedByAssistant: "Encargada por el Asistente",
     usedFromWeChat: "Usada desde WeChat",
     awaitingApproval: "Esperando tu aprobación",
     awaitingAnswer: "Esperando tu respuesta",
@@ -2939,6 +2969,27 @@ export default {
       emptyDescription: "Añade una carpeta en los ajustes del proyecto.",
     },
   },
+  assistant: {
+    name: "Asistente",
+    emptyTitle: "Cuéntale al Asistente lo que necesitas",
+    emptyDescription:
+      "Encuentra el proyecto adecuado, encarga el trabajo a una sesión de ese proyecto y te informa aquí. Nunca hace el trabajo por sí mismo.",
+    settingsButton: "Ajustes del Asistente",
+    targetDescription: "Encarga el trabajo al proyecto adecuado",
+    source: {
+      desktop: "Desde el escritorio",
+      wechat: "Desde WeChat",
+    },
+    dispatch: {
+      dispatching: "Encargando…",
+      dispatched: "Encargado",
+      dispatchFailed: "No se pudo encargar",
+      finished: "Terminado",
+      failed: "Falló",
+      awaitingApproval: "Esperando tu aprobación",
+      stopped: "Detenido",
+    },
+  },
   quickComposer: {
     permission: {
       screen:
@@ -3022,6 +3073,18 @@ export default {
       "No se pudo conectar con Pine. Comprueba que sigue en ejecución.",
   },
   errors: {
+    assistantOpen: {
+      title: "No se puede abrir el Asistente",
+      description: "Inténtalo de nuevo más tarde.",
+    },
+    assistantSettings: {
+      title: "No se pueden actualizar los ajustes del Asistente",
+      description: "Inténtalo de nuevo más tarde.",
+    },
+    assistantClear: {
+      title: "No se puede borrar la conversación del Asistente",
+      description: "Inténtalo de nuevo más tarde.",
+    },
     skills: {
       title: "No se pueden actualizar las Skills",
       description:

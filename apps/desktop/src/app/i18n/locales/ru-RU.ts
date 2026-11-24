@@ -85,6 +85,32 @@ export default {
     failed: "Не удалось установить обновление.",
   },
   preferences: {
+    assistant: {
+      model: "Модель",
+      modelDescription:
+        "Модель, с которой Ассистент отвечает и поручает работу.",
+      defaultModel: "Как модель по умолчанию",
+      thinkingLevel: "Глубина рассуждений",
+      thinkingLevelDescription: "Сколько Ассистент думает перед ответом.",
+      approvalMode: "Предел режима разрешений",
+      approvalModeDescription:
+        "Ассистент работает в этом режиме, а каждая поручённая им сессия — в этом или более осторожном режиме.",
+      wakesOnReport: "Отвечать на отчёты поручённой работы",
+      wakesOnReportDescription:
+        "Выключено: отчёты бесплатно ждут в разговоре до вашего следующего сообщения. Включено: Ассистент сразу отвечает на каждый отчёт.",
+      memory: "Заметки Ассистента",
+      memoryDescription:
+        "То, что запоминает Ассистент, например как вы называете проекты.",
+      openMemory: "Открыть заметки",
+      clear: "Очистить разговор",
+      clearDescription:
+        "Удаляет разговор Ассистента. Поручённые им сессии остаются на месте.",
+      clearAction: "Очистить разговор",
+      clearConfirmTitle: "Очистить разговор Ассистента?",
+      clearConfirmDescription:
+        "Сообщения будут удалены навсегда. Следующее сообщение начнёт новый разговор.",
+      cleared: "Разговор очищен",
+    },
     remoteControl: {
       browserAccess: "Доступ из браузера",
       browserAccessDescription:
@@ -427,6 +453,7 @@ export default {
       appearance: "Оформление",
       models: "Модели",
       agent: "Агент",
+      assistant: "Ассистент",
       personalization: "Профиль пользователя",
       projects: "Проекты",
       remote: "Удалённое управление",
@@ -988,6 +1015,8 @@ export default {
     current: "Текущий",
     noSessions: "Сеансов пока нет",
     fromWeChat: "Из WeChat",
+    fromAssistant: "От Ассистента",
+    dispatchedByAssistant: "Поручено Ассистентом",
     usedFromWeChat: "Использовался из WeChat",
     awaitingApproval: "Ожидает вашего подтверждения",
     awaitingAnswer: "Ожидает вашего ответа",
@@ -2913,6 +2942,27 @@ export default {
       emptyDescription: "Добавьте папку в настройках проекта.",
     },
   },
+  assistant: {
+    name: "Ассистент",
+    emptyTitle: "Расскажите Ассистенту, что нужно сделать",
+    emptyDescription:
+      "Он находит нужный проект, поручает работу сессии в нём и докладывает здесь. Сам работу он никогда не выполняет.",
+    settingsButton: "Настройки Ассистента",
+    targetDescription: "Поручает работу нужному проекту",
+    source: {
+      desktop: "С компьютера",
+      wechat: "Из WeChat",
+    },
+    dispatch: {
+      dispatching: "Поручается…",
+      dispatched: "Поручено",
+      dispatchFailed: "Не удалось поручить",
+      finished: "Готово",
+      failed: "Ошибка",
+      awaitingApproval: "Ждёт вашего одобрения",
+      stopped: "Остановлено",
+    },
+  },
   quickComposer: {
     permission: {
       screen: "Разрешить Pine снимать окно приложения, в котором вы находитесь",
@@ -2995,6 +3045,18 @@ export default {
       "Не удалось связаться с Pine. Проверьте, что он по-прежнему запущен.",
   },
   errors: {
+    assistantOpen: {
+      title: "Не удалось открыть Ассистента",
+      description: "Повторите попытку позже.",
+    },
+    assistantSettings: {
+      title: "Не удалось обновить настройки Ассистента",
+      description: "Повторите попытку позже.",
+    },
+    assistantClear: {
+      title: "Не удалось очистить разговор Ассистента",
+      description: "Повторите попытку позже.",
+    },
     skills: {
       title: "Не удалось обновить навыки",
       description:

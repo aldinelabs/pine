@@ -145,13 +145,15 @@ describe("AllProjectsSessionList", () => {
     const actions = wrapper
       .findAll('[data-slot="sidebar-menu"]')[0]
       .findAll("button");
+    // The Assistant's entry sits above them all, outside any project.
     expect(actions.map((button) => button.text())).toEqual([
+      "助理",
       "搜索会话⌘K",
       "新会话⌘N",
       "项目管理⌘P",
       "更多功能",
     ]);
-    await actions[2].trigger("click");
+    await actions[3].trigger("click");
     expect(
       wrapper.findComponent(AllProjectsSessionList).emitted("manageProjects"),
     ).toHaveLength(1);

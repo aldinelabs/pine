@@ -60,6 +60,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import FirstUseHint from "@/components/help/FirstUseHint.vue";
+import AssistantSidebarEntry from "@/components/assistant/AssistantSidebarEntry.vue";
 import ProjectDeleteDialog from "@/components/project/ProjectDeleteDialog.vue";
 import ProjectDialog from "@/components/project/ProjectDialog.vue";
 import { SESSION_TREE_ROW_CLASS } from "@/components/project/sessionTreeRow";
@@ -668,6 +669,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
     <SidebarGroup class="shrink-0 pt-0.5">
       <SidebarGroupContent>
         <SidebarMenu>
+          <AssistantSidebarEntry />
           <SidebarMenuItem>
             <SidebarMenuButton @click="emit('search')">
               <Search aria-hidden="true" />

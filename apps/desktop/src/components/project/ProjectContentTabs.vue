@@ -7,7 +7,10 @@ import {
   PlusIcon,
   WorkflowIcon,
   XIcon,
+  ConciergeBellIcon,
+  MessageSquareShareIcon,
 } from "@lucide/vue";
+import { isAssistantProject } from "@/shared/assistant";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -591,6 +594,9 @@ onMounted(() => {
 });
 
 function getTabLabel(tab: ProjectContentTab): string {
+  // The Assistant's one tab always goes by its name.
+  if (tab.kind === "session" && isAssistantProject(tab.projectId))
+    return t("assistant.name");
   return "label" in tab && tab.label
     ? tab.label
     : t("project.contentTabs.newSession");
@@ -613,9 +619,13 @@ watch(
 
 function tabIcon(tab: ProjectContentTab) {
   if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
+  if (isAssistantProject(tab.projectId)) return ConciergeBellIcon;
   if (tab.state !== "bound") return MessageSquareTextIcon;
   // An automation run keeps its icon until the user replies to it.
   if (sessionStore.automationRunOf(tab.sessionId)) return WorkflowIcon;
+  // Dispatched by the Assistant, like the sidebar's "From Assistant".
+  if (sessionStore.isFromAssistant(tab.sessionId))
+    return MessageSquareShareIcon;
   // A sub-session, started by another session to work for it.
   return projectStore.projectById(tab.projectId)?.sessionParents?.[
     tab.sessionId

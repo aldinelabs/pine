@@ -13,6 +13,7 @@ import {
   PlusIcon,
   AtSignIcon,
   SearchIcon,
+  SlidersHorizontalIcon,
   ShieldCheckIcon,
   ShieldIcon,
   ShieldOffIcon,
@@ -124,6 +125,7 @@ import { withoutRelayPrefix } from "@/shared/sessions";
 import { onSessionEvent } from "@/client/sessionEvents";
 import { useHelpStore } from "@/stores/help";
 import { useSessionStore } from "@/stores/session";
+import { useAssistantStore } from "@/stores/assistant";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
   PinePendingApproval,
@@ -214,6 +216,13 @@ const props = withDefaults(
     pendingQuestionnaire?: PinePendingQuestionnaire | null;
     /** When set, the automation approval replaces the message input. */
     pendingAutomationApproval?: AutomationApprovalRequest | null;
+    /**
+     * The Assistant's conversation: no attachments or project to choose,
+     * and its mode and model are its settings, not the composer's.
+     */
+    assistant?: boolean;
+    /** The floating composer can send to the Assistant as well. */
+    assistantTarget?: boolean;
   }>(),
   {
     context: () => [],
@@ -225,6 +234,7 @@ const props = withDefaults(
   },
 );
 
+const assistantStore = useAssistantStore();
 const message = defineModel<string>({ default: "" });
 const approvalMode = defineModel<ApprovalMode>("approvalMode", {
   default: "auto-approve",
@@ -471,7 +481,11 @@ const chooserListId = `${messageId}-projects`;
 /** Only the composer whose chip is moving carries the name, so it is unique. */
 const PROJECT_MOVE_TRANSITION_NAME = "pine-draft-project";
 const canMention = computed(
-  () => !props.sessionId && !props.isRunning && !hasPendingInterruption.value,
+  () =>
+    !props.assistant &&
+    !props.sessionId &&
+    !props.isRunning &&
+    !hasPendingInterruption.value,
 );
 const projectMatches = computed(() =>
   projectNameMatches(
@@ -1230,6 +1244,11 @@ interface PastedImage {
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
   const files = Array.from(event.clipboardData?.files ?? []);
+  // The Assistant reads no files; pasted text still goes in.
+  if (props.assistant) {
+    if (files.length > 0) event.preventDefault();
+    return;
+  }
   if (files.length > 0 && isWeb && window.pine.uploadAttachments) {
     event.preventDefault();
     try {
@@ -1563,6 +1582,7 @@ function handleRootSubmit(event: Event): void {
                    focuses only an <input>, never this textarea, and a
                    disabled button lets the pointer through to it. -->
               <InputGroupAddon
+                v-if="!props.assistant"
                 class="cursor-default self-end py-1.5 pl-2.5"
                 align="inline-start"
               >
@@ -1791,12 +1811,14 @@ function handleRootSubmit(event: Event): void {
                 <!-- A draft still chooses its project right beside Send. -->
                 <ProjectTargetPicker
                   v-if="
+                    !props.assistant &&
                     !props.sessionId &&
                     !props.isRunning &&
                     !isMentioning &&
                     !committingProject
                   "
                   :project-id="props.projectId"
+                  :allow-assistant="props.assistantTarget"
                   :transition-name="
                     isMovingProject ? PROJECT_MOVE_TRANSITION_NAME : undefined
                   "
@@ -1920,7 +1942,18 @@ function handleRootSubmit(event: Event): void {
            and the container queries below compact both as the footer
            narrows. -->
       <div class="flex shrink-0 items-center gap-1">
-        <DropdownMenu v-model:open="isApprovalMenuOpen">
+        <Button
+          v-if="props.assistant"
+          data-testid="assistant-settings-button"
+          type="button"
+          variant="ghost"
+          size="sm"
+          @click="assistantStore.requestSettings()"
+        >
+          <SlidersHorizontalIcon data-icon="inline-start" />
+          {{ t("assistant.settingsButton") }}
+        </Button>
+        <DropdownMenu v-else v-model:open="isApprovalMenuOpen">
           <DropdownMenuTrigger as-child>
             <Button
               data-slot="approval-mode-trigger"
@@ -2019,7 +2052,7 @@ function handleRootSubmit(event: Event): void {
         <ContextUsageIndicator v-else class="shrink-0" />
       </div>
 
-      <DropdownMenu v-model:open="isModelMenuOpen">
+      <DropdownMenu v-if="!props.assistant" v-model:open="isModelMenuOpen">
         <DropdownMenuTrigger as-child>
           <Button
             data-slot="model-selector-trigger"

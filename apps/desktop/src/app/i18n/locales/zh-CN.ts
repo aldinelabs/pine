@@ -83,6 +83,29 @@ export default {
     failed: "无法安装更新。",
   },
   preferences: {
+    assistant: {
+      model: "模型",
+      modelDescription: "助理对话和派活时使用的模型。",
+      defaultModel: "与默认模型相同",
+      thinkingLevel: "推理强度",
+      thinkingLevelDescription: "助理回答前思考多久。",
+      approvalMode: "审批模式上限",
+      approvalModeDescription:
+        "助理以这个模式运行，它派出的会话只能使用这个模式或更谨慎的模式。",
+      wakesOnReport: "派出的会话回报时让助理回复",
+      wakesOnReportDescription:
+        "关闭时，回报留在对话里，等你下次发消息时一起处理，不产生费用；开启后，助理收到回报就立即回复。",
+      memory: "助理笔记",
+      memoryDescription: "助理记住的内容，比如你对项目的称呼。",
+      openMemory: "查看笔记",
+      clear: "清空对话",
+      clearDescription: "删除助理的对话。它派出的会话保持不变。",
+      clearAction: "清空对话",
+      clearConfirmTitle: "清空助理的对话？",
+      clearConfirmDescription:
+        "对话中的消息会被永久删除。你的下一条消息会开始新的对话。",
+      cleared: "对话已清空",
+    },
     remoteControl: {
       browserAccess: "浏览器访问",
       browserAccessDescription: "在浏览器中使用 Pine，Pine 需保持运行。",
@@ -397,6 +420,7 @@ export default {
       appearance: "外观",
       models: "模型",
       agent: "智能体",
+      assistant: "助理",
       personalization: "自定义",
       projects: "项目管理",
       remote: "远程控制",
@@ -924,6 +948,8 @@ export default {
     current: "当前",
     noSessions: "还没有会话",
     fromWeChat: "来自微信",
+    fromAssistant: "来自助理",
+    dispatchedByAssistant: "由助理派发",
     usedFromWeChat: "在微信中使用过",
     awaitingApproval: "等待你批准",
     awaitingAnswer: "等待你回答",
@@ -2778,6 +2804,27 @@ export default {
       emptyDescription: "请在项目设置中添加文件夹。",
     },
   },
+  assistant: {
+    name: "助理",
+    emptyTitle: "告诉助理你想做什么",
+    emptyDescription:
+      "它会找到合适的项目，把活派给那里的会话，并在这里向你汇报。它从不亲自干活。",
+    settingsButton: "助理设置",
+    targetDescription: "把活派给合适的项目",
+    source: {
+      desktop: "来自桌面",
+      wechat: "来自微信",
+    },
+    dispatch: {
+      dispatching: "正在派活…",
+      dispatched: "已派出",
+      dispatchFailed: "未能派出",
+      finished: "已完成",
+      failed: "失败了",
+      awaitingApproval: "等待你的批准",
+      stopped: "已停止",
+    },
+  },
   quickComposer: {
     permission: {
       screen: "允许 Pine 截取你所在应用的窗口",
@@ -2854,6 +2901,18 @@ export default {
     unavailable: "无法连接 Pine，请确认它仍在运行。",
   },
   errors: {
+    assistantOpen: {
+      title: "无法打开助理",
+      description: "请稍后再试。",
+    },
+    assistantSettings: {
+      title: "无法更新助理设置",
+      description: "请稍后再试。",
+    },
+    assistantClear: {
+      title: "无法清空助理的对话",
+      description: "请稍后再试。",
+    },
     skills: {
       title: "无法更新 Skills",
       description: "请检查 Skill 名称和 SKILL.md frontmatter 后重试",

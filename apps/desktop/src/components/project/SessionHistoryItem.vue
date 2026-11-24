@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ChevronRightIcon, MessageCircleIcon, WorkflowIcon } from "@lucide/vue";
+import {
+  ChevronRightIcon,
+  MessageCircleIcon,
+  MessageSquareShareIcon,
+  WorkflowIcon,
+} from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
@@ -203,6 +208,16 @@ const emit = defineEmits<{
           class="text-muted-foreground"
           aria-hidden="true"
         />
+        <span
+          v-else-if="session.fromAssistant"
+          data-slot="session-assistant-origin"
+          class="flex shrink-0 text-muted-foreground"
+          role="img"
+          :aria-label="t('sessions.fromAssistant')"
+          :title="t('sessions.fromAssistant')"
+        >
+          <MessageSquareShareIcon class="size-4" aria-hidden="true" />
+        </span>
         <span
           v-else-if="weChatLabel"
           data-slot="session-wechat-origin"
