@@ -55,6 +55,8 @@ import { useContentTabsStore } from "@/stores/contentTabs";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { useFileToSession } from "@/composables/useFileToSession";
+import { useSubmissionCounts } from "@/composables/useSubmittedArtifacts";
+import { useSessionStore } from "@/stores/session";
 import {
   surfaceOf,
   usePreviewAnnotationHighlights,
@@ -421,6 +423,19 @@ watch(
   { immediate: true },
 );
 onBeforeUnmount(() => versions.bind(versionViewKey.value, undefined));
+// Only the active session's transcript is loaded: while it is the tab's, a
+// new submission of the file joins the history at once.
+const sessionStore = useSessionStore();
+const submissionCounts = useSubmissionCounts();
+const versionSubmissions = computed(() => {
+  const artifact = props.file.artifact;
+  return artifact && sessionStore.activeSession?.id === artifact.sessionId
+    ? (submissionCounts.value.get(artifact.path) ?? 0)
+    : undefined;
+});
+watch(versionSubmissions, (count) => {
+  if (count !== undefined) void versions.refresh(versionViewKey.value);
+});
 const versionView = computed(() => versions.viewOf(versionViewKey.value));
 const viewingVersion = computed(() => !!versionView.value?.viewing);
 /** A kept version is shown, and its copy is still being written out. */

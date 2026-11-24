@@ -65,7 +65,8 @@ const contentTabs = useContentTabsStore();
 const projectStore = useProjectStore();
 const navigation = useContentTabNavigation();
 const previewTarget = computed(() => workbench.activeLayout.preview?.target);
-const { key: versionViewKey } = useWorkbenchArtifactVersions();
+const { key: versionViewKey, source: versionSource } =
+  useWorkbenchArtifactVersions();
 
 /** The full previewer, with zoom, selection, and file actions. */
 function openPreviewInTab(): void {
@@ -83,8 +84,11 @@ function openPreviewInTab(): void {
         ? artifactKey(preview.toolCallId, preview.artifactPath)
         : undefined,
       preview.reveal,
-      sessionId && preview.artifactPath
-        ? { sessionId, path: preview.artifactPath }
+      versionSource.value
+        ? {
+            sessionId: versionSource.value.sessionId,
+            path: versionSource.value.path,
+          }
         : undefined,
     ).id,
   );

@@ -128,6 +128,16 @@ export const useArtifactVersionStore = defineStore("artifactVersions", () => {
     }
   }
 
+  /**
+   * Reads the history again if it was read before, as when the agent
+   * submits the file once more: an open version menu lists the new version
+   * at once. A failure keeps the history shown; the menu reads it on open.
+   */
+  async function refresh(key: string): Promise<void> {
+    if (!views.value[key]?.history) return;
+    await load(key).catch(() => {});
+  }
+
   function request(view: ArtifactVersionView, version: ArtifactVersion) {
     return { ...plainSource(view.source), version: plainRef(version.ref) };
   }
@@ -227,6 +237,7 @@ export const useArtifactVersionStore = defineStore("artifactVersions", () => {
     bind,
     clearMenuRequest,
     load,
+    refresh,
     requestMenu,
     restore,
     saveAs,

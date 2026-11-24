@@ -59,6 +59,7 @@ import {
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useListFold } from "@/composables/useListFold";
 import { useProjectFileChanges } from "@/composables/useProjectFileChanges";
+import { messageArtifacts } from "@/composables/useSubmittedArtifacts";
 import { fileIcon } from "@/lib/fileIcon";
 import { dragFileTarget, startNativeFileDrag } from "@/lib/projectFileDrag";
 import {
@@ -70,11 +71,9 @@ import {
 } from "@/lib/filePreviewTarget";
 import {
   artifactKey,
-  artifactsOfCalls,
   artifactTree,
   collectArtifacts,
   type ArtifactFolderNode,
-  type CallArtifacts,
   type SessionArtifact,
 } from "@/shared/artifacts";
 import { isValidProjectEntryName } from "@/shared/fileNames";
@@ -86,7 +85,7 @@ import {
 } from "@/stores/artifactVersions";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
-import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
+import { useSessionStore } from "@/stores/session";
 import { useWorkbenchStore } from "@/stores/workbench";
 
 /** A listed artifact and the key its targets and removal are stored under. */
@@ -114,23 +113,6 @@ const navigation = useContentTabNavigation();
 const { emitProjectFilesChanged } = useProjectFileChanges();
 const { messages, activeSession, isLoadingMessages } =
   storeToRefs(sessionStore);
-
-/**
- * One message's artifacts. Transcript messages are immutable records, so a
- * streaming update only rescans the message it replaced.
- */
-const artifactsByMessage = new WeakMap<PineTranscriptMessage, CallArtifacts>();
-function messageArtifacts(message: PineTranscriptMessage): CallArtifacts {
-  const cached = artifactsByMessage.get(message);
-  if (cached) return cached;
-  const found = artifactsOfCalls(
-    message.blocks.flatMap((block) =>
-      block.type === "toolCall" ? [block.toolCall] : [],
-    ),
-  );
-  artifactsByMessage.set(message, found);
-  return found;
-}
 
 /**
  * The session's artifacts, newest first, each path once: the files the agent

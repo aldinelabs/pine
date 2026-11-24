@@ -863,7 +863,9 @@ close the card. The panels are:
 - Background processes: processes started by the agent, with their output.
 - Preview: the file last presented by the agent or picked from Artifacts;
   Open in tab. For a submitted file, the header also has Version history (a
-  clock button; see Artifact versions below).
+  clock button; see Artifact versions below). A file the agent presented
+  gains it as soon as the agent submits that file, and each later
+  submission joins the list right away, without reopening the preview.
 - Files: the project's file tree, with its folders and access levels.
 - Live context (macOS 26 or later; listed only when available): marked
   with a small grey "BETA" badge beside its name, both in the card title
