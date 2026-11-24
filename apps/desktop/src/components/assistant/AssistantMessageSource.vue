@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { MessageCircleIcon, MonitorIcon } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
-import type { AssistantMessageSource } from "@/shared/assistant";
+import type { AssistantTurnSource } from "@/shared/assistant";
 
 /** Where a message to the Assistant was written, shown above its bubble. */
-defineProps<{ source: AssistantMessageSource }>();
+defineProps<{ source: AssistantTurnSource }>();
 
 const { t } = useI18n();
 </script>

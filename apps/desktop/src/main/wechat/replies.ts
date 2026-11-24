@@ -1059,6 +1059,46 @@ export function renderAssistantPages(lang: L, markdown: string): string[] {
   );
 }
 
+/** Most WeChat messages one Assistant reply goes out as. */
+export const ASSISTANT_BUBBLES_MAX = 4;
+
+/**
+ * The Assistant's reply as separate WeChat messages, split at its blank
+ * lines (docs: its WeChat replies are bubbles, at most four): the first
+ * carries the `T-ASSISTANT` heading, parts beyond the fourth join the last.
+ * Undefined when the reply is one part, holds a code block (a blank line
+ * inside it is not a split) or has a part longer than one message: it goes
+ * as `renderAssistantPages` instead.
+ */
+export function renderAssistantBubbles(
+  lang: L,
+  markdown: string,
+): string[] | undefined {
+  if (markdown.includes("```") || markdown.includes("~~~")) return undefined;
+  const parts = markdown
+    .replace(/\r\n?/g, "\n")
+    .split(/\n[ \t]*\n/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length < 2) return undefined;
+  const kept =
+    parts.length > ASSISTANT_BUBBLES_MAX
+      ? [
+          ...parts.slice(0, ASSISTANT_BUBBLES_MAX - 1),
+          parts.slice(ASSISTANT_BUBBLES_MAX - 1).join("\n\n"),
+        ]
+      : parts;
+  const bubbles: string[] = [];
+  for (const [index, part] of kept.entries()) {
+    const text = agentMarkdown(part, lang, { choices: false });
+    if (!text) continue;
+    const bubble = index === 0 ? render("T-ASSISTANT", lang, { text }) : text;
+    if (codePointLength(bubble) > REPLY_MAX) return undefined;
+    bubbles.push(bubble);
+  }
+  return bubbles.length >= 2 ? bubbles : undefined;
+}
+
 /** The last TASK_OUTPUT_LINES lines of process output, at most TASK_OUTPUT_MAX code points. */
 export function tailOutput(output: string): string {
   const tail = output

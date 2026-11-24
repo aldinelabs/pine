@@ -1,24 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseAssistantMessageSource,
-  withAssistantMessageSource,
+  ASSISTANT_WECHAT_MARK,
+  markWeChatMessage,
+  readAssistantMessage,
 } from "../assistant";
 
 describe("Assistant message sources", () => {
   it("leaves a desktop message as typed", () => {
-    expect(withAssistantMessageSource("desktop", "你好")).toBe("你好");
-    expect(parseAssistantMessageSource("你好")).toEqual({
-      source: "desktop",
-      body: "你好",
+    expect(readAssistantMessage("你好")).toEqual({
+      text: "你好",
+      fromWeChat: false,
     });
   });
 
-  it("marks a WeChat message and reads the mark back", () => {
-    const sent = withAssistantMessageSource("wechat", "看看进度");
-    expect(sent).not.toBe("看看进度");
-    expect(parseAssistantMessageSource(sent)).toEqual({
-      source: "wechat",
-      body: "看看进度",
+  it("marks a WeChat message on its first line and reads the mark back", () => {
+    const sent = markWeChatMessage("看看进度");
+    expect(sent).toBe(`${ASSISTANT_WECHAT_MARK}\n看看进度`);
+    expect(readAssistantMessage(sent)).toEqual({
+      text: "看看进度",
+      fromWeChat: true,
     });
   });
 });

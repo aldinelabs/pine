@@ -26,7 +26,7 @@ import {
   type AssistantState,
   type AssistantTurnSource,
   type ClearAssistantResult,
-  withAssistantMessageSource,
+  markWeChatMessage,
 } from "../../shared/assistant";
 import type { PineModelSelection } from "../../shared/models";
 import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
@@ -482,7 +482,10 @@ export class AssistantService {
       ASSISTANT_CLIENT_ID,
       {
         locale: options.locale,
-        message: withAssistantMessageSource(options.source, message),
+        // The prompt picks its WeChat style by this mark; displays strip
+        // it with readAssistantMessage.
+        message:
+          options.source === "wechat" ? markWeChatMessage(message) : message,
         ...(options.steer ? { streamingBehavior: "steer" as const } : {}),
       },
       { focus: false },

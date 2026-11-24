@@ -59,7 +59,7 @@ import {
   dispatchEntryOfToolCall,
   isDispatchToolCall,
 } from "@/components/assistant/dispatchEntry";
-import { parseAssistantMessageSource } from "@/shared/assistant";
+import { readAssistantMessage } from "@/shared/assistant";
 import ProjectSessionNoticeMarker from "./ProjectSessionNoticeMarker.vue";
 import ProjectCompactionMarker from "./ProjectCompactionMarker.vue";
 import ProjectErrorMarker from "./ProjectErrorMarker.vue";
@@ -202,9 +202,13 @@ const relay = computed(() => {
   const parsed = parseRelayPrefix(text.value);
   if (!inAssistant) return parsed;
   // A message to the Assistant shows where it was written, without the
-  // marker another entry point put in front of it.
-  const { source, body } = parseAssistantMessageSource(parsed.body);
-  return { ...parsed, body, messageSource: source };
+  // WeChat mark Pine put in front of it.
+  const { text: body, fromWeChat } = readAssistantMessage(parsed.body);
+  return {
+    ...parsed,
+    body,
+    messageSource: fromWeChat ? ("wechat" as const) : ("desktop" as const),
+  };
 });
 /** The message an automation run starts with, shown as a card. */
 const automationRun = computed(() =>

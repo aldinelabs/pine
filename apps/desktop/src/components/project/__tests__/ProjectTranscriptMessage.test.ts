@@ -15,6 +15,8 @@ import MarkdownContent from "@/components/markdown/MarkdownContent.vue";
 import IntelligentUiBlock from "@/components/intelligent-ui/IntelligentUiBlock.vue";
 import { parseContentBlocks } from "@/shared/sessions";
 import { provideMessageScroller } from "@/components/ui/message-scroller/useMessageScroller";
+import { assistantViewKey } from "@/components/assistant/context";
+import { markWeChatMessage } from "@/shared/assistant";
 
 function mountMessage(
   message: PineTranscriptMessage,
@@ -33,6 +35,46 @@ function mountMessage(
 
 describe("ProjectTranscriptMessage", () => {
   beforeEach(() => setActivePinia(createPinia()));
+
+  it("shows where a message to the Assistant came from, without the WeChat mark", () => {
+    const user = (id: string, text: string): PineTranscriptMessage => ({
+      createdAt: "2026-11-24T00:00:00.000Z",
+      id,
+      role: "user",
+      status: "complete",
+      blocks: [{ type: "text", text }],
+    });
+    const mountInAssistant = (message: PineTranscriptMessage) =>
+      mount(ProjectTranscriptMessage, {
+        props: { message },
+        global: {
+          plugins: [createAppI18n("zh-CN")],
+          provide: { [assistantViewKey as symbol]: true },
+        },
+      });
+
+    const wechat = mountInAssistant(
+      user("from-wechat", markWeChatMessage("导航那个好了没")),
+    );
+    const source = wechat.get('[data-testid="assistant-message-source"]');
+    expect(source.attributes("data-source")).toBe("wechat");
+    expect(source.text()).toBe("来自微信");
+    expect(wechat.text()).toContain("导航那个好了没");
+    expect(wechat.text()).not.toContain("[WeChat]");
+
+    const desktop = mountInAssistant(user("from-desktop", "看看在跑什么"));
+    expect(
+      desktop
+        .get('[data-testid="assistant-message-source"]')
+        .attributes("data-source"),
+    ).toBe("desktop");
+
+    // Outside the Assistant a message shows as written.
+    const elsewhere = mountMessage(user("elsewhere", "看看在跑什么"));
+    expect(
+      elsewhere.find('[data-testid="assistant-message-source"]').exists(),
+    ).toBe(false);
+  });
 
   it.each(["text", "toolCall"] as const)(
     "folds live thinking when %s follows it",

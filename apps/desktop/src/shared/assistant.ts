@@ -113,41 +113,28 @@ export interface ClearAssistantResult {
 }
 
 /**
- * Where a message to the Assistant was written. The desktop sends plain
- * text; another entry point, such as WeChat, starts the message with its
- * marker, which the desktop shows as a source label and hides from the text.
+ * The first line Pine puts on a user message that came in through WeChat.
+ * One thread holds both WeChat and desktop messages and the system prompt is
+ * fixed, so the source travels with each message and the prompt's "Talking
+ * to the user" rules pick the style by it. Unmarked messages are from Pine on
+ * the computer. The desktop strips it and shows "From WeChat" instead.
  */
-export type AssistantMessageSource = AssistantTurnSource;
+export const ASSISTANT_WECHAT_MARK = "[WeChat]";
 
-const ASSISTANT_SOURCE_MARKERS: Record<
-  Exclude<AssistantMessageSource, "desktop">,
-  string
-> = {
-  wechat: "[Pine Assistant: sent from WeChat]",
-};
-
-/** Marks a message for the Assistant as written in another entry point. */
-export function withAssistantMessageSource(
-  source: AssistantMessageSource,
-  text: string,
-): string {
-  return source === "desktop"
-    ? text
-    : `${ASSISTANT_SOURCE_MARKERS[source]}\n\n${text}`;
+/** The text to send the Assistant for what the user wrote in WeChat. */
+export function markWeChatMessage(text: string): string {
+  return `${ASSISTANT_WECHAT_MARK}\n${text}`;
 }
 
-/** The entry point a message to the Assistant came from, and its text. */
-export function parseAssistantMessageSource(text: string): {
-  source: AssistantMessageSource;
-  body: string;
+/** What the user wrote, without the WeChat mark, and whether it had one. */
+export function readAssistantMessage(text: string): {
+  text: string;
+  fromWeChat: boolean;
 } {
-  for (const [source, marker] of Object.entries(ASSISTANT_SOURCE_MARKERS))
-    if (text.startsWith(marker))
-      return {
-        source: source as AssistantMessageSource,
-        body: text.slice(marker.length).replace(/^\s+/, ""),
-      };
-  return { source: "desktop", body: text };
+  const prefix = `${ASSISTANT_WECHAT_MARK}\n`;
+  return text.startsWith(prefix)
+    ? { text: text.slice(prefix.length), fromWeChat: true }
+    : { text, fromWeChat: false };
 }
 
 /** What a session is doing now, as the Assistant reports it. */

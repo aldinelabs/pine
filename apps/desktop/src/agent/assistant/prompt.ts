@@ -1,4 +1,5 @@
 import {
+  ASSISTANT_WECHAT_MARK,
   DISPATCH_TASK_TOOL_NAME,
   PINE_OVERVIEW_TOOL_NAME,
   SESSION_DIGEST_TOOL_NAME,
@@ -13,30 +14,12 @@ import {
   MEMORY_SAVE_TOOL_NAME,
 } from "../../shared/memory";
 
-/**
- * The first line Pine puts on a user message that came in through WeChat.
- * One thread holds both WeChat and desktop messages and the system prompt is
- * fixed, so the source travels with each message and the prompt's "Talking
- * to the user" rules pick the style by it. Unmarked messages are from Pine on
- * the computer.
- */
-export const ASSISTANT_WECHAT_MARK = "[WeChat]";
-
-/** The text to send the Assistant for what the user wrote in WeChat. */
-export function markWeChatMessage(text: string): string {
-  return `${ASSISTANT_WECHAT_MARK}\n${text}`;
-}
-
-/** What the user wrote, without the WeChat mark, and whether it had one. */
-export function readAssistantMessage(text: string): {
-  text: string;
-  fromWeChat: boolean;
-} {
-  const prefix = `${ASSISTANT_WECHAT_MARK}\n`;
-  return text.startsWith(prefix)
-    ? { text: text.slice(prefix.length), fromWeChat: true }
-    : { text, fromWeChat: false };
-}
+// The WeChat mark lives in shared so the desktop can read it too.
+export {
+  ASSISTANT_WECHAT_MARK,
+  markWeChatMessage,
+  readAssistantMessage,
+} from "../../shared/assistant";
 
 /**
  * The Assistant's whole system prompt. It is one fixed text: nothing about

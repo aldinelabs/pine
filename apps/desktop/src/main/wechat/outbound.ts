@@ -4,6 +4,7 @@
 // for the digest that leads the reply to the user's next message.
 
 import {
+  PRIORITY_MIN_REMAINING,
   allows,
   budgetNoticeDue,
   enqueue,
@@ -28,6 +29,15 @@ export interface OutboundPush {
   text: string;
   /** What the digest says when the push could not be sent. */
   digest: DigestItem;
+  /**
+   * The same push as separate WeChat messages, each within REPLY_MAX, sent
+   * in order on its own rather than merged with other pushes. While the
+   * budget is short the last ones are joined into one; when even that does
+   * not fit, `text` goes instead and `onSingle` runs.
+   */
+  bubbles?: readonly string[];
+  /** `text` was sent in place of `bubbles` (set the pager for its pages). */
+  onSingle?(): void;
 }
 
 export interface OutboundDeps {
@@ -59,6 +69,27 @@ function fits(items: readonly OutboundPush[], tail?: string): boolean {
 }
 
 /** Splits pushes, in order, into messages of at most REPLY_MAX code points (markup included). */
+/**
+ * How many messages `bubbles` go out as with `remaining` sends left: as many
+ * as the budget allows while one send at card priority stays free after
+ * them, the last joining what is left. Undefined when the joined last one
+ * would not fit in REPLY_MAX: send the single-message form instead.
+ */
+export function planBubbles(
+  bubbles: readonly string[],
+  remaining: number,
+): string[] | undefined {
+  const sends = Math.min(
+    bubbles.length,
+    Math.max(1, remaining - PRIORITY_MIN_REMAINING[1]),
+  );
+  if (sends <= 1) return undefined;
+  const plan = bubbles.slice(0, sends - 1);
+  const last = bubbles.slice(sends - 1).join(SEPARATOR);
+  if (Array.from(last).length > REPLY_MAX) return undefined;
+  return [...plan, last];
+}
+
 function fitChunks(items: readonly OutboundPush[]): OutboundPush[][] {
   const chunks: OutboundPush[][] = [];
   let current: OutboundPush[] = [];
@@ -239,7 +270,10 @@ export class Outbound {
     void this.serial(() => this.sendPushes(items)).catch(() => undefined);
   }
 
-  private async sendPushes(items: OutboundPush[]): Promise<void> {
+  private async sendPushes(all: OutboundPush[]): Promise<void> {
+    // Bubbled pushes go on their own, after the cards and results.
+    const items = all.filter((item) => !item.bubbles);
+    const bubbled = all.filter((item) => item.bubbles);
     const plan = planMerge(items);
     if (plan.merged.length > 0) {
       const merge = this.fitMerged(plan.merged, plan.overflow);
@@ -273,6 +307,34 @@ export class Outbound {
     for (const item of plan.single) {
       await this.sendPush(item.priority, item.text, [item]);
     }
+    for (const item of bubbled) await this.sendBubbles(item);
+  }
+
+  /** Sends a bubbled push as planBubbles allows, or its single-message form. */
+  private async sendBubbles(item: OutboundPush): Promise<void> {
+    const remaining = this.remaining();
+    const plan =
+      allows(item.priority, remaining) && item.bubbles
+        ? planBubbles(item.bubbles, remaining)
+        : undefined;
+    if (!plan) {
+      const sent = await this.sendPush(item.priority, item.text, [item]);
+      if (sent === undefined) return;
+      item.onSingle?.();
+      this.deps.onDelivered?.(item.key, sent);
+      return;
+    }
+    let first: number | undefined;
+    for (const text of plan) {
+      const sent = await this.sendPush(
+        item.priority,
+        text,
+        first === undefined ? [item] : [],
+      );
+      if (sent === undefined) break;
+      first ??= sent;
+    }
+    if (first !== undefined) this.deps.onDelivered?.(item.key, first);
   }
 
   /**

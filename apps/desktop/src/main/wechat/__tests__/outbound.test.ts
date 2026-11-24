@@ -8,7 +8,12 @@ import {
   REPLY_MAX,
   USABLE,
 } from "../constants";
-import { Outbound, type OutboundDeps, type OutboundPush } from "../outbound";
+import {
+  Outbound,
+  planBubbles,
+  type OutboundDeps,
+  type OutboundPush,
+} from "../outbound";
 import type {
   DigestItem,
   WeChatPersistedState,
@@ -443,6 +448,87 @@ describe("Outbound pushes", () => {
       "ask:12",
     ]);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("Outbound bubbles", () => {
+  function bubbled(onSingle = vi.fn()): OutboundPush {
+    return {
+      key: "result:assistant",
+      priority: 2,
+      text: "ONE MESSAGE",
+      digest: { kind: "done", title: "Assistant" },
+      bubbles: ["B1", "B2", "B3"],
+      onSingle,
+    };
+  }
+
+  it("plans as many messages as leave a card's send free", () => {
+    expect(planBubbles(["a", "b", "c"], 8)).toEqual(["a", "b", "c"]);
+    expect(planBubbles(["a", "b", "c"], 4)).toEqual(["a", "b\n\nc"]);
+    expect(planBubbles(["a", "b", "c"], 3)).toBeUndefined();
+    expect(planBubbles(["a", "x".repeat(REPLY_MAX)], 3)).toBeUndefined();
+    expect(
+      planBubbles(
+        ["a", "x".repeat(REPLY_MAX / 2), "y".repeat(REPLY_MAX / 2)],
+        4,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("sends each bubble on its own after the cards, counting every send", async () => {
+    const t = setup();
+    t.outbound.onInbound("ctx-1");
+    const onSingle = vi.fn();
+    t.outbound.push(bubbled(onSingle));
+    t.outbound.push(card(11));
+    await settle();
+    expect(t.sent.map((s) => s.text)).toEqual(["CARD 11", "B1", "B2", "B3"]);
+    expect(t.outbound.remaining()).toBe(USABLE - 4);
+    expect(t.delivered.map(([key]) => key)).toEqual([
+      "ask:11",
+      "result:assistant",
+    ]);
+    expect(onSingle).not.toHaveBeenCalled();
+  });
+
+  it("joins the last bubbles while the budget is short", async () => {
+    const t = setup();
+    t.outbound.onInbound("ctx-1");
+    t.store.updateSoon((draft) => {
+      if (draft.contextToken) draft.contextToken.sent = USABLE - 4;
+    });
+    t.outbound.push(bubbled());
+    await settle();
+    expect(t.sent.map((s) => s.text)).toEqual(["B1", "B2\n\nB3"]);
+    // A card can still go.
+    t.outbound.push(card(11));
+    await settle();
+    expect(t.sent.at(-1)?.text).toBe("CARD 11");
+  });
+
+  it("falls back to the single message, then to the digest", async () => {
+    const t = setup();
+    t.outbound.onInbound("ctx-1");
+    t.store.updateSoon((draft) => {
+      if (draft.contextToken) draft.contextToken.sent = USABLE - 3;
+    });
+    const onSingle = vi.fn();
+    t.outbound.push(bubbled(onSingle));
+    await settle();
+    expect(t.sent.map((s) => s.text)).toEqual(["ONE MESSAGE"]);
+    expect(onSingle).toHaveBeenCalledTimes(1);
+
+    t.store.updateSoon((draft) => {
+      if (draft.contextToken) draft.contextToken.sent = USABLE - 1;
+    });
+    const later = vi.fn();
+    t.outbound.push(bubbled(later));
+    await settle();
+    expect(later).not.toHaveBeenCalled();
+    expect(t.store.get().outQueue.map((q) => q.key)).toEqual([
+      "result:assistant",
+    ]);
   });
 });
 
