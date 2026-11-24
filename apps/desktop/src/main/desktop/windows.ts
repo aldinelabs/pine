@@ -2,8 +2,6 @@ import path from "node:path";
 import { setAppLocale } from "./attention";
 import { z } from "zod";
 import { BrowserWindow, ipcMain, nativeTheme, type Rectangle } from "electron";
-import { ASSISTANT_DEBUG_ARGUMENT } from "../../shared/assistant";
-import { assistantDebugEnabled } from "./assistantDebug";
 import {
   QUICK_COMPOSER_GLASS_RADIUS,
   QUICK_COMPOSER_HANDOFF_ARGUMENT,
@@ -177,12 +175,9 @@ export class DesktopWindows {
       webPreferences: {
         ...SECURE_WEB_PREFERENCES,
         preload: path.join(__dirname, "preload.js"),
-        additionalArguments: [
-          ...(options.quickComposerHandoff
-            ? [QUICK_COMPOSER_HANDOFF_ARGUMENT]
-            : []),
-          ...(assistantDebugEnabled() ? [ASSISTANT_DEBUG_ARGUMENT] : []),
-        ],
+        ...(options.quickComposerHandoff && {
+          additionalArguments: [QUICK_COMPOSER_HANDOFF_ARGUMENT],
+        }),
       },
     });
     this.backgrounds.set(mainWindow, {

@@ -21,6 +21,7 @@ import {
   approvalModeWithin,
 } from "../../../shared/agent";
 import { isVirtualClient } from "../../../shared/webControl";
+import { isAssistantProject } from "../../../shared/assistant";
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
@@ -103,12 +104,13 @@ import {
 
 /**
  * Marks the sessions that are automation runs, and those started or used
- * from WeChat, as the sidebar shows them.
+ * from WeChat or by the Assistant, as the sidebar shows them.
  */
 async function withAutomationRuns<
   T extends PineSessionSummary & { projectId?: string },
 >(core: PineCore, sessions: T[], projectId?: string): Promise<T[]> {
   const runs = new Map<string, Map<string, AutomationRunSession>>();
+  const dispatched = await core.assistant.dispatchedIds();
   for (const id of new Set(
     sessions.map((session) => session.projectId ?? projectId),
   )) {
@@ -117,11 +119,13 @@ async function withAutomationRuns<
   return sessions.map((session) => {
     const run = runs.get(session.projectId ?? projectId ?? "")?.get(session.id);
     const origin = core.wechat.originOf(session.id);
-    if (!run && !origin) return session;
+    const fromAssistant = dispatched.has(session.id);
+    if (!run && !origin && !fromAssistant) return session;
     return {
       ...session,
       ...(run ? { automationRun: run } : {}),
       ...(origin ? { origin } : {}),
+      ...(fromAssistant ? { fromAssistant: true as const } : {}),
     };
   });
 }
@@ -1065,6 +1069,17 @@ export function registerSessionRequests(core: PineCore): void {
     PROMPT_SESSION_CHANNEL,
     async (context, request: unknown): Promise<PromptSessionResult> => {
       const parsed = PromptSessionRequestSchema.parse(request);
+      // The Assistant has one conversation, its own mode and model, and no
+      // authoring: whatever a window sends it lands in that conversation.
+      if (isAssistantProject(parsed.target.projectId))
+        return core.assistant.prompt(context.clientId, {
+          locale: parsed.locale,
+          message: parsed.message,
+          ...(parsed.streamingBehavior
+            ? { streamingBehavior: parsed.streamingBehavior }
+            : {}),
+          ...(parsed.rewrite ? { rewrite: parsed.rewrite } : {}),
+        });
       // Writing in a finished run makes it an ordinary session; a running
       // one still belongs to its automation.
       if (parsed.target.kind === "session")
@@ -1147,6 +1162,9 @@ export function registerSessionRequests(core: PineCore): void {
     async (context, request: unknown): Promise<SetApprovalModeResult> => {
       const { approvalMode, sessionId } =
         SetApprovalModeRequestSchema.parse(request);
+      // The Assistant's mode is its setting, which caps what it dispatches.
+      if (isAssistantProject(runtimes.projectOfLiveSession(sessionId)?.id))
+        throw new Error("Change the Assistant's mode in its settings.");
       return runtimes.setApprovalMode(
         context.clientId,
         approvalMode,

@@ -786,7 +786,6 @@ export class PineCore {
         void this.answerAutomationRequest(agentEvent, true);
       return;
     }
-    this.assistant.observe(agentEvent);
     const sideChat = this.runtimes.sideChatOf(agentEvent.sessionId);
     if (sideChat) {
       this.routeSideChatEvent(agentEvent, sideChat);

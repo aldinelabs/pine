@@ -1,4 +1,5 @@
 import type { PineCore } from "../pineCore";
+import { registerAssistantRequests } from "./assistant";
 import { registerAutomationRequests } from "./automations";
 import { registerFileRequests } from "./files";
 import { registerMcpRequests } from "./mcp";
@@ -22,4 +23,5 @@ export function registerCoreRequests(core: PineCore): void {
   registerMemoryRequests(core);
   registerMcpRequests(core);
   registerAutomationRequests(core);
+  registerAssistantRequests(core);
 }

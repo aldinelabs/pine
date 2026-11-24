@@ -2,31 +2,41 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { approvalModeWithin, type PineAgentEvent } from "../../shared/agent";
 import {
-  ASSISTANT_APPROVAL_MODE,
+  approvalModeWithin,
+  type PromptSessionRequest,
+  type PromptSessionResult,
+} from "../../shared/agent";
+import {
+  ASSISTANT_APPROVAL_MODES,
   ASSISTANT_CLIENT_ID,
   ASSISTANT_DISPATCHES_FILE,
   ASSISTANT_PROJECT_ID,
+  ASSISTANT_SETTINGS_FILE,
   ASSISTANT_STATE_FILE,
+  DEFAULT_ASSISTANT_SETTINGS,
   isAssistantProject,
-  type AssistantDebugPromptResult,
   type AssistantDigest,
   type AssistantHostOperation,
   type AssistantHostResult,
   type AssistantOverviewSession,
+  type AssistantSettings,
+  type AssistantState,
+  type ClearAssistantResult,
 } from "../../shared/assistant";
+import type { PineModelSelection } from "../../shared/models";
 import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
 import {
   withoutRelayPrefix,
   type PineSessionNotice,
+  type PineSessionSummary,
   type PineTextMessage,
 } from "../../shared/sessions";
 import { isVirtualClient } from "../../shared/webControl";
 import { listProjectSessions } from "../recentSessions";
 import type { PineCore } from "./pineCore";
 import { sessionLibrary, startBackgroundSession } from "./requests/sessions";
-import { messageText } from "./subSessions";
+import { deleteSessionWithChildren, messageText } from "./subSessions";
 
 /**
  * The main-process side of Pine's Assistant (shared/assistant.ts): answers
@@ -34,24 +44,14 @@ import { messageText } from "./subSessions";
  * its conversation each time one of them ends a turn or waits for approval.
  */
 
-/**
- * Whether a dispatched session's report starts an Assistant turn. Off: the
- * report waits in the conversation until the user next talks to it, so a
- * busy afternoon of dispatched work costs no Assistant tokens on its own
- * (docs/orchestrator-proposal.md §3.8).
- */
-export const ASSISTANT_WAKES_ON_REPORT = false;
-
 /** Dispatches remembered; older ones drop out of the overview and reports. */
 const DISPATCHES_MAX = 200;
 /** Dispatched sessions the overview lists. */
 const OVERVIEW_DISPATCHED_MAX = 10;
 const REPLY_MAX = 2_000;
 const REQUEST_MAX = 800;
-/** How long the development entry waits for the Assistant's turn. */
-const DEBUG_TURN_TIMEOUT_MS = 10 * 60_000;
-/** Waits for the first turn of a conversation whose id is not known yet. */
-const NEW_CONVERSATION = "new";
+/** Conversations cleared from the Assistant, so late reports skip them. */
+const CLEARED_MAX = 20;
 
 const DispatchSchema = z.object({
   projectId: z.uuid(),
@@ -69,7 +69,53 @@ const DispatchesFileSchema = z.object({
 const StateFileSchema = z.object({
   version: z.literal(1),
   sessionId: z.string().min(1).optional(),
+  clearedSessionIds: z.array(z.string()).optional(),
 });
+type StateFile = z.infer<typeof StateFileSchema>;
+
+const ModelSelectionSchema = z.object({
+  providerId: z.string().min(1).max(200),
+  modelId: z.string().min(1).max(500),
+  thinkingLevel: z.enum([
+    "off",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
+    "max",
+  ]),
+});
+
+/** Saved and requested settings alike; a missing model follows the default. */
+export const AssistantSettingsSchema = z.object({
+  model: ModelSelectionSchema.optional(),
+  approvalMode: z.enum(ASSISTANT_APPROVAL_MODES),
+  wakesOnReport: z.boolean(),
+});
+
+const SettingsFileSchema = AssistantSettingsSchema.extend({
+  version: z.literal(1),
+});
+
+/** What the desktop sends the Assistant; its target is always its thread. */
+export interface AssistantPromptRequest {
+  locale: "en-US" | "zh-CN";
+  message: string;
+  streamingBehavior?: "follow-up" | "steer";
+  rewrite?: PromptSessionRequest["rewrite"];
+}
+
+function sameModel(
+  left: PineModelSelection | undefined,
+  right: PineModelSelection | undefined,
+): boolean {
+  return (
+    left?.providerId === right?.providerId &&
+    left?.modelId === right?.modelId &&
+    left?.thinkingLevel === right?.thinkingLevel
+  );
+}
 
 const OperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("overview") }),
@@ -170,11 +216,8 @@ export function dispatchNoticeContent(
 export class AssistantService {
   /** Serializes writes of the dispatch registry. */
   private writes: Promise<unknown> = Promise.resolve();
-  /** The development entry's waits for the Assistant's turn to end. */
-  private readonly turnWaiters = new Map<
-    string,
-    (state: "idle" | "failed") => void
-  >();
+  /** The dispatch registry as last read or written. */
+  private known: Promise<Record<string, Dispatch>> | undefined;
 
   constructor(private readonly core: PineCore) {}
 
@@ -190,11 +233,20 @@ export class AssistantService {
     return path.join(this.root(), ASSISTANT_STATE_FILE);
   }
 
-  async dispatches(): Promise<Record<string, Dispatch>> {
-    return (
-      (await readJson(this.dispatchesFile(), DispatchesFileSchema))
-        ?.dispatches ?? {}
+  private settingsFile(): string {
+    return path.join(this.root(), ASSISTANT_SETTINGS_FILE);
+  }
+
+  dispatches(): Promise<Record<string, Dispatch>> {
+    this.known ??= readJson(this.dispatchesFile(), DispatchesFileSchema).then(
+      (file) => file?.dispatches ?? {},
     );
+    return this.known;
+  }
+
+  /** Whether the Assistant dispatched the session, for "From Assistant". */
+  async dispatchedIds(): Promise<ReadonlySet<string>> {
+    return new Set(Object.keys(await this.dispatches()));
   }
 
   private recordDispatch(sessionId: string, dispatch: Dispatch): Promise<void> {
@@ -203,18 +255,178 @@ export class AssistantService {
       const entries = Object.entries({ ...current, [sessionId]: dispatch })
         .sort(([, a], [, b]) => b.dispatchedAt.localeCompare(a.dispatchedAt))
         .slice(0, DISPATCHES_MAX);
-      await writeJson(this.dispatchesFile(), {
-        version: 1,
-        dispatches: Object.fromEntries(entries),
-      });
+      const dispatches = Object.fromEntries(entries);
+      await writeJson(this.dispatchesFile(), { version: 1, dispatches });
+      this.known = Promise.resolve(dispatches);
     });
     this.writes = write.catch(() => undefined);
     return write;
   }
 
-  /** The Assistant's one conversation, once it has started. */
+  private async state(): Promise<StateFile> {
+    return (
+      (await readJson(this.stateFile(), StateFileSchema)) ?? { version: 1 }
+    );
+  }
+
+  /** The Assistant's one conversation as recorded, once it has started. */
   async sessionId(): Promise<string | undefined> {
-    return (await readJson(this.stateFile(), StateFileSchema))?.sessionId;
+    return (await this.state()).sessionId;
+  }
+
+  /**
+   * The Assistant's one conversation, if it still exists: live, or among
+   * the sessions stored in its project.
+   */
+  async thread(): Promise<string | undefined> {
+    return (await this.threadSummary())?.id;
+  }
+
+  private async threadSummary(): Promise<PineSessionSummary | undefined> {
+    const id = await this.sessionId();
+    if (!id) return undefined;
+    const { runtimes, repository } = this.core;
+    const live = runtimes.liveSessionIdsOf(ASSISTANT_PROJECT_ID).includes(id)
+      ? runtimes.summaryOfLiveSession(id)
+      : undefined;
+    if (live) return live;
+    const sessions = await listProjectSessions(
+      await repository.get(ASSISTANT_PROJECT_ID),
+      sessionLibrary(this.core),
+    );
+    return sessions.find((session) => session.id === id);
+  }
+
+  async settings(): Promise<AssistantSettings> {
+    const file = await readJson(this.settingsFile(), SettingsFileSchema);
+    if (!file) return { ...DEFAULT_ASSISTANT_SETTINGS };
+    return {
+      approvalMode: file.approvalMode,
+      wakesOnReport: file.wakesOnReport,
+      ...(file.model ? { model: file.model } : {}),
+    };
+  }
+
+  /** What a window needs to show the Assistant. */
+  async describeState(): Promise<AssistantState> {
+    const [session, settings] = await Promise.all([
+      this.threadSummary(),
+      this.settings(),
+    ]);
+    return { ...(session ? { session } : {}), settings };
+  }
+
+  /**
+   * Saves the settings and applies them to the conversation if it is open,
+   * so the next turn runs on them. The model only changes when it did.
+   */
+  async saveSettings(request: unknown): Promise<AssistantSettings> {
+    const parsed = AssistantSettingsSchema.parse(request);
+    const previous = await this.settings();
+    const next: AssistantSettings = {
+      approvalMode: parsed.approvalMode,
+      wakesOnReport: parsed.wakesOnReport,
+      ...(parsed.model ? { model: parsed.model } : {}),
+    };
+    await writeJson(this.settingsFile(), { version: 1, ...next });
+    const thread = await this.thread();
+    if (!thread) return next;
+    const { runtimes } = this.core;
+    await this.holdAssistant();
+    if (next.approvalMode !== previous.approvalMode)
+      await runtimes.setApprovalMode(
+        ASSISTANT_CLIENT_ID,
+        next.approvalMode,
+        thread,
+      );
+    if (!sameModel(next.model, previous.model)) {
+      const model = next.model ?? (await runtimes.getModelCatalog()).selection;
+      if (model)
+        await runtimes.selectModel(ASSISTANT_CLIENT_ID, {
+          ...model,
+          sessionId: thread,
+          projectId: ASSISTANT_PROJECT_ID,
+        });
+    }
+    return next;
+  }
+
+  /**
+   * Sends the Assistant a message in its one conversation, starting it on
+   * first use, in the Assistant's own mode and model. A client that holds
+   * the Assistant's project sends as itself; others go through the
+   * Assistant's virtual client.
+   */
+  async prompt(
+    clientId: number,
+    request: AssistantPromptRequest,
+    options: { focus?: boolean } = {},
+  ): Promise<PromptSessionResult> {
+    const { runtimes } = this.core;
+    const sender = runtimes.isOpen(clientId, ASSISTANT_PROJECT_ID)
+      ? clientId
+      : ASSISTANT_CLIENT_ID;
+    if (sender === ASSISTANT_CLIENT_ID) await this.holdAssistant();
+    const [thread, settings] = await Promise.all([
+      this.thread(),
+      this.settings(),
+    ]);
+    const result = await runtimes.prompt(
+      sender,
+      {
+        locale: request.locale,
+        message: request.message,
+        target: thread
+          ? {
+              kind: "session",
+              projectId: ASSISTANT_PROJECT_ID,
+              sessionId: thread,
+            }
+          : { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        approvalMode: settings.approvalMode,
+        ...(request.streamingBehavior
+          ? { streamingBehavior: request.streamingBehavior }
+          : {}),
+        ...(thread && request.rewrite ? { rewrite: request.rewrite } : {}),
+      },
+      {
+        ...options,
+        ...(!thread && settings.model ? { model: settings.model } : {}),
+      },
+    );
+    if (result.session.id !== thread)
+      await writeJson(this.stateFile(), {
+        ...(await this.state()),
+        version: 1,
+        sessionId: result.session.id,
+      });
+    return result;
+  }
+
+  /**
+   * Deletes the Assistant's conversation. Sessions it dispatched stay, still
+   * marked as its own, but report to the next conversation no more.
+   */
+  async clear(): Promise<ClearAssistantResult> {
+    const thread = await this.thread();
+    const state = await this.state();
+    if (!thread) return { cleared: false };
+    await this.holdAssistant();
+    await deleteSessionWithChildren(
+      this.core,
+      ASSISTANT_CLIENT_ID,
+      await this.core.repository.get(ASSISTANT_PROJECT_ID),
+      thread,
+    );
+    await writeJson(this.stateFile(), {
+      version: 1,
+      clearedSessionIds: [
+        thread,
+        ...(state.clearedSessionIds ?? []).filter((id) => id !== thread),
+      ].slice(0, CLEARED_MAX),
+    });
+    this.core.notifyLibraryChanged("sessions");
+    return { cleared: true };
   }
 
   /** Holds the Assistant's own runtime as its virtual client. */
@@ -363,6 +575,8 @@ export class AssistantService {
         dispatchedAt: new Date().toISOString(),
         ...(parsed.title ? { title: parsed.title } : {}),
       });
+      // Lists read before the dispatch was recorded lack "From Assistant".
+      this.core.notifyLibraryChanged("sessions");
       return {
         op: "dispatch",
         sessionId: result.session.id,
@@ -419,6 +633,8 @@ export class AssistantService {
   ): Promise<void> {
     const dispatch = (await this.dispatches())[sessionId];
     if (!dispatch) return;
+    const { clearedSessionIds = [] } = await this.state();
+    if (clearedSessionIds.includes(dispatch.assistantSessionId)) return;
     const { repository, runtimes } = this.core;
     const project = await repository.get(dispatch.projectId);
     const owner = await this.holdProject(project);
@@ -461,102 +677,7 @@ export class AssistantService {
         this.projectName(project),
         reply ? truncate(reply, REPLY_MAX) : "",
       ),
-      { triggerTurn: ASSISTANT_WAKES_ON_REPORT },
+      { triggerTurn: (await this.settings()).wakesOnReport },
     );
-  }
-
-  /** Sees every agent event, to end the development entry's waits. */
-  observe(event: PineAgentEvent): void {
-    if (event.type !== "run-state") return;
-    if (event.state !== "idle" && event.state !== "failed") return;
-    const key = this.turnWaiters.has(event.sessionId)
-      ? event.sessionId
-      : isAssistantProject(
-            this.core.runtimes.projectOfLiveSession(event.sessionId)?.id,
-          )
-        ? NEW_CONVERSATION
-        : undefined;
-    const waiter = key && this.turnWaiters.get(key);
-    if (!key || !waiter) return;
-    this.turnWaiters.delete(key);
-    waiter(event.state);
-  }
-
-  /**
-   * Development only: sends the Assistant a message as the user, in its one
-   * conversation, and waits for the turn to end.
-   */
-  async debugPrompt(
-    message: string,
-    locale: "en-US" | "zh-CN" = "zh-CN",
-  ): Promise<AssistantDebugPromptResult> {
-    const { runtimes } = this.core;
-    await this.holdAssistant();
-    const existing = await this.sessionId();
-    const known =
-      existing &&
-      (
-        await listProjectSessions(
-          await this.core.repository.get(ASSISTANT_PROJECT_ID),
-          sessionLibrary(this.core),
-        )
-      ).some((session) => session.id === existing)
-        ? existing
-        : undefined;
-    let sessionId: string;
-    // Waiting starts before the prompt, so a quick turn cannot end unseen.
-    const ended = this.waitForTurn(known ?? NEW_CONVERSATION);
-    if (known) {
-      sessionId = known;
-      await runtimes.prompt(
-        ASSISTANT_CLIENT_ID,
-        {
-          locale,
-          message,
-          target: {
-            kind: "session",
-            projectId: ASSISTANT_PROJECT_ID,
-            sessionId,
-          },
-          approvalMode: ASSISTANT_APPROVAL_MODE,
-        },
-        { focus: false },
-      );
-    } else {
-      const result = await runtimes.prompt(
-        ASSISTANT_CLIENT_ID,
-        {
-          locale,
-          message,
-          target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
-          approvalMode: ASSISTANT_APPROVAL_MODE,
-        },
-        { focus: false },
-      );
-      sessionId = result.session.id;
-      await writeJson(this.stateFile(), { version: 1, sessionId });
-    }
-    const state = await Promise.race([
-      ended,
-      new Promise<"timeout">((resolve) =>
-        setTimeout(() => resolve("timeout"), DEBUG_TURN_TIMEOUT_MS).unref?.(),
-      ),
-    ]);
-    const page = await runtimes.loadMessages(
-      ASSISTANT_CLIENT_ID,
-      ASSISTANT_PROJECT_ID,
-      sessionId,
-      undefined,
-      4,
-    );
-    return {
-      sessionId,
-      reply: lastOf(page.messages, "assistant") ?? "",
-      state,
-    };
-  }
-
-  private waitForTurn(sessionId: string): Promise<"idle" | "failed"> {
-    return new Promise((resolve) => this.turnWaiters.set(sessionId, resolve));
   }
 }

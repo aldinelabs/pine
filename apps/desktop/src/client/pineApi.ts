@@ -1,5 +1,13 @@
 import type { PineAgentEvent } from "../shared/agent";
 import {
+  CLEAR_ASSISTANT_CHANNEL,
+  GET_ASSISTANT_CHANNEL,
+  SET_ASSISTANT_SETTINGS_CHANNEL,
+  type AssistantSettings,
+  type AssistantState,
+  type ClearAssistantResult,
+} from "../shared/assistant";
+import {
   ABORT_SIDE_CHAT_CHANNEL,
   CLOSE_SIDE_CHAT_CHANNEL,
   DELETE_SIDE_CHAT_CHANNEL,
@@ -641,6 +649,14 @@ export function createPineApi(transport: PineTransport): PineDesktopApi {
       request: DeleteCustomProviderRequest,
     ): Promise<PineModelCatalog> =>
       transport.invoke(DELETE_CUSTOM_PROVIDER_CHANNEL, request),
+    getAssistant: (): Promise<AssistantState> =>
+      transport.invoke(GET_ASSISTANT_CHANNEL),
+    setAssistantSettings: (
+      settings: AssistantSettings,
+    ): Promise<AssistantSettings> =>
+      transport.invoke(SET_ASSISTANT_SETTINGS_CHANNEL, settings),
+    clearAssistant: (): Promise<ClearAssistantResult> =>
+      transport.invoke(CLEAR_ASSISTANT_CHANNEL),
     getAutoApprovalSettings: (): Promise<PineAutoApprovalSettings> =>
       transport.invoke(GET_AUTO_APPROVAL_SETTINGS_CHANNEL),
     setAutoApprovalSettings: (

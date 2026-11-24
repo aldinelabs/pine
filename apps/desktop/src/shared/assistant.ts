@@ -1,4 +1,6 @@
 import type { PineApprovalMode } from "./agent";
+import type { PineModelSelection } from "./models";
+import type { PineSessionSummary } from "./sessions";
 
 /**
  * Pine's Assistant (internal name: orchestrator), the one conversation that
@@ -34,8 +36,9 @@ export const ASSISTANT_STATE_FILE = "state.json" as const;
 /** The virtual client that holds the Assistant's runtime; see isVirtualClient. */
 export const ASSISTANT_CLIENT_ID = -3;
 
-/** The Assistant runs supervised by an AI reviewer, never above it. */
-export const ASSISTANT_APPROVAL_MODE: PineApprovalMode = "auto-approve";
+/** By default the Assistant runs supervised by an AI reviewer. */
+export const ASSISTANT_APPROVAL_MODE =
+  "auto-approve" satisfies PineApprovalMode;
 
 export function isAssistantProject(projectId: string | undefined): boolean {
   return projectId === ASSISTANT_PROJECT_ID;
@@ -45,24 +48,90 @@ export const PINE_OVERVIEW_TOOL_NAME = "pine_overview" as const;
 export const DISPATCH_TASK_TOOL_NAME = "dispatch_task" as const;
 export const SESSION_DIGEST_TOOL_NAME = "session_digest" as const;
 
-/**
- * Development only: send the Assistant a message and wait for its reply.
- * Registered only in an unpackaged build started with PINE_DEV_ASSISTANT=1.
- */
-export const ASSISTANT_DEBUG_PROMPT_CHANNEL = "assistant:debug-prompt" as const;
-/** The window argument that makes the preload expose the development entry. */
-export const ASSISTANT_DEBUG_ARGUMENT = "--pine-assistant-debug" as const;
+/** The Assistant's settings, kept in its data folder as settings.json. */
+export const ASSISTANT_SETTINGS_FILE = "settings.json" as const;
 
-export interface AssistantDebugPromptRequest {
-  message: string;
-  locale?: "en-US" | "zh-CN";
+/**
+ * The permission modes the Assistant may run in. Its mode is also the most
+ * any session it dispatches may use, so YOLO is never one of them.
+ */
+export const ASSISTANT_APPROVAL_MODES = [
+  "let-me-review",
+  "auto-approve",
+  "autonomous",
+] as const satisfies readonly PineApprovalMode[];
+export type AssistantApprovalMode = (typeof ASSISTANT_APPROVAL_MODES)[number];
+
+export interface AssistantSettings {
+  /** Absent: the Assistant follows the user's default model. */
+  model?: PineModelSelection;
+  /** The Assistant's own mode, and the most a dispatched session may use. */
+  approvalMode: AssistantApprovalMode;
+  /**
+   * Whether a dispatched session's report starts an Assistant turn. Off: the
+   * report waits in the conversation until the user next talks to it, so
+   * dispatched work costs no Assistant tokens on its own (§3.8).
+   */
+  wakesOnReport: boolean;
 }
 
-export interface AssistantDebugPromptResult {
-  sessionId: string;
-  /** The Assistant's last reply once its turn ended, or empty. */
-  reply: string;
-  state: "idle" | "failed" | "timeout";
+export const DEFAULT_ASSISTANT_SETTINGS: AssistantSettings = {
+  approvalMode: ASSISTANT_APPROVAL_MODE,
+  wakesOnReport: false,
+};
+
+/** What a window needs to open the Assistant. */
+export interface AssistantState {
+  /** Its one conversation, once the user or WeChat has started it. */
+  session?: PineSessionSummary;
+  settings: AssistantSettings;
+}
+
+export const GET_ASSISTANT_CHANNEL = "assistant:get" as const;
+export const SET_ASSISTANT_SETTINGS_CHANNEL = "assistant:set-settings" as const;
+/** Deletes the Assistant's conversation; the next message starts a new one. */
+export const CLEAR_ASSISTANT_CHANNEL = "assistant:clear" as const;
+
+export interface ClearAssistantResult {
+  cleared: boolean;
+}
+
+/**
+ * Where a message to the Assistant was written. The desktop sends plain
+ * text; another entry point, such as WeChat, starts the message with its
+ * marker, which the desktop shows as a source label and hides from the text.
+ */
+export type AssistantMessageSource = "desktop" | "wechat";
+
+const ASSISTANT_SOURCE_MARKERS: Record<
+  Exclude<AssistantMessageSource, "desktop">,
+  string
+> = {
+  wechat: "[Pine Assistant: sent from WeChat]",
+};
+
+/** Marks a message for the Assistant as written in another entry point. */
+export function withAssistantMessageSource(
+  source: AssistantMessageSource,
+  text: string,
+): string {
+  return source === "desktop"
+    ? text
+    : `${ASSISTANT_SOURCE_MARKERS[source]}\n\n${text}`;
+}
+
+/** The entry point a message to the Assistant came from, and its text. */
+export function parseAssistantMessageSource(text: string): {
+  source: AssistantMessageSource;
+  body: string;
+} {
+  for (const [source, marker] of Object.entries(ASSISTANT_SOURCE_MARKERS))
+    if (text.startsWith(marker))
+      return {
+        source: source as AssistantMessageSource,
+        body: text.slice(marker.length).replace(/^\s+/, ""),
+      };
+  return { source: "desktop", body: text };
 }
 
 /** What a session is doing now, as the Assistant reports it. */

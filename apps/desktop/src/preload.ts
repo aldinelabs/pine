@@ -36,11 +36,6 @@ import {
 } from "./shared/liveContext";
 import { QUICK_COMPOSER_HANDOFF_ARGUMENT } from "./shared/quickComposer";
 import {
-  ASSISTANT_DEBUG_ARGUMENT,
-  ASSISTANT_DEBUG_PROMPT_CHANNEL,
-  type AssistantDebugPromptResult,
-} from "./shared/assistant";
-import {
   CHOOSE_USER_CHANNEL,
   CREATE_USER_CHANNEL,
   DELETE_USER_CHANNEL,
@@ -226,15 +221,6 @@ const pineApi: PineDesktopApi = {
   },
 };
 contextBridge.exposeInMainWorld("pine", pineApi);
-// Development only; see main/desktop/assistantDebug.ts.
-if (process.argv.includes(ASSISTANT_DEBUG_ARGUMENT))
-  contextBridge.exposeInMainWorld("pineAssistantDebug", {
-    prompt: (message: string, locale?: "en-US" | "zh-CN") =>
-      ipcRenderer.invoke(ASSISTANT_DEBUG_PROMPT_CHANNEL, {
-        message,
-        ...(locale ? { locale } : {}),
-      }) as Promise<AssistantDebugPromptResult>,
-  });
 
 declare global {
   interface Window {

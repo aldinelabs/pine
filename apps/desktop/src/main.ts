@@ -123,7 +123,6 @@ import {
   type WeChatNotificationTarget,
 } from "./main/desktop/wechatHost";
 import { DesktopQuickComposer } from "./main/desktop/quickComposer";
-import { registerAssistantDebugIpc } from "./main/desktop/assistantDebug";
 import {
   DesktopWindows,
   rendererDevUrl,
@@ -941,7 +940,6 @@ ipcMain.handle(
 
 // Desktop only, like Remote Control's: registered on ipcMain, not the router.
 registerWeChatIpc(() => core);
-registerAssistantDebugIpc(() => core);
 registerRemoteKeepAwakeIpc({
   controller: remoteKeepAwake,
   set: setRemoteKeepAwake,

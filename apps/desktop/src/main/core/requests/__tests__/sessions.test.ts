@@ -159,6 +159,7 @@ function fixture({
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
+    assistant: { dispatchedIds: vi.fn().mockResolvedValue(new Set()) },
     wechat: {
       originOf: vi.fn().mockReturnValue(origin),
       relayRefusal: relayRefusalCheck,
@@ -1001,7 +1002,7 @@ describe("stopping a session", () => {
 });
 
 describe("session lists", () => {
-  it("mark sessions started or used from WeChat beside automation runs", async () => {
+  it("mark sessions started or used from WeChat, or by the Assistant, beside automation runs", async () => {
     const handlers = new Map<string, (...args: unknown[]) => unknown>();
     const run = { automationId: "a", runId: "r" };
     const core = {
@@ -1009,6 +1010,9 @@ describe("session lists", () => {
       runtimes: {},
       automations: {
         runSessions: vi.fn().mockResolvedValue(new Map([["run", run]])),
+      },
+      assistant: {
+        dispatchedIds: vi.fn().mockResolvedValue(new Set(["dispatched"])),
       },
       wechat: {
         originOf: vi.fn((id: string) =>
@@ -1030,7 +1034,7 @@ describe("session lists", () => {
       messageCount: 1,
     });
     listAllRecentSessions.mockResolvedValue(
-      ["started", "used", "run", "plain"].map(summary),
+      ["started", "used", "run", "dispatched", "plain"].map(summary),
     );
     registerSessionRequests(core);
 
@@ -1043,6 +1047,7 @@ describe("session lists", () => {
       { ...summary("started"), origin: "wechat" },
       { ...summary("used"), origin: "wechat-used" },
       { ...summary("run"), automationRun: run, origin: "wechat-used" },
+      { ...summary("dispatched"), fromAssistant: true },
       summary("plain"),
     ]);
   });
@@ -1062,6 +1067,7 @@ describe("resuming a session", () => {
       runtimes: { resume: vi.fn().mockResolvedValue({ session: summary }) },
       automations: { runSessions: vi.fn().mockResolvedValue(new Map()) },
       wechat: { originOf: vi.fn().mockReturnValue(undefined) },
+      assistant: { dispatchedIds: vi.fn().mockResolvedValue(new Set()) },
       sessionActivity: vi.fn().mockReturnValue(activity),
       handle: (channel: string, handler: (...args: unknown[]) => unknown) =>
         handlers.set(channel, handler),

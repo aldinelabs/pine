@@ -9,7 +9,7 @@ import {
 } from "../../../shared/assistant";
 import type { PineProject } from "../../../shared/projects";
 import type { PineTextMessage } from "../../../shared/sessions";
-import { AssistantService, ASSISTANT_WAKES_ON_REPORT } from "../assistant";
+import { AssistantService } from "../assistant";
 import type { PineCore } from "../pineCore";
 
 const startBackgroundSession = vi.hoisted(() => vi.fn());
@@ -81,6 +81,23 @@ async function fixture() {
       Promise.resolve({ hasMore: false, messages: [reply("首页已修好。")] }),
     ),
     resume: vi.fn(() => Promise.resolve()),
+    prompt: vi.fn(() =>
+      Promise.resolve({ accepted: true, session: { id: ASSISTANT_SESSION } }),
+    ),
+    setApprovalMode: vi.fn(() => Promise.resolve({ updated: true })),
+    selectModel: vi.fn(() => Promise.resolve({ disposed: false })),
+    getModelCatalog: vi.fn(() =>
+      Promise.resolve({
+        models: [],
+        providers: [],
+        selection: {
+          providerId: "p",
+          modelId: "default",
+          thinkingLevel: "low",
+        },
+      }),
+    ),
+    deleteSession: vi.fn(() => Promise.resolve(true)),
   };
   const agentHost = {
     notifySession: vi.fn(() => Promise.resolve({ delivered: true })),
@@ -99,6 +116,8 @@ async function fixture() {
     runtimes,
     agentHost,
     sessionActivity: vi.fn(() => "running"),
+    notifyLibraryChanged: vi.fn(),
+    notifySessionsDeleted: vi.fn(),
   } as unknown as PineCore;
   return {
     root,
@@ -175,7 +194,7 @@ describe("the Assistant's dispatches", () => {
         title: "修首页",
       },
       expect.stringContaining("<last-reply>首页已修好。</last-reply>"),
-      { triggerTurn: ASSISTANT_WAKES_ON_REPORT },
+      { triggerTurn: false },
     );
   });
 
@@ -247,5 +266,163 @@ describe("the Assistant's dispatches", () => {
         pendingApprovals: 0,
       },
     });
+  });
+});
+
+const MODEL = {
+  providerId: "anthropic",
+  modelId: "claude-sonnet-5-5",
+  thinkingLevel: "medium" as const,
+};
+
+describe("the Assistant's desktop conversation", () => {
+  it("starts its one conversation in its own mode and model", async () => {
+    const { root, service, runtimes } = await fixture();
+    await service.saveSettings({
+      approvalMode: "let-me-review",
+      wakesOnReport: false,
+      model: MODEL,
+    });
+
+    await service.prompt(9, { locale: "zh-CN", message: "看看在跑什么" });
+
+    expect(runtimes.prompt).toHaveBeenCalledWith(
+      9,
+      expect.objectContaining({
+        target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        approvalMode: "let-me-review",
+      }),
+      { model: MODEL },
+    );
+    const state = JSON.parse(
+      await readFile(path.join(root, "state.json"), "utf8"),
+    ) as { sessionId: string };
+    expect(state.sessionId).toBe(ASSISTANT_SESSION);
+  });
+
+  it("sends later messages to the same conversation", async () => {
+    const { service, runtimes } = await fixture();
+    await service.prompt(9, { locale: "zh-CN", message: "第一条" });
+    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+
+    await service.prompt(9, { locale: "zh-CN", message: "第二条" });
+
+    expect(runtimes.prompt).toHaveBeenLastCalledWith(
+      9,
+      expect.objectContaining({
+        target: {
+          kind: "session",
+          projectId: ASSISTANT_PROJECT_ID,
+          sessionId: ASSISTANT_SESSION,
+        },
+        approvalMode: "auto-approve",
+      }),
+      {},
+    );
+  });
+
+  it("applies changed settings to the open conversation", async () => {
+    const { service, runtimes } = await fixture();
+    await service.prompt(9, { locale: "zh-CN", message: "你好" });
+    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+
+    await service.saveSettings({
+      approvalMode: "autonomous",
+      wakesOnReport: true,
+      model: MODEL,
+    });
+
+    expect(runtimes.setApprovalMode).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      "autonomous",
+      ASSISTANT_SESSION,
+    );
+    expect(runtimes.selectModel).toHaveBeenCalledWith(ASSISTANT_CLIENT_ID, {
+      ...MODEL,
+      sessionId: ASSISTANT_SESSION,
+      projectId: ASSISTANT_PROJECT_ID,
+    });
+    await expect(service.settings()).resolves.toEqual({
+      approvalMode: "autonomous",
+      wakesOnReport: true,
+      model: MODEL,
+    });
+  });
+
+  it("goes back to the default model when the setting is cleared", async () => {
+    const { service, runtimes } = await fixture();
+    await service.saveSettings({
+      approvalMode: "auto-approve",
+      wakesOnReport: false,
+      model: MODEL,
+    });
+    await service.prompt(9, { locale: "zh-CN", message: "你好" });
+    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+
+    await service.saveSettings({
+      approvalMode: "auto-approve",
+      wakesOnReport: false,
+    });
+
+    expect(runtimes.setApprovalMode).not.toHaveBeenCalled();
+    expect(runtimes.selectModel).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      expect.objectContaining({ modelId: "default" }),
+    );
+  });
+
+  it("never runs in YOLO", async () => {
+    const { service } = await fixture();
+
+    await expect(
+      service.saveSettings({ approvalMode: "YOLO", wakesOnReport: false }),
+    ).rejects.toThrow();
+  });
+
+  it("wakes the Assistant on a report only when set to", async () => {
+    const { service, agentHost } = await fixture();
+    await service.saveSettings({
+      approvalMode: "auto-approve",
+      wakesOnReport: true,
+    });
+    await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+
+    await service.report(DISPATCHED, "finished");
+
+    expect(agentHost.notifySession).toHaveBeenCalledWith(
+      ASSISTANT_SESSION,
+      expect.anything(),
+      expect.any(String),
+      { triggerTurn: true },
+    );
+  });
+
+  it("clears its conversation, and reports to it no more", async () => {
+    const { service, runtimes, agentHost } = await fixture();
+    await service.prompt(9, { locale: "zh-CN", message: "你好" });
+    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+    await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+
+    await expect(service.clear()).resolves.toEqual({ cleared: true });
+    listProjectSessions.mockResolvedValue([]);
+
+    expect(runtimes.deleteSession).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      ASSISTANT_PROJECT_ID,
+      ASSISTANT_SESSION,
+    );
+    await expect(service.describeState()).resolves.not.toHaveProperty(
+      "session",
+    );
+    await service.report(DISPATCHED, "finished");
+    expect(agentHost.notifySession).not.toHaveBeenCalled();
+    // What it dispatched stays marked as its own.
+    await expect(service.dispatchedIds()).resolves.toContain(DISPATCHED);
   });
 });

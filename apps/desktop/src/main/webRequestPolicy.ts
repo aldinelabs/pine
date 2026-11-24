@@ -12,6 +12,7 @@ import * as memory from "../shared/memory";
 import * as background from "../shared/backgroundTasks";
 import * as attachments from "../shared/attachments";
 import * as sideChats from "../shared/sideChats";
+import * as assistant from "../shared/assistant";
 import { GET_EXCHANGE_RATES_CHANNEL } from "../shared/currency";
 import {
   REWRITE_PROMPT_CHANNEL,
@@ -229,6 +230,10 @@ export function createWebChannels(
     [models.RESPOND_PROVIDER_AUTH_CHANNEL, command("none")],
     [models.CANCEL_PROVIDER_AUTH_CHANNEL, command("none")],
     [models.LOGOUT_PROVIDER_CHANNEL, command("none")],
+
+    [assistant.GET_ASSISTANT_CHANNEL, query("none")],
+    [assistant.SET_ASSISTANT_SETTINGS_CHANNEL, command("none")],
+    [assistant.CLEAR_ASSISTANT_CHANNEL, command("none")],
 
     [preferences.GET_AUTO_APPROVAL_SETTINGS_CHANNEL, query("none")],
     [preferences.SET_AUTO_APPROVAL_SETTINGS_CHANNEL, command("none")],
