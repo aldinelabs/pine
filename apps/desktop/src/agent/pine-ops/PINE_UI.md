@@ -1379,6 +1379,8 @@ the user opens themselves do not pulse.
   manager, Unverified notes, turning memory off),
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
   appear in the sidebar, notices to the parent, limits),
+  "Assistant" (one page: handing work to the Assistant, dispatch cards,
+  "From Assistant" marks, approvals, Settings › Assistant),
   "Workbench" (the workbench and its panels; Artifacts with folders,
   versions and dragging files out),
   "Work style and Aldine methodology" (one page: work style, communication

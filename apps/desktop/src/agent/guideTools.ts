@@ -58,6 +58,9 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
   "sub-sessions": [
     "splitting work into sub-sessions, where they appear, notices to the parent, limits",
   ],
+  assistant: [
+    "the Assistant: one conversation above every project that dispatches work and reports back, dispatch cards, From Assistant marks, Settings › Assistant",
+  ],
   workbench: [
     "the workbench and its panels",
     "Artifacts: deliverables, folders, versions, dragging out",

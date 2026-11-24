@@ -20,6 +20,7 @@ import StopTurnIllustration from "./StopTurnIllustration.vue";
 import MemoryNotesIllustration from "./MemoryNotesIllustration.vue";
 import MemoryManagerIllustration from "./MemoryManagerIllustration.vue";
 import SubSessionsIllustration from "./SubSessionsIllustration.vue";
+import AssistantIllustration from "./AssistantIllustration.vue";
 import WorkbenchPanelsIllustration from "./WorkbenchPanelsIllustration.vue";
 import ArtifactsIllustration from "./ArtifactsIllustration.vue";
 import WorkStyleIllustration from "./WorkStyleIllustration.vue";
@@ -58,6 +59,7 @@ export const HELP_ILLUSTRATIONS: Record<HelpIllustrationId, Component> = {
   "memory-notes": MemoryNotesIllustration,
   "memory-manager": MemoryManagerIllustration,
   "sub-sessions": SubSessionsIllustration,
+  assistant: AssistantIllustration,
   "workbench-panels": WorkbenchPanelsIllustration,
   artifacts: ArtifactsIllustration,
   "work-style": WorkStyleIllustration,

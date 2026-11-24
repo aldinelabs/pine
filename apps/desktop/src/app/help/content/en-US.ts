@@ -402,6 +402,30 @@ export default {
       },
     ],
   },
+  assistant: {
+    title: "Assistant",
+    summary:
+      "A conversation above every project: say what you need and it hands the work to the right project.",
+    steps: [
+      {
+        title: "Hand work to the Assistant",
+        body: [
+          "Assistant, at the top of the sidebar, is one lasting conversation that belongs to no project. Tell it what you need and it finds the right project, starts a session there with the work, and reports back here. It only dispatches and reports; sessions in your projects do the work.",
+          "You can also send to the Assistant from the quick composer. Messages that arrive from WeChat are marked From WeChat.",
+        ],
+        points: [
+          "Each dispatch leaves a card in the conversation showing Project › Session and how it's going. Click it to open that session.",
+          "Sessions the Assistant dispatched carry a From Assistant mark in their project's session list and on their tabs. Dispatched by the Assistant, at the top of such a session, takes you back to the Assistant.",
+          "A dispatched session tells the Assistant when it finishes a turn or waits for approval. You still decide approvals on the usual approval card; the Assistant can't answer them for you.",
+          "In Settings › Assistant you can choose its model and reasoning effort, set its permission mode limit, choose whether it replies as soon as a report arrives, view its notes and clear its conversation.",
+        ],
+        note: {
+          tone: "tip",
+          text: "Auto Approve is a good permission mode limit: everyday work moves along, and risky actions still stop for you.",
+        },
+      },
+    ],
+  },
   workbench: {
     title: "Workbench",
     summary:

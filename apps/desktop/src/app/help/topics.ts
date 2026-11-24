@@ -30,6 +30,7 @@ export const HELP_TOPIC_STEPS = {
   "compaction-method": ["compaction-method"],
   memory: ["memory-notes", "memory-manager"],
   "sub-sessions": ["sub-sessions"],
+  assistant: ["assistant"],
   workbench: ["workbench-panels", "artifacts"],
   "work-style": ["work-style"],
   skills: ["skills"],
@@ -60,6 +61,7 @@ export const HELP_TOPIC_GROUPS: readonly {
       "project-folders",
       "memory",
       "sub-sessions",
+      "assistant",
       "workbench",
       "work-style",
     ],
@@ -93,6 +95,7 @@ export type HelpIllustrationId =
   | "memory-notes"
   | "memory-manager"
   | "sub-sessions"
+  | "assistant"
   | "workbench-panels"
   | "artifacts"
   | "work-style"

@@ -14,6 +14,7 @@ export const HELP_TOPIC_IDS = [
   "compaction-method",
   "memory",
   "sub-sessions",
+  "assistant",
   "workbench",
   "work-style",
   "skills",
