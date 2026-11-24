@@ -35,6 +35,28 @@ export interface StartBackgroundSessionInput {
   locale: "en-US" | "zh-CN";
 }
 
+/**
+ * Pine's Assistant, as the bridge reaches it (main/core/assistant.ts). The
+ * bridge only hands it the user's text; it never reads the model's output
+ * as anything but text to send back.
+ */
+export interface WeChatAssistantPort {
+  /**
+   * Sends plain text to the Assistant's one conversation as the user, from
+   * WeChat. Sessions it dispatches in this turn run within `ceiling`. Resolves
+   * once the message is accepted, not when the turn ends.
+   */
+  send(input: {
+    message: string;
+    locale: "en-US" | "zh-CN";
+    ceiling: PineApprovalMode;
+    /** It is mid-turn: the text steers the running turn. */
+    steer: boolean;
+  }): Promise<{ sessionId: string; projectId: string }>;
+  /** Its conversation, once it has one. */
+  sessionId(): Promise<string | undefined>;
+}
+
 /** The parts of the core the bridge calls directly, bypassing the request router. */
 export interface WeChatCorePorts {
   runtimes: ProjectRuntimeRegistry;
@@ -54,6 +76,8 @@ export interface WeChatCorePorts {
   };
   listSkills(projectId: string): Promise<ListSkillsResult>;
   listMcpServers(projectId: string): Promise<PineMcpCatalog>;
+  /** Absent where Pine has no Assistant: plain text then always goes to the current session. */
+  assistant?: WeChatAssistantPort;
 }
 
 /** A voice message's recording, for transcription on this computer. */
@@ -159,6 +183,11 @@ export interface WeChatBridgeApi {
     projectId: string,
   ): Promise<void>;
   automationsChanged(): void;
+  /**
+   * The Assistant dispatched a session during a turn WeChat started: the
+   * bridge tracks it, so its cards and results reach WeChat. Never throws.
+   */
+  sessionDispatched(sessionId: string, projectId: string): void;
   /** Sidebar marker. */
   originOf(sessionId: string): "wechat" | "wechat-used" | undefined;
   /**

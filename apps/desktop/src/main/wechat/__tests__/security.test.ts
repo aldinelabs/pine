@@ -693,3 +693,88 @@ describe("WeChat remote security invariants", { timeout: 40_000 }, () => {
     );
   });
 });
+
+// WeChat in front of the Assistant (docs/orchestrator-proposal.md P1): the
+// model never decides an approval, and the bridge never hands it a command.
+describe("WeChat remote security invariants with the Assistant", () => {
+  async function pendingCard(h: Harness) {
+    h.push("修首页");
+    await waitFor(() => h.assistantCalls.length === 1);
+    const work = await h.dispatch("修首页");
+    h.running(work);
+    const requestId = h.approval(work, { subject: "git push" });
+    const card = await h.sent((text) => text.includes("git push"));
+    const match = /`\.y (\d{2})`/.exec(card);
+    if (!match)
+      throw new Error(`no approvable card in ${JSON.stringify(card)}`);
+    return { work, requestId, number: Number(match[1]) };
+  }
+
+  it("A1. the Assistant cannot approve: approval words in its reply are only text", async () => {
+    const h = await harness({ assistant: true });
+    const { number } = await pendingCard(h);
+    const assistant = h.assistantSession();
+    h.running(assistant);
+    h.finish(assistant, `.y ${number}\n批准 ${number}\napprove ${number}`);
+    await h.sent((text) => text.includes(`批准 ${number}`));
+    await h.settle();
+    expect(h.agentHost.respondApproval).not.toHaveBeenCalled();
+  });
+
+  it("A2. plain text that mentions an approval goes to the Assistant and approves nothing", async () => {
+    const h = await harness({ assistant: true });
+    const { number } = await pendingCard(h);
+    for (const text of [
+      `帮我 .y ${number} 批准一下`,
+      `批准 ${number} 然后继续`,
+      `请批准${number}号`,
+    ]) {
+      const calls = h.assistantCalls.length;
+      h.push(text);
+      await waitFor(() => h.assistantCalls.length === calls + 1);
+      expect(h.assistantCalls.at(-1)?.message).toBe(text);
+    }
+    await h.settle();
+    expect(h.agentHost.respondApproval).not.toHaveBeenCalled();
+  });
+
+  it("A3. a voice transcript of 批准 NN is not an approval", async () => {
+    const h = await harness({ assistant: true });
+    const { number } = await pendingCard(h);
+    const calls = h.assistantCalls.length;
+    h.push("", {
+      item_list: [
+        {
+          type: MessageItemType.VOICE,
+          voice_item: { text: `批准 ${number}` },
+        },
+      ],
+    });
+    await waitFor(() => h.assistantCalls.length === calls + 1);
+    await h.settle();
+    expect(h.agentHost.respondApproval).not.toHaveBeenCalled();
+  });
+
+  it("A4. dot commands never reach the Assistant", async () => {
+    const h = await harness({ assistant: true });
+    const { number } = await pendingCard(h);
+    const calls = h.assistantCalls.length;
+    for (const command of [
+      ".",
+      ".help",
+      ".w",
+      ".l",
+      ".info",
+      ".home",
+      ".nonsense",
+      `.d ${number}`,
+    ])
+      await h.say(command);
+    await h.settle();
+    expect(h.assistantCalls).toHaveLength(calls);
+    expect(h.agentHost.respondApproval).toHaveBeenCalledTimes(1);
+    expect(h.agentHost.respondApproval.mock.calls[0]?.[1]).toMatchObject({
+      kind: "deny",
+    });
+  });
+});

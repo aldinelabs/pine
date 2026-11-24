@@ -35,6 +35,7 @@ import {
 } from "../../shared/wechatRemote";
 import { CompletionSignalTracker } from "../completionSignal";
 import type { AskBook } from "./asks";
+import type { Pager } from "./handles";
 import {
   approvalCardPolicy,
   approvalCardText,
@@ -63,6 +64,7 @@ import type {
 import {
   questionCardAnswerable,
   render,
+  renderAssistantPages,
   type ReplyData,
   type SessionRef,
 } from "./replies";
@@ -193,6 +195,8 @@ export interface SessionDirectoryDeps {
   asks: AskBook;
   outbound: Pick<Outbound, "push" | "retract" | "setTyping" | "sendFile">;
   attachments: InboundAttachmentsApi;
+  /** Where the Assistant's long replies wait for `.more`. */
+  pager?: Pick<Pager, "set">;
   settings: () => WeChatSettings;
   lang: () => ReplyLanguage;
   now: () => number;
@@ -618,7 +622,13 @@ export class SessionDirectory {
     const runArtifacts = obs.runArtifacts;
     obs.bridgeRun = false;
     obs.runStartedAtMs = undefined;
-    if (report) {
+    if (report && this.trackedEntry(sessionId)?.origin === "assistant") {
+      this.pushAssistantReply(sessionId, {
+        state,
+        text: completion?.text ?? "",
+        error: obs.lastError,
+      });
+    } else if (report) {
       void this.pushResult(sessionId, {
         state,
         text: completion?.text ?? "",
@@ -969,6 +979,39 @@ export class SessionDirectory {
   }
 
   /**
+   * The Assistant's reply to a turn WeChat started, as a push of its own: it
+   * counts against the reply budget like a result, and a long one leaves its
+   * other pages for `.more`. It is never recorded as the latest push, so
+   * `.u 9` keeps meaning the latest work session.
+   */
+  private pushAssistantReply(
+    sessionId: string,
+    result: { state: "idle" | "failed"; text: string; error?: string },
+  ): void {
+    const lang = this.deps.lang();
+    if (result.state === "failed") {
+      this.deps.outbound.push({
+        key: `result:${sessionId}`,
+        priority: 2,
+        text: render("T-ASSISTANT-FAILED", lang, {
+          error: result.error ?? (lang === "zh" ? "未知错误" : "unknown error"),
+        }),
+        digest: { kind: "failed", title: assistantLabel(lang) },
+      });
+      return;
+    }
+    const [first, ...rest] = renderAssistantPages(lang, result.text);
+    if (first === undefined) return;
+    this.deps.pager?.set(rest);
+    this.deps.outbound.push({
+      key: `result:${sessionId}`,
+      priority: 2,
+      text: first,
+      digest: { kind: "done", title: assistantLabel(lang) },
+    });
+  }
+
+  /**
    * With file sending on, the files a run submitted or presented follow its
    * result, newest last, up to `RUN_FILES_SENT_MAX`; the rest stay on `.o`.
    * Each passes the same checks as `.o N` right before it is read.
@@ -1039,6 +1082,42 @@ export class SessionDirectory {
           );
       })
       .catch(() => undefined);
+  }
+
+  /**
+   * The Assistant dispatched a session in a turn WeChat started. It carries
+   * WeChat's words, so it is held to WeChat's limits like a spawned session,
+   * and it is tracked so its cards and results reach WeChat. Tracking applies
+   * at once: the session's first approval may already be waiting.
+   */
+  sessionDispatched(sessionId: string, projectId: string): void {
+    const obs = this.touch(sessionId);
+    obs.projectId = projectId;
+    if (obs.state === "running") obs.bridgeRun = true;
+    else obs.pendingPrompt = true;
+    const now = this.deps.now();
+    this.deps.store.updateSoon((draft) => {
+      if (!draft.origins.some((entry) => entry.sessionId === sessionId))
+        addOrigin(draft.origins, {
+          sessionId,
+          projectId,
+          kind: "spawned",
+          atMs: now,
+        });
+      addTracked(
+        draft.tracked,
+        sessionId,
+        projectId,
+        "dispatched",
+        now,
+        this.isBusy,
+      );
+    });
+    this.deps.core.notifyLibraryChanged("sessions");
+    // A card opened before the session was tracked was not pushed.
+    for (const ask of this.asksOf(sessionId))
+      if (ask.deliveredAtMs === undefined)
+        void this.pushCard(ask.number).catch(() => undefined);
   }
 
   /**
@@ -1505,6 +1584,32 @@ export class SessionDirectory {
   // -------------------------------------------------------------------------
   // Routing
 
+  /** Whether Pine has an Assistant to send plain text to. */
+  hasAssistant(): boolean {
+    return this.deps.core.assistant !== undefined;
+  }
+
+  /**
+   * Where plain text goes now: what `.home` or `.u` chose last, else the
+   * setting. Always the current session where Pine has no Assistant.
+   */
+  plainRoute(): "assistant" | "session" {
+    if (!this.hasAssistant()) return "session";
+    return (
+      this.deps.store.get().route ??
+      this.deps.settings().plainTarget ??
+      "session"
+    );
+  }
+
+  /** `.home` and `.u`: where plain text goes until the next switch or setting change. */
+  async setRoute(route: "assistant" | "session"): Promise<void> {
+    if (!this.hasAssistant() || this.deps.store.get().route === route) return;
+    await this.deps.store.update((draft) => {
+      draft.route = route;
+    });
+  }
+
   routeFor(nowMs: number): RouteDecision {
     const state = this.deps.store.get();
     const current = state.current;
@@ -1822,6 +1927,59 @@ export class SessionDirectory {
     return result;
   }
 
+  /**
+   * The third prompt exit: plain text to the Assistant. It carries no files
+   * (the Assistant cannot open any) and no approval: dispatches of this turn
+   * stay within the WeChat ceiling, which the Assistant enforces.
+   */
+  async sendToAssistant(input: {
+    text: string;
+    quotedText?: string;
+  }): Promise<void> {
+    const assistant = this.deps.core.assistant;
+    if (!assistant) throw new Error("Pine has no Assistant.");
+    this.guardText(input.text, input.quotedText);
+    const quote = input.quotedText?.trim();
+    const message = quote
+      ? `${input.text.trim()}\n\n${quoteBlock(this.deps.lang(), input.quotedText ?? "")}`
+      : input.text.trim();
+    if (message === "") throw new Error("There is nothing to send.");
+    const known = await assistant.sessionId();
+    const before = known ? this.touch(known) : undefined;
+    const steer = before?.state === "running";
+    if (before) before.pendingPrompt = true;
+    let result: { sessionId: string; projectId: string };
+    try {
+      result = await assistant.send({
+        message,
+        locale: this.locale(),
+        ceiling: this.deps.settings().ceilingMode,
+        steer,
+      });
+    } catch (error) {
+      if (before) before.pendingPrompt = false;
+      throw error;
+    }
+    const obs = this.touch(result.sessionId);
+    obs.projectId = result.projectId;
+    if (quote) obs.external = true;
+    if (obs.state === "running") {
+      obs.bridgeRun = true;
+      obs.pendingPrompt = false;
+    } else obs.pendingPrompt = true;
+    const now = this.deps.now();
+    await this.deps.store.update((draft) => {
+      addTracked(
+        draft.tracked,
+        result.sessionId,
+        result.projectId,
+        "assistant",
+        now,
+        this.isBusy,
+      );
+    });
+  }
+
   // -------------------------------------------------------------------------
 
   private notifyLocal<K extends WeChatNotificationKind>(
@@ -1847,6 +2005,10 @@ export class SessionDirectory {
       // A failed notification never blocks the bridge.
     }
   }
+}
+
+function assistantLabel(lang: ReplyLanguage): string {
+  return lang === "zh" ? "助理" : "Assistant";
 }
 
 function askSession(ask: Ask): string | undefined {

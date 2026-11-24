@@ -265,6 +265,11 @@ export default {
       defaultProject: "Projet par défaut",
       defaultProjectDescription:
         "Où démarre une nouvelle session depuis WeChat.",
+      plainTarget: "Les messages ordinaires vont à",
+      plainTargetDescription:
+        "Où va un message WeChat qui n'est pas une commande à point. L'assistant peut lancer des sessions dans n'importe quel projet et en rendre compte ; dans WeChat, .u et .home changent la destination.",
+      plainTargetAssistant: "Assistant",
+      plainTargetSession: "Session actuelle",
       ceiling: "Mode d’approbation maximal",
       ceilingDescription:
         "Les sessions pilotées depuis WeChat ne tournent jamais avec moins de supervision que celui-ci.",
@@ -288,7 +293,7 @@ export default {
         "Un proxy ou une sortie réseau à l’étranger peut être bloqué.",
       noteOneComputer: "Un compte WeChat se connecte à un seul ordinateur.",
       noteHelp:
-        "Dans WeChat, envoyez .help (ou .?) pour voir les commandes. Un texte simple est envoyé à la session en cours.",
+        "Dans WeChat, envoyez .help (ou .?) pour voir les commandes. Un texte simple va là où l'indique « Les messages ordinaires vont à » ; répondez 批准 12 ou .y 12 pour approuver la carte 12.",
       noteStale:
         "Les tâches qui arrivent dans Pine plus de 10 minutes après leur envoi attendent que vous les confirmiez dans WeChat.",
       serverGuide: "Exécuter Pine sur un serveur",

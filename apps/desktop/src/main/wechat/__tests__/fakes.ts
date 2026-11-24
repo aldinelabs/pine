@@ -172,6 +172,7 @@ export function createMemoryStore(
     reloadSecure: () => Promise.resolve("ok"),
     reloadLanguage: () => Promise.resolve(),
     legacyKeepAwake: () => false,
+    legacyPlainTarget: () => false,
     clearBinding: () =>
       serial(() => {
         const language = state.language;

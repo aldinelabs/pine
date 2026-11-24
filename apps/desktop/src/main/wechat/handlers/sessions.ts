@@ -5,6 +5,7 @@
 // client id.
 
 import type { PineApprovalMode } from "../../../shared/agent";
+import { isAssistantProject } from "../../../shared/assistant";
 import {
   isTemporaryWorkspace,
   TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -534,10 +535,24 @@ async function executeDelete(
   return { text: render("R-DELETED", ctx.lang, { title }) };
 }
 
+/** `.home`: plain text goes to the Assistant again. */
+async function home(ctx: CommandContext): Promise<CommandResult> {
+  if (!ctx.sessions.hasAssistant())
+    return { text: render("E-NOASSIST", ctx.lang) };
+  await ctx.sessions.setRoute("assistant");
+  return {
+    text: render("R-HOME", ctx.lang, {
+      attachments: ctx.attachments.list().length,
+    }),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Handlers
 
 export const sessionHandlers: CommandHandlers = {
+  home: (ctx) => home(ctx),
+
   new: async (ctx, command) => {
     const text = (command.tail ?? "").trim();
     let project: PineProject | undefined;
@@ -564,6 +579,8 @@ export const sessionHandlers: CommandHandlers = {
         delete draft.current;
         draft.currentProjectId = projectId;
       });
+      // The next plain message is the new session's, not the Assistant's.
+      await ctx.sessions.setRoute("session");
       return {
         text: render("R-NEWARMED", ctx.lang, {
           project: projectLabel(project, ctx.lang),
@@ -587,6 +604,8 @@ export const sessionHandlers: CommandHandlers = {
         : {}),
       attachments: ctx.attachments.list().length > 0,
     });
+    // Starting a session from WeChat talks to it directly, like `.u`.
+    await ctx.sessions.setRoute("session");
     const mode: PineApprovalMode = clampMode(
       ctx.settings.defaultMode,
       ctx.settings.ceilingMode,
@@ -684,6 +703,8 @@ export const sessionHandlers: CommandHandlers = {
       target = resolved.value;
     }
     const { sessionId, projectId } = target;
+    // The Assistant's own conversation is `.home`, never a direct session.
+    if (isAssistantProject(projectId)) return home(ctx);
     try {
       await ctx.sessions.hold(projectId);
     } catch {
@@ -705,6 +726,8 @@ export const sessionHandlers: CommandHandlers = {
       );
       await ctx.sessions.setCurrent({ projectId, sessionId });
     }
+    // `.u` talks to the session directly until `.home`.
+    await ctx.sessions.setRoute("session");
     const view = await ctx.sessions.view(sessionId, projectId);
     let head: string;
     if (view.mode === "view-only") {
@@ -727,6 +750,7 @@ export const sessionHandlers: CommandHandlers = {
         state: view.state,
         mode: view.mode,
         count: summary?.messageCount ?? 0,
+        ...(ctx.sessions.hasAssistant() ? { home: true } : {}),
       });
     }
     const cards: string[] = [];

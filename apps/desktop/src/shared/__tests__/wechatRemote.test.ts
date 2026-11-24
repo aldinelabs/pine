@@ -38,6 +38,7 @@ describe("WeChat remote defaults", () => {
       defaultMode: "auto-approve",
       allowHighRiskApprovals: false,
       allowFileSending: false,
+      plainTarget: "assistant",
     });
   });
 });

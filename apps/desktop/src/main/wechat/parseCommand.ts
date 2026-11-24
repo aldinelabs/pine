@@ -9,6 +9,7 @@ import {
   suggestCommand,
   zhAliasPrefix,
 } from "./commandSpec";
+import { ASK_MAX, ASK_MIN } from "./constants";
 import type { CommandName, Parsed, ParsedCommand } from "./types";
 
 const PREFIXES = new Set([".", "。", "．", "｡"]);
@@ -49,6 +50,39 @@ const NUMBER_TOKEN = /^\d+(?:,\d+)*$/;
 const GLUED_TOKEN = /^(.+?)(\d+(?:,\d+)*)$/u;
 const ASCII_NAME = /^[a-z][a-z0-9]{0,15}$/;
 const CJK_NAME = /^[一-鿿]{1,4}$/u;
+
+const NATURAL_APPROVE = /^(?:批准|同意|approve)\s*#?\s*(\d{2})$/u;
+const NATURAL_REJECT = /^(?:拒绝|reject|deny)\s*#?\s*(\d{2})$/u;
+/** Closing punctuation a typed "批准 12。" may end with. */
+const NATURAL_END = /[\s.。!！]+$/u;
+
+/**
+ * "批准 12" / "拒绝 12" (and "approve 12" / "reject 12"), the whole message
+ * and nothing else, as the bridge's own reading of `.y 12` / `.d 12`. Only a
+ * card number (11–99) counts. The bridge, never a model, recognises it, so a
+ * model that repeats the words cannot approve anything; anything longer or
+ * looser stays plain text.
+ */
+export function naturalAskCommand(input: string): ParsedCommand | undefined {
+  const text = stripZeroWidth(input)
+    .normalize("NFKC")
+    .trim()
+    .replace(NATURAL_END, "")
+    .toLowerCase();
+  for (const [pattern, name] of [
+    [NATURAL_APPROVE, "approve"],
+    [NATURAL_REJECT, "reject"],
+  ] as const) {
+    const digits = pattern.exec(text)?.[1];
+    if (digits === undefined) continue;
+    const number = Number(digits);
+    if (number < ASK_MIN || number > ASK_MAX) return undefined;
+    // Exactly what `.y 12` / `.d 12` parse to, so every gate is the same.
+    const parsed = parseCommand(`.${name} ${digits}`);
+    return parsed.kind === "command" ? parsed : undefined;
+  }
+  return undefined;
+}
 
 /**
  * Classifies one user-typed TEXT item. The rules apply in order; the first

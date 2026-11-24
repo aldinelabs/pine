@@ -15,6 +15,7 @@ import {
 import path from "node:path";
 import { z } from "zod";
 import { APPROVAL_MODE_ORDER } from "../../shared/agent";
+import { ASSISTANT_DECISIONS } from "../../shared/assistant";
 import type { PineApprovalMode } from "../../shared/agent";
 import {
   DEFAULT_WECHAT_SETTINGS,
@@ -89,7 +90,7 @@ const pendingAttachmentSchema = z.object({
 const trackedSchema = z.object({
   sessionId: z.string(),
   projectId: z.string(),
-  origin: z.enum(["wechat", "adopted", "spawned"]),
+  origin: z.enum(["wechat", "adopted", "spawned", "dispatched", "assistant"]),
   trackedAtMs: z.number(),
   lastUsedAtMs: z.number(),
 });
@@ -188,6 +189,8 @@ const plainSchema = z.object({
   modeOverride: field(z.record(z.string(), modeSchema), () => ({})),
   outQueue: field(z.array(queuedSchema), () => []),
   lastPausedNoticeAtMs: z.number().optional().catch(undefined),
+  route: z.enum(["assistant", "session"]).optional().catch(undefined),
+  routeIntro: z.enum(["due", "sent"]).optional().catch(undefined),
 });
 
 const settingsSchema = z.object({
@@ -200,6 +203,8 @@ const settingsSchema = z.object({
   allowFileSending: z
     .boolean()
     .default(DEFAULT_WECHAT_SETTINGS.allowFileSending),
+  /** Absent in a blob written before the Assistant: see readSecure. */
+  plainTarget: z.enum(["assistant", "session"]).optional(),
   /** Old WeChat-only keep-awake switch: read for migration, never kept. */
   keepAwake: z.boolean().optional(),
 });
@@ -331,6 +336,8 @@ export class WeChatStore implements WeChatStateStore {
   private dirty = false;
   /** Sticky: a blob read in this run held the old keep-awake switch on. */
   private legacy = false;
+  /** Sticky: a bound blob read in this run predates the Assistant. */
+  private legacyRoute = false;
 
   constructor(private readonly options: WeChatStoreOptions) {}
 
@@ -385,6 +392,10 @@ export class WeChatStore implements WeChatStateStore {
 
   legacyKeepAwake(): boolean {
     return this.legacy;
+  }
+
+  legacyPlainTarget(): boolean {
+    return this.legacyRoute;
   }
 
   secure(): Readonly<WeChatSecureState> {
@@ -490,11 +501,24 @@ export class WeChatStore implements WeChatStateStore {
         Buffer.from(encoded, "base64"),
       );
       const parsed = secureSchema.parse(JSON.parse(json));
-      const { keepAwake, ...settings } = parsed.settings;
+      const { keepAwake, plainTarget, ...settings } = parsed.settings;
       this.legacy ||= keepAwake === true;
+      // A WeChat remote set up before the Assistant keeps sending plain text
+      // to the current session until the user switches.
+      const existing = parsed.owner !== undefined;
+      if (plainTarget === undefined && existing) this.legacyRoute = true;
       const state: WeChatSecureState = withoutUndefined({
         ...parsed,
-        settings: clampSettings(withoutUndefined(settings)),
+        settings: clampSettings(
+          withoutUndefined({
+            ...settings,
+            plainTarget:
+              plainTarget ??
+              (existing
+                ? ASSISTANT_DECISIONS.wechatPlainTargetForExistingSetups
+                : ASSISTANT_DECISIONS.wechatPlainTargetForNewSetups),
+          }),
+        ),
       });
       return { result: "ok", state };
     } catch {

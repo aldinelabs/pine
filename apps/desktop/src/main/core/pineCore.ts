@@ -416,6 +416,16 @@ export class PineCore {
         listSkills: (projectId) => listProjectSkills(this, projectId),
         listMcpServers: (projectId) =>
           listMcpCatalog(this, WECHAT_CLIENT_ID, projectId),
+        assistant: {
+          send: ({ message, locale, ceiling, steer }) =>
+            this.assistant.send(message, {
+              locale,
+              source: "wechat",
+              ceiling,
+              steer,
+            }),
+          sessionId: () => this.assistant.sessionId(),
+        },
       },
       host: {
         version: host.version,
@@ -434,6 +444,13 @@ export class PineCore {
           : {}),
       },
     });
+    // Sessions the Assistant dispatches in a WeChat turn report to WeChat.
+    this.assistant.onDispatched = (dispatch, turn) => {
+      if (turn.source === "wechat")
+        this.tellWeChat((wechat) =>
+          wechat.sessionDispatched(dispatch.sessionId, dispatch.projectId),
+        );
+    };
     registerCoreRequests(this);
     this.agentHost.subscribe((event) => this.routeAgentEvent(event));
     // Ready before the first message, so no turn waits on the lookup.

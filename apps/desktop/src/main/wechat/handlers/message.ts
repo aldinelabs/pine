@@ -1,6 +1,9 @@
 // Plain text and bare numbers.
 //
-// Plain text always goes to the current session; it is never held because a
+// Plain text goes to Pine's Assistant when that is where it is routed
+// (`plainRoute`): the bridge hands over the words and nothing else, and the
+// Assistant's reply comes back as its own push. Otherwise it goes to the
+// current session; it is never held because a
 // push was about another session. The reply is silent when the routing cannot
 // surprise the user, `R-ROUTE` otherwise, and `R-STEER` when it steers a
 // running turn. While an approval or question card of the current session is
@@ -82,6 +85,21 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
   // A new plain message drops a held batch.
   if (!ctx.heldConfirmed)
     ctx.asks.closeWhere((ask) => ask.kind === "held", "invalidated");
+  if (ctx.sessions.plainRoute() === "assistant") {
+    if (!body) return { text: render("E-QUOTE", ctx.lang) };
+    // Staged files stay staged: the Assistant cannot open them.
+    const staged = ctx.attachments.list().length;
+    if (staged > 0)
+      return { text: render("E-ASSIST-FILES", ctx.lang, { count: staged }) };
+    await ctx.sessions.sendToAssistant({
+      text: body,
+      ...(ctx.inbound.quotedText !== undefined
+        ? { quotedText: ctx.inbound.quotedText }
+        : {}),
+    });
+    // Silent ("typing…"): the Assistant's reply is the answer.
+    return {};
+  }
   const current = ctx.store.get().current;
   if (!current) {
     // No current session: same path as `.new text`. A quote alone is refused

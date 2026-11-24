@@ -372,6 +372,15 @@ function updateDefaultProject(value: unknown): void {
   });
 }
 
+function updatePlainTarget(value: unknown): void {
+  if (
+    (value !== "assistant" && value !== "session") ||
+    value === settings.value.plainTarget
+  )
+    return;
+  saveSettings({ plainTarget: value });
+}
+
 function isApprovalMode(value: unknown): value is PineApprovalMode {
   return APPROVAL_MODE_ORDER.includes(value as PineApprovalMode);
 }
@@ -532,6 +541,40 @@ function openServerGuide(): void {
           aria-labelledby="pine-wechat-receive"
           @update:model-value="updateReceiving"
         />
+      </Field>
+
+      <Field orientation="responsive">
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <FieldTitle id="pine-wechat-plain-target">
+            {{ t("preferences.wechatRemote.plainTarget") }}
+          </FieldTitle>
+          <FieldDescription>
+            {{ t("preferences.wechatRemote.plainTargetDescription") }}
+          </FieldDescription>
+        </div>
+        <Select
+          :model-value="settings.plainTarget"
+          :disabled="isBusy"
+          @update:model-value="updatePlainTarget"
+        >
+          <SelectTrigger
+            data-testid="pine-wechat-plain-target"
+            class="w-fit"
+            aria-labelledby="pine-wechat-plain-target"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="assistant">
+                {{ t("preferences.wechatRemote.plainTargetAssistant") }}
+              </SelectItem>
+              <SelectItem value="session">
+                {{ t("preferences.wechatRemote.plainTargetSession") }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </Field>
 
       <Field orientation="responsive">

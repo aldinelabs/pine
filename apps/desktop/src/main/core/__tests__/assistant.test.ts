@@ -81,6 +81,9 @@ async function fixture() {
       Promise.resolve({ hasMore: false, messages: [reply("首页已修好。")] }),
     ),
     resume: vi.fn(() => Promise.resolve()),
+    prompt: vi.fn(() =>
+      Promise.resolve({ accepted: true, session: { id: ASSISTANT_SESSION } }),
+    ),
   };
   const agentHost = {
     notifySession: vi.fn(() => Promise.resolve({ delivered: true })),
@@ -247,5 +250,105 @@ describe("the Assistant's dispatches", () => {
         pendingApprovals: 0,
       },
     });
+  });
+});
+
+describe("the Assistant from WeChat", () => {
+  it("starts its one conversation as its own client and remembers it", async () => {
+    const { root, runtimes, service } = await fixture();
+
+    const sent = await service.send("帮我修一下博客首页", {
+      locale: "zh-CN",
+      source: "wechat",
+      ceiling: "let-me-review",
+    });
+
+    expect(sent).toEqual({
+      sessionId: ASSISTANT_SESSION,
+      projectId: ASSISTANT_PROJECT_ID,
+    });
+    expect(runtimes.prompt).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      expect.objectContaining({
+        message: "帮我修一下博客首页",
+        target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        approvalMode: "auto-approve",
+      }),
+      { focus: false },
+    );
+    expect(
+      JSON.parse(await readFile(path.join(root, "state.json"), "utf8")),
+    ).toEqual({ version: 1, sessionId: ASSISTANT_SESSION });
+  });
+
+  it("steers its running turn with the next message", async () => {
+    const { runtimes, service } = await fixture();
+    await service.send("第一条", { locale: "zh-CN", source: "wechat" });
+    runtimes.liveSessionIdsOf.mockImplementation((projectId: string) =>
+      projectId === ASSISTANT_PROJECT_ID ? [ASSISTANT_SESSION] : [DISPATCHED],
+    );
+
+    await service.send("再加一句", {
+      locale: "zh-CN",
+      source: "wechat",
+      steer: true,
+    });
+
+    expect(runtimes.prompt).toHaveBeenLastCalledWith(
+      ASSISTANT_CLIENT_ID,
+      expect.objectContaining({
+        target: {
+          kind: "session",
+          projectId: ASSISTANT_PROJECT_ID,
+          sessionId: ASSISTANT_SESSION,
+        },
+        streamingBehavior: "steer",
+      }),
+      { focus: false },
+    );
+  });
+
+  it("dispatches a WeChat turn's work within the WeChat ceiling and reports it", async () => {
+    const { service } = await fixture();
+    const dispatched = vi.fn();
+    service.onDispatched = dispatched;
+    await service.send("修首页", {
+      locale: "zh-CN",
+      source: "wechat",
+      ceiling: "let-me-review",
+    });
+
+    const result = await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+
+    expect(result).toMatchObject({ approvalMode: "let-me-review" });
+    expect(startBackgroundSession).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ approvalMode: "let-me-review" }),
+    );
+    expect(dispatched).toHaveBeenCalledWith(
+      { sessionId: DISPATCHED, projectId: BLOG },
+      { source: "wechat" },
+    );
+  });
+
+  it("keeps a desktop turn's mode and says it came from the desktop", async () => {
+    const { service } = await fixture();
+    const dispatched = vi.fn();
+    service.onDispatched = dispatched;
+    await service.send("修首页", { locale: "zh-CN", source: "desktop" });
+
+    const result = await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+
+    expect(result).toMatchObject({ approvalMode: "auto-approve" });
+    expect(dispatched).toHaveBeenCalledWith(
+      { sessionId: DISPATCHED, projectId: BLOG },
+      { source: "desktop" },
+    );
   });
 });

@@ -496,6 +496,18 @@ const HELP_INTRO: Record<L, string> = {
   en: "**Pine WeChat commands**\nStart with `.` or `。`; plain text goes to the current session",
 };
 
+/** The intro when plain text goes to the Assistant. */
+const HELP_INTRO_ASSISTANT: Record<L, string> = {
+  zh: "**Pine 微信命令**\n以 `.` 或 `。` 开头；直接发文字 = 发给助理，它替你派活和汇报",
+  en: "**Pine WeChat commands**\nStart with `.` or `。`; plain text goes to the Assistant, which dispatches work and reports back",
+};
+
+/** The help row of `.home`, shown where Pine has an Assistant. */
+const HELP_HOME_ROW: Record<L, readonly [string, string]> = {
+  zh: ["`.home`", "回到助理"],
+  en: ["`.home`", "back to the Assistant"],
+};
+
 /** `.help`: the command to type and what it does. */
 const HELP_ROWS: Record<L, readonly (readonly [string, string])[]> = {
   zh: [
@@ -1031,6 +1043,22 @@ export function renderLastPages(
   );
 }
 
+/**
+ * The Assistant's reply as `T-ASSISTANT` pages: the first is pushed, the
+ * rest wait for `.more`. Its words are display data like any agent reply;
+ * nothing in them is ever read back as a command.
+ */
+export function renderAssistantPages(lang: L, markdown: string): string[] {
+  const text = agentMarkdown(markdown, lang, { choices: false });
+  if (!text) return [];
+  return pagedText(
+    lang,
+    `**${pick(lang, "助理", "Assistant")}**`,
+    text,
+    LAST_MAX_PAGES,
+  );
+}
+
 /** The last TASK_OUTPUT_LINES lines of process output, at most TASK_OUTPUT_MAX code points. */
 export function tailOutput(output: string): string {
   const tail = output
@@ -1050,7 +1078,13 @@ export function tailOutput(output: string): string {
 
 export interface ReplyData {
   // 10.1 Command replies
-  "R-HELP": { computer: string; ceiling: PineApprovalMode; files: boolean };
+  "R-HELP": {
+    computer: string;
+    ceiling: PineApprovalMode;
+    files: boolean;
+    /** Where plain text goes; absent where Pine has no Assistant. */
+    route?: "assistant" | "session";
+  };
   "R-HELP2": undefined;
   "R-HELP1": { spec: CommandSpec };
   "R-STATUS": {
@@ -1101,7 +1135,18 @@ export interface ReplyData {
   "R-ROUTE": { at: SessionRef };
   /** A numbered reply answered an interactive answer's choice. */
   "R-CHOICE": { at: SessionRef; label: string; steered: boolean };
-  "R-WELCOME": { computer: string; ceiling: PineApprovalMode; files: boolean };
+  "R-WELCOME": {
+    computer: string;
+    ceiling: PineApprovalMode;
+    files: boolean;
+    route?: "assistant" | "session";
+  };
+  /** `.home`. */
+  "R-HOME": { attachments: number };
+  /** `.status`: where plain text goes now. */
+  "R-ROUTEMODE": { route: "assistant" | "session" };
+  /** Once, to a setup from before the Assistant, after its next reply. */
+  "R-ASSISTANT-INTRO": undefined;
   "R-SESSIONS": {
     now: number;
     rows: {
@@ -1124,6 +1169,8 @@ export interface ReplyData {
     state: SessionState;
     mode: PineApprovalMode;
     count: number;
+    /** Pine has an Assistant: the footer says how to go back to it. */
+    home?: boolean;
   };
   "R-USEVIEW": {
     title: string;
@@ -1342,6 +1389,9 @@ export interface ReplyData {
     current: boolean;
   };
   "T-FAILED": { at: SessionRef; error: string };
+  /** One page of the Assistant's reply; use `renderAssistantPages`. */
+  "T-ASSISTANT": { text: string; page?: PageInfo };
+  "T-ASSISTANT-FAILED": { error: string };
   "T-PROGRESS": { at: SessionRef; todos?: { done: number; total: number } };
   "T-AUTORUN": { name: string; result: string };
   "T-AUTO-ON": { name: string; result: "approved" | "denied" | "timeout" };
@@ -1386,6 +1436,8 @@ export interface ReplyData {
   "E-SHOWFIRST": { ask: number };
   "E-TEXT": undefined;
   "E-QUOTE": undefined;
+  "E-ASSIST-FILES": { count: number };
+  "E-NOASSIST": undefined;
   "E-AUTOOFF": { name: string };
   "E-NGUARD": { ask: number };
   "E-ANSWER": {
@@ -1422,8 +1474,19 @@ type Template<K extends ReplyId> = (lang: L, data: ReplyData[K]) => string;
 const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "R-HELP": (lang, data) =>
     blocks(
-      HELP_INTRO[lang],
-      helpTable(lang, HELP_ROWS[lang]),
+      data.route === "assistant"
+        ? HELP_INTRO_ASSISTANT[lang]
+        : HELP_INTRO[lang],
+      helpTable(
+        lang,
+        data.route === undefined
+          ? HELP_ROWS[lang]
+          : [
+              ...HELP_ROWS[lang].slice(0, 5),
+              HELP_HOME_ROW[lang],
+              ...HELP_ROWS[lang].slice(5),
+            ],
+      ),
       helpFooter(lang, data),
     ),
   "R-HELP2": (lang) =>
@@ -1596,6 +1659,48 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       `下一条消息会在 ${displayTitle(project)} 新开会话。`,
       `Your next message starts a new session in ${displayTitle(project)}.`,
     ),
+  "R-HOME": (lang, { attachments }) =>
+    pick(
+      lang,
+      blocks(
+        "好的，之后的普通消息发给 **助理**",
+        quote(
+          attachments > 0
+            ? `助理不能查看文件：暂存的 ${attachments} 个附件请用 \`.n 文字\` 发出或 \`.drop\` 丢弃 · \`.u\` 直连会话`
+            : "`.u` 直连某个会话 · 审批仍用 `.y 编号`",
+        ),
+      ),
+      blocks(
+        "OK, plain text now goes to the **Assistant**",
+        quote(
+          attachments > 0
+            ? `The Assistant cannot open files: send the ${attachments} staged attachment(s) with \`.n text\` or \`.drop\` them · \`.u\` talks to a session directly`
+            : "`.u` talks to a session directly · approve with `.y number` as before",
+        ),
+      ),
+    ),
+  "R-ROUTEMODE": (lang, { route }) =>
+    quote(
+      route === "assistant"
+        ? pick(
+            lang,
+            "普通消息 → 助理 · `.u` 直连会话",
+            "Plain text → Assistant · `.u` talks to a session",
+          )
+        : pick(
+            lang,
+            "普通消息 → 当前会话 · `.home` 交给助理",
+            "Plain text → current session · `.home` hands it to the Assistant",
+          ),
+    ),
+  "R-ASSISTANT-INTRO": (lang) =>
+    quote(
+      pick(
+        lang,
+        "新功能：Pine 现在有 **助理** 可以替你在各个项目里派活、盯进度、汇报结果。发 `.home` 让普通消息交给它；`.u` 随时直连会话。你的普通消息目前仍发给当前会话，也可以在电脑上的 设置 › 远程控制 › 微信 里切换。",
+        "New: Pine now has an **Assistant** that dispatches work across your projects, follows it and reports back. Send `.home` to give it your plain text; `.u` talks to a session directly any time. Your plain text still goes to the current session for now; you can also switch in Settings › Remote Control › WeChat on the computer.",
+      ),
+    ),
   "R-STEER": (lang, { at }) =>
     headLine(
       at,
@@ -1720,14 +1825,22 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
           at,
           `当前会话 · ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} 条消息`,
         ),
-        quote("直接发文字继续 · `.r` 看上次回复"),
+        quote(
+          data.home
+            ? "直接发文字继续 · `.r` 看上次回复 · `.home` 回到助理"
+            : "直接发文字继续 · `.r` 看上次回复",
+        ),
       ),
       blocks(
         headLine(
           at,
           `Current session · ${stateLabel(lang, data.state)} · ${modeLabel(lang, data.mode)} · ${data.count} messages`,
         ),
-        quote("Send text to continue · `.r` for the last reply"),
+        quote(
+          data.home
+            ? "Send text to continue · `.r` for the last reply · `.home` back to the Assistant"
+            : "Send text to continue · `.r` for the last reply",
+        ),
       ),
     );
   },
@@ -2676,6 +2789,24 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       quote(actions.join(" · ")),
     );
   },
+  "T-ASSISTANT": (lang, { text, page }) =>
+    blocks(
+      `**${pick(lang, "助理", "Assistant")}**`,
+      text,
+      page ? pageFooter(lang, page) : undefined,
+    ),
+  "T-ASSISTANT-FAILED": (lang, { error }) =>
+    blocks(
+      `**${pick(lang, "助理", "Assistant")}** · ${pick(lang, "出错了", "Failed")}`,
+      escapeInline(truncate(neutralise(error), 200)),
+      quote(
+        pick(
+          lang,
+          "直接发消息可重试；点命令不经过助理，仍然可用。",
+          "Send a message to retry; dot commands do not go through the Assistant and still work.",
+        ),
+      ),
+    ),
   "T-FAILED": (lang, { at, error }) =>
     blocks(
       headLine(at, pick(lang, "失败", "Failed")),
@@ -2953,6 +3084,28 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       lang,
       "这段文字以 Pine 内部的附件标记开头，没有发送。请去掉开头那一段再发。",
       "This text starts with Pine's internal attachment marker and was not sent. Remove that part and send it again.",
+    ),
+  "E-ASSIST-FILES": (lang, { count }) =>
+    pick(
+      lang,
+      blocks(
+        `助理不能查看文件，暂存的 ${count} 个附件还没发出。`,
+        quote(
+          "`.n 文字` 带上它们新开会话 · `.u` 切到会话后再发 · `.drop` 丢弃",
+        ),
+      ),
+      blocks(
+        `The Assistant cannot open files; ${count} staged attachment(s) were not sent.`,
+        quote(
+          "`.n text` starts a session with them · `.u` a session, then send · `.drop` discards them",
+        ),
+      ),
+    ),
+  "E-NOASSIST": (lang) =>
+    pick(
+      lang,
+      "这台电脑上的 Pine 没有助理，普通消息发给当前会话。",
+      "Pine on this computer has no Assistant; plain text goes to the current session.",
     ),
   "E-QUOTE": (lang) =>
     pick(

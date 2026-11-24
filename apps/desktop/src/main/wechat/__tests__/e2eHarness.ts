@@ -14,6 +14,10 @@ import type {
   PineAgentEvent,
   PineApprovalTrigger,
 } from "../../../shared/agent";
+import {
+  ASSISTANT_CLIENT_ID,
+  ASSISTANT_PROJECT_ID,
+} from "../../../shared/assistant";
 import type { PineProject } from "../../../shared/projects";
 import type { PineSessionSummary } from "../../../shared/sessions";
 import type {
@@ -106,6 +110,19 @@ export interface HarnessOptions {
   allowUrl?: (url: URL, purpose: UrlPurpose) => boolean;
   /** Reuse directories and the mock of an earlier harness (restart). */
   reuse?: Harness;
+  /**
+   * Give the bridge Pine's Assistant: a stand-in for main/core/assistant.ts
+   * that holds one conversation as the Assistant's client. Without it,
+   * plain text always goes to the current session, as before.
+   */
+  assistant?: boolean;
+}
+
+/** What the stand-in Assistant was sent, in order. */
+export interface AssistantCall {
+  message: string;
+  ceiling: string;
+  steer: boolean;
 }
 
 export interface Harness {
@@ -164,6 +181,16 @@ export interface Harness {
   ): string;
   /** The session id of the n-th `createSession` call (0-based). */
   createdSession(index?: number): string;
+  /** With `assistant`: every message WeChat sent it. */
+  assistantCalls: AssistantCall[];
+  /** With `assistant`: its conversation, once started. */
+  assistantSession(): string;
+  /**
+   * With `assistant`: does what its dispatch_task does in a WeChat turn,
+   * a background session in the test project held by the Assistant's
+   * client, reported to the bridge. Returns the session id.
+   */
+  dispatch(message: string): Promise<string>;
   close(): Promise<void>;
 }
 
@@ -293,6 +320,61 @@ export async function createHarness(
       >),
   };
 
+  const assistantCalls: AssistantCall[] = [];
+  let assistantSessionId = reuse?.assistantCalls.length
+    ? reuse.assistantSession()
+    : undefined;
+  const bridgeRef: { current?: E2EBridge } = {};
+  if (options.assistant) {
+    core.assistant = {
+      sessionId: () => Promise.resolve(assistantSessionId),
+      send: async ({ message, ceiling, steer, locale }) => {
+        assistantCalls.push({ message, ceiling, steer });
+        if (!registry.isOpen(ASSISTANT_CLIENT_ID, ASSISTANT_PROJECT_ID))
+          await registry.share(
+            ASSISTANT_CLIENT_ID,
+            await repository.open(ASSISTANT_PROJECT_ID),
+            repository.dataPaths(ASSISTANT_PROJECT_ID),
+          );
+        const result = await registry.prompt(
+          ASSISTANT_CLIENT_ID,
+          {
+            locale,
+            message,
+            target: assistantSessionId
+              ? {
+                  kind: "session",
+                  projectId: ASSISTANT_PROJECT_ID,
+                  sessionId: assistantSessionId,
+                }
+              : { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+            approvalMode: "auto-approve",
+            ...(steer ? { streamingBehavior: "steer" as const } : {}),
+          },
+          { focus: false },
+        );
+        assistantSessionId = result.session.id;
+        return {
+          sessionId: assistantSessionId,
+          projectId: ASSISTANT_PROJECT_ID,
+        };
+      },
+    };
+  }
+  const dispatchAsAssistant = async (message: string) => {
+    const bridgeNow = bridgeRef.current;
+    if (!bridgeNow) throw new Error("no bridge");
+    const result = await core.startBackgroundSession({
+      ownerId: ASSISTANT_CLIENT_ID,
+      project,
+      message,
+      approvalMode: bridgeNow.status().settings.ceilingMode,
+      locale: "zh-CN",
+    });
+    bridgeNow.sessionDispatched(result.session.id, project.id);
+    return result.session.id;
+  };
+
   const notifications: WeChatNotification[] = [];
   const statuses: WeChatStatus[] = [];
   const host: WeChatHostPorts = {
@@ -327,6 +409,7 @@ export async function createHarness(
     channels,
     randomCode: () => PAIR_CODE,
   });
+  bridgeRef.current = bridge;
 
   const texts = () =>
     mock.sent.flatMap((entry) =>
@@ -438,6 +521,13 @@ export async function createHarness(
       });
       return requestId;
     },
+    assistantCalls,
+    assistantSession() {
+      if (!assistantSessionId)
+        throw new Error("the Assistant has no conversation");
+      return assistantSessionId;
+    },
+    dispatch: dispatchAsAssistant,
     createdSession(index = 0) {
       const id = created[index];
       if (id === undefined) throw new Error(`no session ${index} was created`);
@@ -448,6 +538,7 @@ export async function createHarness(
       bridge.dispose();
       await bridge.state.flush();
       await registry.dispose(-2).catch(() => undefined);
+      await registry.dispose(ASSISTANT_CLIENT_ID).catch(() => undefined);
       await registry.dispose(WINDOW_ID).catch(() => undefined);
       if (!reuse) {
         await mock.close();

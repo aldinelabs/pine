@@ -2,7 +2,12 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { approvalModeWithin, type PineAgentEvent } from "../../shared/agent";
+import {
+  APPROVAL_MODE_ORDER,
+  approvalModeWithin,
+  type PineAgentEvent,
+  type PineApprovalMode,
+} from "../../shared/agent";
 import {
   ASSISTANT_APPROVAL_MODE,
   ASSISTANT_CLIENT_ID,
@@ -15,6 +20,7 @@ import {
   type AssistantHostOperation,
   type AssistantHostResult,
   type AssistantOverviewSession,
+  type AssistantTurnSource,
 } from "../../shared/assistant";
 import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
 import {
@@ -167,9 +173,41 @@ export function dispatchNoticeContent(
     .join("\n");
 }
 
+/** Where the latest message to the Assistant came from, and its limit. */
+interface AssistantTurn {
+  source: AssistantTurnSource;
+  /** Dispatches of this turn run at most this unsupervised (WeChat's ceiling). */
+  ceiling?: PineApprovalMode;
+}
+
+export interface AssistantSendOptions {
+  locale: "en-US" | "zh-CN";
+  source: AssistantTurnSource;
+  ceiling?: PineApprovalMode;
+  /** The Assistant is mid-turn: the message steers it. */
+  steer?: boolean;
+}
+
+/** The more supervised of two modes. */
+function lowerMode(a: PineApprovalMode, b: PineApprovalMode): PineApprovalMode {
+  return APPROVAL_MODE_ORDER.indexOf(a) <= APPROVAL_MODE_ORDER.indexOf(b)
+    ? a
+    : b;
+}
+
 export class AssistantService {
   /** Serializes writes of the dispatch registry. */
   private writes: Promise<unknown> = Promise.resolve();
+  /** The latest message's source; a dispatch reads it, never the model. */
+  private turn: AssistantTurn = { source: "desktop" };
+  /**
+   * Each session the Assistant dispatches, with the turn it belonged to.
+   * PineCore hands WeChat-started ones to the WeChat bridge.
+   */
+  onDispatched?: (
+    dispatch: { sessionId: string; projectId: string },
+    turn: { source: AssistantTurnSource },
+  ) => void;
   /** The development entry's waits for the Assistant's turn to end. */
   private readonly turnWaiters = new Map<
     string,
@@ -337,6 +375,13 @@ export class AssistantService {
         throw new Error(
           `The Assistant runs in ${callerMode}; it cannot dispatch a session in ${parsed.approvalMode}.`,
         );
+      // A turn from WeChat dispatches within WeChat's ceiling, like `.new`:
+      // the mode is lowered to it rather than refused, since the model
+      // asks for its own mode by default.
+      const turn = this.turn;
+      const approvalMode = turn.ceiling
+        ? lowerMode(parsed.approvalMode, turn.ceiling)
+        : parsed.approvalMode;
       // Like WeChat: a window that shows the project owns the new session,
       // so its approvals appear there; otherwise the Assistant holds it.
       if (!runtimes.isOpen(requester.ownerId, project.id))
@@ -353,10 +398,19 @@ export class AssistantService {
         ownerId,
         project,
         message: `[Dispatched by Pine's Assistant. Pine reports your reply to the Assistant each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
-        approvalMode: parsed.approvalMode,
+        approvalMode,
         locale: parsed.locale,
         ...(parsed.title ? { title: parsed.title } : {}),
       });
+      // Before the registry write: the session's first card may be close.
+      try {
+        this.onDispatched?.(
+          { sessionId: result.session.id, projectId: project.id },
+          { source: turn.source },
+        );
+      } catch (error) {
+        console.error("Failed to report a dispatch.", error);
+      }
       await this.recordDispatch(result.session.id, {
         projectId: project.id,
         assistantSessionId: requester.sessionId,
@@ -368,7 +422,7 @@ export class AssistantService {
         sessionId: result.session.id,
         projectId: project.id,
         projectName: this.projectName(project),
-        approvalMode: parsed.approvalMode,
+        approvalMode,
       };
     }
 
@@ -482,6 +536,85 @@ export class AssistantService {
     waiter(event.state);
   }
 
+  /** The Assistant's conversation if it still exists. */
+  private async knownSessionId(): Promise<string | undefined> {
+    const existing = await this.sessionId();
+    if (!existing) return undefined;
+    if (
+      this.core.runtimes
+        .liveSessionIdsOf(ASSISTANT_PROJECT_ID)
+        .includes(existing)
+    )
+      return existing;
+    return (
+      await listProjectSessions(
+        await this.core.repository.get(ASSISTANT_PROJECT_ID),
+        sessionLibrary(this.core),
+      )
+    ).some((session) => session.id === existing)
+      ? existing
+      : undefined;
+  }
+
+  /**
+   * Sends the user's message to the Assistant's one conversation, starting
+   * it on first use, as the Assistant's own client. Resolves once the
+   * message is accepted. `ceiling` bounds what this turn dispatches.
+   */
+  async send(
+    message: string,
+    options: AssistantSendOptions,
+  ): Promise<{ sessionId: string; projectId: string }> {
+    const sessionId = await this.knownSessionId();
+    return this.sendTo(sessionId, message, options);
+  }
+
+  private async sendTo(
+    known: string | undefined,
+    message: string,
+    options: AssistantSendOptions,
+  ): Promise<{ sessionId: string; projectId: string }> {
+    const { runtimes } = this.core;
+    await this.holdAssistant();
+    this.turn = {
+      source: options.source,
+      ...(options.ceiling ? { ceiling: options.ceiling } : {}),
+    };
+    if (known) {
+      await runtimes.prompt(
+        ASSISTANT_CLIENT_ID,
+        {
+          locale: options.locale,
+          message,
+          target: {
+            kind: "session",
+            projectId: ASSISTANT_PROJECT_ID,
+            sessionId: known,
+          },
+          approvalMode: ASSISTANT_APPROVAL_MODE,
+          ...(options.steer ? { streamingBehavior: "steer" as const } : {}),
+        },
+        { focus: false },
+      );
+      return { sessionId: known, projectId: ASSISTANT_PROJECT_ID };
+    }
+    const result = await runtimes.prompt(
+      ASSISTANT_CLIENT_ID,
+      {
+        locale: options.locale,
+        message,
+        target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        approvalMode: ASSISTANT_APPROVAL_MODE,
+      },
+      { focus: false },
+    );
+    await writeJson(this.stateFile(), {
+      version: 1,
+      sessionId: result.session.id,
+    });
+    return { sessionId: result.session.id, projectId: ASSISTANT_PROJECT_ID };
+  }
+
   /**
    * Development only: sends the Assistant a message as the user, in its one
    * conversation, and waits for the turn to end.
@@ -491,51 +624,13 @@ export class AssistantService {
     locale: "en-US" | "zh-CN" = "zh-CN",
   ): Promise<AssistantDebugPromptResult> {
     const { runtimes } = this.core;
-    await this.holdAssistant();
-    const existing = await this.sessionId();
-    const known =
-      existing &&
-      (
-        await listProjectSessions(
-          await this.core.repository.get(ASSISTANT_PROJECT_ID),
-          sessionLibrary(this.core),
-        )
-      ).some((session) => session.id === existing)
-        ? existing
-        : undefined;
-    let sessionId: string;
+    const known = await this.knownSessionId();
     // Waiting starts before the prompt, so a quick turn cannot end unseen.
     const ended = this.waitForTurn(known ?? NEW_CONVERSATION);
-    if (known) {
-      sessionId = known;
-      await runtimes.prompt(
-        ASSISTANT_CLIENT_ID,
-        {
-          locale,
-          message,
-          target: {
-            kind: "session",
-            projectId: ASSISTANT_PROJECT_ID,
-            sessionId,
-          },
-          approvalMode: ASSISTANT_APPROVAL_MODE,
-        },
-        { focus: false },
-      );
-    } else {
-      const result = await runtimes.prompt(
-        ASSISTANT_CLIENT_ID,
-        {
-          locale,
-          message,
-          target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
-          approvalMode: ASSISTANT_APPROVAL_MODE,
-        },
-        { focus: false },
-      );
-      sessionId = result.session.id;
-      await writeJson(this.stateFile(), { version: 1, sessionId });
-    }
+    const { sessionId } = await this.sendTo(known, message, {
+      locale,
+      source: "desktop",
+    });
     const state = await Promise.race([
       ended,
       new Promise<"timeout">((resolve) =>

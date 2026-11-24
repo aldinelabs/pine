@@ -153,6 +153,7 @@ import {
   createAssistantToolGuardExtension,
 } from "./assistant/tools";
 import { ASSISTANT_SYSTEM_PROMPT } from "./assistant/prompt";
+import { assistantMemoryNotice } from "./assistant/memory";
 import { ForegroundPromoter } from "./foreground-promotion";
 import { createModelToolDefinitions, listUsableModels } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
@@ -1740,7 +1741,12 @@ export class PineAgentRuntime {
       scratchDirectory: await projectTemporaryDirectory(location),
     });
     const resourceLoader = location.orchestrator
-      ? this.assistantResourceLoader(live, location, settingsManager)
+      ? this.assistantResourceLoader(
+          live,
+          location,
+          settingsManager,
+          memoryRepository,
+        )
       : new DefaultResourceLoader({
           cwd: location.cwd,
           agentDir: location.agentDir,
@@ -2178,6 +2184,12 @@ export class PineAgentRuntime {
           requestHost: (request) => this.requestHost(live, request),
           getApprovalMode: () => live.approvalMode,
           getLocale: () => live.locale,
+          // Its project notes are the Assistant's own (assistant/memory).
+          memory: {
+            repository: memoryRepository,
+            isEnabled: () => live.memoryEnabled,
+            sessionId: () => live.session.sessionId,
+          },
         })
       : [
           ...pineTools,
@@ -2324,6 +2336,7 @@ export class PineAgentRuntime {
     live: LiveAgentSession,
     location: AgentSessionLocation,
     settingsManager: SettingsManager,
+    memoryRepository: PineMemoryRepository,
   ): DefaultResourceLoader {
     return new DefaultResourceLoader({
       cwd: location.cwd,
@@ -2360,11 +2373,22 @@ export class PineAgentRuntime {
               const settings = await readPineAgentSettings(live.agentDir);
               const userProfile =
                 settings.userProfile ?? createDefaultPineUserProfile();
+              const memoryEnabled =
+                settings.memoryEnabled ?? DEFAULT_MEMORY_ENABLED;
+              // A setting, so the tools stay listed and only refuse.
+              live.memoryEnabled = memoryEnabled;
               const message = contextNoticeMessage(live.session.messages, {
                 user_profile: systemPromptWithUserProfile(
                   "",
                   userProfile,
                 ).trim(),
+                ...(memoryEnabled
+                  ? {
+                      memory: assistantMemoryNotice(
+                        await memoryRepository.list(),
+                      ),
+                    }
+                  : {}),
               });
               return message ? { message } : undefined;
             });
