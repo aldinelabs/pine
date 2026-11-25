@@ -13,7 +13,6 @@ import {
   PlusIcon,
   AtSignIcon,
   SearchIcon,
-  SlidersHorizontalIcon,
   ShieldCheckIcon,
   ShieldIcon,
   ShieldOffIcon,
@@ -126,7 +125,6 @@ import { withoutRelayPrefix } from "@/shared/sessions";
 import { onSessionEvent } from "@/client/sessionEvents";
 import { useHelpStore } from "@/stores/help";
 import { useSessionStore } from "@/stores/session";
-import { useAssistantStore } from "@/stores/assistant";
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import type {
   PinePendingApproval,
@@ -235,7 +233,6 @@ const props = withDefaults(
   },
 );
 
-const assistantStore = useAssistantStore();
 const message = defineModel<string>({ default: "" });
 const approvalMode = defineModel<ApprovalMode>("approvalMode", {
   default: "auto-approve",
@@ -312,7 +309,7 @@ const workingBorderActive = computed(() =>
     appearanceStore.composerGlow,
   ),
 );
-const approvalModes = computed<ApprovalModeOption[]>(() => [
+const allApprovalModes = computed<ApprovalModeOption[]>(() => [
   {
     value: "let-me-review",
     label: t("project.composer.approval.askForPermissionLabel"),
@@ -338,6 +335,12 @@ const approvalModes = computed<ApprovalModeOption[]>(() => [
     icon: ShieldOffIcon,
   },
 ]);
+/** The Assistant never runs in YOLO. */
+const approvalModes = computed(() =>
+  props.assistant
+    ? allApprovalModes.value.filter((option) => option.value !== "YOLO")
+    : allApprovalModes.value,
+);
 const selectedApprovalMode = computed(
   () =>
     approvalModes.value.find((option) => option.value === approvalMode.value) ??
@@ -1661,6 +1664,7 @@ function handleRootSubmit(event: Event): void {
                   :disabled="isRewriting"
                   :aria-busy="isRewriting || undefined"
                   :class="{
+                    'session-composer-input--alone': !takesFiles,
                     'session-composer-input--suggesting': showsReplySuggestion,
                     'session-composer-input--suggestion-fades':
                       showsReplySuggestion && replySuggestionFades,
@@ -1676,9 +1680,11 @@ function handleRootSubmit(event: Event): void {
                         ? t('project.composer.chooseProjectPlaceholder')
                         : props.isRunning
                           ? t('project.composer.steeringPlaceholder')
-                          : props.sessionId
-                            ? t('project.composer.placeholder')
-                            : t('project.composer.draftPlaceholder')
+                          : props.assistant
+                            ? t('assistant.placeholder')
+                            : props.sessionId
+                              ? t('project.composer.placeholder')
+                              : t('project.composer.draftPlaceholder')
                   "
                   @focus="isInputFocused = true"
                   @blur="isInputFocused = false"
@@ -1947,18 +1953,7 @@ function handleRootSubmit(event: Event): void {
            and the container queries below compact both as the footer
            narrows. -->
       <div class="flex shrink-0 items-center gap-1">
-        <Button
-          v-if="props.assistant"
-          data-testid="assistant-settings-button"
-          type="button"
-          variant="ghost"
-          size="sm"
-          @click="assistantStore.requestSettings()"
-        >
-          <SlidersHorizontalIcon data-icon="inline-start" />
-          {{ t("assistant.settingsButton") }}
-        </Button>
-        <DropdownMenu v-else v-model:open="isApprovalMenuOpen">
+        <DropdownMenu v-model:open="isApprovalMenuOpen">
           <DropdownMenuTrigger as-child>
             <Button
               data-slot="approval-mode-trigger"
@@ -2057,7 +2052,7 @@ function handleRootSubmit(event: Event): void {
         <ContextUsageIndicator v-else class="shrink-0" />
       </div>
 
-      <DropdownMenu v-if="!props.assistant" v-model:open="isModelMenuOpen">
+      <DropdownMenu v-model:open="isModelMenuOpen">
         <DropdownMenuTrigger as-child>
           <Button
             data-slot="model-selector-trigger"
@@ -2315,6 +2310,11 @@ function handleRootSubmit(event: Event): void {
 .session-composer-input {
   padding-inline-start: var(--session-composer-control-inset);
   padding-inline-end: var(--session-input-padding-inline, 1rem);
+}
+
+/* No attachments button before it: as far from the rounded edge as the end. */
+.session-composer-input--alone {
+  padding-inline-start: var(--session-input-padding-inline, 1rem);
 }
 
 .session-composer-input--suggestion-fades::placeholder {

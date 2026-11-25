@@ -36,7 +36,6 @@ import {
 import { isTemporaryWorkspace } from "@/shared/projects";
 import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import { useBackgroundTasksStore } from "@/stores/backgroundTasks";
-import { useAssistantStore } from "@/stores/assistant";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
@@ -334,11 +333,6 @@ watch(
 );
 
 // The Assistant's composer asks for its settings.
-const assistantStore = useAssistantStore();
-watch(
-  () => assistantStore.settingsRequests,
-  () => preferencesDialog.value?.open("assistant"),
-);
 
 // The tray's "manage more settings" opens a preferences section; one asked for
 // while this window was still loading is waiting for it.

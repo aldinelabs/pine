@@ -8,7 +8,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   BotIcon,
-  ConciergeBellIcon,
   FolderKanbanIcon,
   InfoIcon,
   MonitorSmartphoneIcon,
@@ -44,7 +43,6 @@ import RemoteKeepAwakeSettings from "./RemoteKeepAwakeSettings.vue";
 import RemoteControlSettings from "./RemoteControlSettings.vue";
 import WeChatRemoteSettings from "./WeChatRemoteSettings.vue";
 import AutoApprovalSettings from "./AutoApprovalSettings.vue";
-import AssistantSettings from "./AssistantSettings.vue";
 import DecisionsModelSettings from "./DecisionsModelSettings.vue";
 import MemoryEnabledSetting from "./MemoryEnabledSetting.vue";
 import ToolGroupSettings from "./ToolGroupSettings.vue";
@@ -149,7 +147,6 @@ type PreferenceSection =
   | "appearance"
   | "models"
   | "agent"
-  | "assistant"
   | "personalization"
   | "users"
   | "projects"
@@ -324,11 +321,6 @@ const sections = computed<
     icon: BotIcon,
     id: "agent",
     label: t("preferences.sections.agent"),
-  },
-  {
-    icon: ConciergeBellIcon,
-    id: "assistant",
-    label: t("preferences.sections.assistant"),
   },
   {
     icon: UserRoundIcon,
@@ -2198,12 +2190,6 @@ defineExpose({ open });
                 </FieldGroup>
               </FieldSet>
             </FieldGroup>
-          </div>
-          <div
-            v-else-if="activeSection === 'assistant'"
-            class="p-6 max-sm:px-4"
-          >
-            <AssistantSettings />
           </div>
           <div v-else-if="activeSection === 'users'" class="p-6 max-sm:px-4">
             <UsersSettings />

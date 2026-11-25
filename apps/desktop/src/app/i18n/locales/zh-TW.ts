@@ -83,34 +83,6 @@ export default {
     failed: "無法安裝更新。",
   },
   preferences: {
-    assistant: {
-      model: "模型",
-      modelDescription: "助理對話和派發工作時使用的模型。",
-      defaultModel: "與預設模型相同",
-      thinkingLevel: "推理強度",
-      thinkingLevelDescription: "助理回答前思考多久。",
-      approvalMode: "審批模式上限",
-      approvalModeDescription:
-        "助理以這個模式運行，它派出的對話只能使用這個模式或更謹慎的模式。",
-      wakesOnReport: "派出的對話回報時讓助理回覆",
-      wakesOnReportDescription:
-        "關閉時，回報留在對話裡，等你下次傳訊息時一起處理，不產生費用；開啟後，助理收到回報就立即回覆。",
-      costReminder: "費用提醒",
-      costReminderDescription:
-        "它派出的工作階段或它自己的對話花費超過這個金額時，助理會在回報裡指出，之後每多一倍再提醒一次。",
-      costReminderOff: "關閉",
-      costReminderAmount: "{amount} 美元",
-      memory: "助理筆記",
-      memoryDescription: "助理記住的內容，例如你對專案的稱呼。",
-      openMemory: "查看筆記",
-      clear: "清空對話",
-      clearDescription: "刪除助理的對話。它派出的對話保持不變。",
-      clearAction: "清空對話",
-      clearConfirmTitle: "清空助理的對話？",
-      clearConfirmDescription:
-        "對話中的訊息會被永久刪除。你的下一則訊息會開始新的對話。",
-      cleared: "對話已清空",
-    },
     remoteControl: {
       browserAccess: "瀏覽器存取",
       browserAccessDescription: "在瀏覽器中使用 Pine，Pine 需保持執行。",
@@ -433,7 +405,6 @@ export default {
       appearance: "外觀",
       models: "模型",
       agent: "智慧體",
-      assistant: "助理",
       personalization: "自定義",
       projects: "專案管理",
       remote: "遠端控制",
@@ -2824,7 +2795,7 @@ export default {
     emptyTitle: "告訴助理你想做什麼",
     emptyDescription:
       "它會找到合適的專案，把工作派給那裡的對話，並在這裡向你回報。它從不親自動手。",
-    settingsButton: "助理設定",
+    placeholder: "描述任務，助理會派給合適的專案",
     targetDescription: "把工作派給合適的專案",
     source: {
       desktop: "來自桌面",
@@ -2919,14 +2890,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "無法開啟助理",
-      description: "請稍後再試。",
-    },
-    assistantSettings: {
-      title: "無法更新助理設定",
-      description: "請稍後再試。",
-    },
-    assistantClear: {
-      title: "無法清空助理的對話",
       description: "請稍後再試。",
     },
     skills: {

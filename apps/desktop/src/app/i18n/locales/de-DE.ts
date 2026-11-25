@@ -86,38 +86,6 @@ export default {
     failed: "Das Update konnte nicht installiert werden.",
   },
   preferences: {
-    assistant: {
-      model: "Modell",
-      modelDescription:
-        "Das Modell, mit dem der Assistent antwortet und Arbeit übergibt.",
-      defaultModel: "Wie das Standardmodell",
-      thinkingLevel: "Denkaufwand",
-      thinkingLevelDescription:
-        "Wie lange der Assistent nachdenkt, bevor er antwortet.",
-      approvalMode: "Obergrenze für den Berechtigungsmodus",
-      approvalModeDescription:
-        "Der Assistent läuft in diesem Modus, und jede Sitzung, die er übergibt, läuft in diesem oder einem vorsichtigeren Modus.",
-      wakesOnReport: "Antworten, wenn übergebene Arbeit berichtet",
-      wakesOnReportDescription:
-        "Aus: Berichte warten kostenlos in der Unterhaltung, bis du das nächste Mal schreibst. An: Der Assistent antwortet sofort auf jeden Bericht.",
-      costReminder: "Kostenhinweis",
-      costReminderDescription:
-        "Der Assistent weist darauf hin, wenn eine von ihm gestartete Sitzung oder sein eigenes Gespräch mehr als diesen Betrag gekostet hat, und erneut bei jedem weiteren Vielfachen.",
-      costReminderOff: "Aus",
-      costReminderAmount: "{amount} US$",
-      memory: "Notizen des Assistenten",
-      memoryDescription:
-        "Was der Assistent sich merkt, etwa wie du deine Projekte nennst.",
-      openMemory: "Notizen ansehen",
-      clear: "Unterhaltung leeren",
-      clearDescription:
-        "Löscht die Unterhaltung des Assistenten. Übergebene Sitzungen bleiben erhalten.",
-      clearAction: "Unterhaltung leeren",
-      clearConfirmTitle: "Unterhaltung des Assistenten leeren?",
-      clearConfirmDescription:
-        "Die Nachrichten werden endgültig gelöscht. Deine nächste Nachricht beginnt eine neue Unterhaltung.",
-      cleared: "Unterhaltung geleert",
-    },
     remoteControl: {
       browserAccess: "Browserzugriff",
       browserAccessDescription:
@@ -473,7 +441,6 @@ export default {
       appearance: "Darstellung",
       models: "Modelle",
       agent: "Agent",
-      assistant: "Assistent",
       personalization: "Benutzerprofil",
       projects: "Projekte",
       remote: "Fernsteuerung",
@@ -2999,7 +2966,7 @@ export default {
     emptyTitle: "Sag dem Assistenten, was du brauchst",
     emptyDescription:
       "Er findet das passende Projekt, übergibt die Arbeit an eine Sitzung dort und berichtet hier. Die Arbeit selbst erledigt er nie.",
-    settingsButton: "Assistent-Einstellungen",
+    placeholder: "Beschreib eine Aufgabe, der Assistent wählt das Projekt",
     targetDescription: "Übergibt die Arbeit an das passende Projekt",
     source: {
       desktop: "Vom Desktop",
@@ -3098,14 +3065,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "Assistent kann nicht geöffnet werden",
-      description: "Bitte versuche es später erneut.",
-    },
-    assistantSettings: {
-      title: "Assistent-Einstellungen können nicht aktualisiert werden",
-      description: "Bitte versuche es später erneut.",
-    },
-    assistantClear: {
-      title: "Unterhaltung des Assistenten kann nicht geleert werden",
       description: "Bitte versuche es später erneut.",
     },
     skills: {

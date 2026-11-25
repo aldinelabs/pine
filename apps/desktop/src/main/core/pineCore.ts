@@ -559,6 +559,12 @@ export class PineCore {
   /** Closes the tabs of deleted sessions in every interface. */
   notifySessionsDeleted(sessionIds: string[]): void {
     if (!sessionIds.length) return;
+    // Deleting the Assistant's conversation, like any session, ends it.
+    void this.assistant
+      .sessionsDeleted(sessionIds)
+      .catch((error: unknown) =>
+        console.error("Failed to end the Assistant's conversation.", error),
+      );
     this.host.sessionsDeleted?.(sessionIds);
     this.web.sessionsDeleted(sessionIds);
   }

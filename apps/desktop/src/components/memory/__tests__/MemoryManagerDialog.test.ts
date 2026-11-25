@@ -2,6 +2,7 @@ import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { afterEach, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
+import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import type { PineMemorySummary } from "@/shared/memory";
 import MemoryManagerDialog from "../MemoryManagerDialog.vue";
 
@@ -130,7 +131,8 @@ it("asks before deleting a note", async () => {
     scope: "project",
     name: "release-day",
   });
-  expect(api.listMemories).toHaveBeenCalledTimes(2);
+  // Once on opening and once after deleting, each for this project and the Assistant.
+  expect(api.listMemories).toHaveBeenCalledTimes(4);
 });
 
 it("saves an edited note under the same name", async () => {
@@ -184,4 +186,52 @@ it("opens focused on the dialog, not ringed around its first tab", async () => {
   expect(document.activeElement).toBe(
     document.querySelector('[data-testid="memory-manager"]'),
   );
+});
+
+it("shows the Assistant's notes as their own scope", async () => {
+  const assistantNote = { ...projectNote, name: "weekly-briefing" };
+  const { api } = await mountSettings([]);
+  api.listMemories.mockImplementation(({ projectId }) =>
+    Promise.resolve({
+      memories:
+        projectId === ASSISTANT_PROJECT_ID
+          ? [assistantNote, globalNote]
+          : [projectNote, globalNote],
+    }),
+  );
+  await wrappers[0]?.setProps({ open: false });
+  await wrappers[0]?.setProps({ open: true });
+  await flushPromises();
+
+  await find('[data-testid="memory-scope-assistant"]').trigger("mousedown", {
+    button: 0,
+  });
+  await flushPromises();
+  const rows = findAll('[data-slot="memory-row"]');
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.text()).toContain("weekly-briefing");
+
+  await menuItem("edit-memory").trigger("click");
+  await flushPromises();
+  expect(api.readMemory).toHaveBeenCalledWith(
+    expect.objectContaining({ projectId: ASSISTANT_PROJECT_ID }),
+  );
+});
+
+it("leaves out the project scope inside the Assistant", async () => {
+  Object.defineProperty(window, "pine", {
+    configurable: true,
+    value: { listMemories: vi.fn().mockResolvedValue({ memories: [] }) },
+  });
+  const pinia = createPinia();
+  setActivePinia(pinia);
+  const wrapper = mount(MemoryManagerDialog, {
+    attachTo: document.body,
+    props: { projectId: ASSISTANT_PROJECT_ID, open: true },
+    global: { plugins: [pinia, createAppI18n("zh-CN")] },
+  });
+  wrappers.push(wrapper);
+  await flushPromises();
+  const tabs = findAll('[role="tab"]').map((tab) => tab.text());
+  expect(tabs).toEqual(["助理", "所有项目"]);
 });

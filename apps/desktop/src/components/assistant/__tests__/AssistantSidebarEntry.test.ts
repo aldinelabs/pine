@@ -25,9 +25,7 @@ function mountEntry(
 ) {
   const pinia = createTestingPinia({ createSpy: vi.fn });
   const assistant = useAssistantStore(pinia);
-  vi.mocked(assistant.load).mockResolvedValue({
-    settings: assistant.settings,
-  });
+  vi.mocked(assistant.load).mockResolvedValue({});
   const sessions = useSessionStore(pinia);
   prepare(sessions);
   const wrapper = mount(

@@ -18,16 +18,15 @@ import type {
 import { readPineAgentSettings } from "../../agent/pineSettings";
 import { resolvePineToolGroups } from "../../shared/toolGroups";
 import {
-  ASSISTANT_APPROVAL_MODES,
+  ASSISTANT_APPROVAL_MODE,
   ASSISTANT_CLIENT_ID,
+  ASSISTANT_COST_REMINDER_USD,
   ASSISTANT_DISPATCHES_FILE,
   ASSISTANT_PROJECT_ID,
-  ASSISTANT_SETTINGS_FILE,
   ASSISTANT_STATE_FILE,
   ASSISTANT_DISPLAY_NAME,
   ASSISTANT_WATCHES_FILE,
-  DEFAULT_ASSISTANT_COST_REMINDER_USD,
-  DEFAULT_ASSISTANT_SETTINGS,
+  ASSISTANT_WAKES_ON_REPORT,
   isAssistantProject,
   type AssistantAutomationDetail,
   type AssistantAutomationFact,
@@ -38,10 +37,8 @@ import {
   type AssistantHostOperation,
   type AssistantHostResult,
   type AssistantOverviewSession,
-  type AssistantSettings,
   type AssistantState,
   type AssistantTurnSource,
-  type ClearAssistantResult,
   ASSISTANT_WECHAT_MARK,
   markWeChatMessage,
 } from "../../shared/assistant";
@@ -63,7 +60,7 @@ import {
   startBackgroundSession,
 } from "./requests/sessions";
 import { AssistantWatches, type WatchFiring } from "./assistantWatches";
-import { deleteSessionWithChildren, messageText } from "./subSessions";
+import { messageText } from "./subSessions";
 
 /**
  * The main-process side of Pine's Assistant (shared/assistant.ts): answers
@@ -104,50 +101,14 @@ const StateFileSchema = z.object({
 });
 type StateFile = z.infer<typeof StateFileSchema>;
 
-const ModelSelectionSchema = z.object({
-  providerId: z.string().min(1).max(200),
-  modelId: z.string().min(1).max(500),
-  thinkingLevel: z.enum([
-    "off",
-    "minimal",
-    "low",
-    "medium",
-    "high",
-    "xhigh",
-    "max",
-  ]),
-});
-
-/** Saved and requested settings alike; a missing model follows the default. */
-export const AssistantSettingsSchema = z.object({
-  model: ModelSelectionSchema.optional(),
-  approvalMode: z.enum(ASSISTANT_APPROVAL_MODES),
-  wakesOnReport: z.boolean(),
-  /** Saved before the cost reminder existed: the default applies. */
-  costReminderUsd: z.number().min(0).max(10_000).optional(),
-});
-
-const SettingsFileSchema = AssistantSettingsSchema.extend({
-  version: z.literal(1),
-});
-
 /** What the desktop sends the Assistant; its target is always its thread. */
 export interface AssistantPromptRequest {
   locale: "en-US" | "zh-CN";
   message: string;
   streamingBehavior?: "follow-up" | "steer";
   rewrite?: PromptSessionRequest["rewrite"];
-}
-
-function sameModel(
-  left: PineModelSelection | undefined,
-  right: PineModelSelection | undefined,
-): boolean {
-  return (
-    left?.providerId === right?.providerId &&
-    left?.modelId === right?.modelId &&
-    left?.thinkingLevel === right?.thinkingLevel
-  );
+  /** The composer's mode; the Assistant never runs in YOLO. */
+  approvalMode?: PineApprovalMode;
 }
 
 const OperationSchema = z.discriminatedUnion("op", [
@@ -327,7 +288,7 @@ export function costReminderContent(
     what === "session"
       ? "This session has cost"
       : "Your own conversation with the user has cost";
-  return `  <cost-reminder>${subject} about ${usd(cost)} so far, past the user's cost reminder of ${usd(thresholdUsd)} (Settings › Assistant). Mention it briefly in your report. It is only a reminder: nothing was stopped, and you do not stop anything because of it.</cost-reminder>`;
+  return `  <cost-reminder>${subject} about ${usd(cost)} so far, past Pine's cost reminder of ${usd(thresholdUsd)}. Mention it briefly in your report. It is only a reminder: nothing was stopped, and you do not stop anything because of it.</cost-reminder>`;
 }
 
 /** What the Assistant reads when a reminder or watch the user set comes due. */
@@ -550,10 +511,6 @@ export class AssistantService {
     return path.join(this.root(), ASSISTANT_STATE_FILE);
   }
 
-  private settingsFile(): string {
-    return path.join(this.root(), ASSISTANT_SETTINGS_FILE);
-  }
-
   dispatches(): Promise<Record<string, Dispatch>> {
     this.known ??= readJson(this.dispatchesFile(), DispatchesFileSchema).then(
       (file) => (this.knownNow = file?.dispatches ?? {}),
@@ -631,66 +588,35 @@ export class AssistantService {
     return sessions.find((session) => session.id === id);
   }
 
-  async settings(): Promise<AssistantSettings> {
-    const file = await readJson(this.settingsFile(), SettingsFileSchema);
-    if (!file) return { ...DEFAULT_ASSISTANT_SETTINGS };
-    return {
-      approvalMode: file.approvalMode,
-      wakesOnReport: file.wakesOnReport,
-      costReminderUsd:
-        file.costReminderUsd ?? DEFAULT_ASSISTANT_COST_REMINDER_USD,
-      ...(file.model ? { model: file.model } : {}),
-    };
-  }
-
   /** What a window needs to show the Assistant. */
   async describeState(): Promise<AssistantState> {
-    const [session, settings] = await Promise.all([
-      this.threadSummary(),
-      this.settings(),
-    ]);
-    return { ...(session ? { session } : {}), settings };
+    const session = await this.threadSummary();
+    return session ? { session } : {};
   }
 
   /**
-   * Saves the settings and applies them to the conversation if it is open,
-   * so the next turn runs on them. The model only changes when it did.
+   * The mode the Assistant's conversation runs in: what the user picked in
+   * its composer, as for any session, never YOLO. Its dispatches may use no
+   * looser mode.
    */
-  async saveSettings(request: unknown): Promise<AssistantSettings> {
-    const parsed = AssistantSettingsSchema.parse(request);
-    const previous = await this.settings();
-    const next: AssistantSettings = {
-      approvalMode: parsed.approvalMode,
-      wakesOnReport: parsed.wakesOnReport,
-      costReminderUsd: parsed.costReminderUsd ?? previous.costReminderUsd,
-      ...(parsed.model ? { model: parsed.model } : {}),
-    };
-    await writeJson(this.settingsFile(), { version: 1, ...next });
-    const thread = await this.thread();
-    if (!thread) return next;
-    const { runtimes } = this.core;
-    await this.holdAssistant();
-    if (next.approvalMode !== previous.approvalMode)
-      await runtimes.setApprovalMode(
-        ASSISTANT_CLIENT_ID,
-        next.approvalMode,
-        thread,
-      );
-    if (!sameModel(next.model, previous.model)) {
-      const model = next.model ?? (await runtimes.getModelCatalog()).selection;
-      if (model)
-        await runtimes.selectModel(ASSISTANT_CLIENT_ID, {
-          ...model,
-          sessionId: thread,
-          projectId: ASSISTANT_PROJECT_ID,
-        });
-    }
-    return next;
+  private async threadMode(
+    thread: string | undefined,
+    requested: PineApprovalMode | undefined,
+  ): Promise<PineApprovalMode> {
+    const mode =
+      requested ??
+      (thread
+        ? (this.core.runtimes.approvalModeOfLiveSession(thread) ??
+          (await this.threadSummary())?.approvalMode)
+        : undefined) ??
+      ASSISTANT_APPROVAL_MODE;
+    return mode === "YOLO" ? "autonomous" : mode;
   }
 
   /**
    * Sends the Assistant a message in its one conversation, starting it on
-   * first use, in the Assistant's own mode and model. A client that holds
+   * first use, like any session: in the mode its composer shows and on its
+   * own model, the default model for a new one. A client that holds
    * the Assistant's project sends as itself; others go through the
    * Assistant's virtual client.
    */
@@ -705,10 +631,8 @@ export class AssistantService {
       ? clientId
       : ASSISTANT_CLIENT_ID;
     if (sender === ASSISTANT_CLIENT_ID) await this.holdAssistant();
-    const [thread, settings] = await Promise.all([
-      this.thread(),
-      this.settings(),
-    ]);
+    const thread = await this.thread();
+    const approvalMode = await this.threadMode(thread, request.approvalMode);
     // A message into a running turn keeps that turn's limit: the desktop
     // cannot lift a WeChat ceiling mid-turn.
     const ceiling =
@@ -730,16 +654,13 @@ export class AssistantService {
               sessionId: thread,
             }
           : { kind: "new", projectId: ASSISTANT_PROJECT_ID },
-        approvalMode: settings.approvalMode,
+        approvalMode,
         ...(request.streamingBehavior
           ? { streamingBehavior: request.streamingBehavior }
           : {}),
         ...(thread && request.rewrite ? { rewrite: request.rewrite } : {}),
       },
-      {
-        ...options,
-        ...(!thread && settings.model ? { model: settings.model } : {}),
-      },
+      options,
     );
     if (result.session.id !== thread)
       await writeJson(this.stateFile(), {
@@ -780,20 +701,15 @@ export class AssistantService {
   }
 
   /**
-   * Deletes the Assistant's conversation. Sessions it dispatched stay, still
-   * marked as its own, but report to the next conversation no more.
+   * Sessions were deleted. When one is the Assistant's conversation, deleted
+   * like any session, the next message starts a new one: sessions it
+   * dispatched stay, still marked as its own, but report to it no more, and
+   * its reminders go with it.
    */
-  async clear(): Promise<ClearAssistantResult> {
-    const thread = await this.thread();
+  async sessionsDeleted(sessionIds: readonly string[]): Promise<void> {
     const state = await this.state();
-    if (!thread) return { cleared: false };
-    await this.holdAssistant();
-    await deleteSessionWithChildren(
-      this.core,
-      ASSISTANT_CLIENT_ID,
-      await this.core.repository.get(ASSISTANT_PROJECT_ID),
-      thread,
-    );
+    const thread = state.sessionId;
+    if (!thread || !sessionIds.includes(thread)) return;
     await writeJson(this.stateFile(), {
       version: 1,
       clearedSessionIds: [
@@ -804,8 +720,6 @@ export class AssistantService {
     // Reminders belong to the conversation that set them.
     await this.watches.clear();
     this.wakes = [];
-    this.core.notifyLibraryChanged("sessions");
-    return { cleared: true };
   }
 
   /** Holds the Assistant's own runtime as its virtual client. */
@@ -1146,13 +1060,12 @@ export class AssistantService {
       state,
       ...(title ? { title } : {}),
     };
-    const settings = await this.settings();
     const costReminders: string[] = [];
     const cost = runtimes.contextUsageOf(sessionId)?.cost ?? 0;
-    const level = costReminderLevel(cost, settings.costReminderUsd);
+    const level = costReminderLevel(cost, ASSISTANT_COST_REMINDER_USD);
     if (level > (dispatch.costReminded ?? 0)) {
       costReminders.push(
-        costReminderContent("session", cost, settings.costReminderUsd),
+        costReminderContent("session", cost, ASSISTANT_COST_REMINDER_USD),
       );
       await this.recordDispatch(sessionId, {
         ...dispatch,
@@ -1161,7 +1074,7 @@ export class AssistantService {
     }
     const own = await this.ownCostReminder(
       dispatch.assistantSessionId,
-      settings.costReminderUsd,
+      ASSISTANT_COST_REMINDER_USD,
     );
     if (own) costReminders.push(own);
     await this.liveThread(dispatch.assistantSessionId);
@@ -1174,7 +1087,7 @@ export class AssistantService {
         reply ? truncate(reply, REPLY_MAX) : "",
         costReminders,
       ),
-      { triggerTurn: settings.wakesOnReport },
+      { triggerTurn: ASSISTANT_WAKES_ON_REPORT },
     );
   }
 
@@ -1239,10 +1152,7 @@ export class AssistantService {
         if (watch.sessionTitle) extra.sessionTitle = watch.sessionTitle;
       }
     }
-    const own = await this.ownCostReminder(
-      thread,
-      (await this.settings()).costReminderUsd,
-    );
+    const own = await this.ownCostReminder(thread, ASSISTANT_COST_REMINDER_USD);
     if (own) extra.costReminder = own;
     await this.liveThread(thread);
     // A wake-up runs as a turn of its own source, and dispatches nothing
@@ -1422,7 +1332,7 @@ export class AssistantService {
     const [catalog, agent, own] = await Promise.all([
       runtimes.getModelCatalog().catch(() => undefined),
       readPineAgentSettings(this.core.agentDirectory).catch(() => undefined),
-      this.settings(),
+      this.threadSummary(),
     ]);
     const model = (selection: PineModelSelection | undefined) =>
       selection
@@ -1440,20 +1350,15 @@ export class AssistantService {
         value: model(catalog?.selection),
       },
       {
-        where: "Settings › Assistant › Model",
-        value: own.model ? model(own.model) : "Same as the default model",
+        where: "Your own model (your conversation's model menu)",
+        value: own?.modelSelection
+          ? model(own.modelSelection)
+          : model(catalog?.selection),
       },
       {
-        where: "Settings › Assistant › Permission mode limit",
-        value: own.approvalMode,
-      },
-      {
-        where: "Settings › Assistant › Reply when dispatched work reports",
-        value: own.wakesOnReport ? "on" : "off",
-      },
-      {
-        where: "Settings › Assistant › Cost reminder",
-        value: own.costReminderUsd > 0 ? usd(own.costReminderUsd) : "off",
+        where:
+          "Your own permission mode (your conversation's permission mode menu; the most a dispatched session may use)",
+        value: await this.threadMode(own?.id, undefined),
       },
       {
         where: "Settings › Agent › Remember across sessions",

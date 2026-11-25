@@ -60,6 +60,7 @@ import {
   type PineMemoryScope,
   type PineMemorySummary,
 } from "@/shared/memory";
+import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
 
 /**
  * The notes the agent has saved, for the given project and for all
@@ -71,13 +72,27 @@ const open = defineModel<boolean>("open", { default: false });
 
 const { t } = useI18n();
 
-const memories = ref<PineMemorySummary[]>([]);
+/** Which tab a note shows in: the Assistant's notes have one of their own. */
+type ManagerTab = PineMemoryScope | "assistant";
+/** A note with the project it belongs to, which reads and saves go to. */
+interface ShownMemory extends PineMemorySummary {
+  owner: string;
+  tab: ManagerTab;
+}
+
+const memories = ref<ShownMemory[]>([]);
 const isLoadingMemories = ref(true);
-const scope = ref<PineMemoryScope>("project");
-const scopes = ["project", "global"] as const;
+/** Opened from the Assistant, its own notes take the project's place. */
+const inAssistant = computed(() => isAssistantProject(props.projectId));
+const scope = ref<ManagerTab>(inAssistant.value ? "assistant" : "project");
+const scopes = computed<readonly ManagerTab[]>(() =>
+  inAssistant.value
+    ? ["assistant", "global"]
+    : ["project", "assistant", "global"],
+);
 
 const isEditorOpen = ref(false);
-const editing = ref<PineMemorySummary | null>(null);
+const editing = ref<ShownMemory | null>(null);
 const draftDescription = ref("");
 const draftContent = ref("");
 const draftVerified = ref(false);
@@ -85,25 +100,48 @@ const isSaving = ref(false);
 
 // The target outlives the editor: confirming closes it before the action's
 // click handler runs.
-const pendingDelete = ref<PineMemorySummary | null>(null);
+const pendingDelete = ref<ShownMemory | null>(null);
 const isDeleteConfirmOpen = ref(false);
 
 const memoriesByScope = computed(() => ({
-  project: memories.value.filter((memory) => memory.scope === "project"),
-  global: memories.value.filter((memory) => memory.scope === "global"),
+  project: memories.value.filter((memory) => memory.tab === "project"),
+  assistant: memories.value.filter((memory) => memory.tab === "assistant"),
+  global: memories.value.filter((memory) => memory.tab === "global"),
 }));
 
-function memoryKey(memory: PineMemorySummary): string {
-  return `${memory.scope}:${memory.name}`;
+function memoryKey(memory: ShownMemory): string {
+  return `${memory.tab}:${memory.name}`;
+}
+
+/** The Assistant's notes are the project notes of its hidden project. */
+async function listShown(): Promise<ShownMemory[]> {
+  const here = await window.pine.listMemories({ projectId: props.projectId });
+  const ownTab: ManagerTab = inAssistant.value ? "assistant" : "project";
+  const shown = here.memories.map((memory) => ({
+    ...memory,
+    owner: props.projectId,
+    tab: memory.scope === "global" ? ("global" as const) : ownTab,
+  }));
+  if (inAssistant.value) return shown;
+  const assistant = await window.pine.listMemories({
+    projectId: ASSISTANT_PROJECT_ID,
+  });
+  return [
+    ...shown,
+    ...assistant.memories
+      .filter((memory) => memory.scope === "project")
+      .map((memory) => ({
+        ...memory,
+        owner: ASSISTANT_PROJECT_ID,
+        tab: "assistant" as const,
+      })),
+  ];
 }
 
 async function loadMemories(): Promise<void> {
   isLoadingMemories.value = memories.value.length === 0;
   try {
-    const result = await window.pine.listMemories({
-      projectId: props.projectId,
-    });
-    memories.value = result.memories;
+    memories.value = await listShown();
   } catch (error) {
     handleError(error, {
       id: "memory.load",
@@ -119,16 +157,19 @@ watch(
   ([isOpen], previous) => {
     if (!isOpen) return;
     // Another project's notes are not shown while this one's load.
-    if (previous && previous[1] !== props.projectId) memories.value = [];
+    if (previous && previous[1] !== props.projectId) {
+      memories.value = [];
+      scope.value = inAssistant.value ? "assistant" : "project";
+    }
     void loadMemories();
   },
   { immediate: true },
 );
 
-async function openEditor(memory: PineMemorySummary): Promise<void> {
+async function openEditor(memory: ShownMemory): Promise<void> {
   try {
     const note = await window.pine.readMemory({
-      projectId: props.projectId,
+      projectId: memory.owner,
       scope: memory.scope,
       name: memory.name,
     });
@@ -153,7 +194,7 @@ async function saveEditor(): Promise<void> {
   isSaving.value = true;
   try {
     await window.pine.saveMemory({
-      projectId: props.projectId,
+      projectId: memory.owner,
       scope: memory.scope,
       name: memory.name,
       description: draftDescription.value,
@@ -185,7 +226,7 @@ async function confirmDelete(): Promise<void> {
   isEditorOpen.value = false;
   try {
     await window.pine.removeMemory({
-      projectId: props.projectId,
+      projectId: memory.owner,
       scope: memory.scope,
       name: memory.name,
     });
@@ -223,8 +264,11 @@ async function confirmDelete(): Promise<void> {
 
       <Tabs v-model="scope" class="min-h-0 flex-1">
         <TabsList>
-          <TabsTrigger value="project">
+          <TabsTrigger v-if="!inAssistant" value="project">
             {{ t("preferences.memory.scopeProject") }}
+          </TabsTrigger>
+          <TabsTrigger value="assistant" data-testid="memory-scope-assistant">
+            {{ t("assistant.name") }}
           </TabsTrigger>
           <TabsTrigger value="global">
             {{ t("preferences.memory.scopeGlobal") }}

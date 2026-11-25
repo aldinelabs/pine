@@ -232,8 +232,6 @@ export function createWebChannels(
     [models.LOGOUT_PROVIDER_CHANNEL, command("none")],
 
     [assistant.GET_ASSISTANT_CHANNEL, query("none")],
-    [assistant.SET_ASSISTANT_SETTINGS_CHANNEL, command("none")],
-    [assistant.CLEAR_ASSISTANT_CHANNEL, command("none")],
 
     [preferences.GET_AUTO_APPROVAL_SETTINGS_CHANNEL, query("none")],
     [preferences.SET_AUTO_APPROVAL_SETTINGS_CHANNEL, command("none")],

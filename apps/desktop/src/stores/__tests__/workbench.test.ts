@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { watch } from "vue";
 import {
+  assistantLayout,
   DRAFT_WORKBENCH_KEY,
   WORKBENCH_STORAGE_KEY,
   WORKBENCH_WIDTH_STORAGE_KEY,
@@ -383,4 +384,21 @@ it("restores a tab's own column when it reopens from no tabs", () => {
   // Later switches between session tabs are not held closed.
   store.setFrontSession("session-b");
   expect(store.activeLayout.open).toBe(true);
+});
+
+describe("the Assistant's workbench", () => {
+  it("leaves out files and artifacts, showing Tasks when nothing is left", () => {
+    const base = { open: true, split: 50, preview: null };
+    expect(
+      assistantLayout({ ...base, top: "artifacts", bottom: "preview" }),
+    ).toEqual({ ...base, top: "preview", bottom: null });
+    expect(assistantLayout({ ...base, top: "files", bottom: null })).toEqual({
+      ...base,
+      top: "tasks",
+      bottom: null,
+    });
+    expect(
+      assistantLayout({ ...base, top: "tasks", bottom: "preview" }),
+    ).toEqual({ ...base, top: "tasks", bottom: "preview" });
+  });
 });

@@ -19,7 +19,7 @@ import {
 } from "@/shared/workbench";
 import { useLiveContextStore } from "@/stores/liveContext";
 import { useSessionStore } from "@/stores/session";
-import { useWorkbenchStore } from "@/stores/workbench";
+import { ASSISTANT_HIDDEN_PANELS, useWorkbenchStore } from "@/stores/workbench";
 
 /** A single card can take a second one below it. */
 const props = defineProps<{
@@ -39,7 +39,9 @@ const addablePanels = computed(() =>
           panel !== props.panel &&
           // A side chat needs a conversation to fork.
           (panel !== SIDE_CHAT_PANEL || Boolean(sessionStore.activeSession)) &&
-          (panel !== LIVE_CONTEXT_PANEL || liveContext.available),
+          (panel !== LIVE_CONTEXT_PANEL || liveContext.available) &&
+          // The Assistant has no files or artifacts to show.
+          !(workbench.isAssistant && ASSISTANT_HIDDEN_PANELS.includes(panel)),
       )
     : [],
 );

@@ -51,6 +51,7 @@ import { useSessionExport } from "@/composables/useSessionExport";
 import { fileTargetPath, operateFileTarget } from "@/lib/filePreviewTarget";
 import type { ProjectFileOperation } from "@/shared/projectFiles";
 import type { PineSessionSummary } from "@/shared/sessions";
+import { isAssistantProject } from "@/shared/assistant";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 
@@ -68,6 +69,12 @@ const { exportSession } = useSessionExport();
 // actions fall back to the project's default folder. The menu shows only the
 // group matching the active tab's kind.
 const isActiveSession = computed(() => activeTab.value?.kind === "session");
+/** The Assistant's tab is always named Assistant, so it has no Rename. */
+const isAssistantTab = computed(
+  () =>
+    activeTab.value?.kind === "session" &&
+    isAssistantProject(activeTab.value.projectId),
+);
 const activeSessionTab = computed(() =>
   activeTab.value?.kind === "session" && activeTab.value.state === "bound"
     ? activeTab.value
@@ -276,6 +283,7 @@ async function trashActiveFile(): Promise<void> {
 
       <DropdownMenuGroup v-else-if="isActiveSession">
         <DropdownMenuItem
+          v-if="!isAssistantTab"
           :disabled="!targetSession"
           @select="requestSessionRename"
         >

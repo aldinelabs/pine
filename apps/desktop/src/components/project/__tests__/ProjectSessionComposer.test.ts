@@ -33,6 +33,7 @@ import ProjectSessionComposer from "../ProjectSessionComposer.vue";
 import { MODIFIER_HOLD_DELAY_MS } from "@/composables/useModifierHold";
 
 interface ComposerProps {
+  assistant?: boolean;
   projectId?: string;
   assistantTarget?: boolean;
   edgeInset?: boolean;
@@ -446,6 +447,37 @@ describe("ProjectSessionComposer", () => {
     );
     await flushPromises();
     expect(model.attributes("aria-expanded")).toBe("true");
+    wrapper.unmount();
+  });
+
+  it("gives the Assistant the normal model and mode menus, without YOLO", async () => {
+    const wrapper = mountComposer(
+      { assistant: true, projectId: ASSISTANT_PROJECT_ID, isActive: true },
+      "high",
+      "zh-CN",
+    );
+    await flushPromises();
+
+    expect(wrapper.find('[data-slot="model-selector-trigger"]').exists()).toBe(
+      true,
+    );
+    expect(wrapper.get("textarea").attributes("placeholder")).toBe(
+      "描述任务，助理会派给合适的项目",
+    );
+    await wrapper.get('[data-slot="approval-mode-trigger"]').trigger("click");
+    await flushPromises();
+    const items = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitemradio"]'),
+    );
+    expect(items.map((item) => item.textContent)).not.toContainEqual(
+      expect.stringContaining("YOLO"),
+    );
+    items.find((item) => item.textContent?.includes("让我过目"))?.click();
+    await flushPromises();
+
+    expect(wrapper.emitted("update:approvalMode")).toContainEqual([
+      "let-me-review",
+    ]);
     wrapper.unmount();
   });
 

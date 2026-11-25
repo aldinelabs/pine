@@ -6,7 +6,6 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import {
-  ConciergeBellIcon,
   FilesIcon,
   MessageCircleIcon,
   MessageSquareShareIcon,
@@ -970,27 +969,22 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 <MessageCircleIcon class="size-3.5" aria-hidden="true" />
                 {{ weChatOriginLabel }}
               </p>
-              <Empty v-if="showsWelcome && isAssistant">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ConciergeBellIcon />
-                  </EmptyMedia>
-                  <EmptyTitle class="font-semibold">
-                    {{ t("assistant.emptyTitle") }}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {{ t("assistant.emptyDescription") }}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-              <Empty v-else-if="showsWelcome">
+              <Empty v-if="showsWelcome">
                 <EmptyHeader>
                   <PineCharacter decorative size="lg" />
                   <EmptyTitle class="font-semibold">
-                    {{ t("project.transcript.emptyTitle") }}
+                    {{
+                      isAssistant
+                        ? t("assistant.emptyTitle")
+                        : t("project.transcript.emptyTitle")
+                    }}
                   </EmptyTitle>
                   <EmptyDescription>
-                    {{ t("project.transcript.emptyDescription") }}
+                    {{
+                      isAssistant
+                        ? t("assistant.emptyDescription")
+                        : t("project.transcript.emptyDescription")
+                    }}
                   </EmptyDescription>
                   <SwitchComputerButton />
                 </EmptyHeader>

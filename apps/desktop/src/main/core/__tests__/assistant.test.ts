@@ -312,22 +312,15 @@ describe("the Assistant's dispatches", () => {
   });
 });
 
-const MODEL = {
-  providerId: "anthropic",
-  modelId: "claude-sonnet-5-5",
-  thinkingLevel: "medium" as const,
-};
-
 describe("the Assistant's desktop conversation", () => {
-  it("starts its one conversation in its own mode and model", async () => {
+  it("starts its one conversation like any session, in the composer's mode", async () => {
     const { root, service, runtimes } = await fixture();
-    await service.saveSettings({
-      approvalMode: "let-me-review",
-      wakesOnReport: false,
-      model: MODEL,
-    });
 
-    await service.prompt(9, { locale: "zh-CN", message: "看看在跑什么" });
+    await service.prompt(9, {
+      locale: "zh-CN",
+      message: "看看在跑什么",
+      approvalMode: "let-me-review",
+    });
 
     expect(runtimes.prompt).toHaveBeenCalledWith(
       9,
@@ -335,7 +328,7 @@ describe("the Assistant's desktop conversation", () => {
         target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
         approvalMode: "let-me-review",
       }),
-      { model: MODEL },
+      {},
     );
     const state = JSON.parse(
       await readFile(path.join(root, "state.json"), "utf8"),
@@ -364,71 +357,24 @@ describe("the Assistant's desktop conversation", () => {
     );
   });
 
-  it("applies changed settings to the open conversation", async () => {
-    const { service, runtimes } = await fixture();
-    await service.prompt(9, { locale: "zh-CN", message: "你好" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
-
-    await service.saveSettings({
-      approvalMode: "autonomous",
-      wakesOnReport: true,
-      model: MODEL,
-    });
-
-    expect(runtimes.setApprovalMode).toHaveBeenCalledWith(
-      ASSISTANT_CLIENT_ID,
-      "autonomous",
-      ASSISTANT_SESSION,
-    );
-    expect(runtimes.selectModel).toHaveBeenCalledWith(ASSISTANT_CLIENT_ID, {
-      ...MODEL,
-      sessionId: ASSISTANT_SESSION,
-      projectId: ASSISTANT_PROJECT_ID,
-    });
-    await expect(service.settings()).resolves.toEqual({
-      approvalMode: "autonomous",
-      wakesOnReport: true,
-      costReminderUsd: 5,
-      model: MODEL,
-    });
-  });
-
-  it("goes back to the default model when the setting is cleared", async () => {
-    const { service, runtimes } = await fixture();
-    await service.saveSettings({
-      approvalMode: "auto-approve",
-      wakesOnReport: false,
-      model: MODEL,
-    });
-    await service.prompt(9, { locale: "zh-CN", message: "你好" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
-
-    await service.saveSettings({
-      approvalMode: "auto-approve",
-      wakesOnReport: false,
-    });
-
-    expect(runtimes.setApprovalMode).not.toHaveBeenCalled();
-    expect(runtimes.selectModel).toHaveBeenCalledWith(
-      ASSISTANT_CLIENT_ID,
-      expect.objectContaining({ modelId: "default" }),
-    );
-  });
-
   it("never runs in YOLO", async () => {
-    const { service } = await fixture();
+    const { service, runtimes } = await fixture();
 
-    await expect(
-      service.saveSettings({ approvalMode: "YOLO", wakesOnReport: false }),
-    ).rejects.toThrow();
+    await service.prompt(9, {
+      locale: "zh-CN",
+      message: "你好",
+      approvalMode: "YOLO",
+    });
+
+    expect(runtimes.prompt).toHaveBeenCalledWith(
+      9,
+      expect.objectContaining({ approvalMode: "autonomous" }),
+      {},
+    );
   });
 
-  it("wakes the Assistant on a report only when set to", async () => {
+  it("lets a report wait for the user instead of starting a turn", async () => {
     const { service, agentHost } = await fixture();
-    await service.saveSettings({
-      approvalMode: "auto-approve",
-      wakesOnReport: true,
-    });
     await service.answer(
       { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
       dispatch,
@@ -440,12 +386,12 @@ describe("the Assistant's desktop conversation", () => {
       ASSISTANT_SESSION,
       expect.anything(),
       expect.any(String),
-      { triggerTurn: true },
+      { triggerTurn: false },
     );
   });
 
-  it("clears its conversation, and reports to it no more", async () => {
-    const { service, runtimes, agentHost } = await fixture();
+  it("ends its conversation when that session is deleted, and reports to it no more", async () => {
+    const { service, agentHost } = await fixture();
     await service.prompt(9, { locale: "zh-CN", message: "你好" });
     listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
     await service.answer(
@@ -453,14 +399,10 @@ describe("the Assistant's desktop conversation", () => {
       dispatch,
     );
 
-    await expect(service.clear()).resolves.toEqual({ cleared: true });
+    // Deleted like any session.
+    await service.sessionsDeleted([ASSISTANT_SESSION]);
     listProjectSessions.mockResolvedValue([]);
 
-    expect(runtimes.deleteSession).toHaveBeenCalledWith(
-      ASSISTANT_CLIENT_ID,
-      ASSISTANT_PROJECT_ID,
-      ASSISTANT_SESSION,
-    );
     await expect(service.describeState()).resolves.not.toHaveProperty(
       "session",
     );
@@ -623,13 +565,10 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
     );
   });
 
-  it("runs WeChat turns in its own mode, and dispatches within the ceiling below it", async () => {
+  it("runs WeChat turns in its conversation's mode, and dispatches within the ceiling below it", async () => {
     const { runtimes, service } = await fixture();
-    await service.saveSettings({
-      approvalMode: "autonomous",
-      wakesOnReport: true,
-      model: MODEL,
-    });
+    await service.prompt(9, { locale: "zh-CN", message: "你好" });
+    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
     runtimes.approvalModeOfLiveSession.mockReturnValue("autonomous");
 
     await service.send("修首页", {
@@ -640,7 +579,7 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
     expect(runtimes.prompt).toHaveBeenLastCalledWith(
       ASSISTANT_CLIENT_ID,
       expect.objectContaining({ approvalMode: "autonomous" }),
-      { focus: false, model: MODEL },
+      { focus: false },
     );
 
     const result = await service.answer(
@@ -713,23 +652,17 @@ describe("cost reminders", () => {
     expect(contents[2]).toContain("US$11");
   });
 
-  it("points out the Assistant's own cost, and stays quiet when turned off", async () => {
+  it("points out the Assistant's own cost once, past the reminder", async () => {
     const { service, agentHost, runtimes } = await fixture();
     await service.answer(ASSISTANT, dispatch);
     runtimes.contextUsageOf.mockImplementation((id: string) =>
-      id === ASSISTANT_SESSION ? { cost: 7 } : { cost: 100 },
+      id === ASSISTANT_SESSION ? { cost: 4 } : { cost: 1 },
     );
-    await service.saveSettings({
-      approvalMode: "auto-approve",
-      wakesOnReport: false,
-      costReminderUsd: 0,
-    });
     await service.report(DISPATCHED, "finished");
-    await service.saveSettings({
-      approvalMode: "auto-approve",
-      wakesOnReport: false,
-      costReminderUsd: 5,
-    });
+    runtimes.contextUsageOf.mockImplementation((id: string) =>
+      id === ASSISTANT_SESSION ? { cost: 7 } : { cost: 1 },
+    );
+    await service.report(DISPATCHED, "finished");
     await service.report(DISPATCHED, "finished");
 
     const contents = agentHost.notifySession.mock.calls.map(
@@ -739,6 +672,7 @@ describe("cost reminders", () => {
     expect(contents[1]).toContain(
       "Your own conversation with the user has cost",
     );
+    expect(contents[2]).not.toContain("<cost-reminder>");
   });
 });
 
@@ -822,7 +756,7 @@ describe("watches", () => {
     }
   });
 
-  it("forgets its reminders when the conversation is cleared", async () => {
+  it("forgets its reminders when its conversation is deleted", async () => {
     const { service } = await started();
     await service.answer(ASSISTANT, {
       op: "watch-create",
@@ -832,7 +766,7 @@ describe("watches", () => {
         at: new Date(Date.now() + 86_400_000).toISOString(),
       },
     });
-    await service.clear();
+    await service.sessionsDeleted([ASSISTANT_SESSION]);
     await expect(service.watches.list()).resolves.toEqual([]);
   });
 });
@@ -994,8 +928,14 @@ describe("sessions the Assistant may act on", () => {
     const result = await service.answer(ASSISTANT, { op: "settings" });
     if (result.op !== "settings") throw new Error(result.op);
     expect(result.settings).toContainEqual({
-      where: "Settings › Assistant › Cost reminder",
-      value: "US$5.00",
+      where:
+        "Your own permission mode (your conversation's permission mode menu; the most a dispatched session may use)",
+      value: "auto-approve",
     });
+    expect(
+      result.settings.some((fact) =>
+        fact.where.includes("Settings › Assistant"),
+      ),
+    ).toBe(false);
   });
 });

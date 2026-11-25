@@ -1075,6 +1075,7 @@ export function registerSessionRequests(core: PineCore): void {
         return core.assistant.prompt(context.clientId, {
           locale: parsed.locale,
           message: parsed.message,
+          approvalMode: parsed.approvalMode,
           ...(parsed.streamingBehavior
             ? { streamingBehavior: parsed.streamingBehavior }
             : {}),
@@ -1162,9 +1163,12 @@ export function registerSessionRequests(core: PineCore): void {
     async (context, request: unknown): Promise<SetApprovalModeResult> => {
       const { approvalMode, sessionId } =
         SetApprovalModeRequestSchema.parse(request);
-      // The Assistant's mode is its setting, which caps what it dispatches.
-      if (isAssistantProject(runtimes.projectOfLiveSession(sessionId)?.id))
-        throw new Error("Change the Assistant's mode in its settings.");
+      // The Assistant's mode caps what it dispatches, so it is never YOLO.
+      if (
+        approvalMode === "YOLO" &&
+        isAssistantProject(runtimes.projectOfLiveSession(sessionId)?.id)
+      )
+        throw new Error("The Assistant does not run in YOLO.");
       return runtimes.setApprovalMode(
         context.clientId,
         approvalMode,

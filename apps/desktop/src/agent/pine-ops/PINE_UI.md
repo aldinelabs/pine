@@ -237,7 +237,8 @@ Tab bar ("Open content"):
   project defaults to the most recent session activity, falling back to the
   last project chosen for a draft when history is not available.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
-  Refresh and Move to trash; for a session tab, Rename, Export and Delete.
+  Refresh and Move to trash; for a session tab, Rename, Export and Delete;
+  for the Assistant's tab, Export and Delete.
 - A running session's tab title shimmers; a tab for an automation run keeps a
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
@@ -724,13 +725,26 @@ conversation; every message sent to the Assistant, from the sidebar entry, the
 quick composer or WeChat, goes into it. If another window already shows it,
 that window comes forward instead.
 
-It is a session tab with these differences:
+It is an ordinary session tab, pinned to the sidebar entry, with these
+differences:
 
-- Empty, it shows "Tell the Assistant what you need" and a line on what the
-  Assistant does.
-- The composer has no attachments ("+") menu, no folder picker, no @ mentions
-  and no model or permission mode menus; pasted files are ignored. In their
-  place an "Assistant settings" button opens Pine Settings › Assistant.
+- Empty, it shows the same Pine welcome as a new session, titled "Tell the
+  Assistant what you need", with a line on what the Assistant does.
+- The composer is the usual one, with the placeholder "Describe a task, and
+  the Assistant picks the project". It has no attachments ("+") menu, folder
+  picker or @ mentions, and pasted files are ignored. Its model and
+  permission mode menus work as in any session and are kept with the
+  conversation; YOLO is not offered. The permission mode is also the most
+  any session the Assistant dispatches may use (WeChat's Highest mode can
+  lower it further).
+- The tab's More actions menu has Export and Delete; it has no Rename. Delete
+  ends the conversation and removes its reminders; sessions it dispatched
+  stay where they are. The next message to the Assistant starts a new one.
+- Reports from dispatched sessions wait in the conversation until the user
+  next writes; they do not start a reply on their own.
+- Its notes show as the "Assistant" tab of the Memory manager.
+- The workbench has no Files or Artifacts panel; a card that would show one
+  shows Tasks.
 - Each user message shows where it came from: "From desktop" or "From
   WeChat".
 - Each dispatch shows as a card with its state ("Dispatching…",
@@ -749,9 +763,9 @@ It is a session tab with these differences:
   set from WeChat is answered in WeChat; when WeChat cannot take another
   reply, or the reminder was set on the desktop, the answer also shows as a
   desktop notification titled "Assistant". Reminders are listed and
-  cancelled by asking the Assistant; clearing the conversation removes them.
+  cancelled by asking the Assistant; deleting the conversation removes them.
 - Besides dispatching, the Assistant can on request list automations, turn
-  one off or run one now (only when its permission mode limit and, from
+  one off or run one now (only when its permission mode and, from
   WeChat, WeChat's limit allow Autonomous Work), list, create (in a folder
   the user names) and rename projects, read settings, and list what is
   waiting for approval. It cannot turn automations on, create or edit them,
@@ -759,8 +773,7 @@ It is a session tab with these differences:
   the user to the place on the computer (for example More › Automations, or
   `.auto <name> on` in WeChat).
 - When a session it dispatched, or its own conversation, has cost more than
-  the Cost reminder in Settings › Assistant, the Assistant says so in its
-  report, again at each further multiple.
+  US$5, the Assistant says so in its report, again at each further multiple.
 - After compaction the earlier conversation stays readable above the
   compaction marker, as in any session.
 
@@ -1193,18 +1206,6 @@ the user opens themselves do not pulse.
       and the agent is told which families are off so it can point the user
       back here. Reading and editing files, the to-do list, the clock,
       questions to the user and Pine's own UI reference have no switch.
-  - Assistant: Model ("Same as the default model" or any model of a
-    connected provider) and, when that model offers levels, Reasoning
-    effort; Permission mode limit (Let Me Review, Auto Approve or Autonomous
-    Work; the Assistant runs in it and every session it dispatches runs in it
-    or a more supervised mode); "Reply when dispatched work reports" (off by
-    default: reports wait in the conversation until the user next writes; on:
-    the Assistant answers each report right away); Cost reminder (Off,
-    US$1, US$5, US$20 or US$50, US$5 by default: the Assistant points out
-    sessions it dispatched, or its own conversation, that cost more); Assistant notes (View
-    notes opens the Memory manager for the Assistant's notes, where they can
-    be read and deleted); Clear conversation (asks first, then deletes the
-    Assistant's conversation; sessions it dispatched stay where they are).
   - User profile, top to bottom: Aldine methodology (a switch with a Beta
     badge, on by default: Pine talks like a clear-headed dialogue partner,
     candid, specific and light on pleasantries; it shapes how Pine thinks,
@@ -1365,8 +1366,9 @@ the user opens themselves do not pulse.
   "MCP servers" guide): servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
 - Memory manager ("How memory works" beside the title opens the "Memory"
-  guide): the saved notes in two tabs, This project and All
-  projects, each note with its name, one-line summary, an Unverified badge
+  guide): the saved notes in tabs, This project, Assistant (the Assistant's
+  own notes) and All projects; opened from the Assistant's tab it shows only
+  Assistant and All projects; each note with its name, one-line summary, an Unverified badge
   when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
   with Summary, Details and a Verified switch, plus Delete, which asks first.
   Refresh memories reloads the list. It works whether or not Remember across
@@ -1417,7 +1419,7 @@ the user opens themselves do not pulse.
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
   appear in the sidebar, notices to the parent, limits),
   "Assistant" (one page: handing work to the Assistant, dispatch cards,
-  "From Assistant" marks, approvals, Settings › Assistant; reminders and
+  "From Assistant" marks, approvals, its model and mode; reminders and
   briefings, what else it can manage, what stays with the user, cost
   reminders),
   "Workbench" (the workbench and its panels; Artifacts with folders,

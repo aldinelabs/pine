@@ -86,37 +86,6 @@ export default {
     failed: "アップデートをインストールできませんでした。",
   },
   preferences: {
-    assistant: {
-      model: "モデル",
-      modelDescription: "アシスタントが会話と依頼に使うモデルです。",
-      defaultModel: "デフォルトのモデルと同じ",
-      thinkingLevel: "推論の深さ",
-      thinkingLevelDescription:
-        "アシスタントが答える前にどれだけ考えるかです。",
-      approvalMode: "権限モードの上限",
-      approvalModeDescription:
-        "アシスタントはこのモードで動き、依頼するセッションはこのモードか、より慎重なモードで動きます。",
-      wakesOnReport: "依頼した作業の報告に返信する",
-      wakesOnReportDescription:
-        "オフでは、報告は次にメッセージを送るまで会話に残り、費用はかかりません。オンでは、アシスタントが報告にすぐ返信します。",
-      costReminder: "コストの通知",
-      costReminderDescription:
-        "アシスタントが送ったセッションや自身の会話の費用がこの額を超えると、報告の中で知らせます。その後も倍数ごとに知らせます。",
-      costReminderOff: "オフ",
-      costReminderAmount: "{amount} 米ドル",
-      memory: "アシスタントのメモ",
-      memoryDescription:
-        "プロジェクトの呼び名など、アシスタントが覚えている内容です。",
-      openMemory: "メモを表示",
-      clear: "会話を消去",
-      clearDescription:
-        "アシスタントの会話を削除します。依頼したセッションはそのまま残ります。",
-      clearAction: "会話を消去",
-      clearConfirmTitle: "アシスタントの会話を消去しますか？",
-      clearConfirmDescription:
-        "メッセージは完全に削除されます。次のメッセージから新しい会話が始まります。",
-      cleared: "会話を消去しました",
-    },
     remoteControl: {
       browserAccess: "ブラウザアクセス",
       browserAccessDescription:
@@ -470,7 +439,6 @@ export default {
       appearance: "外観",
       models: "モデル",
       agent: "エージェント",
-      assistant: "アシスタント",
       personalization: "ユーザープロフィール",
       projects: "プロジェクト",
       remote: "リモート操作",
@@ -2957,7 +2925,8 @@ export default {
     emptyTitle: "アシスタントにやりたいことを伝えましょう",
     emptyDescription:
       "適切なプロジェクトを見つけ、そこのセッションに作業を任せて、ここで報告します。作業そのものは行いません。",
-    settingsButton: "アシスタントの設定",
+    placeholder:
+      "タスクを入力すると、アシスタントが適切なプロジェクトに任せます",
     targetDescription: "作業を適切なプロジェクトに任せます",
     source: {
       desktop: "デスクトップから",
@@ -3055,14 +3024,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "アシスタントを開けません",
-      description: "しばらくしてからもう一度お試しください。",
-    },
-    assistantSettings: {
-      title: "アシスタントの設定を更新できません",
-      description: "しばらくしてからもう一度お試しください。",
-    },
-    assistantClear: {
-      title: "アシスタントの会話を消去できません",
       description: "しばらくしてからもう一度お試しください。",
     },
     skills: {

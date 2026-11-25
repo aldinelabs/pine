@@ -87,38 +87,6 @@ export default {
     failed: "Impossible d'installer la mise à jour.",
   },
   preferences: {
-    assistant: {
-      model: "Modèle",
-      modelDescription:
-        "Le modèle avec lequel l’Assistant répond et confie le travail.",
-      defaultModel: "Identique au modèle par défaut",
-      thinkingLevel: "Effort de raisonnement",
-      thinkingLevelDescription:
-        "Le temps que l’Assistant réfléchit avant de répondre.",
-      approvalMode: "Limite du mode d’autorisation",
-      approvalModeDescription:
-        "L’Assistant fonctionne dans ce mode, et chaque session qu’il confie utilise ce mode ou un mode plus encadré.",
-      wakesOnReport: "Répondre quand un travail confié fait son rapport",
-      wakesOnReportDescription:
-        "Désactivé : les rapports attendent dans la conversation jusqu’à votre prochain message, sans frais. Activé : l’Assistant répond tout de suite à chaque rapport.",
-      costReminder: "Rappel de coût",
-      costReminderDescription:
-        "L’Assistant signale quand une session qu’il a lancée, ou sa propre conversation, a coûté plus que ce montant, puis à chaque multiple suivant.",
-      costReminderOff: "Désactivé",
-      costReminderAmount: "{amount} $ US",
-      memory: "Notes de l’Assistant",
-      memoryDescription:
-        "Ce que l’Assistant retient, comme les noms que vous donnez à vos projets.",
-      openMemory: "Voir les notes",
-      clear: "Effacer la conversation",
-      clearDescription:
-        "Supprime la conversation de l’Assistant. Les sessions qu’il a confiées restent en place.",
-      clearAction: "Effacer la conversation",
-      clearConfirmTitle: "Effacer la conversation de l’Assistant ?",
-      clearConfirmDescription:
-        "Ses messages sont supprimés définitivement. Votre prochain message commence une nouvelle conversation.",
-      cleared: "Conversation effacée",
-    },
     remoteControl: {
       browserAccess: "Accès par navigateur",
       browserAccessDescription:
@@ -469,7 +437,6 @@ export default {
       appearance: "Apparence",
       models: "Modèles",
       agent: "Agent",
-      assistant: "Assistant",
       personalization: "Profil utilisateur",
       projects: "Projets",
       remote: "Contrôle à distance",
@@ -3000,7 +2967,7 @@ export default {
     emptyTitle: "Dites à l’Assistant ce dont vous avez besoin",
     emptyDescription:
       "Il trouve le bon projet, confie le travail à une session de ce projet et vous en rend compte ici. Il ne fait jamais le travail lui-même.",
-    settingsButton: "Réglages de l’Assistant",
+    placeholder: "Décrivez une tâche, l’Assistant choisit le projet",
     targetDescription: "Confie le travail au bon projet",
     source: {
       desktop: "Depuis l’ordinateur",
@@ -3100,14 +3067,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "Impossible d’ouvrir l’Assistant",
-      description: "Veuillez réessayer plus tard.",
-    },
-    assistantSettings: {
-      title: "Impossible de mettre à jour les réglages de l’Assistant",
-      description: "Veuillez réessayer plus tard.",
-    },
-    assistantClear: {
-      title: "Impossible d’effacer la conversation de l’Assistant",
       description: "Veuillez réessayer plus tard.",
     },
     skills: {

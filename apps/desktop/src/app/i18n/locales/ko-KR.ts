@@ -85,37 +85,6 @@ export default {
     failed: "업데이트를 설치할 수 없습니다.",
   },
   preferences: {
-    assistant: {
-      model: "모델",
-      modelDescription: "어시스턴트가 대화하고 작업을 맡길 때 쓰는 모델입니다.",
-      defaultModel: "기본 모델과 같음",
-      thinkingLevel: "추론 강도",
-      thinkingLevelDescription:
-        "어시스턴트가 답하기 전에 얼마나 생각할지 정합니다.",
-      approvalMode: "권한 모드 상한",
-      approvalModeDescription:
-        "어시스턴트는 이 모드로 실행되며, 맡긴 세션은 이 모드나 더 신중한 모드로 실행됩니다.",
-      wakesOnReport: "맡긴 작업이 보고하면 답하기",
-      wakesOnReportDescription:
-        "끄면 보고는 다음 메시지를 보낼 때까지 대화에 남아 비용이 들지 않습니다. 켜면 어시스턴트가 보고마다 바로 답합니다.",
-      costReminder: "비용 알림",
-      costReminderDescription:
-        "어시스턴트가 보낸 세션이나 자신의 대화 비용이 이 금액을 넘으면 보고에서 알려 주고, 이후 배수마다 다시 알려 줍니다.",
-      costReminderOff: "끄기",
-      costReminderAmount: "{amount}달러",
-      memory: "어시스턴트 메모",
-      memoryDescription:
-        "프로젝트를 부르는 이름처럼 어시스턴트가 기억하는 내용입니다.",
-      openMemory: "메모 보기",
-      clear: "대화 지우기",
-      clearDescription:
-        "어시스턴트의 대화를 삭제합니다. 맡긴 세션은 그대로 남습니다.",
-      clearAction: "대화 지우기",
-      clearConfirmTitle: "어시스턴트의 대화를 지울까요?",
-      clearConfirmDescription:
-        "메시지가 영구적으로 삭제됩니다. 다음 메시지부터 새 대화가 시작됩니다.",
-      cleared: "대화를 지웠습니다",
-    },
     remoteControl: {
       browserAccess: "브라우저 접속",
       browserAccessDescription:
@@ -457,7 +426,6 @@ export default {
       appearance: "화면 모양",
       models: "모델",
       agent: "에이전트",
-      assistant: "어시스턴트",
       personalization: "사용자 프로필",
       projects: "프로젝트",
       remote: "원격 제어",
@@ -2918,7 +2886,7 @@ export default {
     emptyTitle: "어시스턴트에게 필요한 일을 말해 보세요",
     emptyDescription:
       "알맞은 프로젝트를 찾아 그곳의 세션에 작업을 맡기고 여기에서 결과를 알려 드립니다. 작업을 직접 하지는 않습니다.",
-    settingsButton: "어시스턴트 설정",
+    placeholder: "작업을 설명하면 어시스턴트가 알맞은 프로젝트에 맡깁니다",
     targetDescription: "작업을 알맞은 프로젝트에 맡깁니다",
     source: {
       desktop: "데스크톱에서",
@@ -3014,14 +2982,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "어시스턴트를 열 수 없습니다",
-      description: "잠시 후 다시 시도해 주세요.",
-    },
-    assistantSettings: {
-      title: "어시스턴트 설정을 업데이트할 수 없습니다",
-      description: "잠시 후 다시 시도해 주세요.",
-    },
-    assistantClear: {
-      title: "어시스턴트의 대화를 지울 수 없습니다",
       description: "잠시 후 다시 시도해 주세요.",
     },
     skills: {

@@ -1,5 +1,4 @@
 import type { PineApprovalMode } from "./agent";
-import type { PineModelSelection } from "./models";
 import type { PineSessionSummary } from "./sessions";
 
 /**
@@ -74,64 +73,28 @@ export const ASSISTANT_WATCHES_FILE = "watches.json" as const;
 /** Watches kept at once; more are refused. */
 export const ASSISTANT_WATCHES_MAX = 30;
 
-/** The Assistant's settings, kept in its data folder as settings.json. */
-export const ASSISTANT_SETTINGS_FILE = "settings.json" as const;
+/**
+ * Whether a dispatched session's report starts an Assistant turn. No: the
+ * report waits in the conversation until the user next talks to it, so
+ * dispatched work costs no Assistant tokens on its own (§3.8). Results still
+ * reach the user as each session's own completion signal and WeChat push.
+ */
+export const ASSISTANT_WAKES_ON_REPORT = false;
 
 /**
- * The permission modes the Assistant may run in. Its mode is also the most
- * any session it dispatches may use, so YOLO is never one of them.
+ * In US dollars: a dispatched session, or the Assistant's own conversation,
+ * that costs more than this is pointed out in its next report, again at each
+ * further multiple. Only a reminder, never a limit.
  */
-export const ASSISTANT_APPROVAL_MODES = [
-  "let-me-review",
-  "auto-approve",
-  "autonomous",
-] as const satisfies readonly PineApprovalMode[];
-export type AssistantApprovalMode = (typeof ASSISTANT_APPROVAL_MODES)[number];
-
-export interface AssistantSettings {
-  /** Absent: the Assistant follows the user's default model. */
-  model?: PineModelSelection;
-  /** The Assistant's own mode, and the most a dispatched session may use. */
-  approvalMode: AssistantApprovalMode;
-  /**
-   * Whether a dispatched session's report starts an Assistant turn. Off: the
-   * report waits in the conversation until the user next talks to it, so
-   * dispatched work costs no Assistant tokens on its own (§3.8).
-   */
-  wakesOnReport: boolean;
-  /**
-   * In US dollars: a dispatched session, or the Assistant's own
-   * conversation, that costs more than this is pointed out in its next
-   * report. Only a reminder, never a limit; 0 turns it off.
-   */
-  costReminderUsd: number;
-}
-
-/** The choices Settings › Assistant offers for the cost reminder, in USD. */
-export const ASSISTANT_COST_REMINDER_OPTIONS = [0, 1, 5, 20, 50] as const;
-export const DEFAULT_ASSISTANT_COST_REMINDER_USD = 5;
-
-export const DEFAULT_ASSISTANT_SETTINGS: AssistantSettings = {
-  approvalMode: ASSISTANT_APPROVAL_MODE,
-  wakesOnReport: false,
-  costReminderUsd: DEFAULT_ASSISTANT_COST_REMINDER_USD,
-};
+export const ASSISTANT_COST_REMINDER_USD = 5;
 
 /** What a window needs to open the Assistant. */
 export interface AssistantState {
   /** Its one conversation, once the user or WeChat has started it. */
   session?: PineSessionSummary;
-  settings: AssistantSettings;
 }
 
 export const GET_ASSISTANT_CHANNEL = "assistant:get" as const;
-export const SET_ASSISTANT_SETTINGS_CHANNEL = "assistant:set-settings" as const;
-/** Deletes the Assistant's conversation; the next message starts a new one. */
-export const CLEAR_ASSISTANT_CHANNEL = "assistant:clear" as const;
-
-export interface ClearAssistantResult {
-  cleared: boolean;
-}
 
 /**
  * The first line Pine puts on a user message that came in through WeChat.
@@ -240,7 +203,7 @@ export interface AssistantPendingApproval {
 
 /** A setting the Assistant may read, never change. */
 export interface AssistantSettingFact {
-  /** Where the user finds it, such as "Settings › Assistant › Model". */
+  /** Where the user finds it, such as "Settings › General › Language". */
   where: string;
   value: string;
 }

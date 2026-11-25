@@ -1,8 +1,4 @@
-import type {
-  AssistantSettings,
-  AssistantState,
-  ClearAssistantResult,
-} from "./assistant";
+import type { AssistantState } from "./assistant";
 import type { PineSideChatApi } from "./sideChats";
 import type { PineAutomationsApi } from "./automation";
 import type {
@@ -589,10 +585,6 @@ export interface PineDesktopApi
     request: DeleteCustomProviderRequest,
   ) => Promise<PineModelCatalog>;
   getAssistant: () => Promise<AssistantState>;
-  setAssistantSettings: (
-    settings: AssistantSettings,
-  ) => Promise<AssistantSettings>;
-  clearAssistant: () => Promise<ClearAssistantResult>;
   getAutoApprovalSettings: () => Promise<PineAutoApprovalSettings>;
   setAutoApprovalSettings: (
     settings: PineAutoApprovalSettings,

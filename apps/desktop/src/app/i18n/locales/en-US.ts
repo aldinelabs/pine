@@ -85,37 +85,6 @@ export default {
     failed: "The update could not be installed.",
   },
   preferences: {
-    assistant: {
-      model: "Model",
-      modelDescription: "The model the Assistant talks and dispatches with.",
-      defaultModel: "Same as the default model",
-      thinkingLevel: "Reasoning effort",
-      thinkingLevelDescription:
-        "How long the Assistant thinks before it answers.",
-      approvalMode: "Permission mode limit",
-      approvalModeDescription:
-        "The Assistant runs in this mode, and every session it dispatches runs in it or a more supervised one.",
-      wakesOnReport: "Reply when dispatched work reports",
-      wakesOnReportDescription:
-        "Off: reports wait in the conversation until you next write, at no cost. On: the Assistant answers each report right away.",
-      costReminder: "Cost reminder",
-      costReminderDescription:
-        "The Assistant points out when a session it dispatched, or its own conversation, has cost more than this, and again at each further multiple.",
-      costReminderOff: "Off",
-      costReminderAmount: "US${amount}",
-      memory: "Assistant notes",
-      memoryDescription:
-        "What the Assistant remembers, such as the names you use for projects.",
-      openMemory: "View notes",
-      clear: "Clear conversation",
-      clearDescription:
-        "Deletes the Assistant's conversation. Sessions it dispatched stay where they are.",
-      clearAction: "Clear conversation",
-      clearConfirmTitle: "Clear the Assistant's conversation?",
-      clearConfirmDescription:
-        "Its messages are deleted for good. Your next message starts a new conversation.",
-      cleared: "Conversation cleared",
-    },
     remoteControl: {
       browserAccess: "Browser access",
       browserAccessDescription:
@@ -462,7 +431,6 @@ export default {
       appearance: "Appearance",
       models: "Models",
       agent: "Agent",
-      assistant: "Assistant",
       personalization: "User profile",
       projects: "Projects",
       remote: "Remote control",
@@ -2924,7 +2892,7 @@ export default {
     emptyTitle: "Tell the Assistant what you need",
     emptyDescription:
       "It finds the right project, hands the work to a session there and reports back here. It never does the work itself.",
-    settingsButton: "Assistant settings",
+    placeholder: "Describe a task, and the Assistant picks the project",
     targetDescription: "Hands the work to the right project",
     source: {
       desktop: "From desktop",
@@ -3021,14 +2989,6 @@ export default {
   errors: {
     assistantOpen: {
       title: "Unable to open the Assistant",
-      description: "Please try again later.",
-    },
-    assistantSettings: {
-      title: "Unable to update Assistant settings",
-      description: "Please try again later.",
-    },
-    assistantClear: {
-      title: "Unable to clear the Assistant's conversation",
       description: "Please try again later.",
     },
     skills: {
