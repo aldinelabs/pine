@@ -20,6 +20,7 @@ import {
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../../shared/agent";
 import { artifactKey, type SessionArtifact } from "../../shared/artifacts";
+import { ASSISTANT_PROJECT_ID } from "../../shared/assistant";
 import {
   parseAttachmentMessage,
   serializeAttachmentMessage,
@@ -1935,13 +1936,16 @@ export class SessionDirectory {
   }
 
   /**
-   * The third prompt exit: plain text to the Assistant. It carries no files
-   * (the Assistant cannot open any) and no approval: dispatches of this turn
-   * stay within the WeChat ceiling, which the Assistant enforces.
+   * The third prompt exit: plain text to the Assistant, with the staged
+   * files moved into the Assistant's attachment storage like any session's.
+   * It sees only what they are and can hand them on with a dispatch. No
+   * approval: dispatches of this turn stay within the WeChat ceiling, which
+   * the Assistant enforces.
    */
   async sendToAssistant(input: {
     text: string;
     quotedText?: string;
+    attachments?: boolean;
   }): Promise<void> {
     const assistant = this.deps.core.assistant;
     if (!assistant) throw new Error("Pine has no Assistant.");
@@ -1951,6 +1955,12 @@ export class SessionDirectory {
       ? `${input.text.trim()}\n\n${quoteBlock(this.deps.lang(), input.quotedText ?? "")}`
       : input.text.trim();
     if (message === "") throw new Error("There is nothing to send.");
+    const attachments = input.attachments
+      ? await this.deps.attachments.take(
+          this.deps.core.repository.dataPaths(ASSISTANT_PROJECT_ID)
+            .attachmentsRoot,
+        )
+      : [];
     const known = await assistant.sessionId();
     const before = known ? this.touch(known) : undefined;
     const steer = before?.state === "running";
@@ -1959,6 +1969,7 @@ export class SessionDirectory {
     try {
       result = await assistant.send({
         message,
+        ...(attachments.length > 0 ? { attachments } : {}),
         locale: this.locale(),
         ceiling: this.deps.settings().ceilingMode,
         steer,

@@ -105,7 +105,6 @@ import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
 import type { PineApprovalAction, PineApprovalMode } from "@/shared/agent";
 import type { AutomationApprovalRequest } from "@/shared/automation";
-import { isAssistantProject } from "@/shared/assistant";
 import {
   serializeAttachmentMessage,
   isPastedImageMimeType,
@@ -216,8 +215,8 @@ const props = withDefaults(
     /** When set, the automation approval replaces the message input. */
     pendingAutomationApproval?: AutomationApprovalRequest | null;
     /**
-     * The Assistant's conversation: no attachments or project to choose,
-     * and its mode and model are its settings, not the composer's.
+     * The Assistant's conversation: no project to choose, @ mentions or
+     * YOLO, and its own placeholder.
      */
     assistant?: boolean;
     /** The floating composer can send to the Assistant as well. */
@@ -484,10 +483,6 @@ const highlightedIndex = ref(0);
 const chooserListId = `${messageId}-projects`;
 /** Only the composer whose chip is moving carries the name, so it is unique. */
 const PROJECT_MOVE_TRANSITION_NAME = "pine-draft-project";
-/** The Assistant reads no files, also while the quick composer targets it. */
-const takesFiles = computed(
-  () => !props.assistant && !isAssistantProject(props.projectId),
-);
 const canMention = computed(
   () =>
     !props.assistant &&
@@ -1252,11 +1247,6 @@ interface PastedImage {
  */
 async function handlePaste(event: ClipboardEvent): Promise<void> {
   const files = Array.from(event.clipboardData?.files ?? []);
-  // The Assistant reads no files; pasted text still goes in.
-  if (!takesFiles.value) {
-    if (files.length > 0) event.preventDefault();
-    return;
-  }
   if (files.length > 0 && isWeb && window.pine.uploadAttachments) {
     event.preventDefault();
     try {
@@ -1590,7 +1580,6 @@ function handleRootSubmit(event: Event): void {
                    focuses only an <input>, never this textarea, and a
                    disabled button lets the pointer through to it. -->
               <InputGroupAddon
-                v-if="takesFiles"
                 class="cursor-default self-end py-1.5 pl-2.5"
                 align="inline-start"
               >
@@ -1664,7 +1653,6 @@ function handleRootSubmit(event: Event): void {
                   :disabled="isRewriting"
                   :aria-busy="isRewriting || undefined"
                   :class="{
-                    'session-composer-input--alone': !takesFiles,
                     'session-composer-input--suggesting': showsReplySuggestion,
                     'session-composer-input--suggestion-fades':
                       showsReplySuggestion && replySuggestionFades,
@@ -2310,11 +2298,6 @@ function handleRootSubmit(event: Event): void {
 .session-composer-input {
   padding-inline-start: var(--session-composer-control-inset);
   padding-inline-end: var(--session-input-padding-inline, 1rem);
-}
-
-/* No attachments button before it: as far from the rounded edge as the end. */
-.session-composer-input--alone {
-  padding-inline-start: var(--session-input-padding-inline, 1rem);
 }
 
 .session-composer-input--suggestion-fades::placeholder {

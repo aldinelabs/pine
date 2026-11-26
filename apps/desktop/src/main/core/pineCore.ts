@@ -423,12 +423,13 @@ export class PineCore {
         listMcpServers: (projectId) =>
           listMcpCatalog(this, WECHAT_CLIENT_ID, projectId),
         assistant: {
-          send: ({ message, locale, ceiling, steer }) =>
+          send: ({ message, locale, ceiling, steer, attachments }) =>
             this.assistant.send(message, {
               locale,
               source: "wechat",
               ceiling,
               steer,
+              ...(attachments ? { attachments } : {}),
             }),
           sessionId: () => this.assistant.sessionId(),
         },

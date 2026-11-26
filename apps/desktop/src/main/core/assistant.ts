@@ -1,4 +1,11 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -21,6 +28,7 @@ import {
   ASSISTANT_APPROVAL_MODE,
   ASSISTANT_CLIENT_ID,
   ASSISTANT_COST_REMINDER_USD,
+  ASSISTANT_DISPATCH_ATTACHMENTS_MAX,
   ASSISTANT_DISPATCHES_FILE,
   ASSISTANT_PROJECT_ID,
   ASSISTANT_STATE_FILE,
@@ -40,8 +48,14 @@ import {
   type AssistantState,
   type AssistantTurnSource,
   ASSISTANT_WECHAT_MARK,
+  assistantAttachmentId,
   markWeChatMessage,
 } from "../../shared/assistant";
+import {
+  parseAttachmentMessage,
+  serializeAttachmentMessage,
+  type PineAttachment,
+} from "../../shared/attachments";
 import type { PineModelSelection } from "../../shared/models";
 import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
 import {
@@ -125,6 +139,10 @@ const OperationSchema = z.discriminatedUnion("op", [
       "YOLO",
     ]),
     locale: z.enum(["en-US", "zh-CN"]),
+    attachmentIds: z
+      .array(z.string().trim().min(1).max(100))
+      .max(ASSISTANT_DISPATCH_ATTACHMENTS_MAX)
+      .optional(),
   }),
   z.object({
     op: z.literal("digest"),
@@ -436,6 +454,8 @@ export interface AssistantSendOptions {
   ceiling?: PineApprovalMode;
   /** The Assistant is mid-turn: the message steers it. */
   steer?: boolean;
+  /** Files sent with the message, already in the Assistant's storage. */
+  attachments?: readonly PineAttachment[];
 }
 
 /** The more supervised of two modes. */
@@ -687,8 +707,12 @@ export class AssistantService {
         locale: options.locale,
         // The prompt picks its WeChat style by this mark; displays strip
         // it with readAssistantMessage.
-        message:
+        // Attachments go first, as from any composer; the mark then heads
+        // the text, where displays and the model's view look for it.
+        message: serializeAttachmentMessage(
+          options.attachments ?? [],
           options.source === "wechat" ? markWeChatMessage(message) : message,
+        ),
         ...(options.steer ? { streamingBehavior: "steer" as const } : {}),
       },
       { focus: false },
@@ -720,6 +744,101 @@ export class AssistantService {
     // Reminders belong to the conversation that set them.
     await this.watches.clear();
     this.wakes = [];
+  }
+
+  /**
+   * The attachments the user sent in the Assistant's conversation, by the
+   * ids its model sees. Only the user's own messages count, so the model
+   * cannot name a file the user did not attach.
+   */
+  private async conversationAttachments(
+    requester: { sessionId: string; ownerId: number },
+    ids: readonly string[],
+  ): Promise<PineAttachment[]> {
+    const wanted = [...new Set(ids)];
+    if (wanted.length === 0) return [];
+    const { runtimes } = this.core;
+    let reader = requester.ownerId;
+    if (!runtimes.isOpen(reader, ASSISTANT_PROJECT_ID)) {
+      await this.holdAssistant();
+      reader = ASSISTANT_CLIENT_ID;
+    }
+    const page = await runtimes.loadMessages(
+      reader,
+      ASSISTANT_PROJECT_ID,
+      requester.sessionId,
+      undefined,
+      1,
+      true,
+    );
+    const known = new Map<string, PineAttachment>();
+    for (const message of page.outline ?? [])
+      for (const block of message.blocks)
+        if (block.type === "text")
+          for (const attachment of parseAttachmentMessage(block.text)
+            .attachments)
+            known.set(assistantAttachmentId(attachment), attachment);
+    const unknown = wanted.filter((id) => !known.has(id));
+    if (unknown.length > 0)
+      throw new Error(
+        `No attachment ${unknown.join(", ")} in this conversation. Use the ids of an <attachments> list the user sent here.`,
+      );
+    return wanted.flatMap((id) => {
+      const attachment = known.get(id);
+      return attachment ? [attachment] : [];
+    });
+  }
+
+  /**
+   * The attachments as the dispatched session gets them, the way its own
+   * would be stored: a file Pine keeps for the Assistant (pasted, or from
+   * WeChat) is copied into the project's attachment storage; the user's own
+   * files, folders and sessions go by reference, granting it read access.
+   */
+  private async forwardAttachments(
+    attachments: readonly PineAttachment[],
+    project: PineProject,
+  ): Promise<PineAttachment[]> {
+    if (attachments.length === 0) return [];
+    const { repository } = this.core;
+    const ownRoot = path.resolve(
+      repository.dataPaths(ASSISTANT_PROJECT_ID).attachmentsRoot,
+    );
+    const targetRoot = path.resolve(
+      repository.dataPaths(project.id).attachmentsRoot,
+    );
+    const forwarded: PineAttachment[] = [];
+    for (const attachment of attachments) {
+      const relative = path.relative(ownRoot, path.resolve(attachment.path));
+      const stored =
+        attachment.kind !== "session" &&
+        attachment.kind !== "directory" &&
+        relative !== "" &&
+        !relative.startsWith("..") &&
+        !path.isAbsolute(relative);
+      if (!stored) {
+        forwarded.push(attachment);
+        continue;
+      }
+      await mkdir(targetRoot, { recursive: true });
+      const extension = path.extname(attachment.path);
+      const target = path.join(targetRoot, `${randomUUID()}${extension}`);
+      try {
+        await copyFile(attachment.path, target);
+      } catch (error) {
+        throw new Error(
+          `${attachment.name} could not be handed on: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      const copied = await stat(target);
+      forwarded.push({
+        ...attachment,
+        path: target,
+        size: copied.size,
+        modifiedAt: copied.mtime.toISOString(),
+      });
+    }
+    return forwarded;
   }
 
   /** Holds the Assistant's own runtime as its virtual client. */
@@ -931,6 +1050,11 @@ export class AssistantService {
       // the mode is lowered to it rather than refused, since the model
       // asks for its own mode by default.
       const turn = this.turn;
+      // Before anything starts: an unknown id refuses the whole dispatch.
+      const attachments = await this.conversationAttachments(
+        requester,
+        parsed.attachmentIds ?? [],
+      );
       const approvalMode = turn.ceiling
         ? lowerMode(parsed.approvalMode, turn.ceiling)
         : parsed.approvalMode;
@@ -946,10 +1070,14 @@ export class AssistantService {
         runtimes
           .clientsSharingRuntime(requester.ownerId, project.id)
           .find((id) => !isVirtualClient(id)) ?? requester.ownerId;
+      const forwarded = await this.forwardAttachments(attachments, project);
       const result = await startBackgroundSession(this.core, {
         ownerId,
         project,
-        message: `[Dispatched by Pine's Assistant. Pine reports your reply to the Assistant each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
+        message: serializeAttachmentMessage(
+          forwarded,
+          `[Dispatched by Pine's Assistant. Pine reports your reply to the Assistant each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
+        ),
         approvalMode,
         locale: parsed.locale,
         ...(parsed.title ? { title: parsed.title } : {}),
@@ -977,6 +1105,7 @@ export class AssistantService {
         projectId: project.id,
         projectName: this.projectName(project),
         approvalMode,
+        ...(forwarded.length > 0 ? { attachments: forwarded.length } : {}),
       };
     }
 

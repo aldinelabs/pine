@@ -1476,7 +1476,6 @@ export interface ReplyData {
   "E-SHOWFIRST": { ask: number };
   "E-TEXT": undefined;
   "E-QUOTE": undefined;
-  "E-ASSIST-FILES": { count: number };
   "E-NOASSIST": undefined;
   "E-AUTOOFF": { name: string };
   "E-NGUARD": { ask: number };
@@ -1706,7 +1705,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         "好的，之后的普通消息发给 **助理**",
         quote(
           attachments > 0
-            ? `助理不能查看文件：暂存的 ${attachments} 个附件请用 \`.n 文字\` 发出或 \`.drop\` 丢弃 · \`.u\` 直连会话`
+            ? `暂存的 ${attachments} 个附件会随下一条消息交给助理 · \`.drop\` 丢弃 · \`.u\` 直连会话`
             : "`.u` 直连某个会话 · 审批仍用 `.y 编号`",
         ),
       ),
@@ -1714,7 +1713,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         "OK, plain text now goes to the **Assistant**",
         quote(
           attachments > 0
-            ? `The Assistant cannot open files: send the ${attachments} staged attachment(s) with \`.n text\` or \`.drop\` them · \`.u\` talks to a session directly`
+            ? `The ${attachments} staged attachment(s) go to the Assistant with your next message · \`.drop\` discards them · \`.u\` talks to a session directly`
             : "`.u` talks to a session directly · approve with `.y number` as before",
         ),
       ),
@@ -3124,22 +3123,6 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       lang,
       "这段文字以 Pine 内部的附件标记开头，没有发送。请去掉开头那一段再发。",
       "This text starts with Pine's internal attachment marker and was not sent. Remove that part and send it again.",
-    ),
-  "E-ASSIST-FILES": (lang, { count }) =>
-    pick(
-      lang,
-      blocks(
-        `助理不能查看文件，暂存的 ${count} 个附件还没发出。`,
-        quote(
-          "`.n 文字` 带上它们新开会话 · `.u` 切到会话后再发 · `.drop` 丢弃",
-        ),
-      ),
-      blocks(
-        `The Assistant cannot open files; ${count} staged attachment(s) were not sent.`,
-        quote(
-          "`.n text` starts a session with them · `.u` a session, then send · `.drop` discards them",
-        ),
-      ),
     ),
   "E-NOASSIST": (lang) =>
     pick(

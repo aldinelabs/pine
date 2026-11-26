@@ -9,6 +9,8 @@ import type { PineAgentEvent } from "../../../shared/agent";
 import { PineAgentRuntime } from "../../runtime";
 import { ASSISTANT_SYSTEM_PROMPT, markWeChatMessage } from "../prompt";
 import { ASSISTANT_TOOL_NAMES } from "../tools";
+import { serializeAttachmentMessage } from "../../../shared/attachments";
+import { assistantAttachmentId } from "../../../shared/assistant";
 
 /**
  * The Assistant's conversation run end to end against a mock provider: what
@@ -249,6 +251,50 @@ describe("the Assistant's conversation", () => {
       .filter((message) => message.role === "user")
       .map((message) => text(message.content));
     expect(users).toContain(markWeChatMessage("导航那个好了没"));
+  });
+
+  it("shows the model only what attachments are, and keeps them in the transcript", async () => {
+    const provider = await mockProvider([{ text: "OK." }]);
+    const runtime = testRuntime();
+    const location = await assistantLocation(provider.port);
+    const created = await runtime.createSession(location);
+    const session = liveSession(runtime, created.session.id);
+    const attachment = {
+      name: "q3.csv",
+      path: "/Users/me/Private/finance/q3.csv",
+      extension: "csv",
+      kind: "file" as const,
+      size: 4096,
+      modifiedAt: "2026-11-20T00:00:00.000Z",
+    };
+    const sent = serializeAttachmentMessage(
+      [attachment],
+      markWeChatMessage("交给财务项目分析"),
+    );
+
+    await session.prompt(sent);
+
+    const request = provider.requests[0];
+    const user = request?.messages
+      .filter((message) => message.role === "user")
+      .map((message) => text(message.content))
+      .find((content) => content.includes("交给财务项目分析"));
+    expect(user).toBe(
+      [
+        "[WeChat]",
+        "<attachments>",
+        `- ${assistantAttachmentId(attachment)}: q3.csv (csv file, 4 KB)`,
+        "</attachments>",
+        "",
+        "交给财务项目分析",
+      ].join("\n"),
+    );
+    expect(JSON.stringify(request?.messages)).not.toContain("/Users/me");
+    expect(request?.tools?.map((tool) => tool.function.name)).toEqual([
+      ...ASSISTANT_TOOL_NAMES,
+    ]);
+    const stored = session.messages.find((message) => message.role === "user");
+    expect(text(stored?.content)).toBe(sent);
   });
 
   it("refuses a tool that is not on the list, and runs one that is", async () => {

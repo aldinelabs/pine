@@ -121,6 +121,27 @@ export function readAssistantMessage(text: string): {
     : { text, fromWeChat: false };
 }
 
+/** Attachments dispatch_task may forward at once. */
+export const ASSISTANT_DISPATCH_ATTACHMENTS_MAX = 20;
+
+/**
+ * The id the Assistant names an attachment of its conversation by. It hashes
+ * the attachment's path, so it stays the same however often the message is
+ * shown to the model or the conversation is compacted, and needs no store.
+ */
+export function assistantAttachmentId(attachment: { path: string }): string {
+  // Two FNV-1a 32-bit hashes with different offsets: 64 bits, no crypto,
+  // so the renderer, main and agent compute the same id.
+  let first = 0x811c9dc5;
+  let second = 0x01000193 ^ 0x9e3779b9;
+  for (let index = 0; index < attachment.path.length; index += 1) {
+    const code = attachment.path.charCodeAt(index);
+    first = Math.imul(first ^ code, 0x01000193) >>> 0;
+    second = Math.imul(second ^ code, 0x01000193) >>> 0;
+  }
+  return `att_${first.toString(16).padStart(8, "0")}${second.toString(16).padStart(8, "0")}`;
+}
+
 /** What a session is doing now, as the Assistant reports it. */
 export type AssistantSessionState = "running" | "awaiting-approval" | "idle";
 
@@ -250,6 +271,8 @@ export type AssistantHostOperation =
       message: string;
       approvalMode: PineApprovalMode;
       locale: "en-US" | "zh-CN";
+      /** Attachments of the Assistant's conversation, by assistantAttachmentId. */
+      attachmentIds?: string[];
     }
   | { op: "digest"; projectId: string; sessionId: string }
   | {
@@ -308,6 +331,8 @@ export type AssistantHostResult =
       projectId: string;
       projectName: string;
       approvalMode: PineApprovalMode;
+      /** How many attachments went with its first message. */
+      attachments?: number;
     }
   | { op: "digest"; digest: AssistantDigest }
   | { op: "watch-create"; watch: AssistantWatch }

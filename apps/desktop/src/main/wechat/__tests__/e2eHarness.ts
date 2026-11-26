@@ -18,6 +18,10 @@ import {
   ASSISTANT_CLIENT_ID,
   ASSISTANT_PROJECT_ID,
 } from "../../../shared/assistant";
+import {
+  serializeAttachmentMessage,
+  type PineAttachment,
+} from "../../../shared/attachments";
 import type { PineProject } from "../../../shared/projects";
 import type { PineSessionSummary } from "../../../shared/sessions";
 import type {
@@ -123,6 +127,8 @@ export interface AssistantCall {
   message: string;
   ceiling: string;
   steer: boolean;
+  /** Files sent along, already in the Assistant's storage. */
+  attachments?: PineAttachment[];
 }
 
 export interface Harness {
@@ -328,8 +334,13 @@ export async function createHarness(
   if (options.assistant) {
     core.assistant = {
       sessionId: () => Promise.resolve(assistantSessionId),
-      send: async ({ message, ceiling, steer, locale }) => {
-        assistantCalls.push({ message, ceiling, steer });
+      send: async ({ message, ceiling, steer, locale, attachments }) => {
+        assistantCalls.push({
+          message,
+          ceiling,
+          steer,
+          ...(attachments ? { attachments } : {}),
+        });
         if (!registry.isOpen(ASSISTANT_CLIENT_ID, ASSISTANT_PROJECT_ID))
           await registry.share(
             ASSISTANT_CLIENT_ID,
@@ -340,7 +351,7 @@ export async function createHarness(
           ASSISTANT_CLIENT_ID,
           {
             locale,
-            message,
+            message: serializeAttachmentMessage(attachments ?? [], message),
             target: assistantSessionId
               ? {
                   kind: "session",

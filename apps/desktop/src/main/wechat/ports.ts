@@ -52,6 +52,8 @@ export interface WeChatAssistantPort {
     ceiling: PineApprovalMode;
     /** It is mid-turn: the text steers the running turn. */
     steer: boolean;
+    /** Files the user sent from WeChat, already in the Assistant's storage. */
+    attachments?: PineAttachment[];
   }): Promise<{ sessionId: string; projectId: string }>;
   /** Its conversation, once it has one. */
   sessionId(): Promise<string | undefined>;

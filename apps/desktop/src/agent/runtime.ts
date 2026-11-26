@@ -157,6 +157,7 @@ import {
 } from "./assistant/tools";
 import { ASSISTANT_SYSTEM_PROMPT } from "./assistant/prompt";
 import { assistantMemoryNotice } from "./assistant/memory";
+import { assistantContextMessages } from "./assistant/attachments";
 import { ForegroundPromoter } from "./foreground-promotion";
 import { createModelToolDefinitions, listUsableModels } from "./modelTools";
 import { createActivatePineOpsToolDefinition } from "./pine-ops/tools";
@@ -2338,8 +2339,8 @@ export class PineAgentRuntime {
   /**
    * The Assistant's resources: its own fixed system prompt, no skills,
    * prompt templates or context files, and only the extensions that never
-   * add a tool: the permission mode notice, the user profile, the tool guard
-   * and compaction. Its tools come from createAssistantToolDefinitions.
+   * add a tool: the permission mode notice, the user profile, the tool guard,
+   * attachments as metadata and compaction. Its tools come from createAssistantToolDefinitions.
    */
   private assistantResourceLoader(
     live: LiveAgentSession,
@@ -2358,6 +2359,17 @@ export class PineAgentRuntime {
       noThemes: true,
       extensionFactories: [
         createAssistantToolGuardExtension(),
+        {
+          // The model sees each attachment's id, name, type and size; the
+          // stored message keeps its path for the transcript and dispatch.
+          name: "pine-assistant-attachments",
+          factory: (pi) => {
+            pi.on("context", (event) => {
+              const messages = assistantContextMessages(event.messages);
+              return messages ? { messages } : undefined;
+            });
+          },
+        },
         {
           name: "pine-approval-mode",
           factory: (pi) => {

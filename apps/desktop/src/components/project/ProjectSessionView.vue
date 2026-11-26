@@ -865,14 +865,14 @@ async function ensureTranscriptMessageLoaded(messageId: string): Promise<void> {
 }
 
 function handleDragEnter(event: DragEvent): void {
-  if (isAssistant.value || !dragContainsAttachments(event)) return;
+  if (!dragContainsAttachments(event)) return;
   event.preventDefault();
   fileDragDepth += 1;
   isDraggingFiles.value = true;
 }
 
 function handleDragOver(event: DragEvent): void {
-  if (isAssistant.value || !dragContainsAttachments(event)) return;
+  if (!dragContainsAttachments(event)) return;
   event.preventDefault();
   if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
 }
@@ -885,7 +885,7 @@ function handleDragLeave(event: DragEvent): void {
 }
 
 async function handleDrop(event: DragEvent): Promise<void> {
-  if (isAssistant.value || !dragContainsAttachments(event)) return;
+  if (!dragContainsAttachments(event)) return;
   event.preventDefault();
   fileDragDepth = 0;
   isDraggingFiles.value = false;

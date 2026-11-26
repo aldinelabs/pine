@@ -737,15 +737,16 @@ describe("ProjectSessionComposer", () => {
     );
   });
 
-  it("offers no attachments while the Assistant is the target", async () => {
-    const wrapper = mountComposer({
-      projectId: ASSISTANT_PROJECT_ID,
-      assistantTarget: true,
-    });
-    await flushPromises();
-
-    expect(wrapper.find('button[aria-label="添加附件"]').exists()).toBe(false);
-    wrapper.unmount();
+  it("offers the usual attachments in the Assistant and with it as the target", async () => {
+    for (const props of [
+      { assistant: true, projectId: ASSISTANT_PROJECT_ID },
+      { projectId: ASSISTANT_PROJECT_ID, assistantTarget: true },
+    ]) {
+      const wrapper = mountComposer(props);
+      await flushPromises();
+      expect(wrapper.find('button[aria-label="添加附件"]').exists()).toBe(true);
+      wrapper.unmount();
+    }
   });
 
   it("selects a conversation from the reused session palette and attaches its JSONL file", async () => {

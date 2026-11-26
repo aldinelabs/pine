@@ -87,12 +87,11 @@ export const handlePlainMessage: MessageHandler = async (ctx, text) => {
     ctx.asks.closeWhere((ask) => ask.kind === "held", "invalidated");
   if (ctx.sessions.plainRoute() === "assistant") {
     if (!body) return { text: render("E-QUOTE", ctx.lang) };
-    // Staged files stay staged: the Assistant cannot open them.
-    const staged = ctx.attachments.list().length;
-    if (staged > 0)
-      return { text: render("E-ASSIST-FILES", ctx.lang, { count: staged }) };
+    // Staged files go along: the Assistant sees what they are and can hand
+    // them to the session it dispatches.
     await ctx.sessions.sendToAssistant({
       text: body,
+      attachments: ctx.attachments.list().length > 0,
       ...(ctx.inbound.quotedText !== undefined
         ? { quotedText: ctx.inbound.quotedText }
         : {}),

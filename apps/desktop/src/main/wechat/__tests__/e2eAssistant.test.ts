@@ -6,6 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { ASSISTANT_PROJECT_ID } from "../../../shared/assistant";
 import { type Harness, createHarness, sleep, waitFor } from "./e2eHarness";
 
 const harnesses: Harness[] = [];
@@ -148,25 +149,26 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     expect(h.assistantCalls[1]?.message).toBe("现在都在跑什么？");
   });
 
-  it("keeps staged files out of the Assistant", async () => {
+  it("hands staged files to the Assistant with the next message", async () => {
     const h = await harness();
-    const reply = await h
-      .say("看看这张图", {
-        item_list: [
-          {
-            type: 2,
-            image_item: {
-              media: { encrypt_query_param: "q", aes_key: "k" },
-            },
-          },
-        ],
-      })
-      .catch(() => "");
-    void reply;
-    await h.settle();
-    // Whatever the download did, nothing with files reached the Assistant.
-    for (const call of h.assistantCalls)
-      expect(call.message).not.toContain("pine_attachments");
+    const item = h.mock.hostMedia("file", Buffer.from("季度数据"), "q3.csv");
+    await h.say("", { item_list: [item] });
+    h.push("把这份表格交给数据项目分析");
+    await waitFor(() => h.assistantCalls.length === 1);
+
+    const call = h.assistantCalls[0];
+    expect(call?.message).toBe("把这份表格交给数据项目分析");
+    expect(call?.attachments).toHaveLength(1);
+    const [file] = call?.attachments ?? [];
+    expect(file?.name).toBe("q3.csv");
+    // Stored like any session's attachment, in the Assistant's own storage.
+    const root = h.repository.dataPaths(ASSISTANT_PROJECT_ID).attachmentsRoot;
+    expect(path.relative(root, file?.path ?? "")).not.toMatch(/^\.\./);
+    expect(await readFile(file?.path ?? "", "utf8")).toBe("季度数据");
+    // Taken: the next message carries none.
+    h.push("还有别的吗？");
+    await waitFor(() => h.assistantCalls.length === 2);
+    expect(h.assistantCalls[1]?.attachments).toBeUndefined();
   });
 
   it("sends nothing to the Assistant where Pine has none", async () => {

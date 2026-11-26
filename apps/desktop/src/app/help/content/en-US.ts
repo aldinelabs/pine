@@ -412,6 +412,7 @@ export default {
         body: [
           "Assistant, at the top of the sidebar, is one lasting conversation that belongs to no project. Tell it what you need and it finds the right project, starts a session there with the work, and reports back here. It only dispatches and reports; sessions in your projects do the work.",
           "You can also send to the Assistant from the quick composer. Messages that arrive from WeChat are marked From WeChat.",
+          "Attach files, images or folders as in any session. The Assistant doesn't open them: it sees their names, types and sizes, and hands them to the session it starts, which works with them. Files you send from WeChat go along too.",
           "Ask the Assistant to tell you when a session finishes, to remind you at a time, or to brief you every day. When the time comes a Reminder marker appears and the Assistant answers, in WeChat if you asked from WeChat, otherwise with a desktop notification.",
           "It can also list your automations, turn one off or run one now, list, create and rename projects, read your settings and tell you what is waiting for your approval.",
         ],

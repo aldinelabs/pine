@@ -425,7 +425,6 @@ const SAMPLES: { [K in ReplyId]: ReplyData[K] } = {
   "E-SHOWFIRST": { ask: 12 },
   "E-TEXT": undefined,
   "E-QUOTE": undefined,
-  "E-ASSIST-FILES": { count: 2 },
   "E-NOASSIST": undefined,
   "E-AUTOOFF": { name: "nightly" },
   "E-NGUARD": { ask: 12 },

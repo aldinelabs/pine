@@ -8,7 +8,6 @@ import {
   provide,
   ref,
   useTemplateRef,
-  watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import { toast } from "vue-sonner";
@@ -48,10 +47,6 @@ const cardElement = useTemplateRef<HTMLElement>("card");
 const projectId = ref<string>(TEMPORARY_WORKSPACE_PROJECT_ID);
 const draft = ref("");
 const attachments = ref<PineAttachment[]>([]);
-// The Assistant reads no files, so choosing it lets go of those attached.
-watch(projectId, (id) => {
-  if (isAssistantProject(id)) attachments.value = [];
-});
 const approvalMode = ref<PineApprovalMode>("auto-approve");
 /**
  * The controls below the input sit in from the card's round corners, and
@@ -233,7 +228,7 @@ async function submit(
       message,
       approvalMode: approvalMode.value,
       projectId: projectId.value,
-      // The Assistant reads no files, so what was captured stays behind.
+      // The Assistant gets no captured context; attachments go with the message.
       withContext:
         !isAssistantProject(projectId.value) &&
         (context.value.length > 0 || contextPending.value),

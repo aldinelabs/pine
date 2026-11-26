@@ -18,6 +18,7 @@ import {
   type PineApprovalMode,
 } from "../../shared/agent";
 import {
+  ASSISTANT_DISPATCH_ATTACHMENTS_MAX,
   APPROVALS_LIST_TOOL_NAME,
   DISPATCH_TASK_TOOL_NAME,
   PINE_OVERVIEW_TOOL_NAME,
@@ -319,6 +320,13 @@ export function createAssistantToolDefinitions(
         "Its first message. It has no memory of this conversation: say the goal, everything it needs, what to avoid, and what to report back.",
     }),
     approvalMode: Type.Optional(approvalModeSchema),
+    attachmentIds: Type.Optional(
+      Type.Array(Type.String(), {
+        maxItems: ASSISTANT_DISPATCH_ATTACHMENTS_MAX,
+        description:
+          "Ids from an <attachments> list in this conversation: those files, folders or sessions go with its first message, so it can open them.",
+      }),
+    ),
   });
   const dispatchTool = defineTool({
     name: DISPATCH_TASK_TOOL_NAME,
@@ -338,6 +346,9 @@ export function createAssistantToolDefinitions(
           `You run in ${own}; a session you dispatch cannot use ${approvalMode}. Use ${own} or a more supervised mode.`,
         );
       const title = params.title.trim().slice(0, 80);
+      const attachmentIds = [
+        ...new Set((params.attachmentIds ?? []).map((id) => id.trim())),
+      ].filter(Boolean);
       const result = await callAssistantHost(context, {
         op: "dispatch",
         projectId: params.projectId.trim(),
@@ -345,12 +356,13 @@ export function createAssistantToolDefinitions(
         message,
         approvalMode,
         locale: context.getLocale(),
+        ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
       });
       return {
         content: [
           {
             type: "text" as const,
-            text: `Dispatched “${title || "(untitled)"}” to ${result.projectName} (session id: ${result.sessionId}; project id: ${result.projectId}; ${result.approvalMode}). It works in the background; Pine reports back here each turn it finishes.`,
+            text: `Dispatched “${title || "(untitled)"}” to ${result.projectName} (session id: ${result.sessionId}; project id: ${result.projectId}; ${result.approvalMode})${result.attachments ? ` with ${result.attachments} attachment${result.attachments === 1 ? "" : "s"}` : ""}. It works in the background; Pine reports back here each turn it finishes.`,
           },
         ],
         details: result,

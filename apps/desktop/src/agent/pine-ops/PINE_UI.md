@@ -731,8 +731,12 @@ differences:
 - Empty, it shows the same Pine welcome as a new session, titled "Tell the
   Assistant what you need", with a line on what the Assistant does.
 - The composer is the usual one, with the placeholder "Describe a task, and
-  the Assistant picks the project". It has no attachments ("+") menu, folder
-  picker or @ mentions, and pasted files are ignored. Its model and
+  the Assistant picks the project". It has the usual attachments ("+") menu
+  (files, folders and sessions), drag and drop and pasted images, but no
+  folder picker or @ mentions. The Assistant does not open attachments: it
+  sees each one's name, type and size, and hands them to the session it
+  dispatches, which can open them. Files sent from WeChat while plain text
+  goes to the Assistant are attached the same way. Its model and
   permission mode menus work as in any session and are kept with the
   conversation; YOLO is not offered. The permission mode is also the most
   any session the Assistant dispatches may use (WeChat's Highest mode can
@@ -1468,8 +1472,8 @@ Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window. Its project picker also
 offers "Assistant" ("Hands the work to the right project"): the message then
-goes to the Assistant's conversation, without the captured context, and
-the attachments ("+") menu goes away (files already attached are removed). The context shows as a
+goes to the Assistant's conversation with its attachments, without the
+captured context. The context shows as a
 strip above the input: from the moment the composer appears, a grey placeholder
 holds its place while the app is captured, and the screenshot, app and window
 name fill it in once ready. The × button at the strip's right end, or Backspace

@@ -114,6 +114,36 @@ describe("the Assistant's tools", () => {
     ).toEqual([...ASSISTANT_TOOL_NAMES]);
   });
 
+  it("are the same list as before attachments: no file tool came with them", () => {
+    expect([...ASSISTANT_TOOL_NAMES]).toEqual([
+      "pine_overview",
+      "dispatch_task",
+      "session_digest",
+      "ui_session_search",
+      "ui_session_read",
+      "ui_session_send",
+      "ui_session_stop",
+      "ui_session_rename",
+      "approvals_list",
+      "watch",
+      "watch_list",
+      "watch_cancel",
+      "automation_list",
+      "automation_get",
+      "automation_set_enabled",
+      "automation_run_now",
+      "ui_project_list",
+      "ui_project_create",
+      "ui_project_update",
+      "settings_read",
+      "datetime",
+      "memory_read",
+      "memory_save",
+      "memory_remove",
+      "submit_session_summary",
+    ]);
+  });
+
   it("include nothing that does work", () => {
     for (const name of [
       "bash",
@@ -169,6 +199,35 @@ describe("the Assistant's tool guard", () => {
 });
 
 describe("dispatch_task", () => {
+  it("passes the attachment ids it names on to Pine, once each", async () => {
+    const ctx = context(() => ({
+      kind: "assistant",
+      result: {
+        op: "dispatch",
+        sessionId: "s-1",
+        projectId: "p-1",
+        projectName: "Blog",
+        approvalMode: "auto-approve",
+        attachments: 1,
+      },
+    }));
+    const result = await run("dispatch_task", ctx, {
+      projectId: "p-1",
+      title: "看报表",
+      message: "分析附件里的报表",
+      attachmentIds: [" att_1 ", "att_1", ""],
+    });
+
+    expect(ctx.requestHost).toHaveBeenCalledExactlyOnceWith({
+      kind: "assistant",
+      operation: expect.objectContaining({
+        op: "dispatch",
+        attachmentIds: ["att_1"],
+      }) as unknown,
+    });
+    expect(JSON.stringify(result.content)).toContain("with 1 attachment");
+  });
+
   it("dispatches in the Assistant's own mode by default", async () => {
     const ctx = context(() => ({
       kind: "assistant",

@@ -1,12 +1,18 @@
 // @vitest-environment node
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ASSISTANT_CLIENT_ID,
   ASSISTANT_PROJECT_ID,
+  assistantAttachmentId,
 } from "../../../shared/assistant";
+import {
+  parseAttachmentMessage,
+  serializeAttachmentMessage,
+  type PineAttachment,
+} from "../../../shared/attachments";
 import {
   markWeChatMessage,
   readAssistantMessage,
@@ -36,6 +42,15 @@ const blog = {
   defaultFolderId: "f",
 } as unknown as PineProject;
 const assistantProject = { id: ASSISTANT_PROJECT_ID } as PineProject;
+
+function userMessage(text: string): PineTextMessage {
+  return {
+    id: "u",
+    role: "user",
+    createdAt: "2026-11-24T00:00:00.000Z",
+    blocks: [{ type: "text", text }],
+  } as unknown as PineTextMessage;
+}
 
 function reply(text: string): PineTextMessage {
   return {
@@ -134,7 +149,10 @@ async function fixture() {
       open: vi.fn((id: string) =>
         Promise.resolve(id === BLOG ? blog : assistantProject),
       ),
-      dataPaths: vi.fn(() => ({ projectRoot: root })),
+      dataPaths: vi.fn((id: string) => ({
+        projectRoot: root,
+        attachmentsRoot: path.join(root, "attachments", id),
+      })),
     },
     runtimes,
     agentHost,
@@ -195,6 +213,90 @@ describe("the Assistant's dispatches", () => {
     expect(stored.dispatches[DISPATCHED]?.assistantSessionId).toBe(
       ASSISTANT_SESSION,
     );
+  });
+
+  it("hands the attachments it names on: its own files copied, the user's by reference", async () => {
+    const { root, runtimes, service } = await fixture();
+    const ownRoot = path.join(root, "attachments", ASSISTANT_PROJECT_ID);
+    await mkdir(ownRoot, { recursive: true });
+    const pasted: PineAttachment = {
+      name: "截图.png",
+      path: path.join(ownRoot, "pasted.png"),
+      extension: "png",
+      kind: "file",
+      size: 3,
+      modifiedAt: "2026-11-20T00:00:00.000Z",
+    };
+    await writeFile(pasted.path, "png");
+    const picked: PineAttachment = {
+      name: "q3.csv",
+      path: "/Users/me/finance/q3.csv",
+      extension: "csv",
+      kind: "file",
+      size: 4096,
+      modifiedAt: "2026-11-20T00:00:00.000Z",
+    };
+    runtimes.loadMessages.mockResolvedValueOnce({
+      hasMore: false,
+      messages: [],
+      outline: [
+        userMessage(serializeAttachmentMessage([pasted, picked], "看看这些")),
+      ],
+    } as never);
+
+    const result = await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      {
+        ...dispatch,
+        attachmentIds: [
+          assistantAttachmentId(picked),
+          assistantAttachmentId(pasted),
+        ],
+      },
+    );
+
+    expect(result).toMatchObject({ op: "dispatch", attachments: 2 });
+    expect(runtimes.loadMessages).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      ASSISTANT_PROJECT_ID,
+      ASSISTANT_SESSION,
+      undefined,
+      1,
+      true,
+    );
+    const [, input] = startBackgroundSession.mock.calls[0] as [
+      unknown,
+      { message: string },
+    ];
+    const { attachments, prompt } = parseAttachmentMessage(input.message);
+    expect(prompt).toMatch(/^\[Dispatched by Pine's Assistant\./);
+    expect(prompt).toContain("修一下首页样式");
+    expect(attachments[0]).toEqual(picked);
+    const copy = attachments[1];
+    expect(copy?.name).toBe("截图.png");
+    expect(path.dirname(copy?.path ?? "")).toBe(
+      path.join(root, "attachments", BLOG),
+    );
+    expect(await readFile(copy?.path ?? "", "utf8")).toBe("png");
+  });
+
+  it("refuses an attachment id the user never sent, before starting anything", async () => {
+    const { runtimes, service } = await fixture();
+    runtimes.loadMessages.mockResolvedValueOnce({
+      hasMore: false,
+      messages: [],
+      outline: [userMessage("没有附件")],
+    } as never);
+
+    await expect(
+      service.answer(
+        { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+        { ...dispatch, attachmentIds: ["att_0000000000000000"] },
+      ),
+    ).rejects.toThrow(
+      /No attachment att_0000000000000000 in this conversation/,
+    );
+    expect(startBackgroundSession).not.toHaveBeenCalled();
   });
 
   it("counts its dispatched sessions' work for the tray", async () => {
