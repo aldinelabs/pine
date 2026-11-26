@@ -267,8 +267,8 @@ export default {
       defaultProjectDescription: "Hier beginnt eine neue Sitzung aus WeChat.",
       plainTarget: "Normale Nachrichten gehen an",
       plainTargetDescription:
-        "Wohin eine WeChat-Nachricht geht, die kein Punktbefehl ist. Der Assistent kann in jedem Projekt Sitzungen starten und berichtet zurück; in WeChat wechseln .u und .home.",
-      plainTargetAssistant: "Assistent",
+        "Wohin eine WeChat-Nachricht geht, die kein Punktbefehl ist. Der Dirigent kann in jedem Projekt Sitzungen starten und berichtet zurück; in WeChat wechseln .u und .home.",
+      plainTargetAssistant: "Dirigent",
       plainTargetSession: "Aktuelle Sitzung",
       ceiling: "Höchster Freigabemodus",
       ceilingDescription:
@@ -1005,8 +1005,8 @@ export default {
     current: "Aktuell",
     noSessions: "Noch keine Sitzungen",
     fromWeChat: "Aus WeChat",
-    fromAssistant: "Vom Assistenten",
-    dispatchedByAssistant: "Vom Assistenten übergeben",
+    fromAssistant: "Vom Dirigenten",
+    dispatchedByAssistant: "Vom Dirigenten übergeben",
     usedFromWeChat: "Aus WeChat verwendet",
     awaitingApproval: "Wartet auf deine Freigabe",
     awaitingAnswer: "Wartet auf deine Antwort",
@@ -2962,15 +2962,15 @@ export default {
     },
   },
   assistant: {
-    name: "Assistent",
-    emptyTitle: "Sag dem Assistenten, was du brauchst",
+    name: "Dirigent",
+    emptyTitle: "Sag dem Dirigenten, was gespielt wird",
     emptyDescription:
-      "Er findet das passende Projekt, übergibt die Arbeit an eine Sitzung dort und berichtet hier. Die Arbeit selbst erledigt er nie.",
-    placeholder: "Beschreib eine Aufgabe, der Assistent wählt das Projekt",
+      "Er spielt selbst kein Instrument: Er gibt jede Aufgabe an eine Sitzung im passenden Projekt, hält alles im Takt und berichtet hier.",
+    placeholder: "Beschreib eine Aufgabe, der Dirigent wählt das Projekt",
     targetDescription: "Übergibt die Arbeit an das passende Projekt",
     clear: {
       action: "Unterhaltung leeren",
-      title: "Unterhaltung des Assistenten leeren?",
+      title: "Unterhaltung des Dirigenten leeren?",
       description:
         "Die Nachrichten werden gelöscht, und deine nächste Nachricht beginnt eine neue Unterhaltung. Sitzungen, die er übergeben hat, bleiben bestehen, berichten aber nicht mehr hierher. Seine Erinnerungen werden entfernt. Seine Notizen unter „Gedächtnis“ bleiben erhalten.",
       confirm: "Leeren",
@@ -3071,7 +3071,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "Assistent kann nicht geöffnet werden",
+      title: "Dirigent kann nicht geöffnet werden",
       description: "Bitte versuche es später erneut.",
     },
     skills: {

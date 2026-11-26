@@ -59,7 +59,7 @@ const GUIDE_OUTLINES: Record<HelpTopicId, readonly string[]> = {
     "splitting work into sub-sessions, where they appear, notices to the parent, limits",
   ],
   assistant: [
-    "the Assistant: one conversation above every project that dispatches work and reports back, dispatch cards, From Assistant marks, its model and mode, attachments it hands on, its notes in the Memory manager, clearing its conversation",
+    "the Orchestrator: one conversation above every project that dispatches work and reports back, dispatch cards, From Orchestrator marks, its model and mode, attachments it hands on, its notes in the Memory manager, clearing its conversation",
   ],
   workbench: [
     "the workbench and its panels",

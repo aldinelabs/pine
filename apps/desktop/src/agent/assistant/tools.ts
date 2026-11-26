@@ -110,7 +110,7 @@ export function isAssistantTool(toolName: string): boolean {
   return ASSISTANT_TOOL_NAME_SET.has(toolName);
 }
 
-export const ASSISTANT_BLOCKED_TOOL_REASON = `The Assistant never does work itself and has no such tool. Dispatch the work to a session with ${DISPATCH_TASK_TOOL_NAME} instead.`;
+export const ASSISTANT_BLOCKED_TOOL_REASON = `The Orchestrator never does work itself and has no such tool. Dispatch the work to a session with ${DISPATCH_TASK_TOOL_NAME} instead.`;
 
 /**
  * Refuses any call outside the allowlist, in case a tool ever reaches the

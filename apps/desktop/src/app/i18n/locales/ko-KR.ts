@@ -261,8 +261,8 @@ export default {
       defaultProjectDescription: "WeChat에서 만든 새 세션이 시작되는 곳입니다.",
       plainTarget: "일반 메시지 받는 곳",
       plainTargetDescription:
-        "점 명령이 아닌 WeChat 메시지가 가는 곳입니다. 어시스턴트는 어느 프로젝트에서든 세션을 시작하고 결과를 알려 줍니다. WeChat에서 .u와 .home으로도 바꿀 수 있습니다.",
-      plainTargetAssistant: "어시스턴트",
+        "점 명령이 아닌 WeChat 메시지가 가는 곳입니다. 지휘자는 어느 프로젝트에서든 세션을 시작하고 결과를 알려 줍니다. WeChat에서 .u와 .home으로도 바꿀 수 있습니다.",
+      plainTargetAssistant: "지휘자",
       plainTargetSession: "현재 세션",
       ceiling: "최고 승인 모드",
       ceilingDescription:
@@ -979,8 +979,8 @@ export default {
     current: "현재",
     noSessions: "아직 세션이 없습니다",
     fromWeChat: "WeChat에서 시작",
-    fromAssistant: "어시스턴트에서",
-    dispatchedByAssistant: "어시스턴트가 맡긴 세션",
+    fromAssistant: "지휘자에서",
+    dispatchedByAssistant: "지휘자가 맡긴 세션",
     usedFromWeChat: "WeChat에서 사용됨",
     awaitingApproval: "승인 대기 중",
     awaitingAnswer: "답변 대기 중",
@@ -2882,17 +2882,17 @@ export default {
     },
   },
   assistant: {
-    name: "어시스턴트",
-    emptyTitle: "어시스턴트에게 필요한 일을 말해 보세요",
+    name: "지휘자",
+    emptyTitle: "지휘자에게 연주할 곡을 알려 주세요",
     emptyDescription:
-      "알맞은 프로젝트를 찾아 그곳의 세션에 작업을 맡기고 여기에서 결과를 알려 드립니다. 작업을 직접 하지는 않습니다.",
-    placeholder: "작업을 설명하면 어시스턴트가 알맞은 프로젝트에 맡깁니다",
+      "직접 연주하지는 않습니다. 알맞은 프로젝트의 세션에 작업을 맡기고, 박자를 맞추며, 여기에서 결과를 알려 드립니다.",
+    placeholder: "작업을 설명하면 지휘자가 알맞은 프로젝트에 맡깁니다",
     targetDescription: "작업을 알맞은 프로젝트에 맡깁니다",
     clear: {
       action: "대화 지우기",
-      title: "어시스턴트의 대화를 지울까요?",
+      title: "지휘자의 대화를 지울까요?",
       description:
-        "메시지가 지워지고, 다음 메시지부터 새 대화가 시작됩니다. 어시스턴트가 맡긴 세션은 그대로 남지만 더 이상 여기로 보고하지 않습니다. 설정한 알림은 삭제됩니다. ‘메모리’의 메모는 유지됩니다.",
+        "메시지가 지워지고, 다음 메시지부터 새 대화가 시작됩니다. 지휘자가 맡긴 세션은 그대로 남지만 더 이상 여기로 보고하지 않습니다. 설정한 알림은 삭제됩니다. ‘메모리’의 메모는 유지됩니다.",
       confirm: "지우기",
     },
     source: {
@@ -2988,7 +2988,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "어시스턴트를 열 수 없습니다",
+      title: "지휘자를 열 수 없습니다",
       description: "잠시 후 다시 시도해 주세요.",
     },
     skills: {

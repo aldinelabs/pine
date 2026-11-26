@@ -262,8 +262,8 @@ export default {
       defaultProjectDescription: "Where a new session from WeChat starts.",
       plainTarget: "Plain messages go to",
       plainTargetDescription:
-        "Where a WeChat message that is not a dot command goes. The Assistant can start sessions in any project and report back; .u and .home switch from WeChat.",
-      plainTargetAssistant: "Assistant",
+        "Where a WeChat message that is not a dot command goes. The Orchestrator can start sessions in any project and report back; .u and .home switch from WeChat.",
+      plainTargetAssistant: "Orchestrator",
       plainTargetSession: "Current session",
       ceiling: "Highest approval mode",
       ceilingDescription:
@@ -987,8 +987,8 @@ export default {
     current: "Current",
     noSessions: "No sessions yet",
     fromWeChat: "From WeChat",
-    fromAssistant: "From Assistant",
-    dispatchedByAssistant: "Dispatched by the Assistant",
+    fromAssistant: "From Orchestrator",
+    dispatchedByAssistant: "Dispatched by the Orchestrator",
     usedFromWeChat: "Used from WeChat",
     awaitingApproval: "Waiting for your approval",
     awaitingAnswer: "Waiting for your answer",
@@ -2888,15 +2888,15 @@ export default {
     },
   },
   assistant: {
-    name: "Assistant",
-    emptyTitle: "Tell the Assistant what you need",
+    name: "Orchestrator",
+    emptyTitle: "Tell the Orchestrator what to play",
     emptyDescription:
-      "It finds the right project, hands the work to a session there and reports back here. It never does the work itself.",
-    placeholder: "Describe a task, and the Assistant picks the project",
+      "It plays no instrument itself: it hands each job to a session in the right project, keeps everything in time and reports back here.",
+    placeholder: "Describe a task, and the Orchestrator picks the project",
     targetDescription: "Hands the work to the right project",
     clear: {
       action: "Clear conversation",
-      title: "Clear the Assistant's conversation?",
+      title: "Clear the Orchestrator's conversation?",
       description:
         "Its messages are cleared, and your next message starts a new conversation. Sessions it dispatched stay where they are but no longer report here. Its reminders are removed. Its notes in Memory are kept.",
       confirm: "Clear",
@@ -2995,7 +2995,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "Unable to open the Assistant",
+      title: "Unable to open the Orchestrator",
       description: "Please try again later.",
     },
     skills: {

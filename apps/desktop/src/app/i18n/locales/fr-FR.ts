@@ -267,8 +267,8 @@ export default {
         "Où démarre une nouvelle session depuis WeChat.",
       plainTarget: "Les messages ordinaires vont à",
       plainTargetDescription:
-        "Où va un message WeChat qui n'est pas une commande à point. L'assistant peut lancer des sessions dans n'importe quel projet et en rendre compte ; dans WeChat, .u et .home changent la destination.",
-      plainTargetAssistant: "Assistant",
+        "Où va un message WeChat qui n'est pas une commande à point. Le chef d'orchestre peut lancer des sessions dans n'importe quel projet et en rendre compte ; dans WeChat, .u et .home changent la destination.",
+      plainTargetAssistant: "Chef d’orchestre",
       plainTargetSession: "Session actuelle",
       ceiling: "Mode d’approbation maximal",
       ceilingDescription:
@@ -1003,8 +1003,8 @@ export default {
     current: "Actuelle",
     noSessions: "Aucune session pour le moment",
     fromWeChat: "Depuis WeChat",
-    fromAssistant: "De l’Assistant",
-    dispatchedByAssistant: "Confiée par l’Assistant",
+    fromAssistant: "Du Chef d’orchestre",
+    dispatchedByAssistant: "Confiée par le Chef d’orchestre",
     usedFromWeChat: "Utilisée depuis WeChat",
     awaitingApproval: "En attente de votre approbation",
     awaitingAnswer: "En attente de votre réponse",
@@ -2963,15 +2963,15 @@ export default {
     },
   },
   assistant: {
-    name: "Assistant",
-    emptyTitle: "Dites à l’Assistant ce dont vous avez besoin",
+    name: "Chef d’orchestre",
+    emptyTitle: "Dites au Chef d’orchestre quoi jouer",
     emptyDescription:
-      "Il trouve le bon projet, confie le travail à une session de ce projet et vous en rend compte ici. Il ne fait jamais le travail lui-même.",
-    placeholder: "Décrivez une tâche, l’Assistant choisit le projet",
+      "Il ne joue d’aucun instrument : il confie chaque tâche à une session du bon projet, garde le tempo et vous en rend compte ici.",
+    placeholder: "Décrivez une tâche, le Chef d’orchestre choisit le projet",
     targetDescription: "Confie le travail au bon projet",
     clear: {
       action: "Effacer la conversation",
-      title: "Effacer la conversation de l'Assistant ?",
+      title: "Effacer la conversation du Chef d’orchestre ?",
       description:
         "Ses messages sont effacés, et votre prochain message commence une nouvelle conversation. Les sessions qu'il a confiées restent en place mais ne font plus de rapport ici. Ses rappels sont supprimés. Ses notes dans « Mémoire » sont conservées.",
       confirm: "Effacer",
@@ -3073,7 +3073,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "Impossible d’ouvrir l’Assistant",
+      title: "Impossible d’ouvrir le Chef d’orchestre",
       description: "Veuillez réessayer plus tard.",
     },
     skills: {

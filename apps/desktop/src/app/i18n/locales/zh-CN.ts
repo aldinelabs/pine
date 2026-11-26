@@ -252,8 +252,8 @@ export default {
       defaultProjectDescription: "从微信新建的会话在这里开始。",
       plainTarget: "普通消息发给",
       plainTargetDescription:
-        "不是点命令的微信消息发到哪里。助理可以在任意项目里开会话并回报结果；在微信里也能用 .u 和 .home 切换。",
-      plainTargetAssistant: "助理",
+        "不是点命令的微信消息发到哪里。指挥可以在任意项目里开会话并回报结果；在微信里也能用 .u 和 .home 切换。",
+      plainTargetAssistant: "指挥",
       plainTargetSession: "当前会话",
       ceiling: "最高审批模式",
       ceilingDescription: "由微信驱动的会话，监管程度不会低于这一档。",
@@ -929,8 +929,8 @@ export default {
     current: "当前",
     noSessions: "还没有会话",
     fromWeChat: "来自微信",
-    fromAssistant: "来自助理",
-    dispatchedByAssistant: "由助理派发",
+    fromAssistant: "来自指挥",
+    dispatchedByAssistant: "由指挥派发",
     usedFromWeChat: "在微信中使用过",
     awaitingApproval: "等待你批准",
     awaitingAnswer: "等待你回答",
@@ -2787,15 +2787,15 @@ export default {
     },
   },
   assistant: {
-    name: "助理",
-    emptyTitle: "告诉助理你想做什么",
+    name: "指挥",
+    emptyTitle: "想做什么，交给指挥",
     emptyDescription:
-      "它会找到合适的项目，把活派给那里的会话，并在这里向你汇报。它从不亲自干活。",
-    placeholder: "描述任务，助理会派给合适的项目",
+      "它自己不演奏：把活分给合适项目里的会话，盯着节奏，并在这里向你汇报。",
+    placeholder: "描述任务，指挥会派给合适的项目",
     targetDescription: "把活派给合适的项目",
     clear: {
       action: "清空对话",
-      title: "清空助理的对话？",
+      title: "清空指挥的对话？",
       description:
         "对话中的消息将被清空，下一条消息会开始新的对话。它派出的会话保留在原处，但不再向这里汇报。它设置的提醒会被移除。它在“记忆”中的笔记会保留。",
       confirm: "清空",
@@ -2891,7 +2891,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "无法打开助理",
+      title: "无法打开指挥",
       description: "请稍后再试。",
     },
     skills: {

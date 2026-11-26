@@ -899,7 +899,7 @@ export class AssistantService {
         runtimes.projectOfLiveSession(requester.sessionId)?.id,
       )
     )
-      throw new Error("Only Pine's Assistant can use this tool.");
+      throw new Error("Only Pine's Orchestrator can use this tool.");
     const parsed = OperationSchema.parse(operation);
     this.ownMode = runtimes.approvalModeOfLiveSession(requester.sessionId);
     const projects = (await repository.list()).filter(
@@ -1044,7 +1044,7 @@ export class AssistantService {
       if (!callerMode) throw new Error("The Assistant is no longer open.");
       if (!approvalModeWithin(parsed.approvalMode, callerMode))
         throw new Error(
-          `The Assistant runs in ${callerMode}; it cannot dispatch a session in ${parsed.approvalMode}.`,
+          `The Orchestrator runs in ${callerMode}; it cannot dispatch a session in ${parsed.approvalMode}.`,
         );
       // A turn from WeChat dispatches within WeChat's ceiling, like `.new`:
       // the mode is lowered to it rather than refused, since the model
@@ -1076,7 +1076,7 @@ export class AssistantService {
         project,
         message: serializeAttachmentMessage(
           forwarded,
-          `[Dispatched by Pine's Assistant. Pine reports your reply to the Assistant each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
+          `[Dispatched by Pine's Orchestrator. Pine reports your reply to the Orchestrator each time you finish a turn, so end with what the user needs to know.]\n\n${parsed.message}`,
         ),
         approvalMode,
         locale: parsed.locale,
@@ -1523,7 +1523,7 @@ export class AssistantService {
                 "Settings › Remote control › WeChat › Plain messages go to",
               value:
                 status.settings.plainTarget === "assistant"
-                  ? "Assistant"
+                  ? "Orchestrator"
                   : "Current session",
             },
             {

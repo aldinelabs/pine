@@ -86,7 +86,7 @@ describe("ProjectTabsOverflowMenu", () => {
     await flushPromises();
     const dialog = document.querySelector('[role="alertdialog"]');
     expect(dialog?.textContent).toContain(
-      "Clear the Assistant's conversation?",
+      "Clear the Orchestrator's conversation?",
     );
     expect(dialog?.textContent).toContain("Its notes in Memory are kept.");
     const buttons = [...(dialog?.querySelectorAll("button") ?? [])].map(

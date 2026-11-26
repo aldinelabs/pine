@@ -11,7 +11,6 @@ import {
   WandSparklesIcon,
   BrainIcon,
   GitForkIcon,
-  ConciergeBellIcon,
   PanelRightIcon,
   UserCogIcon,
   LibraryIcon,
@@ -19,6 +18,7 @@ import {
   WorkflowIcon,
   SparklesIcon,
 } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { storeToRefs } from "pinia";
 import { computed, type Component } from "vue";
 import { useI18n } from "vue-i18n";
@@ -68,7 +68,7 @@ const TOPIC_ICONS: Record<HelpTopicId, Component> = {
   "compaction-method": WandSparklesIcon,
   memory: BrainIcon,
   "sub-sessions": GitForkIcon,
-  assistant: ConciergeBellIcon,
+  assistant: OrchestratorIcon,
   workbench: PanelRightIcon,
   "work-style": UserCogIcon,
   skills: LibraryIcon,

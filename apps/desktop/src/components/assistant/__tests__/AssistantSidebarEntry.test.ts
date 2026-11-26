@@ -51,7 +51,7 @@ describe("AssistantSidebarEntry", () => {
     await flushPromises();
 
     const entry = wrapper.get('[data-testid="assistant-entry"]');
-    expect(entry.text()).toBe("助理");
+    expect(entry.text()).toBe("指挥");
     expect(assistant.load).toHaveBeenCalled();
     await entry.trigger("click");
     expect(openAssistant).toHaveBeenCalledOnce();
@@ -119,7 +119,7 @@ describe("AssistantSidebarEntry", () => {
     await flushPromises();
 
     const dialog = document.querySelector('[role="alertdialog"]');
-    expect(dialog?.textContent).toContain("清空助理的对话？");
+    expect(dialog?.textContent).toContain("清空指挥的对话？");
     expect(dialog?.textContent).toContain("不再向这里汇报");
     expect(dialog?.textContent).toContain("提醒会被移除");
     expect(dialog?.textContent).toContain("笔记会保留");

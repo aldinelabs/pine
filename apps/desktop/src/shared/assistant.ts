@@ -9,8 +9,8 @@ import type { PineSessionSummary } from "./sessions";
 
 /** User-facing name, kept in one place until the product name is settled. */
 export const ASSISTANT_DISPLAY_NAME = {
-  "en-US": "Assistant",
-  "zh-CN": "助理",
+  "en-US": "Orchestrator",
+  "zh-CN": "指挥",
 } as const;
 
 /**

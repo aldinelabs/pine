@@ -1757,7 +1757,7 @@ describe("renderAssistantBubbles", () => {
       "按钮间距统一成 8px",
       "要我顺手看下移动端吗？",
     ]);
-    expect(bubbles?.[0]).toMatch(/^\*\*助理\*\*/);
+    expect(bubbles?.[0]).toMatch(/^\*\*指挥\*\*/);
   });
 
   it("joins parts beyond the fourth into the last", () => {

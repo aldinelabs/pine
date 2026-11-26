@@ -211,10 +211,10 @@ describe("tray menu", () => {
     ).toEqual([]);
     expect(
       status({ ...idle, assistant: { running: 2, awaitingApproval: 1 } }),
-    ).toEqual(["Assistant: 2 running, 1 awaiting approval"]);
+    ).toEqual(["Orchestrator: 2 running, 1 awaiting approval"]);
     expect(
       status({ ...idle, assistant: { running: 1, awaitingApproval: 0 } }, true),
-    ).toEqual(["助理：1 个任务运行中，0 个待审批"]);
+    ).toEqual(["指挥：1 个任务运行中，0 个待审批"]);
   });
 
   it("shows a paused WeChat account as switched off but switchable", () => {

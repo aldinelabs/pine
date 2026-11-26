@@ -205,7 +205,7 @@ describe("the Assistant's dispatches", () => {
     ];
     expect(input.project).toBe(blog);
     expect(input.parentSessionId).toBeUndefined();
-    expect(input.message).toMatch(/^\[Dispatched by Pine's Assistant\./);
+    expect(input.message).toMatch(/^\[Dispatched by Pine's Orchestrator\./);
     expect(input.message).toContain("修一下首页样式");
     const stored = JSON.parse(
       await readFile(path.join(root, "dispatches.json"), "utf8"),
@@ -269,7 +269,7 @@ describe("the Assistant's dispatches", () => {
       { message: string },
     ];
     const { attachments, prompt } = parseAttachmentMessage(input.message);
-    expect(prompt).toMatch(/^\[Dispatched by Pine's Assistant\./);
+    expect(prompt).toMatch(/^\[Dispatched by Pine's Orchestrator\./);
     expect(prompt).toContain("修一下首页样式");
     expect(attachments[0]).toEqual(picked);
     const copy = attachments[1];
@@ -374,7 +374,7 @@ describe("the Assistant's dispatches", () => {
 
     await expect(
       service.answer({ sessionId: ELSEWHERE, ownerId: 7 }, { op: "overview" }),
-    ).rejects.toThrow("Only Pine's Assistant can use this tool.");
+    ).rejects.toThrow("Only Pine's Orchestrator can use this tool.");
     expect(startBackgroundSession).not.toHaveBeenCalled();
   });
 
@@ -850,7 +850,7 @@ describe("watches", () => {
       await service.watches.tick();
       await service.turnEnded(ASSISTANT_SESSION, "idle");
       expect(notify).toHaveBeenCalledExactlyOnceWith({
-        title: "Assistant",
+        title: "Orchestrator",
         body: "首页已修好。",
       });
     } finally {

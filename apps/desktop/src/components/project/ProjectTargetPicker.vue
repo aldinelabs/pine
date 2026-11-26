@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ChevronDownIcon, ConciergeBellIcon, PlusIcon } from "@lucide/vue";
+import { ChevronDownIcon, PlusIcon } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { storeToRefs } from "pinia";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -81,10 +82,7 @@ function created(project: PineProject): void {
         :aria-label="t('project.composer.sendTo', { name: selectedName })"
         :title="t('project.composer.sendToLabel')"
       >
-        <ConciergeBellIcon
-          v-if="isAssistantSelected"
-          data-icon="inline-start"
-        />
+        <OrchestratorIcon v-if="isAssistantSelected" data-icon="inline-start" />
         <component
           :is="projectIconComponent(selected)"
           v-else
@@ -109,7 +107,7 @@ function created(project: PineProject): void {
           data-testid="project-target-assistant"
           :value="ASSISTANT_PROJECT_ID"
         >
-          <ConciergeBellIcon />
+          <OrchestratorIcon />
           <span class="flex min-w-0 flex-col gap-0.5">
             <span class="truncate">{{ t("assistant.name") }}</span>
             <span class="truncate text-xs font-normal text-muted-foreground">

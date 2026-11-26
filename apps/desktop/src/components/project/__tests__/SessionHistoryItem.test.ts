@@ -144,7 +144,7 @@ describe("SessionHistoryItem", () => {
     expect(marker(session).exists()).toBe(false);
     expect(
       marker({ ...session, fromAssistant: true }).attributes("title"),
-    ).toBe("From Assistant");
+    ).toBe("From Orchestrator");
   });
 
   it("puts what waits on the user first in the indent column", async () => {

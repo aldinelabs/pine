@@ -2,12 +2,12 @@
 import {
   ChevronRightIcon,
   CircleCheckIcon,
-  ConciergeBellIcon,
   LoaderCircleIcon,
 } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 </script>
 
-<!-- The Assistant's conversation: a request from the user, then two
+<!-- The Orchestrator's conversation: a request from the user, then two
      dispatch cards pointing at sessions in two projects, one done, one
      still working. -->
 <template>
@@ -15,7 +15,7 @@ import {
     <div
       class="bg-background ring-foreground/10 flex items-center gap-2 rounded-xl px-3 py-2.5 shadow-sm ring-1"
     >
-      <ConciergeBellIcon class="text-primary size-4 shrink-0" />
+      <OrchestratorIcon class="text-primary size-4 shrink-0" />
       <span class="bg-foreground/40 h-1.5 w-1/2 rounded-full" />
     </div>
     <div

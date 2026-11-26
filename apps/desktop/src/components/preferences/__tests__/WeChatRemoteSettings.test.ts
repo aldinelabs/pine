@@ -489,7 +489,7 @@ describe("WeChat remote settings", () => {
       selectOf(wrapper, 0)
         .findAll("[data-option]")
         .map((option) => option.text()),
-    ).toEqual(["Assistant", "Current session"]);
+    ).toEqual(["Orchestrator", "Current session"]);
     await expectPatch({ plainTarget: "session" }, () =>
       selectOf(wrapper, 0).vm.$emit("update:modelValue", "session"),
     );

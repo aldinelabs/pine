@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ConciergeBell, Download, Trash2 } from "@lucide/vue";
+import { Download, Trash2 } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SessionDeleteDialog from "@/components/sessions/SessionDeleteDialog.vue";
@@ -96,7 +97,7 @@ const STATUS_LABELS = {
           :class="{ 'bg-accent text-accent-foreground': isContextMenuOpen }"
           @click="openAssistant"
         >
-          <ConciergeBell aria-hidden="true" />
+          <OrchestratorIcon aria-hidden="true" />
           <span>{{ t("assistant.name") }}</span>
           <span v-if="status !== 'idle'" class="sr-only">{{
             t(STATUS_LABELS[status])

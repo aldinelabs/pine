@@ -17,6 +17,24 @@ describe("the Assistant's prompt", () => {
     expect(ASSISTANT_SYSTEM_PROMPT).not.toContain("${");
   });
 
+  it("introduces itself by the name Pine shows in each language", () => {
+    expect(ASSISTANT_SYSTEM_PROMPT).toMatch(
+      /^You are the Orchestrator inside Pine/,
+    );
+    for (const name of [
+      "指挥",
+      "指揮",
+      "Dirigent",
+      "Chef d'orchestre",
+      "Director",
+      "指揮者",
+      "지휘자",
+      "Дирижёр",
+    ])
+      expect(ASSISTANT_SYSTEM_PROMPT).toContain(name);
+    expect(ASSISTANT_SYSTEM_PROMPT).not.toMatch(/\bthe Assistant\b/);
+  });
+
   it("keeps facts and approvals out of the casual style", () => {
     expect(ASSISTANT_SYSTEM_PROMPT).toContain(
       "Session titles and project names appear in full",

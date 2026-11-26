@@ -267,8 +267,8 @@ export default {
       defaultProjectDescription: "Dónde empieza una sesión nueva desde WeChat.",
       plainTarget: "Los mensajes normales van a",
       plainTargetDescription:
-        "Adónde va un mensaje de WeChat que no es un comando con punto. El asistente puede iniciar sesiones en cualquier proyecto e informar del resultado; en WeChat, .u y .home cambian el destino.",
-      plainTargetAssistant: "Asistente",
+        "Adónde va un mensaje de WeChat que no es un comando con punto. El director puede iniciar sesiones en cualquier proyecto e informar del resultado; en WeChat, .u y .home cambian el destino.",
+      plainTargetAssistant: "Director",
       plainTargetSession: "Sesión actual",
       ceiling: "Modo de aprobación máximo",
       ceilingDescription:
@@ -1003,8 +1003,8 @@ export default {
     current: "Actual",
     noSessions: "Aún no hay sesiones",
     fromWeChat: "Desde WeChat",
-    fromAssistant: "Del Asistente",
-    dispatchedByAssistant: "Encargada por el Asistente",
+    fromAssistant: "Del Director",
+    dispatchedByAssistant: "Encargada por el Director",
     usedFromWeChat: "Usada desde WeChat",
     awaitingApproval: "Esperando tu aprobación",
     awaitingAnswer: "Esperando tu respuesta",
@@ -2948,15 +2948,15 @@ export default {
     },
   },
   assistant: {
-    name: "Asistente",
-    emptyTitle: "Cuéntale al Asistente lo que necesitas",
+    name: "Director",
+    emptyTitle: "Dile al Director qué tocar",
     emptyDescription:
-      "Encuentra el proyecto adecuado, encarga el trabajo a una sesión de ese proyecto y te informa aquí. Nunca hace el trabajo por sí mismo.",
-    placeholder: "Describe una tarea y el Asistente elegirá el proyecto",
+      "No toca ningún instrumento: encarga cada trabajo a una sesión del proyecto adecuado, lo lleva todo a tiempo y te informa aquí.",
+    placeholder: "Describe una tarea y el Director elegirá el proyecto",
     targetDescription: "Encarga el trabajo al proyecto adecuado",
     clear: {
       action: "Borrar conversación",
-      title: "¿Borrar la conversación del Asistente?",
+      title: "¿Borrar la conversación del Director?",
       description:
         "Sus mensajes se borran y tu próximo mensaje empieza una conversación nueva. Las sesiones que encargó se quedan donde están, pero ya no informan aquí. Sus recordatorios se eliminan. Sus notas en «Memoria» se conservan.",
       confirm: "Borrar",
@@ -3059,7 +3059,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "No se puede abrir el Asistente",
+      title: "No se puede abrir el Director",
       description: "Inténtalo de nuevo más tarde.",
     },
     skills: {

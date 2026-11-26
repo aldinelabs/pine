@@ -7,9 +7,9 @@ import {
   PlusIcon,
   WorkflowIcon,
   XIcon,
-  ConciergeBellIcon,
   MessageSquareShareIcon,
 } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { isAssistantProject } from "@/shared/assistant";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
@@ -619,7 +619,7 @@ watch(
 
 function tabIcon(tab: ProjectContentTab) {
   if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
-  if (isAssistantProject(tab.projectId)) return ConciergeBellIcon;
+  if (isAssistantProject(tab.projectId)) return OrchestratorIcon;
   if (tab.state !== "bound") return MessageSquareTextIcon;
   // An automation run keeps its icon until the user replies to it.
   if (sessionStore.automationRunOf(tab.sessionId)) return WorkflowIcon;

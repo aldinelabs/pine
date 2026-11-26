@@ -197,13 +197,13 @@ export const COMMANDS: readonly CommandSpec[] = [
   }),
   row({
     name: "home",
-    zhAliases: ["助理"],
+    zhAliases: ["指挥", "助理"],
     cls: "M",
     stale: "drop",
     params: "",
     summary: {
-      zh: "普通消息改回发给助理（.u 直连某个会话）",
-      en: "Send plain text to the Assistant again (.u talks to a session directly)",
+      zh: "普通消息改回发给指挥（.u 直连某个会话）",
+      en: "Send plain text to the Orchestrator again (.u talks to a session directly)",
     },
     example: ".home",
   }),

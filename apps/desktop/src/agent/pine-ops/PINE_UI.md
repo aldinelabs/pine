@@ -125,7 +125,7 @@ window
 │   ├── leading: [Windows: Pine logo, Pine Settings] · Toggle left sidebar
 │   └── trailing: Toggle workbench · [macOS/Linux: Pine Settings]
 ├── left sidebar                      (Mod+B)
-│   ├── top menu: Assistant · Search sessions · New session · Projects · More
+│   ├── top menu: Orchestrator · Search sessions · New session · Projects · More
 │   │   └── More menu (opens to the right): Automations · Skills · MCP servers · Memory · Guides
 │   ├── session list (all projects)
 │   │   └── project group (collapsible)
@@ -156,9 +156,9 @@ window
 
 Top menu:
 
-- Assistant: opens the Assistant's tab (see Assistant tab). It belongs to no
+- Orchestrator: opens the Orchestrator's tab (see Orchestrator tab). It belongs to no
   project and stays above every project. Its row shows a small spinner while
-  the Assistant works and a breathing amber dot while its conversation waits
+  the Orchestrator works and a breathing amber dot while its conversation waits
   for the user's approval or answer. Right-clicking it offers Export and
   Clear conversation (as the tab's More actions menu).
 - Search sessions: opens the session search overlay, which searches titles and
@@ -189,8 +189,8 @@ Session list, one collapsible group per project:
   also shimmers. An automation run shows a workflow
   icon and, when idle, the time it started. A session started from WeChat
   shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to
-  shows the same icon labelled "Used from WeChat". A session the Assistant
-  dispatched shows a forwarded-message icon ("From Assistant"). A session with sub-sessions shows
+  shows the same icon labelled "Used from WeChat". A session the Orchestrator
+  dispatched shows a forwarded-message icon ("From Orchestrator"). A session with sub-sessions shows
   a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
   sub-sessions ({count})") that expands or collapses them (clicking the row of the
   session already open, or the Right and Left arrow keys while the row has
@@ -239,12 +239,12 @@ Tab bar ("Open content"):
   last project chosen for a draft when history is not available.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete;
-  for the Assistant's tab, Export and Clear conversation.
+  for the Orchestrator's tab, Export and Clear conversation.
 - A running session's tab title shimmers; a tab for an automation run keeps a
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
-  other session tabs. The Assistant's tab is titled "Assistant" with a
-  concierge bell; a session the Assistant dispatched shows a forwarded-message
+  other session tabs. The Orchestrator's tab is titled "Orchestrator" with a
+  conductor's baton; a session the Orchestrator dispatched shows a forwarded-message
   icon.
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
@@ -717,12 +717,12 @@ From top to bottom:
      and Steer tooltips also show Option+Enter (Alt+Enter), which sends
      without scrolling to the bottom; Stop's shows esc.
 
-#### Assistant tab
+#### Orchestrator tab
 
-The Assistant is one lasting conversation that belongs to no project: the user
+The Orchestrator is one lasting conversation that belongs to no project: the user
 says what they need, it hands the work to a session in the right project and
-reports back. It never does the work itself. There is only one Assistant
-conversation; every message sent to the Assistant, from the sidebar entry, the
+reports back. It never does the work itself. There is only one Orchestrator
+conversation; every message sent to the Orchestrator, from the sidebar entry, the
 quick composer or WeChat, goes into it. If another window already shows it,
 that window comes forward instead.
 
@@ -730,28 +730,30 @@ It is an ordinary session tab, pinned to the sidebar entry, with these
 differences:
 
 - Empty, it shows the same Pine welcome as a new session, titled "Tell the
-  Assistant what you need", with a line on what the Assistant does.
+  Orchestrator what to play", with a line saying it plays no instrument
+  itself: it hands each job to a session in the right project and reports
+  back.
 - The composer is the usual one, with the placeholder "Describe a task, and
-  the Assistant picks the project". It has the usual attachments ("+") menu
+  the Orchestrator picks the project". It has the usual attachments ("+") menu
   (files, folders and sessions), drag and drop and pasted images, but no
-  folder picker or @ mentions. The Assistant does not open attachments: it
+  folder picker or @ mentions. The Orchestrator does not open attachments: it
   sees each one's name, type and size, and hands them to the session it
   dispatches, which can open them. Files sent from WeChat while plain text
-  goes to the Assistant are attached the same way. Its model and
+  goes to the Orchestrator are attached the same way. Its model and
   permission mode menus work as in any session and are kept with the
   conversation; YOLO is not offered. The permission mode is also the most
-  any session the Assistant dispatches may use (WeChat's Highest mode can
+  any session the Orchestrator dispatches may use (WeChat's Highest mode can
   lower it further).
 - The tab's More actions menu (and the sidebar entry's right-click menu) has
   Export and Clear conversation; it has no Rename. Clear conversation asks
-  first ("Clear the Assistant's conversation?", confirmed with Clear): the
+  first ("Clear the Orchestrator's conversation?", confirmed with Clear): the
   messages are cleared, sessions it dispatched stay where they are but no
   longer report here, its reminders are removed, and its notes in Memory are
-  kept. The tab stays open on the empty Assistant, and the next message starts
+  kept. The tab stays open on the empty Orchestrator, and the next message starts
   a new conversation.
 - Reports from dispatched sessions wait in the conversation until the user
   next writes; they do not start a reply on their own.
-- Its notes show as the "Assistant" tab of the Memory manager.
+- Its notes show as the "Orchestrator" tab of the Memory manager.
 - Each user message shows where it came from: "From desktop" or "From
   WeChat".
 - Each dispatch shows as a card with its state ("Dispatching…",
@@ -760,18 +762,18 @@ differences:
   card with that state ("Finished", "Failed", "Stopped", "Waiting for your
   approval") appears in the conversation. Clicking a card that names a
   session opens that session.
-- Approvals the Assistant needs use the usual Approval required card; only
-  the user can answer it. The Assistant asks this way before it sends to,
+- Approvals the Orchestrator needs use the usual Approval required card; only
+  the user can answer it. The Orchestrator asks this way before it sends to,
   stops or renames a session it did not dispatch, and before it runs an
   automation now.
 - A reminder the user asked for ("tell me when X finishes", "remind me at
   9 tomorrow", "brief me every day at 18:00") shows as a bell marker
-  "Reminder: …" when it goes off, and the Assistant then answers. A reminder
+  "Reminder: …" when it goes off, and the Orchestrator then answers. A reminder
   set from WeChat is answered in WeChat; when WeChat cannot take another
   reply, or the reminder was set on the desktop, the answer also shows as a
-  desktop notification titled "Assistant". Reminders are listed and
-  cancelled by asking the Assistant; clearing the conversation removes them.
-- Besides dispatching, the Assistant can on request list automations, turn
+  desktop notification titled "Orchestrator". Reminders are listed and
+  cancelled by asking the Orchestrator; clearing the conversation removes them.
+- Besides dispatching, the Orchestrator can on request list automations, turn
   one off or run one now (only when its permission mode and, from
   WeChat, WeChat's limit allow Autonomous Work), list, create (in a folder
   the user names) and rename projects, read settings, and list what is
@@ -780,12 +782,12 @@ differences:
   the user to the place on the computer (for example More › Automations, or
   `.auto <name> on` in WeChat).
 - When a session it dispatched, or its own conversation, has cost more than
-  US$5, the Assistant says so in its report, again at each further multiple.
+  US$5, the Orchestrator says so in its report, again at each further multiple.
 - After compaction the earlier conversation stays readable above the
   compaction marker, as in any session.
 
-A session the Assistant dispatched shows "Dispatched by the Assistant" at the
-top of its transcript; clicking it opens the Assistant's tab.
+A session the Orchestrator dispatched shows "Dispatched by the Orchestrator" at the
+top of its transcript; clicking it opens the Orchestrator's tab.
 
 #### File tab
 
@@ -1282,14 +1284,14 @@ the user opens themselves do not pulse.
     "Scan again" when needed, "Disconnect" (asks first: sessions only WeChat
     holds stop and the WeChat permission settings return to their defaults),
     "Receive tasks from WeChat" (off pauses it; only this computer can turn
-    it back on), "Plain messages go to" ("Assistant" or "Current session":
-    where a WeChat message that is not a dot command goes; the Assistant can
+    it back on), "Plain messages go to" ("Orchestrator" or "Current session":
+    where a WeChat message that is not a dot command goes; the Orchestrator can
     start sessions in any project, relays their approval cards and reports
     back, its WeChat replies arriving as up to four short messages, while results of the sessions it started arrive as the usual
-    pushes; new connections start on Assistant, connections made before the
-    Assistant existed stay on Current session and get a one-time note in
-    WeChat; in WeChat `.u` talks to a session directly and `.home` (or 助理)
-    goes back to the Assistant), "Default project" (projects or "No Project"), "Highest
+    pushes; new connections start on Orchestrator, connections made before the
+    Orchestrator existed stay on Current session and get a one-time note in
+    WeChat; in WeChat `.u` talks to a session directly and `.home` (or 指挥; the older 助理 still works)
+    goes back to the Orchestrator), "Default project" (projects or "No Project"), "Highest
     approval mode" (Let Me Review, Auto Approve, Autonomous Work, YOLO, with
     a warning under YOLO; choosing YOLO asks for confirmation first),
     "Default approval mode" (only modes within the
@@ -1306,7 +1308,7 @@ the user opens themselves do not pulse.
     (or .?) lists the commands, plain text goes where "Plain messages go
     to" says, and replying 批准 12 or .y 12 approves card 12 (拒绝 12 or .d 12
     rejects it; only the whole message counts, never a voice message, and
-    the Assistant can never approve),
+    the Orchestrator can never approve),
     and tasks that reach Pine more than 10 minutes after they were sent wait
     until they are confirmed in WeChat. Below the notes, the "Run Pine on a
     server" row has a "View docs" button that opens the server guide. If the
@@ -1373,9 +1375,9 @@ the user opens themselves do not pulse.
   "MCP servers" guide): servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
 - Memory manager ("How memory works" beside the title opens the "Memory"
-  guide): the saved notes in tabs, This project, Assistant (the Assistant's
-  own notes) and All projects; opened from the Assistant's tab it shows only
-  Assistant and All projects; each note with its name, one-line summary, an Unverified badge
+  guide): the saved notes in tabs, This project, Orchestrator (the Orchestrator's
+  own notes) and All projects; opened from the Orchestrator's tab it shows only
+  Orchestrator and All projects; each note with its name, one-line summary, an Unverified badge
   when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
   with Summary, Details and a Verified switch, plus Delete, which asks first.
   Refresh memories reloads the list. It works whether or not Remember across
@@ -1425,8 +1427,8 @@ the user opens themselves do not pulse.
   manager, Unverified notes, turning memory off),
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
   appear in the sidebar, notices to the parent, limits),
-  "Assistant" (one page: handing work to the Assistant, dispatch cards,
-  "From Assistant" marks, approvals, its model and mode; reminders and
+  "Orchestrator" (one page: handing work to the Orchestrator, dispatch cards,
+  "From Orchestrator" marks, approvals, its model and mode; reminders and
   briefings, what else it can manage, what stays with the user, cost
   reminders),
   "Workbench" (the workbench and its panels; Artifacts with folders,
@@ -1474,8 +1476,8 @@ A floating composer opened with a global shortcut from any app (set in Pine
 Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window. Its project picker also
-offers "Assistant" ("Hands the work to the right project"): the message then
-goes to the Assistant's conversation with its attachments and captured
+offers "Orchestrator" ("Hands the work to the right project"): the message then
+goes to the Orchestrator's conversation with its attachments and captured
 context, as to any conversation. The context shows as a
 strip above the input: from the moment the composer appears, a grey placeholder
 holds its place while the app is captured, and the screenshot, app and window
@@ -1508,8 +1510,8 @@ for Browser access, Remote Control via Aldine and
 connected), a "WeChat: scan again needed" line when WeChat's login has to be
 renewed, a "Keep computer awake for remote control" checkbox (the same
 setting as in Settings › Remote control), "Manage more settings…" (opens
-Pine Settings › Remote control), while sessions the Assistant dispatched are
-working a line such as "Assistant: 2 running, 1 awaiting approval", a count of
+Pine Settings › Remote control), while sessions the Orchestrator dispatched are
+working a line such as "Orchestrator: 2 running, 1 awaiting approval", a count of
 running sessions while any run,
 and Quit Pine. Quitting from the menu is the way to stop automations, Remote Control and WeChat remote.
 

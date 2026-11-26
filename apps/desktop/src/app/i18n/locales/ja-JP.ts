@@ -268,8 +268,8 @@ export default {
         "WeChat から作成したセッションを開始する場所です。",
       plainTarget: "通常のメッセージの送り先",
       plainTargetDescription:
-        "ドットコマンド以外の WeChat メッセージの送り先です。アシスタントはどのプロジェクトでもセッションを始めて結果を報告できます。WeChat から .u と .home でも切り替えられます。",
-      plainTargetAssistant: "アシスタント",
+        "ドットコマンド以外の WeChat メッセージの送り先です。指揮者はどのプロジェクトでもセッションを始めて結果を報告できます。WeChat から .u と .home でも切り替えられます。",
+      plainTargetAssistant: "指揮者",
       plainTargetSession: "現在のセッション",
       ceiling: "最も緩い承認モード",
       ceilingDescription:
@@ -995,8 +995,8 @@ export default {
     current: "現在",
     noSessions: "セッションはまだありません",
     fromWeChat: "WeChat から",
-    fromAssistant: "アシスタントから",
-    dispatchedByAssistant: "アシスタントが依頼したセッション",
+    fromAssistant: "指揮者から",
+    dispatchedByAssistant: "指揮者が依頼したセッション",
     usedFromWeChat: "WeChat で使用",
     awaitingApproval: "承認待ち",
     awaitingAnswer: "回答待ち",
@@ -2921,18 +2921,17 @@ export default {
     },
   },
   assistant: {
-    name: "アシスタント",
-    emptyTitle: "アシスタントにやりたいことを伝えましょう",
+    name: "指揮者",
+    emptyTitle: "指揮者に演目を伝えましょう",
     emptyDescription:
-      "適切なプロジェクトを見つけ、そこのセッションに作業を任せて、ここで報告します。作業そのものは行いません。",
-    placeholder:
-      "タスクを入力すると、アシスタントが適切なプロジェクトに任せます",
+      "自分では演奏しません。適切なプロジェクトのセッションに作業を任せ、全体のテンポを保ち、ここで報告します。",
+    placeholder: "タスクを入力すると、指揮者が適切なプロジェクトに任せます",
     targetDescription: "作業を適切なプロジェクトに任せます",
     clear: {
       action: "会話をクリア",
-      title: "アシスタントの会話をクリアしますか？",
+      title: "指揮者の会話をクリアしますか？",
       description:
-        "メッセージは消去され、次のメッセージから新しい会話が始まります。アシスタントが任せたセッションはそのまま残りますが、ここには報告しなくなります。設定したリマインダーは削除されます。「メモリ」にあるメモは残ります。",
+        "メッセージは消去され、次のメッセージから新しい会話が始まります。指揮者が任せたセッションはそのまま残りますが、ここには報告しなくなります。設定したリマインダーは削除されます。「メモリ」にあるメモは残ります。",
       confirm: "クリア",
     },
     source: {
@@ -3030,7 +3029,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "アシスタントを開けません",
+      title: "指揮者を開けません",
       description: "しばらくしてからもう一度お試しください。",
     },
     skills: {
