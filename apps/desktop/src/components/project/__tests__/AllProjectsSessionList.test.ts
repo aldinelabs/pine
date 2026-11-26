@@ -147,7 +147,7 @@ describe("AllProjectsSessionList", () => {
       .findAll("button");
     // The Assistant's entry sits above them all, outside any project.
     expect(actions.map((button) => button.text())).toEqual([
-      "指挥",
+      "指挥中心",
       "搜索会话⌘K",
       "新会话⌘N",
       "项目管理⌘P",
@@ -695,7 +695,7 @@ describe("the sidebar's highlighted entry", () => {
     const assistant = tabs.openAssistant();
     await router.push({ query: { tab: assistant.id } });
     await flushPromises();
-    expect(activeLabels(wrapper)).toEqual(["指挥"]);
+    expect(activeLabels(wrapper)).toEqual(["指挥中心"]);
 
     const draft = tabs.createSessionTab();
     expect(draft.id).not.toBe(assistant.id);

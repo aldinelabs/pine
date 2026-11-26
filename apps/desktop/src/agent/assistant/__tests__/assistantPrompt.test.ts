@@ -22,8 +22,8 @@ describe("the Assistant's prompt", () => {
       /^You are the Orchestrator inside Pine/,
     );
     for (const name of [
-      "指挥",
-      "指揮",
+      "指挥中心",
+      "指揮中心",
       "Dirigent",
       "Chef d'orchestre",
       "Director",

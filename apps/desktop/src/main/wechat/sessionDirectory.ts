@@ -2052,7 +2052,7 @@ export class SessionDirectory {
 }
 
 function assistantLabel(lang: ReplyLanguage): string {
-  return lang === "zh" ? "指挥" : "Orchestrator";
+  return lang === "zh" ? "指挥中心" : "Orchestrator";
 }
 
 function askSession(ask: Ask): string | undefined {

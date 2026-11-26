@@ -252,8 +252,8 @@ export default {
       defaultProjectDescription: "從微信新建的工作階段在這裡開始。",
       plainTarget: "一般訊息傳給",
       plainTargetDescription:
-        "不是點命令的微信訊息傳到哪裡。指揮可以在任何專案裡開工作階段並回報結果；在微信裡也能用 .u 和 .home 切換。",
-      plainTargetAssistant: "指揮",
+        "不是點命令的微信訊息傳到哪裡。指揮中心可以在任何專案裡開工作階段並回報結果；在微信裡也能用 .u 和 .home 切換。",
+      plainTargetAssistant: "指揮中心",
       plainTargetSession: "目前的工作階段",
       ceiling: "最高核准模式",
       ceilingDescription: "由微信驅動的工作階段，監管程度不會低於這一檔。",
@@ -932,8 +932,8 @@ export default {
     current: "當前",
     noSessions: "還沒有會話",
     fromWeChat: "來自微信",
-    fromAssistant: "來自指揮",
-    dispatchedByAssistant: "由指揮派發",
+    fromAssistant: "來自指揮中心",
+    dispatchedByAssistant: "由指揮中心派發",
     usedFromWeChat: "在微信中使用過",
     awaitingApproval: "等待你核准",
     awaitingAnswer: "等待你回答",
@@ -2791,15 +2791,15 @@ export default {
     },
   },
   assistant: {
-    name: "指揮",
+    name: "指揮中心",
     emptyTitle: "有什麼事，儘管交代",
     emptyDescription:
-      "指揮會把工作派給合適專案裡的對話、跟進進度，完成或需要你拿主意時，回到這裡告訴你。",
+      "指揮中心會把工作派給合適專案裡的對話、跟進進度，完成或需要你拿主意時，回到這裡告訴你。",
     placeholder: "像跟同事說話一樣交代任務……",
     targetDescription: "把工作派給合適的專案",
     clear: {
       action: "清空對話",
-      title: "清空指揮的對話？",
+      title: "清空指揮中心的對話？",
       description:
         "對話中的訊息將被清空，下一則訊息會開始新的對話。它派出的工作階段保留在原處，但不再向這裡回報。它設定的提醒會被移除。它在「記憶」中的筆記會保留。",
       confirm: "清空",
@@ -2896,7 +2896,7 @@ export default {
   },
   errors: {
     assistantOpen: {
-      title: "無法開啟指揮",
+      title: "無法開啟指揮中心",
       description: "請稍後再試。",
     },
     skills: {

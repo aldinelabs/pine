@@ -214,7 +214,7 @@ describe("tray menu", () => {
     ).toEqual(["Orchestrator: 2 running, 1 awaiting approval"]);
     expect(
       status({ ...idle, assistant: { running: 1, awaitingApproval: 0 } }, true),
-    ).toEqual(["指挥：1 个任务运行中，0 个待审批"]);
+    ).toEqual(["指挥中心：1 个任务运行中，0 个待审批"]);
   });
 
   it("shows a paused WeChat account as switched off but switchable", () => {

@@ -244,7 +244,7 @@ Tab bar ("Open content"):
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
   other session tabs. The Orchestrator's tab is titled "Orchestrator" with a
-  conductor's baton; a session the Orchestrator dispatched shows a forwarded-message
+  network icon (one node branching to others); a session the Orchestrator dispatched shows a forwarded-message
   icon.
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
@@ -1296,7 +1296,7 @@ the user opens themselves do not pulse.
     back, its WeChat replies arriving as up to four short messages, while results of the sessions it started arrive as the usual
     pushes; new connections start on Orchestrator, connections made before the
     Orchestrator existed stay on Current session and get a one-time note in
-    WeChat; in WeChat `.u` talks to a session directly and `.home` (or 指挥; the older 助理 still works)
+    WeChat; in WeChat `.u` talks to a session directly and `.home` (or 指挥中心; the older 指挥 and 助理 still work)
     goes back to the Orchestrator), "Default project" (projects or "No Project"), "Highest
     approval mode" (Let Me Review, Auto Approve, Autonomous Work, YOLO, with
     a warning under YOLO; choosing YOLO asks for confirmation first),

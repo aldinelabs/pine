@@ -233,5 +233,5 @@ it("leaves out the project scope inside the Assistant", async () => {
   wrappers.push(wrapper);
   await flushPromises();
   const tabs = findAll('[role="tab"]').map((tab) => tab.text());
-  expect(tabs).toEqual(["指挥", "所有项目"]);
+  expect(tabs).toEqual(["指挥中心", "所有项目"]);
 });

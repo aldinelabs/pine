@@ -141,7 +141,7 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
     entries.push({
       type: "status",
       label: chinese
-        ? `指挥：${assistant.running} 个任务运行中，${assistant.awaitingApproval} 个待审批`
+        ? `指挥中心：${assistant.running} 个任务运行中，${assistant.awaitingApproval} 个待审批`
         : `Orchestrator: ${assistant.running} running, ${assistant.awaitingApproval} awaiting approval`,
     });
   if (state.runningSessions > 0)

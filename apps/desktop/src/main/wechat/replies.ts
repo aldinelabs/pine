@@ -498,13 +498,13 @@ const HELP_INTRO: Record<L, string> = {
 
 /** The intro when plain text goes to the Assistant. */
 const HELP_INTRO_ASSISTANT: Record<L, string> = {
-  zh: "**Pine 微信命令**\n以 `.` 或 `。` 开头；直接发文字 = 发给指挥，它替你派活和汇报",
+  zh: "**Pine 微信命令**\n以 `.` 或 `。` 开头；直接发文字 = 发给指挥中心，它替你派活和汇报",
   en: "**Pine WeChat commands**\nStart with `.` or `。`; plain text goes to the Orchestrator, which dispatches work and reports back",
 };
 
 /** The help row of `.home`, shown where Pine has an Assistant. */
 const HELP_HOME_ROW: Record<L, readonly [string, string]> = {
-  zh: ["`.home`", "回到指挥"],
+  zh: ["`.home`", "回到指挥中心"],
   en: ["`.home`", "back to the Orchestrator"],
 };
 
@@ -1053,7 +1053,7 @@ export function renderAssistantPages(lang: L, markdown: string): string[] {
   if (!text) return [];
   return pagedText(
     lang,
-    `**${pick(lang, "指挥", "Orchestrator")}**`,
+    `**${pick(lang, "指挥中心", "Orchestrator")}**`,
     text,
     LAST_MAX_PAGES,
   );
@@ -1702,10 +1702,10 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     pick(
       lang,
       blocks(
-        "好的，之后的普通消息发给 **指挥**",
+        "好的，之后的普通消息发给 **指挥中心**",
         quote(
           attachments > 0
-            ? `暂存的 ${attachments} 个附件会随下一条消息交给指挥 · \`.drop\` 丢弃 · \`.u\` 直连会话`
+            ? `暂存的 ${attachments} 个附件会随下一条消息交给指挥中心 · \`.drop\` 丢弃 · \`.u\` 直连会话`
             : "`.u` 直连某个会话 · 审批仍用 `.y 编号`",
         ),
       ),
@@ -1723,12 +1723,12 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
       route === "assistant"
         ? pick(
             lang,
-            "普通消息 → 指挥 · `.u` 直连会话",
+            "普通消息 → 指挥中心 · `.u` 直连会话",
             "Plain text → Orchestrator · `.u` talks to a session",
           )
         : pick(
             lang,
-            "普通消息 → 当前会话 · `.home` 交给指挥",
+            "普通消息 → 当前会话 · `.home` 交给指挥中心",
             "Plain text → current session · `.home` hands it to the Orchestrator",
           ),
     ),
@@ -1736,7 +1736,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
     quote(
       pick(
         lang,
-        "新功能：Pine 新增了 **指挥** 来替你在各个项目里派活、盯进度、汇报结果。发 `.home` 让普通消息交给它；`.u` 随时直连会话。你的普通消息目前仍发给当前会话，也可以在电脑上的 设置 › 远程控制 › 微信 里切换。",
+        "新功能：Pine 新增了 **指挥中心** 来替你在各个项目里派活、盯进度、汇报结果。发 `.home` 让普通消息交给它；`.u` 随时直连会话。你的普通消息目前仍发给当前会话，也可以在电脑上的 设置 › 远程控制 › 微信 里切换。",
         "New: Pine now has an **Orchestrator** that dispatches work across your projects, follows it and reports back. Send `.home` to give it your plain text; `.u` talks to a session directly any time. Your plain text still goes to the current session for now; you can also switch in Settings › Remote Control › WeChat on the computer.",
       ),
     ),
@@ -1866,7 +1866,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
         ),
         quote(
           data.home
-            ? "直接发文字继续 · `.r` 看上次回复 · `.home` 回到指挥"
+            ? "直接发文字继续 · `.r` 看上次回复 · `.home` 回到指挥中心"
             : "直接发文字继续 · `.r` 看上次回复",
         ),
       ),
@@ -2830,18 +2830,18 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   },
   "T-ASSISTANT": (lang, { text, page }) =>
     blocks(
-      `**${pick(lang, "指挥", "Orchestrator")}**`,
+      `**${pick(lang, "指挥中心", "Orchestrator")}**`,
       text,
       page ? pageFooter(lang, page) : undefined,
     ),
   "T-ASSISTANT-FAILED": (lang, { error }) =>
     blocks(
-      `**${pick(lang, "指挥", "Orchestrator")}** · ${pick(lang, "出错了", "Failed")}`,
+      `**${pick(lang, "指挥中心", "Orchestrator")}** · ${pick(lang, "出错了", "Failed")}`,
       escapeInline(truncate(neutralise(error), 200)),
       quote(
         pick(
           lang,
-          "直接发消息可重试；点命令不经过指挥，仍然可用。",
+          "直接发消息可重试；点命令不经过指挥中心，仍然可用。",
           "Send a message to retry; dot commands do not go through the Orchestrator and still work.",
         ),
       ),
@@ -3127,7 +3127,7 @@ const TEMPLATES: { [K in ReplyId]: Template<K> } = {
   "E-NOASSIST": (lang) =>
     pick(
       lang,
-      "这台电脑上的 Pine 没有指挥，普通消息发给当前会话。",
+      "这台电脑上的 Pine 没有指挥中心，普通消息发给当前会话。",
       "Pine on this computer has no Orchestrator; plain text goes to the current session.",
     ),
   "E-QUOTE": (lang) =>

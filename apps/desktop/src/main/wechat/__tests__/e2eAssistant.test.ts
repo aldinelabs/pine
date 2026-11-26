@@ -57,7 +57,7 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     const work = await h.dispatch("修一下首页样式");
     h.finish(assistant, "已派给「修首页样式」会话（Garden），完成后告诉你。");
     const reply = await h.sent((text) => text.includes("修首页样式"));
-    expect(reply).toMatch(/^\*\*(Orchestrator|指挥)\*\*/);
+    expect(reply).toMatch(/^\*\*(Orchestrator|指挥中心)\*\*/);
     expect(reply).toContain("已派给「修首页样式」会话（Garden）");
 
     // 3. The dispatched session's approval reaches WeChat as a card.
@@ -96,7 +96,7 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     await h.settle();
     const bubbles = after(h, before);
     expect(bubbles).toHaveLength(3);
-    expect(bubbles[0]).toMatch(/^\*\*(Orchestrator|指挥)\*\*/);
+    expect(bubbles[0]).toMatch(/^\*\*(Orchestrator|指挥中心)\*\*/);
     expect(bubbles[0]).toContain("还在跑");
     expect(bubbles[1]).toBe("别的都停了");
     expect(bubbles[2]).toBe("要我催一下吗？");
@@ -143,7 +143,7 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     expect(await h.say(".")).toMatch(/current session|当前会话/);
 
     const home = await h.say(".home");
-    expect(home).toMatch(/Orchestrator|指挥/);
+    expect(home).toMatch(/Orchestrator|指挥中心/);
     h.push("现在都在跑什么？");
     await waitFor(() => h.assistantCalls.length === 2);
     expect(h.assistantCalls[1]?.message).toBe("现在都在跑什么？");
