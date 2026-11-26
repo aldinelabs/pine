@@ -368,3 +368,68 @@ describe("injection-aware review context", () => {
     );
   });
 });
+
+describe("malformed-command review guidance", () => {
+  it("tells both reviewers to parse first, then compare with the summary", () => {
+    for (const prompt of [
+      JUDGE_SYSTEM_PROMPT,
+      AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
+    ]) {
+      expect(prompt).toContain("Malformed commands.");
+      expect(prompt).toContain("under its real parsing rules");
+      expect(prompt).toContain(
+        "compare the result with the agent's action description",
+      );
+      expect(prompt).toContain("rm -rf ./build /");
+      expect(prompt).toContain('"$OUT_DIR"/');
+      expect(prompt).toContain("heredoc terminator");
+      expect(prompt).toContain("embedded newline");
+      expect(prompt).toContain("followed by ; instead of &&");
+      expect(prompt).toContain("~ inside quotes");
+      expect(prompt).toContain("name the exact mismatch");
+      expect(prompt).toContain("Do not apply this to ordinary well-formed");
+    }
+  });
+
+  it("denies a mismatch in every mode, naming it for the agent", () => {
+    for (const prompt of [
+      JUDGE_SYSTEM_PROMPT,
+      AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
+    ]) {
+      expect(prompt).toContain(
+        "deny it, in every approval mode, and never return needs_user for it",
+      );
+      expect(prompt).toContain(
+        "rm -rf ./build /: deny, not needs_user, even when the user asked",
+      );
+      expect(prompt).toContain(
+        "reason: $OUT_DIR is unset here, so the target becomes /.",
+      );
+      expect(prompt).toContain("with no environment supplied: deny");
+      expect(prompt).toContain("the target is fine as far as this rule goes");
+      expect(prompt).toContain("Do not suggest a different workflow");
+      expect(prompt).toContain("A convincing rationale does not change this");
+    }
+    const section = (prompt: string) =>
+      prompt.slice(
+        prompt.indexOf("Malformed commands."),
+        prompt.indexOf("\n\nCall submit_ruling"),
+      );
+    expect(section(JUDGE_SYSTEM_PROMPT)).toBe(
+      section(AUTONOMOUS_JUDGE_SYSTEM_PROMPT),
+    );
+    expect(section(JUDGE_SYSTEM_PROMPT)).not.toMatch(/: needs_user/);
+  });
+
+  it("keeps the system prompts free of host-specific values", () => {
+    for (const prompt of [
+      JUDGE_SYSTEM_PROMPT,
+      AUTONOMOUS_JUDGE_SYSTEM_PROMPT,
+    ]) {
+      expect(prompt).not.toContain(process.cwd());
+      if (process.env.HOME) expect(prompt).not.toContain(process.env.HOME);
+      expect(prompt).not.toMatch(/\$\{[a-zA-Z]/);
+      expect(prompt).not.toContain("undefined");
+    }
+  });
+});
