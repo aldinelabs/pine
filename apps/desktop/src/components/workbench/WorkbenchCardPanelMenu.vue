@@ -20,7 +20,6 @@ import {
   type WorkbenchPosition,
 } from "@/shared/workbench";
 import { useLiveContextStore } from "@/stores/liveContext";
-import { ASSISTANT_HIDDEN_PANELS, useWorkbenchStore } from "@/stores/workbench";
 import { useSessionStore } from "@/stores/session";
 
 /** The card's title, which switches the panel it shows. */
@@ -33,7 +32,6 @@ const props = defineProps<{
 const { t } = useI18n();
 const sessionStore = useSessionStore();
 const liveContext = useLiveContextStore();
-const workbenchStore = useWorkbenchStore();
 const sideChat = useSideChat();
 
 /** Panels still in beta carry a badge beside their name. */
@@ -47,10 +45,7 @@ const panels = computed(() =>
     (panel) =>
       panel === props.panel ||
       ((panel !== SIDE_CHAT_PANEL || Boolean(sessionStore.activeSession)) &&
-        (panel !== LIVE_CONTEXT_PANEL || liveContext.available) &&
-        !(
-          workbenchStore.isAssistant && ASSISTANT_HIDDEN_PANELS.includes(panel)
-        )),
+        (panel !== LIVE_CONTEXT_PANEL || liveContext.available)),
   ),
 );
 

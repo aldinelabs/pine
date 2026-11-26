@@ -747,8 +747,6 @@ differences:
 - Reports from dispatched sessions wait in the conversation until the user
   next writes; they do not start a reply on their own.
 - Its notes show as the "Assistant" tab of the Memory manager.
-- The workbench has no Files or Artifacts panel; a card that would show one
-  shows Tasks.
 - Each user message shows where it came from: "From desktop" or "From
   WeChat".
 - Each dispatch shows as a card with its state ("Dispatching…",
@@ -1472,8 +1470,8 @@ Settings › General). It can capture the frontmost app's window and selected
 text as context when the user grants the screen and accessibility permissions,
 then hands the new conversation to the main window. Its project picker also
 offers "Assistant" ("Hands the work to the right project"): the message then
-goes to the Assistant's conversation with its attachments, without the
-captured context. The context shows as a
+goes to the Assistant's conversation with its attachments and captured
+context, as to any conversation. The context shows as a
 strip above the input: from the moment the composer appears, a grey placeholder
 holds its place while the app is captured, and the screenshot, app and window
 name fill it in once ready. The × button at the strip's right end, or Backspace

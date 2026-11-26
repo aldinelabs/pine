@@ -28,8 +28,6 @@ import {
 } from "@/shared/workbench";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import { useSessionStore } from "@/stores/session";
-import { useProjectStore } from "@/stores/project";
-import { isAssistantProject } from "@/shared/assistant";
 import { preferenceStorage } from "@/lib/preferenceStorage";
 
 export const WORKBENCH_STORAGE_KEY = "pine.workbench.v1";
@@ -40,25 +38,6 @@ export const WORKBENCH_WIDTH_STORAGE_KEY = "pine.workbench-width.v1";
 const FILE_KEY_PREFIX = "file:";
 /** Only the most recently arranged sessions keep their layout. */
 const MAX_STORED_LAYOUTS = 200;
-/**
- * The Assistant works in no folder and makes no files, so its workbench
- * leaves these out; a card that would show one shows Tasks instead.
- */
-export const ASSISTANT_HIDDEN_PANELS: readonly WorkbenchPanel[] = [
-  "files",
-  "artifacts",
-];
-
-/** A layout as the Assistant shows it, without the panels it has no use for. */
-export function assistantLayout(layout: WorkbenchLayout): WorkbenchLayout {
-  const keep = (panel: WorkbenchPanel | null) =>
-    panel && !ASSISTANT_HIDDEN_PANELS.includes(panel) ? panel : null;
-  const top = keep(layout.top);
-  const bottom = keep(layout.bottom);
-  if (top) return { ...layout, top, bottom: bottom === top ? null : bottom };
-  if (bottom) return { ...layout, top: bottom, bottom: null };
-  return { ...layout, top: "tasks", bottom: null };
-}
 
 function readLayouts(): Map<string, WorkbenchLayout> {
   const layouts = new Map<string, WorkbenchLayout>();
@@ -212,15 +191,8 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     return startsCollapsed ? { ...inherited, open: false } : inherited;
   }
 
-  const projectStore = useProjectStore();
-  /** The Assistant's tab is in front (not a file tab). */
-  const isAssistant = computed(
-    () =>
-      !activeFile.value && isAssistantProject(projectStore.currentProjectId),
-  );
   const activeLayout = computed(() => {
-    const own = layoutFor(activeKey.value);
-    const layout = isAssistant.value ? assistantLayout(own) : own;
+    const layout = layoutFor(activeKey.value);
     // A tab opening in an empty content area keeps the column closed until
     // its session is the active one, as when leaving a file tab.
     const waiting =
@@ -494,7 +466,6 @@ export const useWorkbenchStore = defineStore("workbench", () => {
     activeFile,
     activeKey,
     activeLayout,
-    isAssistant,
     fileCardTargets,
     displayedOpen,
     forgetFile,

@@ -88,6 +88,7 @@ import {
 import type { ProjectSessionSearchResult } from "@/shared/sessions";
 import { withoutRelayPrefix } from "@/shared/sessions";
 import { useAutomationsStore } from "@/stores/automations";
+import { isNewSessionDraft } from "@/stores/contentTabs";
 import { useHelpStore } from "@/stores/help";
 import { useProjectStore } from "@/stores/project";
 import { useSessionHistoryStore } from "@/stores/sessionHistory";
@@ -679,7 +680,7 @@ function drop(event: DragEvent, projectId: string, groupId: string | null) {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              :is-active="activeSessionTab?.state === 'draft'"
+              :is-active="isNewSessionDraft(activeSessionTab)"
               @click="
                 tabNavigation.createSessionTab({
                   projectId: TEMPORARY_WORKSPACE_PROJECT_ID,

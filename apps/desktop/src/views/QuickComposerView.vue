@@ -18,7 +18,6 @@ import { DRAFT_PROJECT_OPENER_KEY } from "@/composables/useDraftProjectOpener";
 import type { PineApprovalMode } from "@/shared/agent";
 import type { PineAttachment } from "@/shared/attachments";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
-import { isAssistantProject } from "@/shared/assistant";
 import { childrenLayoutBounds, layoutRect } from "@/lib/layoutRect";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
 import {
@@ -228,10 +227,7 @@ async function submit(
       message,
       approvalMode: approvalMode.value,
       projectId: projectId.value,
-      // The Assistant gets no captured context; attachments go with the message.
-      withContext:
-        !isAssistantProject(projectId.value) &&
-        (context.value.length > 0 || contextPending.value),
+      withContext: context.value.length > 0 || contextPending.value,
       ...(options?.background ? { background: true } : {}),
       composerRect: {
         x: rect.x,

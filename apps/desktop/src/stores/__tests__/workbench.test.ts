@@ -1,14 +1,15 @@
 import { createPinia, setActivePinia } from "pinia";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, expect, it } from "vitest";
 import { watch } from "vue";
 import {
-  assistantLayout,
   DRAFT_WORKBENCH_KEY,
   WORKBENCH_STORAGE_KEY,
   WORKBENCH_WIDTH_STORAGE_KEY,
   useWorkbenchStore,
 } from "../workbench";
 import { useSessionStore } from "../session";
+import { useProjectStore } from "../project";
+import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import type { PineSessionSummary } from "@/shared/sessions";
 
 beforeEach(() => {
@@ -386,19 +387,29 @@ it("restores a tab's own column when it reopens from no tabs", () => {
   expect(store.activeLayout.open).toBe(true);
 });
 
-describe("the Assistant's workbench", () => {
-  it("leaves out files and artifacts, showing Tasks when nothing is left", () => {
-    const base = { open: true, split: 50, preview: null };
-    expect(
-      assistantLayout({ ...base, top: "artifacts", bottom: "preview" }),
-    ).toEqual({ ...base, top: "preview", bottom: null });
-    expect(assistantLayout({ ...base, top: "files", bottom: null })).toEqual({
-      ...base,
-      top: "tasks",
-      bottom: null,
-    });
-    expect(
-      assistantLayout({ ...base, top: "tasks", bottom: "preview" }),
-    ).toEqual({ ...base, top: "tasks", bottom: "preview" });
+it("closes the Assistant's column with its last card, as in any session", () => {
+  useProjectStore().setCurrentProject(ASSISTANT_PROJECT_ID);
+  const store = useWorkbenchStore();
+  store.showPanel("top", "tasks");
+  store.closeCard(store.activeLayout.bottom ?? "preview");
+  expect(store.activeLayout).toMatchObject({
+    open: true,
+    top: "tasks",
+    bottom: null,
+  });
+
+  store.closeCard("tasks");
+
+  expect(store.activeLayout.open).toBe(false);
+});
+
+it("offers the Assistant the same cards as any session", () => {
+  useProjectStore().setCurrentProject(ASSISTANT_PROJECT_ID);
+  const store = useWorkbenchStore();
+  store.showPanel("top", "files");
+  store.showPanel("bottom", "artifacts");
+  expect(store.activeLayout).toMatchObject({
+    top: "files",
+    bottom: "artifacts",
   });
 });

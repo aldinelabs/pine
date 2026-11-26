@@ -81,6 +81,20 @@ export type SessionContentTab =
   DraftSessionTab | CreatingSessionTab | BoundSessionTab;
 export type ProjectContentTab = FileContentTab | SessionContentTab;
 
+/**
+ * A draft that is a new session: not the Assistant's tab, which is a draft
+ * too until its first message but never anyone's new session.
+ */
+export function isNewSessionDraft(
+  tab: ProjectContentTab | null | undefined,
+): tab is DraftSessionTab {
+  return (
+    tab?.kind === "session" &&
+    tab.state === "draft" &&
+    !isAssistantProject(tab.projectId)
+  );
+}
+
 /** A closed tab that can come back, with the slot it left. */
 interface ClosedTab {
   tab: BoundSessionTab | FileContentTab;
@@ -432,13 +446,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
      * takes its place instead of adding a tab. */
     replaceActivePreview?: string;
   } = {}): DraftSessionTab {
-    // The Assistant's tab is never anyone's new session.
-    const existingDraft = tabs.value.find(
-      (tab): tab is DraftSessionTab =>
-        tab.kind === "session" &&
-        tab.state === "draft" &&
-        !isAssistantProject(tab.projectId),
-    );
+    const existingDraft = tabs.value.find(isNewSessionDraft);
     if (reuseDraft && existingDraft) {
       if (projectId) setDraftProject(existingDraft.id, projectId);
       if (mutators) setDraftMutators(existingDraft.id, mutators);
@@ -572,10 +580,14 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     if (!target || target.kind !== "session" || target.state !== "creating") {
       return null;
     }
-    const existingDraft = tabs.value.find(
-      (tab): tab is DraftSessionTab =>
-        tab.kind === "session" && tab.state === "draft" && tab.id !== tabId,
-    );
+    // A new session that failed joins the new-session draft; the
+    // Assistant's own tab stays itself.
+    const existingDraft = isAssistantProject(target.projectId)
+      ? undefined
+      : tabs.value.find(
+          (tab): tab is DraftSessionTab =>
+            isNewSessionDraft(tab) && tab.id !== tabId,
+        );
     if (existingDraft) {
       addAttachments(existingDraft.id, attachmentsFor(tabId));
       addQuotes(existingDraft.id, quotesFor(tabId));

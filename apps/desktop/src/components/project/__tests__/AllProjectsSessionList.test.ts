@@ -675,3 +675,32 @@ describe("AllProjectsSessionList", () => {
     }
   });
 });
+
+describe("the sidebar's highlighted entry", () => {
+  function activeLabels(
+    wrapper: Awaited<ReturnType<typeof mountList>>["wrapper"],
+  ) {
+    return wrapper
+      .findAll('[data-slot="sidebar-menu"]')[0]
+      .findAll("button")
+      .filter((button) => button.attributes("data-active") === "true")
+      .map((button) => button.text());
+  }
+
+  it("is only the Assistant while its tab is open, and only New session for a new one", async () => {
+    const { router, wrapper } = await mountList();
+    const tabs = useContentTabsStore();
+
+    // Until its first message the Assistant's tab is a draft, too.
+    const assistant = tabs.openAssistant();
+    await router.push({ query: { tab: assistant.id } });
+    await flushPromises();
+    expect(activeLabels(wrapper)).toEqual(["助理"]);
+
+    const draft = tabs.createSessionTab();
+    expect(draft.id).not.toBe(assistant.id);
+    await router.push({ query: { tab: draft.id } });
+    await flushPromises();
+    expect(activeLabels(wrapper)).toEqual(["新会话⌘N"]);
+  });
+});

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_TABS_STORAGE_KEY } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
-import { useContentTabsStore } from "../contentTabs";
+import { isNewSessionDraft, useContentTabsStore } from "../contentTabs";
 import { useSessionStore } from "../session";
 
 const firstSession: PineSessionSummary = {
@@ -801,5 +801,43 @@ describe("preview tabs", () => {
     store.close(bound.id, bound.id);
     store.removeSession(firstSession.id, "");
     expect(store.reopenClosedTab()).toBeNull();
+  });
+});
+
+describe("the Assistant's tab among drafts", () => {
+  it("is a draft but never the new session", () => {
+    const store = useContentTabsStore();
+    const assistant = store.openAssistant();
+    expect(assistant.kind === "session" && assistant.state).toBe("draft");
+    expect(isNewSessionDraft(assistant)).toBe(false);
+
+    const draft = store.createSessionTab();
+    expect(draft.id).not.toBe(assistant.id);
+    expect(isNewSessionDraft(draft)).toBe(true);
+  });
+
+  it("keeps a failed new session out of the Assistant's tab, and the reverse", () => {
+    const store = useContentTabsStore();
+    const assistant = store.openAssistant();
+    const draft = store.createSessionTab({ projectId: "p1" });
+    store.addAttachments(draft.id, [
+      {
+        name: "a.md",
+        path: "/a.md",
+        extension: "md",
+        kind: "file",
+        size: 1,
+        modifiedAt: "2026-11-24T00:00:00.000Z",
+      },
+    ]);
+    store.beginPrompt(draft.id, "hi");
+
+    // No other new-session draft: it turns back into one itself.
+    expect(store.failPrompt(draft.id)).toBe(draft.id);
+    expect(store.attachmentsFor(assistant.id)).toEqual([]);
+
+    store.beginPrompt(assistant.id, "hi");
+    expect(store.failPrompt(assistant.id)).toBe(assistant.id);
+    expect(store.tabs.some((tab) => tab.id === draft.id)).toBe(true);
   });
 });
