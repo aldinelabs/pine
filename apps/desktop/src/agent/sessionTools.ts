@@ -365,15 +365,19 @@ export function createSessionToolDefinitions(
     // Pine passes its own system prompt, so pi does not render promptSnippet
     // or promptGuidelines: the description has to carry the guidance.
     description: [
-      "Start a Pine session that works on its own in the background, beginning with the given message: by default a sub-session of this one, which works like a subagent. Returns its id at once without waiting for it.",
+      "Start a Pine session that works on its own in the background, beginning with the given message: by default a sub-session of this one, which works like a subagent and reports back each turn it finishes. Returns its id at once without waiting for it. Use it on your own judgment; the user does not need to ask.",
       "",
-      "Use sub-sessions to split independent work and finish sooner: several research questions that do not depend on each other, changes to separate files or modules, or broad searches across a large codebase or the web. Start them all in the same step, one call each, then keep working here on what is left.",
+      "Good uses:",
+      "- Parallel work: research questions that do not depend on each other, changes to separate files or modules, or broad searches across a large codebase or the web. Start them all in the same step, one call each.",
+      "- A long side investigation whose details would flood this conversation when only its conclusion matters here.",
+      "- Background research on a substantial task, when web_search is available: one sub-session that finds how others do this kind of task (established practices, references, prior art, pitfalls) and reports the useful findings with sources, while you start on the task yourself.",
       "",
-      "Do the work directly here instead when it is simple or short, when its steps depend on each other and must run in order, when splitting saves little time, or when the work is mainly coordination (planning, sequencing, combining results) rather than separate pieces of work. Start a separate top-level session only when the user asks for one.",
+      "Do the work directly here instead when it is quick or a single lookup, when its steps depend on each other and must run in order, or when splitting saves little time. Keep the count small, usually one to three. Start a separate top-level session only when the user asks for one.",
       "",
       "- A sub-session has no memory of this conversation: its first message must include everything it needs and say what to report back.",
       "- Give each a short title naming its task, so the user can tell them apart in the sidebar.",
-      `- Pine delivers a notice each time a sub-session finishes a turn or waits for approval; continue with other work or end your turn, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of its messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
+      `- Keep working here on what is left instead of waiting. Pine delivers a notice each time a sub-session finishes a turn or waits for approval; end your turn when nothing else is left, and do not poll or sleep to wait. Use ${UI_SESSION_READ_TOOL_NAME} for more of its messages and ${UI_SESSION_SEND_TOOL_NAME} to give it follow-up work.`,
+      "- Check what a sub-session reports against the files or sources before relying on it.",
       `- Leave model and thinkingLevel out unless the user explicitly asks for a lighter or a different model or thinking level; then pick it from ${UI_LIST_MODELS_TOOL_NAME}.`,
     ].join("\n"),
     parameters: newParams,

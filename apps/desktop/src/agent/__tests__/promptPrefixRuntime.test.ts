@@ -237,3 +237,22 @@ describe("the prompt prefix new sessions share", () => {
     );
   });
 });
+
+describe("sub-session guidance in a real request", () => {
+  it("reaches the model in the fixed system prompt and the tool description", async () => {
+    const request = await firstRequest("Thesis");
+
+    const prompt = systemPrompt(request);
+    expect(prompt).toContain("## Sub-sessions");
+    expect(prompt).toContain("Use it on your own judgment");
+    expect(prompt).toContain("Background research");
+    // Fixed guidance, never a per-turn notice.
+    expect(contextNotice(request)).not.toContain("## Sub-sessions");
+    const tool = (
+      request.tools as { function: { name: string; description: string } }[]
+    ).find((candidate) => candidate.function.name === "ui_session_new");
+    expect(tool?.function.description).toContain(
+      "Background research on a substantial task",
+    );
+  });
+});

@@ -265,6 +265,19 @@ describe("session tools", () => {
     );
   });
 
+  it("invites background research and asks the model to keep working and verify", () => {
+    const { description } = setup("YOLO").start;
+    expect(description).toContain("Use it on your own judgment");
+    expect(description).toContain(
+      "Background research on a substantial task, when web_search is available",
+    );
+    expect(description).toContain("Keep the count small");
+    expect(description).toContain("Keep working here on what is left");
+    expect(description).toContain(
+      "Check what a sub-session reports against the files or sources",
+    );
+  });
+
   it("starts a session in the caller's mode without asking outside Let Me Review", async () => {
     const { start, requestHost, requestApproval } = setup("YOLO");
 

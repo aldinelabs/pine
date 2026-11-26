@@ -60,6 +60,7 @@ describe("noticeContent", () => {
     expect(content).toContain("<title>A &lt;b&gt;</title>");
     expect(content).toContain("<last-reply>1 &lt; 2</last-reply>");
     expect(content).toContain("Do not poll it");
+    expect(content).toContain("before relying on it");
   });
 
   it("tells the parent the user stopped it and to ask before acting", () => {

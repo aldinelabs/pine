@@ -610,7 +610,13 @@ From top to bottom:
      search the user's sessions in every project.
    - Sub-sessions: the agent can start the new session as a sub-session of
      the current one (the usual choice) or as a sibling; a sub-session can
-     start only siblings, not sub-sessions of its own. The agent can list a
+     start only siblings, not sub-sessions of its own. The agent starts
+     sub-sessions on its own when they help, without being asked: for
+     independent pieces of work in parallel, for a long side investigation,
+     or, on a substantial task when Web search is available, for one
+     background sub-session that researches how others approach this kind of
+     task while the agent keeps working, then folds the findings in. It does
+     not start them for quick edits or simple questions. The agent can list a
      session's parent, sub-sessions and siblings, read their messages, and
      send them messages. It can also read any other session it found by
      searching, but only after a review, as for other access beyond the

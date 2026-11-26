@@ -24,6 +24,34 @@ describe("time rule", () => {
   });
 });
 
+describe("sub-session guidance", () => {
+  const section = PINE_SYSTEM_PROMPT.slice(
+    PINE_SYSTEM_PROMPT.indexOf("## Sub-sessions"),
+    PINE_SYSTEM_PROMPT.indexOf("## Formatting replies"),
+  );
+
+  it("tells the model when to start sub-sessions on its own", () => {
+    expect(section).toContain("ui_session_new");
+    expect(section).toContain("without waiting for the user to ask");
+    expect(section).toContain("Parallel work");
+    expect(section).toContain("Side investigations");
+    expect(section).toContain("Background research");
+    expect(section).toContain("when web_search is among your tools");
+  });
+
+  it("limits them and keeps the model working and verifying", () => {
+    expect(section).toContain("Do not start one for quick edits");
+    expect(section).toContain("Keep the count small");
+    expect(section).toContain("instead of waiting idle");
+    expect(section).toContain("check it against the files or sources");
+  });
+
+  it("is fixed text that names no per-session value", () => {
+    expect(section).not.toMatch(/\$\{|<cwd>|\d{4}-\d{2}-\d{2}/);
+    expect(section.length).toBeLessThan(2_000);
+  });
+});
+
 describe("systemPromptForPlatform", () => {
   it("swaps the shell vocabulary for Windows", () => {
     const prompt = systemPromptForPlatform(PINE_SYSTEM_PROMPT, "win32");
