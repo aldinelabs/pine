@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_TABS_STORAGE_KEY } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
+import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import { isNewSessionDraft, useContentTabsStore } from "../contentTabs";
 import { useSessionStore } from "../session";
 
@@ -814,6 +815,47 @@ describe("the Assistant's tab among drafts", () => {
     const draft = store.createSessionTab();
     expect(draft.id).not.toBe(assistant.id);
     expect(isNewSessionDraft(draft)).toBe(true);
+  });
+
+  it("stays open on the empty Assistant when its conversation is cleared", () => {
+    const store = useContentTabsStore();
+    const other = store.openSession(firstSession, "p1");
+    const assistant = store.openAssistant({ ...firstSession, id: "assist-1" });
+    store.openFile({
+      projectId: "p1",
+      folderId: "root",
+      relativePath: "a.md",
+    });
+    expect(assistant.kind === "session" && assistant.state).toBe("bound");
+    const order = store.tabs.map((tab) => tab.id);
+
+    const next = store.removeSession("assist-1", assistant.id);
+    const cleared = store.tabs.find((tab) => tab.id === next);
+    expect(cleared).toMatchObject({
+      kind: "session",
+      state: "draft",
+      projectId: ASSISTANT_PROJECT_ID,
+    });
+    expect(cleared && isNewSessionDraft(cleared)).toBe(false);
+    // In its place, and the next message starts a new conversation there.
+    expect(store.tabs.map((tab) => tab.id)).toEqual(
+      order.map((id) => (id === assistant.id ? next : id)),
+    );
+    expect(store.fallbackActiveTabId).toBe(next);
+    expect(store.openAssistant().id).toBe(next);
+
+    // Cleared from elsewhere, it stays put without taking focus.
+    store.bindSession(next, { ...firstSession, id: "assist-2" });
+    expect(store.removeSession("assist-2", other.id)).toBe(other.id);
+    expect(
+      store.tabs.filter(
+        (tab) =>
+          tab.kind === "session" &&
+          tab.state === "draft" &&
+          tab.projectId === ASSISTANT_PROJECT_ID,
+      ),
+    ).toHaveLength(1);
+    expect(store.tabs.some((tab) => tab.id === other.id)).toBe(true);
   });
 
   it("keeps a failed new session out of the Assistant's tab, and the reverse", () => {

@@ -2954,6 +2954,13 @@ export default {
       "Encuentra el proyecto adecuado, encarga el trabajo a una sesión de ese proyecto y te informa aquí. Nunca hace el trabajo por sí mismo.",
     placeholder: "Describe una tarea y el Asistente elegirá el proyecto",
     targetDescription: "Encarga el trabajo al proyecto adecuado",
+    clear: {
+      action: "Borrar conversación",
+      title: "¿Borrar la conversación del Asistente?",
+      description:
+        "Sus mensajes se borran y tu próximo mensaje empieza una conversación nueva. Las sesiones que encargó se quedan donde están, pero ya no informan aquí. Sus recordatorios se eliminan. Sus notas en «Memoria» se conservan.",
+      confirm: "Borrar",
+    },
     source: {
       desktop: "Desde el escritorio",
       wechat: "Desde WeChat",

@@ -2968,6 +2968,13 @@ export default {
       "Er findet das passende Projekt, übergibt die Arbeit an eine Sitzung dort und berichtet hier. Die Arbeit selbst erledigt er nie.",
     placeholder: "Beschreib eine Aufgabe, der Assistent wählt das Projekt",
     targetDescription: "Übergibt die Arbeit an das passende Projekt",
+    clear: {
+      action: "Unterhaltung leeren",
+      title: "Unterhaltung des Assistenten leeren?",
+      description:
+        "Die Nachrichten werden gelöscht, und deine nächste Nachricht beginnt eine neue Unterhaltung. Sitzungen, die er übergeben hat, bleiben bestehen, berichten aber nicht mehr hierher. Seine Erinnerungen werden entfernt. Seine Notizen unter „Gedächtnis“ bleiben erhalten.",
+      confirm: "Leeren",
+    },
     source: {
       desktop: "Vom Desktop",
       wechat: "Aus WeChat",

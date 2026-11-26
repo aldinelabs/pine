@@ -33,7 +33,12 @@ export const useAssistantStore = defineStore("assistant", () => {
     return loadInFlight;
   }
 
-  return { isLoaded, isLoading, load, session };
+  /** Its conversation was deleted: the next message starts a new one. */
+  function forget(sessionId: string): void {
+    if (session.value?.id === sessionId) session.value = null;
+  }
+
+  return { forget, isLoaded, isLoading, load, session };
 });
 
 if (import.meta.hot) {

@@ -2969,6 +2969,13 @@ export default {
       "Il trouve le bon projet, confie le travail à une session de ce projet et vous en rend compte ici. Il ne fait jamais le travail lui-même.",
     placeholder: "Décrivez une tâche, l’Assistant choisit le projet",
     targetDescription: "Confie le travail au bon projet",
+    clear: {
+      action: "Effacer la conversation",
+      title: "Effacer la conversation de l'Assistant ?",
+      description:
+        "Ses messages sont effacés, et votre prochain message commence une nouvelle conversation. Les sessions qu'il a confiées restent en place mais ne font plus de rapport ici. Ses rappels sont supprimés. Ses notes dans « Mémoire » sont conservées.",
+      confirm: "Effacer",
+    },
     source: {
       desktop: "Depuis l’ordinateur",
       wechat: "Depuis WeChat",

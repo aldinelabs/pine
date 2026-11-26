@@ -421,7 +421,7 @@ export default {
           "Sessions the Assistant dispatched carry a From Assistant mark in their project's session list and on their tabs. Dispatched by the Assistant, at the top of such a session, takes you back to the Assistant.",
           "A dispatched session tells the Assistant when it finishes a turn or waits for approval. You still decide approvals on the usual approval card; the Assistant can't answer them for you.",
           "The Assistant is an ordinary pinned session: pick its model and permission mode from the menus under the message box (YOLO aside), and they stay with the conversation. Sessions it dispatches never run in a looser mode. Its notes are on the Assistant tab of the Memory manager.",
-          'Ask "what reminders do I have?" to see them, or ask it to cancel one. To start over, delete the conversation from the tab\'s More actions; its reminders go with it, and your next message starts a new Assistant conversation.',
+          'Ask "what reminders do I have?" to see them, or ask it to cancel one. To start over, choose Clear conversation in the tab\'s More actions (or right-click Assistant in the sidebar). Its messages and reminders are cleared, sessions it dispatched stay but no longer report back, its notes in Memory are kept, and your next message starts a new conversation.',
           "Before it sends to, stops or renames a session it didn't dispatch, or runs an automation, it asks you on an approval card.",
           "Turning automations on, deleting projects, changing settings and answering approvals stay with you; the Assistant tells you where to do them.",
           "When a dispatched session or the Assistant's own conversation costs more than US$5, its report says so, again at each further multiple.",

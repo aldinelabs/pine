@@ -159,7 +159,8 @@ Top menu:
 - Assistant: opens the Assistant's tab (see Assistant tab). It belongs to no
   project and stays above every project. Its row shows a small spinner while
   the Assistant works and a breathing amber dot while its conversation waits
-  for the user's approval or answer.
+  for the user's approval or answer. Right-clicking it offers Export and
+  Clear conversation (as the tab's More actions menu).
 - Search sessions: opens the session search overlay, which searches titles and
   conversation content across every project.
 - New session: opens a new session tab.
@@ -238,7 +239,7 @@ Tab bar ("Open content"):
   last project chosen for a draft when history is not available.
 - More actions: for a file tab, Open, Reveal, Copy path, New folder, Rename,
   Refresh and Move to trash; for a session tab, Rename, Export and Delete;
-  for the Assistant's tab, Export and Delete.
+  for the Assistant's tab, Export and Clear conversation.
 - A running session's tab title shimmers; a tab for an automation run keeps a
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
@@ -741,9 +742,13 @@ differences:
   conversation; YOLO is not offered. The permission mode is also the most
   any session the Assistant dispatches may use (WeChat's Highest mode can
   lower it further).
-- The tab's More actions menu has Export and Delete; it has no Rename. Delete
-  ends the conversation and removes its reminders; sessions it dispatched
-  stay where they are. The next message to the Assistant starts a new one.
+- The tab's More actions menu (and the sidebar entry's right-click menu) has
+  Export and Clear conversation; it has no Rename. Clear conversation asks
+  first ("Clear the Assistant's conversation?", confirmed with Clear): the
+  messages are cleared, sessions it dispatched stay where they are but no
+  longer report here, its reminders are removed, and its notes in Memory are
+  kept. The tab stays open on the empty Assistant, and the next message starts
+  a new conversation.
 - Reports from dispatched sessions wait in the conversation until the user
   next writes; they do not start a reply on their own.
 - Its notes show as the "Assistant" tab of the Memory manager.
@@ -765,7 +770,7 @@ differences:
   set from WeChat is answered in WeChat; when WeChat cannot take another
   reply, or the reminder was set on the desktop, the answer also shows as a
   desktop notification titled "Assistant". Reminders are listed and
-  cancelled by asking the Assistant; deleting the conversation removes them.
+  cancelled by asking the Assistant; clearing the conversation removes them.
 - Besides dispatching, the Assistant can on request list automations, turn
   one off or run one now (only when its permission mode and, from
   WeChat, WeChat's limit allow Autonomous Work), list, create (in a folder

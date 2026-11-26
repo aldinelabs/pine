@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import type { PineSessionSummary } from "@/shared/sessions";
 import type { ProjectFilePreviewRequest } from "@/shared/projectFiles";
 import type { PineAuthoringTarget } from "@/shared/sessionMutators";
+import { useAssistantStore } from "@/stores/assistant";
 import { useContentTabsStore } from "@/stores/contentTabs";
 import { useSideChatStore } from "@/stores/sideChat";
 
@@ -154,6 +155,7 @@ export function useContentTabNavigation() {
   }
 
   function removeSession(sessionId: string): void {
+    useAssistantStore().forget(sessionId);
     const currentActiveTabId = activeTabId.value;
     const nextActiveTabId = store.removeSession(sessionId, currentActiveTabId);
     if (nextActiveTabId !== currentActiveTabId) {

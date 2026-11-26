@@ -789,7 +789,22 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     if (removedIds.size === 0) return activeTabId;
 
     const activeWasRemoved = removedIds.has(activeTabId);
-    tabs.value = tabs.value.filter((tab) => !removedIds.has(tab.id));
+    // Deleting the Assistant's conversation clears it: its tab stays, in
+    // place, on the empty Assistant, ready for the next conversation.
+    let assistantDraft: DraftSessionTab | undefined;
+    tabs.value = tabs.value.flatMap((tab) => {
+      if (!removedIds.has(tab.id)) return [tab];
+      if (tab.kind !== "session" || !isAssistantProject(tab.projectId))
+        return [];
+      if (assistantDraft) return [];
+      assistantDraft = makeDraftTab(ASSISTANT_PROJECT_ID);
+      return [assistantDraft];
+    });
+    if (assistantDraft && activeWasRemoved) {
+      fallbackActiveTabId.value = assistantDraft.id;
+      composerFocusTabId.value = assistantDraft.id;
+      return assistantDraft.id;
+    }
     if (activeWasRemoved) {
       const nextActiveTabId = tabs.value[0]?.id ?? "";
       fallbackActiveTabId.value = nextActiveTabId;

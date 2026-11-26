@@ -22,8 +22,13 @@ const props = withDefaults(
     session: PineSessionSummary | null;
     /** Sub-sessions that are deleted together with it. */
     subSessionIds?: string[];
+    /**
+     * The session is the Assistant's conversation. Deleting it clears the
+     * Assistant, so the dialog says what clearing does.
+     */
+    assistant?: boolean;
   }>(),
-  { subSessionIds: () => [] },
+  { subSessionIds: () => [], assistant: false },
 );
 const open = defineModel<boolean>("open", { required: true });
 
@@ -66,8 +71,13 @@ async function deleteSession(): Promise<void> {
   <AlertDialog v-model:open="open">
     <AlertDialogContent>
       <AlertDialogHeader>
-        <AlertDialogTitle>{{ t("sessions.deleteTitle") }}</AlertDialogTitle>
-        <AlertDialogDescription>
+        <AlertDialogTitle>{{
+          assistant ? t("assistant.clear.title") : t("sessions.deleteTitle")
+        }}</AlertDialogTitle>
+        <AlertDialogDescription v-if="assistant">
+          {{ t("assistant.clear.description") }}
+        </AlertDialogDescription>
+        <AlertDialogDescription v-else>
           {{ t("sessions.deleteDescription", { name: sessionTitle }) }}
           <template v-if="subSessionIds.length">
             {{
@@ -85,7 +95,7 @@ async function deleteSession(): Promise<void> {
           :disabled="isDeleting"
           @click="deleteSession"
         >
-          {{ t("common.delete") }}
+          {{ assistant ? t("assistant.clear.confirm") : t("common.delete") }}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

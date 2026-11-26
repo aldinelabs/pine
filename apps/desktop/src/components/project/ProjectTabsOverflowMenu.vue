@@ -69,7 +69,10 @@ const { exportSession } = useSessionExport();
 // actions fall back to the project's default folder. The menu shows only the
 // group matching the active tab's kind.
 const isActiveSession = computed(() => activeTab.value?.kind === "session");
-/** The Assistant's tab is always named Assistant, so it has no Rename. */
+/**
+ * The Assistant's tab is always named Assistant, so it has no Rename; its
+ * Delete reads as Clear conversation, since the tab stays for the next one.
+ */
 const isAssistantTab = computed(
   () =>
     activeTab.value?.kind === "session" &&
@@ -303,7 +306,11 @@ async function trashActiveFile(): Promise<void> {
           @select="requestSessionDelete"
         >
           <Trash2Icon aria-hidden="true" />
-          {{ t("sessions.deleteAction") }}
+          {{
+            isAssistantTab
+              ? t("assistant.clear.action")
+              : t("sessions.deleteAction")
+          }}
         </DropdownMenuItem>
       </DropdownMenuGroup>
     </DropdownMenuContent>
@@ -316,6 +323,7 @@ async function trashActiveFile(): Promise<void> {
   <SessionDeleteDialog
     v-model:open="isSessionDeleteOpen"
     :session="targetSession"
+    :assistant="isAssistantTab"
   />
 
   <Dialog

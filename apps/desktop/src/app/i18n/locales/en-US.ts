@@ -2894,6 +2894,13 @@ export default {
       "It finds the right project, hands the work to a session there and reports back here. It never does the work itself.",
     placeholder: "Describe a task, and the Assistant picks the project",
     targetDescription: "Hands the work to the right project",
+    clear: {
+      action: "Clear conversation",
+      title: "Clear the Assistant's conversation?",
+      description:
+        "Its messages are cleared, and your next message starts a new conversation. Sessions it dispatched stay where they are but no longer report here. Its reminders are removed. Its notes in Memory are kept.",
+      confirm: "Clear",
+    },
     source: {
       desktop: "From desktop",
       wechat: "From WeChat",
