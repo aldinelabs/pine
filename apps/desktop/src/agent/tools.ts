@@ -121,6 +121,7 @@ import {
   type BackgroundTaskRegistryOptions,
 } from "@pine/pi-background-tasks/registry";
 import { createBackgroundTaskToolDefinitions } from "./backgroundTaskTools";
+import { createShellReviewEnvironment } from "./shell-review-environment";
 import {
   FOREGROUND_SOFT_LIMIT_SECONDS,
   type ForegroundPromoter,
@@ -483,6 +484,13 @@ export async function createPineToolDefinitions(
   const automationShell = location.automation
     ? { env: automationEnv, allowedDomains: location.automation.network }
     : undefined;
+  const describeShellEnvironment = createShellReviewEnvironment({
+    cwd: location.cwd,
+    projectRoots: location.folders.map((folder) => folder.path),
+    temporaryDirectory: canonicalBashTemporaryDirectory,
+    loginPath,
+    extraEnv: automationEnv,
+  });
   const sandboxFiles = createSandboxFileIO(
     policy,
     canonicalBashTemporaryDirectory,
@@ -642,6 +650,7 @@ export async function createPineToolDefinitions(
           toolName: shellName,
           command,
           description,
+          environment: describeShellEnvironment(command, "inside"),
           signal,
         });
         if (pre.kind === "deny") {
@@ -696,6 +705,7 @@ export async function createPineToolDefinitions(
                 description: params.description,
                 evidence:
                   "The agent explicitly requested execution outside Pine's project sandbox because the required capability cannot be completed inside it.",
+                environment: describeShellEnvironment(command, "outside"),
                 signal,
               });
               if (decision.kind === "deny") {
@@ -1038,6 +1048,7 @@ export async function createPineToolDefinitions(
         getGate,
         sandboxAvailable: !isWindows,
         shellName,
+        describeEnvironment: describeShellEnvironment,
       }),
     );
   }

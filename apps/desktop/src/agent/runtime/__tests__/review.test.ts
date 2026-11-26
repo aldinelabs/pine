@@ -433,3 +433,42 @@ describe("malformed-command review guidance", () => {
     }
   });
 });
+
+describe("execution environment in the call evidence", () => {
+  const request = {
+    toolCallId: "call-1",
+    toolName: "privileged_bash",
+    trigger: "privileged-execution" as const,
+    subject: 'rm -rf "$OUT_DIR"/',
+    description: "Clear the output folder",
+    evidence: "Native execution requested.",
+    turn: { recentUserStatements: [], recentEvents: [], grants: [] },
+  };
+
+  it("appends the block after the existing sections", () => {
+    const without = buildJudgeEvidence(request);
+    const withEnvironment = buildJudgeEvidence({
+      ...request,
+      environment: {
+        os: "macOS 26.1 (Darwin 25.1.0)",
+        arch: "arm64",
+        shell: "/bin/bash -c",
+        sandbox: "outside",
+        cwd: "/Users/me/app",
+        projectRoots: ["/Users/me/app"],
+        home: "/Users/me",
+        variables: [{ name: "OUT_DIR", state: "unset" }],
+      },
+    });
+    expect(
+      withEnvironment.startsWith(`${without}\n\nExecution environment`),
+    ).toBe(true);
+    expect(withEnvironment).toContain("  - OUT_DIR: unset");
+  });
+
+  it("adds nothing when no environment is known", () => {
+    expect(buildJudgeEvidence(request)).not.toContain(
+      "Execution environment (measured",
+    );
+  });
+});

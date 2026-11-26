@@ -43,6 +43,7 @@ function setup(
     approvalMode?: PineApprovalMode;
     gate?: ToolGate | null;
     sandboxAvailable?: boolean;
+    describeEnvironment?: BackgroundTaskToolOptions["describeEnvironment"];
   } = {},
 ) {
   const executions: Array<{ privileged: boolean; command: string }> = [];
@@ -72,6 +73,9 @@ function setup(
     getGate: () => gate,
     sandboxAvailable: options.sandboxAvailable ?? true,
     shellName: "bash",
+    ...(options.describeEnvironment
+      ? { describeEnvironment: options.describeEnvironment }
+      : {}),
   };
   const tools = createBackgroundTaskToolDefinitions(toolOptions);
   const byName = (name: string) => {
@@ -186,6 +190,32 @@ describe("bg_run", () => {
       { privileged: true, command: "python -m http.server" },
     ]);
     expect(result.text).toContain("Permissions: native");
+  });
+
+  it("tells the reviewer where a privileged task runs", async () => {
+    const environment = {
+      os: "macOS (Darwin 25.1.0)",
+      arch: "arm64",
+      shell: "/bin/bash -c",
+      sandbox: "outside" as const,
+      cwd: "/project",
+      projectRoots: ["/project"],
+      variables: [],
+    };
+    const describeEnvironment = vi.fn(() => environment);
+    const { call, gate } = setup({ describeEnvironment });
+    await call("bg_run", {
+      name: "Local server",
+      command: "python -m http.server",
+      privileged: true,
+    });
+    expect(describeEnvironment).toHaveBeenCalledWith(
+      "python -m http.server",
+      "outside",
+    );
+    expect(gate?.reviewPrivilegedCall).toHaveBeenCalledWith(
+      expect.objectContaining({ environment }),
+    );
   });
 
   it("does not start a privileged task the reviewer denied", async () => {

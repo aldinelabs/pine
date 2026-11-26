@@ -15,6 +15,7 @@ import type {
 import type { GateDecision } from "./protocol";
 import { matchDestructive } from "./destructive";
 import type { InjectionSignal } from "./runtime/injection-signals";
+import type { ReviewExecutionEnvironment } from "./runtime/review-environment";
 
 export interface AuthorizationStatement {
   id: string;
@@ -71,6 +72,8 @@ export interface JudgeRequest {
   description?: string;
   /** Evidence for the escalation (sandbox stderr excerpt, policy error, …). */
   evidence?: string;
+  /** Where a shell call runs; variable states only, no secret values. */
+  environment?: ReviewExecutionEnvironment;
   signal?: AbortSignal;
   turn: GateTurnContext;
   /** Privileged execution is always reviewed per-call and cannot be cached. */
@@ -163,6 +166,8 @@ export interface BashReviewInput {
   command: string;
   /** The caller's imperative summary, shown on the approval card. */
   description?: string;
+  /** Where the command runs, for the automatic reviewer. */
+  environment?: ReviewExecutionEnvironment;
   signal?: AbortSignal;
 }
 
@@ -181,6 +186,8 @@ export interface DenialReviewInput {
   /** The caller's imperative summary, shown on the approval card. */
   description?: string;
   evidence: string;
+  /** Where a shell call runs, for the automatic reviewer. */
+  environment?: ReviewExecutionEnvironment;
   signal?: AbortSignal;
 }
 
@@ -332,6 +339,7 @@ export class AutoReviewGate implements ToolGate {
       subject: input.command,
       description: input.description,
       evidence: `Matched destructive-command heuristic "${match.name}": ${match.description}`,
+      ...(input.environment ? { environment: input.environment } : {}),
       signal: input.signal,
     });
   }
@@ -357,6 +365,7 @@ export class AutoReviewGate implements ToolGate {
         subject: input.subject,
         description: input.description,
         evidence: input.evidence,
+        ...(input.environment ? { environment: input.environment } : {}),
         signal: input.signal,
       },
     );
@@ -402,6 +411,7 @@ export class AutoReviewGate implements ToolGate {
       subject: string;
       description?: string;
       evidence: string;
+      environment?: ReviewExecutionEnvironment;
       signal?: AbortSignal;
     },
     allowSessionScope = true,
@@ -507,6 +517,9 @@ export class AutoReviewGate implements ToolGate {
           subject: review.input.subject,
           description: review.input.description,
           evidence: review.input.evidence,
+          ...(review.input.environment
+            ? { environment: review.input.environment }
+            : {}),
           signal: review.input.signal,
           turn: sharedTurn,
           allowSessionScope: review.allowSessionScope,

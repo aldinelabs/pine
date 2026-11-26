@@ -40,6 +40,7 @@ import {
 import type { BackgroundTaskRegistry } from "@pine/pi-background-tasks/registry";
 import type { PineApprovalMode } from "../shared/agent";
 import type { ToolGate } from "./gate";
+import type { DescribeShellReviewEnvironment } from "./shell-review-environment";
 
 export interface BackgroundTaskToolOptions {
   registry: BackgroundTaskRegistry;
@@ -52,6 +53,8 @@ export interface BackgroundTaskToolOptions {
    */
   sandboxAvailable: boolean;
   shellName: "bash" | "powershell";
+  /** Where a command runs, for the automatic reviewer. */
+  describeEnvironment?: DescribeShellReviewEnvironment;
 }
 
 function textContent(text: string) {
@@ -62,8 +65,14 @@ function textContent(text: string) {
 export function createBackgroundTaskToolDefinitions(
   options: BackgroundTaskToolOptions,
 ): ToolDefinition[] {
-  const { registry, getApprovalMode, getGate, sandboxAvailable, shellName } =
-    options;
+  const {
+    registry,
+    getApprovalMode,
+    getGate,
+    sandboxAvailable,
+    shellName,
+    describeEnvironment,
+  } = options;
   const sandboxGuidance = sandboxAvailable
     ? ` Without privileged, the command runs in the same project sandbox as ordinary ${shellName}: it can read shared folders and runtime files, write only read-write shared folders and the project's temporary directory, and has no network access or local servers. Set privileged:true for dev servers, network access, or paths outside the sandbox; every privileged launch is reviewed before it starts unless YOLO mode is active.`
     : ` On this platform every background task runs with the user's native permissions, outside Pine's project sandbox, and is reviewed before it starts unless YOLO mode is active.`;
@@ -100,6 +109,9 @@ export function createBackgroundTaskToolDefinitions(
           description: params.name,
           evidence:
             "The agent asked to start a background command with the user's native permissions, outside Pine's project sandbox. The command keeps running after this call returns, until it exits or is stopped.",
+          ...(describeEnvironment
+            ? { environment: describeEnvironment(params.command, "outside") }
+            : {}),
           ...(signal ? { signal } : {}),
         });
         if (decision.kind === "deny") {
@@ -117,6 +129,9 @@ export function createBackgroundTaskToolDefinitions(
           toolName: BG_RUN_TOOL_NAME,
           command: params.command,
           description: params.name,
+          ...(describeEnvironment
+            ? { environment: describeEnvironment(params.command, "inside") }
+            : {}),
           ...(signal ? { signal } : {}),
         });
         if (decision.kind === "deny") {

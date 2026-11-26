@@ -57,6 +57,30 @@ function createHost(
   };
 }
 
+describe("execution environment hand-off", () => {
+  it("passes a privileged call's environment to the reviewer", async () => {
+    const { host, mocks } = createHost();
+    const gate = new AutoReviewGate(host);
+    const environment = {
+      os: "Linux (Linux 6.8.0)",
+      arch: "x64",
+      shell: "/bin/bash -c",
+      sandbox: "outside" as const,
+      cwd: "/work",
+      projectRoots: ["/work"],
+      variables: [{ name: "OUT", state: "unset" as const }],
+    };
+    await gate.reviewPrivilegedCall({
+      toolCallId: "p-env",
+      toolName: "privileged_bash",
+      subject: 'rm -rf "$OUT"/',
+      evidence: "Native execution requested.",
+      environment,
+    });
+    expect(mocks.judge.mock.calls[0][0][0].environment).toBe(environment);
+  });
+});
+
 describe("UserApprovalGate", () => {
   it("lets read calls pass pre-execution review silently", async () => {
     const { host, mocks } = createHost();
