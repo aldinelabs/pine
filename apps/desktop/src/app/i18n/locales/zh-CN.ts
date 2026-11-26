@@ -2788,10 +2788,10 @@ export default {
   },
   assistant: {
     name: "指挥",
-    emptyTitle: "想做什么，交给指挥",
+    emptyTitle: "有什么事，尽管交代",
     emptyDescription:
-      "它自己不演奏：把活分给合适项目里的会话，盯着节奏，并在这里向你汇报。",
-    placeholder: "描述任务，指挥会派给合适的项目",
+      "指挥会把活派给合适项目里的会话、跟进进度，做完或需要你拿主意时，回到这里告诉你。",
+    placeholder: "像跟同事说话一样交代任务……",
     targetDescription: "把活派给合适的项目",
     clear: {
       action: "清空对话",

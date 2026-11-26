@@ -735,12 +735,12 @@ that window comes forward instead.
 It is an ordinary session tab, pinned to the sidebar entry, with these
 differences:
 
-- Empty, it shows the same Pine welcome as a new session, titled "Tell the
-  Orchestrator what to play", with a line saying it plays no instrument
-  itself: it hands each job to a session in the right project and reports
-  back.
-- The composer is the usual one, with the placeholder "Describe a task, and
-  the Orchestrator picks the project". It has the usual attachments ("+") menu
+- Empty, it shows the same Pine welcome as a new session, titled "What needs
+  doing?", with a line saying it hands the work to a session in the right
+  project, follows up, and comes back here when it's done or needs the
+  user's call.
+- The composer is the usual one, with the placeholder "Hand off a task the
+  way you'd brief a colleague…". It has the usual attachments ("+") menu
   (files, folders and sessions), drag and drop and pasted images, but no
   folder picker or @ mentions. The Orchestrator does not open attachments: it
   sees each one's name, type and size, and hands them to the session it

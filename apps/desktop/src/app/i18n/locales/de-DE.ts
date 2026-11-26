@@ -2963,10 +2963,11 @@ export default {
   },
   assistant: {
     name: "Dirigent",
-    emptyTitle: "Sag dem Dirigenten, was gespielt wird",
+    emptyTitle: "Was steht an?",
     emptyDescription:
-      "Er spielt selbst kein Instrument: Er gibt jede Aufgabe an eine Sitzung im passenden Projekt, hält alles im Takt und berichtet hier.",
-    placeholder: "Beschreib eine Aufgabe, der Dirigent wählt das Projekt",
+      "Der Dirigent gibt die Arbeit an eine Sitzung im passenden Projekt, behält den Fortschritt im Blick und meldet sich hier, sobald sie fertig ist oder du entscheiden musst.",
+    placeholder:
+      "Gib die Aufgabe ab, wie du sie einem Kollegen erklären würdest…",
     targetDescription: "Übergibt die Arbeit an das passende Projekt",
     clear: {
       action: "Unterhaltung leeren",

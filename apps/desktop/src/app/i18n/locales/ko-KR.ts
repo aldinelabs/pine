@@ -2883,10 +2883,10 @@ export default {
   },
   assistant: {
     name: "지휘자",
-    emptyTitle: "지휘자에게 연주할 곡을 알려 주세요",
+    emptyTitle: "어떤 일을 맡길까요?",
     emptyDescription:
-      "직접 연주하지는 않습니다. 알맞은 프로젝트의 세션에 작업을 맡기고, 박자를 맞추며, 여기에서 결과를 알려 드립니다.",
-    placeholder: "작업을 설명하면 지휘자가 알맞은 프로젝트에 맡깁니다",
+      "지휘자가 알맞은 프로젝트의 세션에 작업을 맡기고 진행 상황을 챙깁니다. 끝나거나 결정이 필요하면 여기에서 알려 드립니다.",
+    placeholder: "동료에게 부탁하듯 작업을 설명해 주세요…",
     targetDescription: "작업을 알맞은 프로젝트에 맡깁니다",
     clear: {
       action: "대화 지우기",

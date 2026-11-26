@@ -2949,10 +2949,10 @@ export default {
   },
   assistant: {
     name: "Director",
-    emptyTitle: "Dile al Director qué tocar",
+    emptyTitle: "¿Qué hay que hacer?",
     emptyDescription:
-      "No toca ningún instrumento: encarga cada trabajo a una sesión del proyecto adecuado, lo lleva todo a tiempo y te informa aquí.",
-    placeholder: "Describe una tarea y el Director elegirá el proyecto",
+      "El Director encarga el trabajo a una sesión del proyecto adecuado, le hace seguimiento y vuelve aquí cuando termina o necesita que decidas.",
+    placeholder: "Encarga la tarea como se la explicarías a un compañero…",
     targetDescription: "Encarga el trabajo al proyecto adecuado",
     clear: {
       action: "Borrar conversación",

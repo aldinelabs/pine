@@ -2889,10 +2889,10 @@ export default {
   },
   assistant: {
     name: "Orchestrator",
-    emptyTitle: "Tell the Orchestrator what to play",
+    emptyTitle: "What needs doing?",
     emptyDescription:
-      "It plays no instrument itself: it hands each job to a session in the right project, keeps everything in time and reports back here.",
-    placeholder: "Describe a task, and the Orchestrator picks the project",
+      "The Orchestrator hands the work to a session in the right project, follows up, and comes back here when it’s done or needs your call.",
+    placeholder: "Hand off a task the way you’d brief a colleague…",
     targetDescription: "Hands the work to the right project",
     clear: {
       action: "Clear conversation",

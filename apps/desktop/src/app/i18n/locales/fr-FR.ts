@@ -2964,10 +2964,10 @@ export default {
   },
   assistant: {
     name: "Chef d’orchestre",
-    emptyTitle: "Dites au Chef d’orchestre quoi jouer",
+    emptyTitle: "Que faut-il faire ?",
     emptyDescription:
-      "Il ne joue d’aucun instrument : il confie chaque tâche à une session du bon projet, garde le tempo et vous en rend compte ici.",
-    placeholder: "Décrivez une tâche, le Chef d’orchestre choisit le projet",
+      "Le Chef d’orchestre confie le travail à une session du bon projet, suit son avancement et revient vers vous ici quand c’est terminé ou qu’une décision vous revient.",
+    placeholder: "Confiez la tâche comme vous l’expliqueriez à un collègue…",
     targetDescription: "Confie le travail au bon projet",
     clear: {
       action: "Effacer la conversation",

@@ -462,7 +462,7 @@ describe("ProjectSessionComposer", () => {
       true,
     );
     expect(wrapper.get("textarea").attributes("placeholder")).toBe(
-      "描述任务，指挥会派给合适的项目",
+      "像跟同事说话一样交代任务……",
     );
     await wrapper.get('[data-slot="approval-mode-trigger"]').trigger("click");
     await flushPromises();
