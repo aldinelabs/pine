@@ -571,6 +571,8 @@ onUnmounted(stopObservingUserText);
 </script>
 <template>
   <Message ref="messageRoot" :align="isUser ? 'end' : 'start'">
+    <!-- The Orchestrator's conversation reads like a chat: its replies come
+         in muted bubbles, the user's in primary bubbles. -->
     <MessageContent
       :class="
         cn(
@@ -659,14 +661,19 @@ onUnmounted(stopObservingUserText);
           />
           <Bubble
             v-else-if="item.kind === 'text'"
-            class="w-full"
-            :variant="'ghost'"
+            :class="inAssistant ? 'max-w-[85%]' : 'w-full'"
+            :variant="inAssistant ? 'muted' : 'ghost'"
+            :data-orchestrator-bubble="inAssistant ? '' : undefined"
           >
             <!-- BubbleContent clips overflow, and a card's ring is drawn 1px
                  outside its box: pad 1px per side and cancel it with a
                  negative margin so the ring is not cut off. -->
             <BubbleContent
-              class="transcript-prose -mx-px w-[calc(100%+2px)] max-w-none px-px!"
+              :class="
+                inAssistant
+                  ? 'transcript-prose max-w-full'
+                  : 'transcript-prose -mx-px w-[calc(100%+2px)] max-w-none px-px!'
+              "
             >
               <!-- Interactive blocks render beside the markdown, not inside
                    it, so the markdown renderer's styles stay off them. -->
@@ -820,8 +827,12 @@ onUnmounted(stopObservingUserText);
           <!-- Same hover tint shadcn's secondary bubble applies to
                interactive content, scoped to hovering the whole row. -->
           <Bubble
-            variant="secondary"
-            class="max-w-full *:data-[slot=bubble-content]:transition-colors group-hover/user-message:*:data-[slot=bubble-content]:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]"
+            :variant="inAssistant ? 'default' : 'secondary'"
+            :class="
+              inAssistant
+                ? 'max-w-full'
+                : 'max-w-full *:data-[slot=bubble-content]:transition-colors group-hover/user-message:*:data-[slot=bubble-content]:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]'
+            "
           >
             <BubbleContent>
               <!-- The overlay scrollbar takes no width and, reaching into the

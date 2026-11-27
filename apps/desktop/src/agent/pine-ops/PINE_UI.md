@@ -760,6 +760,10 @@ differences:
 - Reports from dispatched sessions wait in the conversation until the user
   next writes; they do not start a reply on their own.
 - Its notes show as the "Orchestrator" tab of the Memory manager.
+- The conversation reads like a chat: the Orchestrator's replies sit in
+  grey bubbles on the left, and the user's messages sit in dark (light, in
+  dark mode) bubbles on the right. Its thinking, tool calls and dispatch
+  cards show as in any session.
 - Each user message shows where it came from: "From desktop" or "From
   WeChat".
 - Each dispatch shows as a card with its state ("Dispatching…",

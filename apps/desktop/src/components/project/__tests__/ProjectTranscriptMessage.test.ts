@@ -76,6 +76,49 @@ describe("ProjectTranscriptMessage", () => {
     ).toBe(false);
   });
 
+  it("shows the Orchestrator's conversation as a chat of bubbles, without an avatar", () => {
+    const message = (
+      role: "user" | "assistant",
+      text: string,
+    ): PineTranscriptMessage => ({
+      createdAt: "2026-11-26T00:00:00.000Z",
+      id: role,
+      role,
+      status: "complete",
+      blocks: [{ type: "text", text }],
+    });
+    const mountIn = (inAssistant: boolean, value: PineTranscriptMessage) =>
+      mount(ProjectTranscriptMessage, {
+        props: { message: value },
+        global: {
+          plugins: [createAppI18n("zh-CN")],
+          provide: { [assistantViewKey as symbol]: inAssistant },
+        },
+      });
+
+    const reply = mountIn(true, message("assistant", "好，结束了告诉你。"));
+    expect(reply.find('[data-slot="message-avatar"]').exists()).toBe(false);
+    const bubble = reply.get("[data-orchestrator-bubble]");
+    expect(bubble.attributes("data-variant")).toBe("muted");
+    expect(bubble.text()).toContain("好，结束了告诉你。");
+
+    const own = mountIn(true, message("user", "博客弄好了跟我说一声"));
+    expect(
+      own
+        .get('[data-slot="user-message-row"] [data-slot="bubble"]')
+        .attributes("data-variant"),
+    ).toBe("default");
+
+    // Other sessions keep full-width replies and the secondary bubble.
+    const elsewhere = mountIn(false, message("assistant", "Done."));
+    expect(elsewhere.find("[data-orchestrator-bubble]").exists()).toBe(false);
+    expect(
+      mountIn(false, message("user", "Hi"))
+        .get('[data-slot="user-message-row"] [data-slot="bubble"]')
+        .attributes("data-variant"),
+    ).toBe("secondary");
+  });
+
   it.each(["text", "toolCall"] as const)(
     "folds live thinking when %s follows it",
     async (kind) => {
