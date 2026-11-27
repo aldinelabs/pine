@@ -457,7 +457,8 @@ export class PineCore {
     this.assistant.notify = (notification) =>
       host.notifyAssistant?.(notification);
     this.assistant.locale = () => host.locale?.() ?? "en-US";
-    // Sessions the Assistant dispatches in a WeChat turn report to WeChat.
+    // Sessions the Assistant dispatches in a WeChat turn send their approval
+    // cards to WeChat; their results come back through the Orchestrator.
     this.assistant.onDispatched = (dispatch, turn) => {
       if (turn.source === "wechat")
         this.tellWeChat((wechat) =>

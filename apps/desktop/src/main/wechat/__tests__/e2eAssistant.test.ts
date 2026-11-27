@@ -35,7 +35,7 @@ function after(h: Harness, from: number): string[] {
 }
 
 describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
-  it("dispatches from plain text, carries the card, takes .y and reports the result", async () => {
+  it("dispatches from plain text, carries the card, takes .y and relays the result", async () => {
     const h = await harness();
 
     // 1. Plain text goes to the Assistant, word for word, and nowhere else.
@@ -74,10 +74,21 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
       kind: "allow",
     });
 
-    // 5. Its result is pushed with the usual template; the Assistant is not woken.
+    // 5. Its result is not pushed as is: the Orchestrator is woken (Pine's
+    //    core does that) and relays it in its own words.
+    const pushed = h.texts().length;
     h.finish(work, "首页样式已修好，按钮间距统一为 8px。");
-    const done = await h.sent((text) => text.includes("按钮间距统一为 8px"));
-    expect(done).toContain("Garden");
+    await sleep(100);
+    await h.settle();
+    expect(after(h, pushed)).toEqual([]);
+    await h.bridge.expectAssistantReply(assistant, ASSISTANT_PROJECT_ID);
+    h.running(assistant);
+    h.finish(
+      assistant,
+      "Garden 的「修首页样式」修好了，按钮间距统一成了 8px。",
+    );
+    const relayed = await h.sent((text) => text.includes("统一成了 8px"));
+    expect(relayed).toMatch(/^\*\*(Orchestrator|指挥中心)\*\*/);
     expect(h.assistantCalls).toHaveLength(1);
   });
 
@@ -128,7 +139,8 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     const work = await h.dispatch("修首页");
     h.running(work);
     h.finish(work, "修好了");
-    await h.sent((text) => text.includes("修好了"));
+    await h.settle();
+    // Not pushed, but `.u 9` still means the session that just reported.
 
     const use = await h.say(".u 9");
     expect(use).toContain(".home");

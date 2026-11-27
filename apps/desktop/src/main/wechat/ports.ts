@@ -187,7 +187,8 @@ export interface WeChatBridgeApi {
   automationsChanged(): void;
   /**
    * The Assistant dispatched a session during a turn WeChat started: the
-   * bridge tracks it, so its cards and results reach WeChat. Never throws.
+   * bridge tracks it, so its approval cards reach WeChat; the Orchestrator
+   * relays its results. Never throws.
    */
   sessionDispatched(sessionId: string, projectId: string): void;
   /** Sidebar marker. */

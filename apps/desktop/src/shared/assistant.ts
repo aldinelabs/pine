@@ -74,14 +74,6 @@ export const ASSISTANT_WATCHES_FILE = "watches.json" as const;
 export const ASSISTANT_WATCHES_MAX = 30;
 
 /**
- * Whether a dispatched session's report starts an Assistant turn. No: the
- * report waits in the conversation until the user next talks to it, so
- * dispatched work costs no Assistant tokens on its own (§3.8). Results still
- * reach the user as each session's own completion signal and WeChat push.
- */
-export const ASSISTANT_WAKES_ON_REPORT = false;
-
-/**
  * In US dollars: a dispatched session, or the Assistant's own conversation,
  * that costs more than this is pointed out in its next report, again at each
  * further multiple. Only a reminder, never a limit.

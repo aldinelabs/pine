@@ -87,8 +87,13 @@ export class DesktopAttention {
       return;
     }
     const core = this.core();
-    const completedRun = this.completionSignals.observe(event);
-    const backgroundReply = this.backgroundReplies.observe(event, completedRun);
+    const observedRun = this.completionSignals.observe(event);
+    // The Orchestrator relays a session it dispatched; its reply is the signal.
+    const completedRun =
+      observedRun && core.assistant.relaysResultsOf(observedRun.sessionId)
+        ? undefined
+        : observedRun;
+    const backgroundReply = this.backgroundReplies.observe(event, observedRun);
     // Told even with completion signals off: nothing else shows it.
     if (backgroundReply)
       this.signalBackgroundReply(

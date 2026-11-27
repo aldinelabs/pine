@@ -757,8 +757,14 @@ differences:
   longer report here, its reminders are removed, and its notes in Memory are
   kept. The tab stays open on the empty Orchestrator, and the next message starts
   a new conversation.
-- Reports from dispatched sessions wait in the conversation until the user
-  next writes; they do not start a reply on their own.
+- When a dispatched session finishes a turn, fails or is stopped, the
+  Orchestrator replies on its own and tells the user what came of it, where
+  the work was asked for: in WeChat for work asked in WeChat (or as a desktop
+  notification when WeChat cannot take more messages now), otherwise in the
+  conversation with a desktop notification. Dispatched sessions raise no
+  completion sound or notification of their own; the user hears their
+  results only from the Orchestrator. A session waiting for approval shows
+  its own approval card and notification instead.
 - Its notes show as the "Orchestrator" tab of the Memory manager.
 - The conversation reads like a chat: the Orchestrator's replies sit in
   grey bubbles on the left, and the user's messages sit in dark (light, in
@@ -1296,9 +1302,8 @@ the user opens themselves do not pulse.
     "Receive tasks from WeChat" (off pauses it; only this computer can turn
     it back on), "Plain messages go to" ("Orchestrator" or "Current session":
     where a WeChat message that is not a dot command goes; the Orchestrator can
-    start sessions in any project, relays their approval cards and reports
-    back, its WeChat replies arriving as up to four short messages, while results of the sessions it started arrive as the usual
-    pushes; new connections start on Orchestrator, connections made before the
+    start sessions in any project, relays their approval cards and tells the
+    user their results itself, its WeChat replies arriving as up to four short messages; the sessions it started push no results of their own, and `.u 9` takes over the session it last reported on; new connections start on Orchestrator, connections made before the
     Orchestrator existed stay on Current session and get a one-time note in
     WeChat; in WeChat `.u` talks to a session directly and `.home` (or 指挥中心; the older 指挥 and 助理 still work)
     goes back to the Orchestrator), "Default project" (projects or "No Project"), "Highest

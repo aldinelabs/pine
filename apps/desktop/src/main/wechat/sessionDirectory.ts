@@ -641,6 +641,13 @@ export class SessionDirectory {
         files,
         artifacts: runArtifacts,
       }).catch(() => undefined);
+    } else if (
+      wasRunning &&
+      !obs.aborted &&
+      this.trackedEntry(sessionId)?.origin === "dispatched"
+    ) {
+      // The Orchestrator relays it; `.u 9` still reaches the session it reports.
+      this.recordPush(sessionId, this.projectOfSession(sessionId, obs));
     }
     void this.releaseIdle().catch(() => undefined);
   }
@@ -651,10 +658,17 @@ export class SessionDirectory {
       .tracked.find((entry) => entry.sessionId === sessionId);
   }
 
-  /** Results and progress: tracked, not a spawned child. */
+  /**
+   * Results and progress: tracked, not a spawned child, and not one the
+   * Orchestrator dispatched, whose results it relays itself.
+   */
   private pushesResults(sessionId: string): boolean {
     const tracked = this.trackedEntry(sessionId);
-    return tracked !== undefined && tracked.origin !== "spawned";
+    return (
+      tracked !== undefined &&
+      tracked.origin !== "spawned" &&
+      tracked.origin !== "dispatched"
+    );
   }
 
   private checkProgress(sessionId: string, obs: Observed): void {
@@ -1095,8 +1109,9 @@ export class SessionDirectory {
   /**
    * The Assistant dispatched a session in a turn WeChat started. It carries
    * WeChat's words, so it is held to WeChat's limits like a spawned session,
-   * and it is tracked so its cards and results reach WeChat. Tracking applies
-   * at once: the session's first approval may already be waiting.
+   * and it is tracked so its approval cards reach WeChat. Its results do
+   * not: the Orchestrator relays them. Tracking applies at once: the
+   * session's first approval may already be waiting.
    */
   sessionDispatched(sessionId: string, projectId: string): void {
     const obs = this.touch(sessionId);

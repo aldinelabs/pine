@@ -339,7 +339,7 @@ describe("the Assistant's dispatches", () => {
         title: "修首页",
       },
       expect.stringContaining("<last-reply>首页已修好。</last-reply>"),
-      { triggerTurn: false },
+      { triggerTurn: true },
     );
   });
 
@@ -475,21 +475,68 @@ describe("the Assistant's desktop conversation", () => {
     );
   });
 
-  it("lets a report wait for the user instead of starting a turn", async () => {
+  it("wakes to relay a finished turn, and lets an approval wait for its card", async () => {
     const { service, agentHost } = await fixture();
     await service.answer(
       { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
       dispatch,
     );
 
+    await service.report(DISPATCHED, "awaiting-approval");
     await service.report(DISPATCHED, "finished");
 
-    expect(agentHost.notifySession).toHaveBeenCalledWith(
-      ASSISTANT_SESSION,
-      expect.anything(),
-      expect.any(String),
+    const calls = agentHost.notifySession.mock.calls as unknown as unknown[][];
+    expect(calls.map((call) => call[3])).toEqual([
       { triggerTurn: false },
+      { triggerTurn: true },
+    ]);
+    // The Orchestrator, not the session, raises the signal.
+    expect(service.relaysResultsOf(DISPATCHED)).toBe(true);
+    expect(service.relaysResultsOf(ELSEWHERE)).toBe(false);
+  });
+
+  it("relays in WeChat what was asked there, and on the desktop otherwise", async () => {
+    const { service } = await fixture();
+    const notify = vi.fn();
+    service.notify = notify;
+    service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
+    await service.send("帮我修一下博客首页", {
+      locale: "zh-CN",
+      source: "wechat",
+      ceiling: "let-me-review",
+    });
+    await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
     );
+
+    await service.report(DISPATCHED, "finished");
+    expect(service.onWakeForWeChat).toHaveBeenCalledWith(ASSISTANT_SESSION);
+    await service.turnEnded(ASSISTANT_SESSION, "idle");
+    expect(notify).not.toHaveBeenCalled();
+
+    // WeChat cannot take it now: the relay shows on the desktop.
+    service.onWakeForWeChat = vi.fn(() => Promise.resolve(false));
+    await service.report(DISPATCHED, "finished");
+    await service.turnEnded(ASSISTANT_SESSION, "idle");
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
+  it("relays on the desktop a dispatch asked for there", async () => {
+    const { service } = await fixture();
+    const notify = vi.fn();
+    service.notify = notify;
+    service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
+    await service.answer(
+      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
+      dispatch,
+    );
+
+    await service.report(DISPATCHED, "finished");
+    await service.turnEnded(ASSISTANT_SESSION, "idle");
+
+    expect(service.onWakeForWeChat).not.toHaveBeenCalled();
+    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("ends its conversation when that session is deleted, and reports to it no more", async () => {
@@ -510,6 +557,8 @@ describe("the Assistant's desktop conversation", () => {
     );
     await service.report(DISPATCHED, "finished");
     expect(agentHost.notifySession).not.toHaveBeenCalled();
+    // Nobody relays it now, so the session signals its own results.
+    expect(service.relaysResultsOf(DISPATCHED)).toBe(false);
     // What it dispatched stays marked as its own.
     await expect(service.dispatchedIds()).resolves.toContain(DISPATCHED);
   });
