@@ -43,12 +43,14 @@ const stateSchema = z.object({
         sessionId: id,
         label: z.string().optional(),
         projectId: id,
+        orchestrator: z.literal(true).optional(),
       }),
       z.object({
         id,
         kind: z.literal("session"),
         state: z.enum(["draft", "creating"]),
         projectId: id,
+        orchestrator: z.literal(true).optional(),
       }),
     ]),
   ),
@@ -91,6 +93,7 @@ export function readContentTabs(): ContentTabState | null {
               kind: "session",
               projectId: saved.projectId,
               state: "draft",
+              ...(saved.orchestrator ? { orchestrator: true as const } : {}),
             }
           : saved;
       const identity =

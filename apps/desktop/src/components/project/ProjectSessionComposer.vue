@@ -99,7 +99,11 @@ import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { projectNameMatches } from "@/lib/projectNameMatches";
-import type { PineProject } from "@/shared/projects";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "@/shared/projects";
+import { ASSISTANT_COMPOSER_TARGET } from "@/shared/assistant";
 import { useAppearanceStore } from "@/stores/appearance";
 import { useProjectStore } from "@/stores/project";
 import { cn } from "@/lib/utils";
@@ -334,6 +338,15 @@ const allApprovalModes = computed<ApprovalModeOption[]>(() => [
     icon: ShieldOffIcon,
   },
 ]);
+/**
+ * Where the files attached here are kept: a message for the Assistant,
+ * from the floating composer, keeps them in No Project, as its own tab does.
+ */
+const storageProjectId = computed(() =>
+  props.projectId === ASSISTANT_COMPOSER_TARGET
+    ? TEMPORARY_WORKSPACE_PROJECT_ID
+    : props.projectId,
+);
 /** The Assistant never runs in YOLO. */
 const approvalModes = computed(() =>
   props.assistant
@@ -1202,7 +1215,7 @@ function mergeAttachments(selected: readonly PineAttachment[]): void {
 async function pickAttachments(kind: "directory" | "file"): Promise<void> {
   try {
     const result = isWeb
-      ? await window.pine.pickAttachments(props.projectId)
+      ? await window.pine.pickAttachments(storageProjectId.value)
       : kind === "directory"
         ? await window.pine.pickAttachmentFolders()
         : await window.pine.pickAttachments();
@@ -1252,7 +1265,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
     try {
       const result = await window.pine.uploadAttachments(
         files,
-        props.projectId,
+        storageProjectId.value,
       );
       mergeAttachments(result.attachments);
     } catch {
@@ -1295,7 +1308,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
       for (const image of pastedImages) {
         const result = await window.pine.savePastedAttachment({
           ...image,
-          projectId: props.projectId,
+          projectId: storageProjectId.value,
         });
         merged.push(result.attachment);
       }
@@ -1317,7 +1330,7 @@ async function handlePaste(event: ClipboardEvent): Promise<void> {
   try {
     const result = await window.pine.savePastedAttachment({
       mimeType: "text/plain",
-      projectId: props.projectId,
+      projectId: storageProjectId.value,
       name: "pasted-text.txt",
       text: pastedText,
     });

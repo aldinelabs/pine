@@ -1,5 +1,11 @@
-import type { PineProject } from "../shared/projects";
-import type { ProjectSessionSearchResult } from "../shared/sessions";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "../shared/projects";
+import type {
+  ProjectSessionSearchResult,
+  SessionSearchResult,
+} from "../shared/sessions";
 import type { ProjectDataPaths } from "./projects/projectRepository";
 import { ProjectSessionService } from "./sessions";
 
@@ -63,6 +69,17 @@ export function listProjectSessions(
   sources: RecentSessionSources,
 ): Promise<ProjectSessionSearchResult[]> {
   return searchSessionsOf(project, "", sources);
+}
+
+/** The Assistant's stored conversations in No Project, newest first. */
+export function listOrchestratorSessions(
+  sources: RecentSessionSources,
+): Promise<SessionSearchResult[]> {
+  return withSessionService(
+    TEMPORARY_WORKSPACE_PROJECT_ID,
+    sources,
+    (service) => service.orchestratorSessions(),
+  );
 }
 
 /** Matches per project, newest first without starving quieter projects. */

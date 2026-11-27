@@ -16,9 +16,9 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { useAssistantEntry } from "@/composables/useAssistantEntry";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useSessionExport } from "@/composables/useSessionExport";
-import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
 import type { PineSessionSummary } from "@/shared/sessions";
 import { useAssistantStore } from "@/stores/assistant";
+import { isOrchestratorTab } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
 
 /**
@@ -40,21 +40,12 @@ onMounted(() => {
   void assistant.load().catch(() => undefined);
 });
 
-const isActive = computed(
-  () =>
-    activeTab.value?.kind === "session" &&
-    isAssistantProject(activeTab.value.projectId),
-);
+const isActive = computed(() => isOrchestratorTab(activeTab.value));
 
 /** Its conversation: the open tab's, else the one main last reported. */
 const sessionId = computed(() => {
   const tab = activeTab.value;
-  if (
-    tab?.kind === "session" &&
-    tab.state === "bound" &&
-    isAssistantProject(tab.projectId)
-  )
-    return tab.sessionId;
+  if (isOrchestratorTab(tab) && tab.state === "bound") return tab.sessionId;
   return assistant.session?.id;
 });
 
@@ -62,9 +53,6 @@ const session = computed<PineSessionSummary | null>(() => {
   const id = sessionId.value;
   if (!id) return null;
   return (
-    sessionStore
-      .recentSessionsFor(ASSISTANT_PROJECT_ID)
-      .find((candidate) => candidate.id === id) ??
     (assistant.session?.id === id ? assistant.session : null) ??
     (sessionStore.activeSession?.id === id ? sessionStore.activeSession : null)
   );

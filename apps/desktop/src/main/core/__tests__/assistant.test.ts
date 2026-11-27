@@ -5,7 +5,6 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ASSISTANT_CLIENT_ID,
-  ASSISTANT_PROJECT_ID,
   assistantAttachmentId,
 } from "../../../shared/assistant";
 import {
@@ -17,8 +16,15 @@ import {
   markWeChatMessage,
   readAssistantMessage,
 } from "../../../agent/assistant/prompt";
-import type { PineProject } from "../../../shared/projects";
-import type { PineTextMessage } from "../../../shared/sessions";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "../../../shared/projects";
+import type {
+  PineSessionNotice,
+  PineSessionSummary,
+  PineTextMessage,
+} from "../../../shared/sessions";
 import { AssistantService } from "../assistant";
 import type { PineCore } from "../pineCore";
 
@@ -28,20 +34,19 @@ vi.mock("../requests/sessions", () => ({
   sessionLibrary: () => ({}),
 }));
 const listProjectSessions = vi.hoisted(() => vi.fn());
-vi.mock("../../recentSessions", () => ({ listProjectSessions }));
+const listOrchestratorSessions = vi.hoisted(() => vi.fn());
+vi.mock("../../recentSessions", () => ({
+  listProjectSessions,
+  listOrchestratorSessions,
+}));
 
+const TEMP = TEMPORARY_WORKSPACE_PROJECT_ID;
 const ASSISTANT_SESSION = "11111111-1111-4111-8111-111111111111";
 const DISPATCHED = "22222222-2222-4222-8222-222222222222";
 const ELSEWHERE = "33333333-3333-4333-8333-333333333333";
 const BLOG = "44444444-4444-4444-8444-444444444444";
 
-const blog = {
-  id: BLOG,
-  name: "Blog",
-  folders: [],
-  defaultFolderId: "f",
-} as unknown as PineProject;
-const assistantProject = { id: ASSISTANT_PROJECT_ID } as PineProject;
+const noProject = { id: TEMP, name: "No Project" } as unknown as PineProject;
 
 function userMessage(text: string): PineTextMessage {
   return {
@@ -60,6 +65,13 @@ function reply(text: string): PineTextMessage {
   } as unknown as PineTextMessage;
 }
 
+/** The Assistant's conversation as the session index stores it. */
+const storedConversation = {
+  id: ASSISTANT_SESSION,
+  orchestrator: true,
+  updatedAt: "2026-11-24T00:00:00.000Z",
+} as PineSessionSummary;
+
 const roots: string[] = [];
 
 afterEach(async () => {
@@ -76,26 +88,44 @@ beforeEach(() => {
   });
   listProjectSessions.mockReset();
   listProjectSessions.mockResolvedValue([]);
+  listOrchestratorSessions.mockReset();
+  listOrchestratorSessions.mockResolvedValue([]);
 });
 
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "pine-assistant-core-"));
   roots.push(root);
-  const live = new Map<string, PineProject>([
-    [ASSISTANT_SESSION, assistantProject],
+  const blog = {
+    id: BLOG,
+    name: "Blog",
+    folders: [],
+    defaultFolderId: "f",
+  } as unknown as PineProject;
+  const projectOf = new Map<string, PineProject>([
+    [ASSISTANT_SESSION, noProject],
     [ELSEWHERE, blog],
+    [DISPATCHED, blog],
   ]);
+  /** Sessions live in some runtime, with the clients holding it. */
+  const live = new Map<string, number[]>([[DISPATCHED, [7]]]);
   const runtimes = {
-    projectOfLiveSession: vi.fn((id: string) => live.get(id)),
+    projectOfLiveSession: vi.fn((id: string) =>
+      live.has(id) || id === ASSISTANT_SESSION ? projectOf.get(id) : undefined,
+    ),
     approvalModeOfLiveSession: vi.fn(() => "auto-approve"),
     isOpen: vi.fn(() => true),
     share: vi.fn(() => Promise.resolve()),
     clientsSharingRuntime: vi.fn(() => [ASSISTANT_CLIENT_ID]),
+    clientsOfSession: vi.fn((id: string) => live.get(id) ?? []),
     ownerOfProject: vi.fn(() => 7),
     liveSessionIdsOf: vi.fn((projectId: string) =>
-      projectId === ASSISTANT_PROJECT_ID ? [] : [DISPATCHED],
+      [...live.keys()].filter((id) => projectOf.get(id)?.id === projectId),
     ),
-    summaryOfLiveSession: vi.fn((id: string) => ({ id, name: "修首页" })),
+    summaryOfLiveSession: vi.fn((id: string) =>
+      id === ASSISTANT_SESSION
+        ? { id, orchestrator: true, updatedAt: "2026-11-25T00:00:00.000Z" }
+        : { id, name: "修首页" },
+    ),
     loadMessages: vi.fn(() =>
       Promise.resolve({ hasMore: false, messages: [reply("首页已修好。")] }),
     ),
@@ -132,18 +162,19 @@ async function fixture() {
       paused: false,
       settings: { allowHighRiskApprovals: false },
     })),
+    originOf: vi.fn((): "wechat" | "wechat-used" | undefined => undefined),
   };
   const agentHost = {
     notifySession: vi.fn(() => Promise.resolve({ delivered: true })),
   };
   const core = {
     repository: {
-      list: vi.fn(() => Promise.resolve([blog])),
+      list: vi.fn(() => Promise.resolve([noProject, blog])),
       get: vi.fn((id: string) =>
-        Promise.resolve(id === BLOG ? blog : assistantProject),
+        Promise.resolve(id === BLOG ? blog : noProject),
       ),
       open: vi.fn((id: string) =>
-        Promise.resolve(id === BLOG ? blog : assistantProject),
+        Promise.resolve(id === BLOG ? blog : noProject),
       ),
       dataPaths: vi.fn((id: string) => ({
         projectRoot: root,
@@ -159,13 +190,27 @@ async function fixture() {
     notifyLibraryChanged: vi.fn(),
     notifySessionsDeleted: vi.fn(),
   } as unknown as PineCore;
+  /** Links a session to the Assistant's conversation, as a dispatch does. */
+  const linkToAssistant = (sessionId: string) => {
+    blog.sessionParents = {
+      ...blog.sessionParents,
+      [sessionId]: ASSISTANT_SESSION,
+    };
+    blog.sessionParentProjects = {
+      ...blog.sessionParentProjects,
+      [sessionId]: TEMP,
+    };
+  };
   return {
     root,
+    blog,
+    live,
     core,
     runtimes,
     agentHost,
     automations,
     wechat,
+    linkToAssistant,
     service: new AssistantService(core),
   };
 }
@@ -179,9 +224,18 @@ const dispatch = {
   locale: "zh-CN" as const,
 };
 
+const notice = (state: PineSessionNotice["state"]): PineSessionNotice => ({
+  sessionId: DISPATCHED,
+  projectId: BLOG,
+  state,
+  title: "修首页",
+});
+
 describe("the Assistant's dispatches", () => {
-  it("starts a top-level session in the project and remembers it", async () => {
-    const { root, service } = await fixture();
+  it("starts a sub-session of its conversation in the project", async () => {
+    const { service } = await fixture();
+    const dispatched = vi.fn();
+    service.onDispatched = dispatched;
 
     const result = await service.answer(
       { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
@@ -197,23 +251,25 @@ describe("the Assistant's dispatches", () => {
     });
     const [, input] = startBackgroundSession.mock.calls[0] as [
       unknown,
-      { project: PineProject; message: string; parentSessionId?: string },
+      {
+        project: PineProject;
+        message: string;
+        parentSessionId?: string;
+        parentProjectId?: string;
+      },
     ];
-    expect(input.project).toBe(blog);
-    expect(input.parentSessionId).toBeUndefined();
+    expect(input.project.id).toBe(BLOG);
+    expect(input.parentSessionId).toBe(ASSISTANT_SESSION);
+    expect(input.parentProjectId).toBe(TEMP);
     expect(input.message).toMatch(/^\[Dispatched by Pine's Orchestrator\./);
     expect(input.message).toContain("修一下首页样式");
-    const stored = JSON.parse(
-      await readFile(path.join(root, "dispatches.json"), "utf8"),
-    ) as { dispatches: Record<string, { assistantSessionId: string }> };
-    expect(stored.dispatches[DISPATCHED]?.assistantSessionId).toBe(
-      ASSISTANT_SESSION,
-    );
+    // Only a WeChat turn's dispatches go to WeChat.
+    expect(dispatched).not.toHaveBeenCalled();
   });
 
   it("hands the attachments it names on: its own files copied, the user's by reference", async () => {
     const { root, runtimes, service } = await fixture();
-    const ownRoot = path.join(root, "attachments", ASSISTANT_PROJECT_ID);
+    const ownRoot = path.join(root, "attachments", TEMP);
     await mkdir(ownRoot, { recursive: true });
     const pasted: PineAttachment = {
       name: "截图.png",
@@ -254,7 +310,7 @@ describe("the Assistant's dispatches", () => {
     expect(result).toMatchObject({ op: "dispatch", attachments: 2 });
     expect(runtimes.loadMessages).toHaveBeenCalledWith(
       ASSISTANT_CLIENT_ID,
-      ASSISTANT_PROJECT_ID,
+      TEMP,
       ASSISTANT_SESSION,
       undefined,
       1,
@@ -295,59 +351,24 @@ describe("the Assistant's dispatches", () => {
     expect(startBackgroundSession).not.toHaveBeenCalled();
   });
 
-  it("reports each turn of a dispatched session back to the Assistant", async () => {
+  it("relays a dispatched session's notice in its conversation", async () => {
     const { service, agentHost, runtimes } = await fixture();
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
 
-    await service.report(DISPATCHED, "finished");
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "<notice/>");
 
     // The Assistant was not open, so it is resumed in the background first.
     expect(runtimes.resume).toHaveBeenCalledWith(
       ASSISTANT_CLIENT_ID,
-      ASSISTANT_PROJECT_ID,
+      TEMP,
       ASSISTANT_SESSION,
       { focus: false },
     );
     expect(agentHost.notifySession).toHaveBeenCalledExactlyOnceWith(
       ASSISTANT_SESSION,
-      {
-        sessionId: DISPATCHED,
-        projectId: BLOG,
-        state: "finished",
-        title: "修首页",
-      },
-      expect.stringContaining("<last-reply>首页已修好。</last-reply>"),
+      notice("finished"),
+      "<notice/>",
       { triggerTurn: true },
     );
-  });
-
-  it("tells the Assistant a dispatched session waits, without its reply", async () => {
-    const { service, agentHost } = await fixture();
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
-
-    await service.report(DISPATCHED, "awaiting-approval");
-
-    const [, , content] = agentHost.notifySession.mock.calls[0] as unknown as [
-      string,
-      unknown,
-      string,
-    ];
-    expect(content).not.toContain("<last-reply>");
-    expect(content).toContain("never approve or reject it yourself");
-  });
-
-  it("says nothing about sessions it did not dispatch", async () => {
-    const { service, agentHost } = await fixture();
-
-    await service.report(ELSEWHERE, "finished");
-
-    expect(agentHost.notifySession).not.toHaveBeenCalled();
   });
 
   it("answers no session but the Assistant's", async () => {
@@ -372,10 +393,18 @@ describe("the Assistant's dispatches", () => {
   });
 
   it("lists projects, running work and its dispatches in the overview", async () => {
-    const { service } = await fixture();
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
+    const { service, live, linkToAssistant } = await fixture();
+    linkToAssistant(DISPATCHED);
+    live.set(ASSISTANT_SESSION, [9]);
+    listProjectSessions.mockImplementation((project: PineProject) =>
+      Promise.resolve(
+        project.id === BLOG
+          ? [
+              { id: DISPATCHED, name: "修首页", updatedAt: "2026-11-24" },
+              { id: ELSEWHERE, name: "改样式", updatedAt: "2026-11-25" },
+            ]
+          : [],
+      ),
     );
 
     const result = await service.answer(
@@ -386,18 +415,70 @@ describe("the Assistant's dispatches", () => {
     expect(result).toMatchObject({
       op: "overview",
       overview: {
-        projects: [{ id: BLOG, name: "Blog" }],
+        projects: [{ id: TEMP }, { id: BLOG, name: "Blog" }],
+        // Its own conversation is not among the work it oversees.
         active: [{ id: DISPATCHED, state: "running", dispatched: true }],
         dispatched: [{ id: DISPATCHED, title: "修首页" }],
         pendingApprovals: 0,
       },
     });
+    if (result.op !== "overview") throw new Error(result.op);
+    expect(result.overview.dispatched).toHaveLength(1);
+  });
+});
+
+describe("the Assistant's conversation", () => {
+  it("is the newest No Project session flagged as its own", async () => {
+    const { service, live } = await fixture();
+    await expect(service.thread()).resolves.toBeUndefined();
+
+    const older = { ...storedConversation, id: ELSEWHERE, updatedAt: "2026" };
+    listOrchestratorSessions.mockResolvedValue([older, storedConversation]);
+    await expect(service.thread()).resolves.toBe(ASSISTANT_SESSION);
+    await expect(service.isConversation(ASSISTANT_SESSION, TEMP)).resolves.toBe(
+      true,
+    );
+    // Only in No Project, and only flagged sessions.
+    await expect(service.isConversation(ASSISTANT_SESSION, BLOG)).resolves.toBe(
+      false,
+    );
+    live.set(ASSISTANT_SESSION, [9]);
+    await expect(service.isConversation(DISPATCHED, TEMP)).resolves.toBe(false);
+  });
+
+  it("takes a window's new message for it, and messages to its conversation", async () => {
+    const { service } = await fixture();
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
+
+    await expect(
+      service.isPromptFor({ kind: "new", projectId: TEMP, orchestrator: true }),
+    ).resolves.toBe(true);
+    await expect(
+      service.isPromptFor({ kind: "new", projectId: TEMP }),
+    ).resolves.toBe(false);
+    await expect(
+      service.isPromptFor({
+        kind: "session",
+        projectId: TEMP,
+        sessionId: ASSISTANT_SESSION,
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("relays results of the sessions linked to it, and no others", async () => {
+    const { service, live, linkToAssistant } = await fixture();
+    live.set(ELSEWHERE, [7]);
+    linkToAssistant(DISPATCHED);
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
+
+    await expect(service.relaysResultsOf(DISPATCHED)).resolves.toBe(true);
+    await expect(service.relaysResultsOf(ELSEWHERE)).resolves.toBe(false);
   });
 });
 
 describe("the Assistant's desktop conversation", () => {
-  it("starts its one conversation like any session, in the composer's mode", async () => {
-    const { root, service, runtimes } = await fixture();
+  it("starts its conversation like any session, in No Project and the composer's mode", async () => {
+    const { service, runtimes } = await fixture();
 
     await service.prompt(9, {
       locale: "zh-CN",
@@ -408,21 +489,16 @@ describe("the Assistant's desktop conversation", () => {
     expect(runtimes.prompt).toHaveBeenCalledWith(
       9,
       expect.objectContaining({
-        target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        target: { kind: "new", projectId: TEMP, orchestrator: true },
         approvalMode: "let-me-review",
       }),
       {},
     );
-    const state = JSON.parse(
-      await readFile(path.join(root, "state.json"), "utf8"),
-    ) as { sessionId: string };
-    expect(state.sessionId).toBe(ASSISTANT_SESSION);
   });
 
   it("sends later messages to the same conversation", async () => {
     const { service, runtimes } = await fixture();
-    await service.prompt(9, { locale: "zh-CN", message: "第一条" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
 
     await service.prompt(9, { locale: "zh-CN", message: "第二条" });
 
@@ -431,12 +507,26 @@ describe("the Assistant's desktop conversation", () => {
       expect.objectContaining({
         target: {
           kind: "session",
-          projectId: ASSISTANT_PROJECT_ID,
+          projectId: TEMP,
           sessionId: ASSISTANT_SESSION,
         },
         approvalMode: "auto-approve",
       }),
       {},
+    );
+  });
+
+  it("sends through the client whose runtime runs its conversation", async () => {
+    const { service, runtimes, live } = await fixture();
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
+    live.set(ASSISTANT_SESSION, [ASSISTANT_CLIENT_ID]);
+
+    await service.prompt(9, { locale: "zh-CN", message: "你好" });
+
+    expect(runtimes.prompt).toHaveBeenLastCalledWith(
+      ASSISTANT_CLIENT_ID,
+      expect.anything(),
+      { focus: false },
     );
   });
 
@@ -458,47 +548,35 @@ describe("the Assistant's desktop conversation", () => {
 
   it("wakes to relay a finished turn, and lets an approval wait for its card", async () => {
     const { service, agentHost } = await fixture();
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
 
-    await service.report(DISPATCHED, "awaiting-approval");
-    await service.report(DISPATCHED, "finished");
+    await service.relay(ASSISTANT_SESSION, notice("awaiting-approval"), "a");
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "b");
 
     const calls = agentHost.notifySession.mock.calls as unknown as unknown[][];
     expect(calls.map((call) => call[3])).toEqual([
       { triggerTurn: false },
       { triggerTurn: true },
     ]);
-    // The Orchestrator, not the session, raises the signal.
-    expect(service.relaysResultsOf(DISPATCHED)).toBe(true);
-    expect(service.relaysResultsOf(ELSEWHERE)).toBe(false);
   });
 
   it("relays in WeChat what was asked there, and on the desktop otherwise", async () => {
-    const { service } = await fixture();
+    const { service, wechat } = await fixture();
     const notify = vi.fn();
     service.notify = notify;
     service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
-    await service.send("帮我修一下博客首页", {
-      locale: "zh-CN",
-      source: "wechat",
-      ceiling: "let-me-review",
-    });
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
+    wechat.originOf.mockReturnValue("wechat");
 
-    await service.report(DISPATCHED, "finished");
-    expect(service.onWakeForWeChat).toHaveBeenCalledWith(ASSISTANT_SESSION);
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "c");
+    expect(service.onWakeForWeChat).toHaveBeenCalledWith(ASSISTANT_SESSION, {
+      sessionId: DISPATCHED,
+      projectId: BLOG,
+    });
     await service.turnEnded(ASSISTANT_SESSION, "idle");
     expect(notify).not.toHaveBeenCalled();
 
     // WeChat cannot take it now: the relay shows on the desktop.
     service.onWakeForWeChat = vi.fn(() => Promise.resolve(false));
-    await service.report(DISPATCHED, "finished");
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "c");
     await service.turnEnded(ASSISTANT_SESSION, "idle");
     expect(notify).toHaveBeenCalledOnce();
   });
@@ -508,46 +586,31 @@ describe("the Assistant's desktop conversation", () => {
     const notify = vi.fn();
     service.notify = notify;
     service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
 
-    await service.report(DISPATCHED, "finished");
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "d");
     await service.turnEnded(ASSISTANT_SESSION, "idle");
 
     expect(service.onWakeForWeChat).not.toHaveBeenCalled();
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it("ends its conversation when that session is deleted, and reports to it no more", async () => {
-    const { service, agentHost } = await fixture();
-    await service.prompt(9, { locale: "zh-CN", message: "你好" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
+  it("drops a deleted conversation's pending replies", async () => {
+    const { service } = await fixture();
+    const notify = vi.fn();
+    service.notify = notify;
+    await service.relay(ASSISTANT_SESSION, notice("finished"), "e");
 
-    // Deleted like any session.
-    await service.sessionsDeleted([ASSISTANT_SESSION]);
-    listProjectSessions.mockResolvedValue([]);
+    service.sessionsDeleted([ASSISTANT_SESSION]);
+    await service.turnEnded(ASSISTANT_SESSION, "idle");
 
-    await expect(service.describeState()).resolves.not.toHaveProperty(
-      "session",
-    );
-    await service.report(DISPATCHED, "finished");
-    expect(agentHost.notifySession).not.toHaveBeenCalled();
-    // Nobody relays it now, so the session signals its own results.
-    expect(service.relaysResultsOf(DISPATCHED)).toBe(false);
-    // What it dispatched stays marked as its own.
-    await expect(service.dispatchedIds()).resolves.toContain(DISPATCHED);
+    expect(notify).not.toHaveBeenCalled();
   });
 });
 
 describe("the Assistant from WeChat", () => {
-  it("starts its one conversation as its own client and remembers it", async () => {
-    const { root, runtimes, service } = await fixture();
+  it("starts its conversation as its own client", async () => {
+    const { runtimes, service } = await fixture();
+    runtimes.isOpen.mockReturnValue(false);
 
     const sent = await service.send("帮我修一下博客首页", {
       locale: "zh-CN",
@@ -555,31 +618,28 @@ describe("the Assistant from WeChat", () => {
       ceiling: "let-me-review",
     });
 
-    expect(sent).toEqual({
-      sessionId: ASSISTANT_SESSION,
-      projectId: ASSISTANT_PROJECT_ID,
-    });
+    expect(sent).toEqual({ sessionId: ASSISTANT_SESSION, projectId: TEMP });
+    // It holds No Project while no window does.
+    expect(runtimes.share).toHaveBeenCalledWith(
+      ASSISTANT_CLIENT_ID,
+      noProject,
+      expect.anything(),
+    );
     expect(runtimes.prompt).toHaveBeenCalledWith(
       ASSISTANT_CLIENT_ID,
       expect.objectContaining({
         // Marked as typed in WeChat, for the prompt's WeChat style.
         message: "[WeChat]\n帮我修一下博客首页",
-        target: { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+        target: { kind: "new", projectId: TEMP, orchestrator: true },
         approvalMode: "auto-approve",
       }),
       { focus: false },
     );
-    expect(
-      JSON.parse(await readFile(path.join(root, "state.json"), "utf8")),
-    ).toEqual({ version: 1, sessionId: ASSISTANT_SESSION });
   });
 
   it("steers its running turn with the next message", async () => {
     const { runtimes, service } = await fixture();
-    await service.send("第一条", { locale: "zh-CN", source: "wechat" });
-    runtimes.liveSessionIdsOf.mockImplementation((projectId: string) =>
-      projectId === ASSISTANT_PROJECT_ID ? [ASSISTANT_SESSION] : [DISPATCHED],
-    );
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
 
     await service.send("再加一句", {
       locale: "zh-CN",
@@ -592,7 +652,7 @@ describe("the Assistant from WeChat", () => {
       expect.objectContaining({
         target: {
           kind: "session",
-          projectId: ASSISTANT_PROJECT_ID,
+          projectId: TEMP,
           sessionId: ASSISTANT_SESSION,
         },
         message: markWeChatMessage("再加一句"),
@@ -624,7 +684,7 @@ describe("the Assistant from WeChat", () => {
     });
   });
 
-  it("dispatches a WeChat turn's work within the WeChat ceiling and reports it", async () => {
+  it("dispatches a WeChat turn's work within the WeChat ceiling and hands it to WeChat", async () => {
     const { service } = await fixture();
     const dispatched = vi.fn();
     service.onDispatched = dispatched;
@@ -644,13 +704,14 @@ describe("the Assistant from WeChat", () => {
       expect.anything(),
       expect.objectContaining({ approvalMode: "let-me-review" }),
     );
-    expect(dispatched).toHaveBeenCalledWith(
-      { sessionId: DISPATCHED, projectId: BLOG },
-      { source: "wechat" },
-    );
+    expect(dispatched).toHaveBeenCalledWith({
+      parentSessionId: ASSISTANT_SESSION,
+      sessionId: DISPATCHED,
+      projectId: BLOG,
+    });
   });
 
-  it("keeps a desktop turn's mode and says it came from the desktop", async () => {
+  it("keeps a desktop turn's mode", async () => {
     const { service } = await fixture();
     const dispatched = vi.fn();
     service.onDispatched = dispatched;
@@ -662,10 +723,7 @@ describe("the Assistant from WeChat", () => {
     );
 
     expect(result).toMatchObject({ approvalMode: "auto-approve" });
-    expect(dispatched).toHaveBeenCalledWith(
-      { sessionId: DISPATCHED, projectId: BLOG },
-      { source: "desktop" },
-    );
+    expect(dispatched).not.toHaveBeenCalled();
   });
 });
 
@@ -673,7 +731,7 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
   it("puts both into the same conversation, each marked with its source", async () => {
     const { runtimes, service } = await fixture();
     await service.prompt(9, { locale: "zh-CN", message: "桌面这条" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
 
     await service.send("微信这条", { locale: "zh-CN", source: "wechat" });
 
@@ -689,7 +747,7 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
         message: markWeChatMessage("微信这条"),
         target: {
           kind: "session",
-          projectId: ASSISTANT_PROJECT_ID,
+          projectId: TEMP,
           sessionId: ASSISTANT_SESSION,
         },
       }),
@@ -699,8 +757,7 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
 
   it("runs WeChat turns in its conversation's mode, and dispatches within the ceiling below it", async () => {
     const { runtimes, service } = await fixture();
-    await service.prompt(9, { locale: "zh-CN", message: "你好" });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
     runtimes.approvalModeOfLiveSession.mockReturnValue("autonomous");
 
     await service.send("修首页", {
@@ -728,7 +785,7 @@ describe("the Assistant's one conversation, from the desktop and WeChat", () => 
       source: "wechat",
       ceiling: "let-me-review",
     });
-    listProjectSessions.mockResolvedValue([{ id: ASSISTANT_SESSION }]);
+    listOrchestratorSessions.mockResolvedValue([storedConversation]);
     await service.prompt(9, {
       locale: "zh-CN",
       message: "顺便看看样式",
@@ -748,13 +805,13 @@ const ASSISTANT = {
   ownerId: ASSISTANT_CLIENT_ID,
 };
 
-/** The Assistant's conversation has started and Blog has a session. */
+/** The Assistant's conversation has started and Blog has two sessions. */
 async function started() {
   const context = await fixture();
-  await context.service.prompt(9, { locale: "zh-CN", message: "你好" });
+  listOrchestratorSessions.mockResolvedValue([storedConversation]);
   listProjectSessions.mockResolvedValue([
-    { id: ASSISTANT_SESSION },
     { id: ELSEWHERE, name: "改样式" },
+    { id: DISPATCHED, name: "修首页" },
   ]);
   return context;
 }
@@ -837,6 +894,24 @@ describe("automations from the Assistant", () => {
 });
 
 describe("sessions the Assistant may act on", () => {
+  it("renames one it dispatched without asking", async () => {
+    const { service, runtimes, linkToAssistant } = await started();
+    linkToAssistant(DISPATCHED);
+    (runtimes as unknown as { renameSession: unknown }).renameSession = vi.fn(
+      () => Promise.resolve(),
+    );
+
+    await expect(
+      service.answer(ASSISTANT, {
+        op: "session-rename",
+        projectId: BLOG,
+        sessionId: DISPATCHED,
+        title: "新标题",
+        confirmed: false,
+      }),
+    ).resolves.toEqual({ op: "session-rename", title: "新标题" });
+  });
+
   it("needs the user's confirmation for one it did not dispatch", async () => {
     const { service } = await started();
     await expect(

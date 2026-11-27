@@ -20,7 +20,7 @@ import { useDraftProjectOpener } from "@/composables/useDraftProjectOpener";
 import { useProjectDisplayName } from "@/composables/useProjectDisplayName";
 import { projectIconComponent } from "@/lib/projectIcons";
 import { isTemporaryWorkspace, type PineProject } from "@/shared/projects";
-import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
+import { ASSISTANT_COMPOSER_TARGET } from "@/shared/assistant";
 import { useProjectStore } from "@/stores/project";
 import ProjectDialog from "./ProjectDialog.vue";
 
@@ -44,7 +44,9 @@ const { projects } = storeToRefs(projectStore);
 const displayName = useProjectDisplayName();
 const isCreateOpen = ref(false);
 const openForDraft = useDraftProjectOpener();
-const isAssistantSelected = computed(() => isAssistantProject(props.projectId));
+const isAssistantSelected = computed(
+  () => props.projectId === ASSISTANT_COMPOSER_TARGET,
+);
 const selected = computed(() => projectStore.projectById(props.projectId));
 const selectedName = computed(() =>
   isAssistantSelected.value ? t("assistant.name") : displayName(selected.value),
@@ -105,7 +107,7 @@ function created(project: PineProject): void {
           v-if="props.allowAssistant"
           data-slot="project-target-option"
           data-testid="project-target-assistant"
-          :value="ASSISTANT_PROJECT_ID"
+          :value="ASSISTANT_COMPOSER_TARGET"
         >
           <OrchestratorIcon />
           <span class="flex min-w-0 flex-col gap-0.5">

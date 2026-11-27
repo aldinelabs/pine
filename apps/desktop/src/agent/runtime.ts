@@ -7,6 +7,8 @@ import {
 import {
   PINE_SESSION_NOTICE_TYPE,
   PINE_LIVE_CONTEXT_ENTRY,
+  PINE_ORCHESTRATOR_ENTRY,
+  isOrchestratorSession,
   PINE_SUB_SESSION_ENTRY,
   PINE_TITLE_SUGGESTION_ENTRY,
   PINE_REPLY_SUGGESTION_ENTRY,
@@ -568,6 +570,8 @@ export class PineAgentRuntime {
       manager.appendCustomEntry(PINE_SUB_SESSION_ENTRY, {
         parentSessionId: location.parentSessionId,
       });
+    if (location.orchestrator)
+      manager.appendCustomEntry(PINE_ORCHESTRATOR_ENTRY, {});
     if (location.liveContext) {
       manager.appendCustomEntry(PINE_LIVE_CONTEXT_ENTRY, {});
       // Saved now, it must reopen with the mode it was started in.
@@ -1683,7 +1687,9 @@ export class PineAgentRuntime {
       ),
       ...(location.automation ? { automation: location.automation } : {}),
       ...(sideChat ? { sideChat } : {}),
-      ...(location.orchestrator ? { orchestrator: true as const } : {}),
+      ...(isOrchestratorSession(sessionManager.getEntries())
+        ? { orchestrator: true as const }
+        : {}),
       ...(location.tinyFishApiKey
         ? { tinyFishApiKey: location.tinyFishApiKey }
         : {}),
@@ -1740,7 +1746,7 @@ export class PineAgentRuntime {
       }),
       scratchDirectory: await projectTemporaryDirectory(location),
     });
-    const resourceLoader = location.orchestrator
+    const resourceLoader = live.orchestrator
       ? this.assistantResourceLoader(
           live,
           location,
@@ -2063,7 +2069,7 @@ export class PineAgentRuntime {
       live.approvalMode === "let-me-review" ? "user" : "auto",
     );
     const modelRuntime = await this.getModelRuntime(location.agentDir);
-    const pineTools = location.orchestrator
+    const pineTools = live.orchestrator
       ? []
       : await createPineToolDefinitions(location, live.gate, attachedPaths, {
           getApprovalMode: () => live.approvalMode,
@@ -2179,7 +2185,7 @@ export class PineAgentRuntime {
             promoter: live.foregroundPromoter,
           },
         });
-    const customTools = location.orchestrator
+    const customTools = live.orchestrator
       ? createAssistantToolDefinitions({
           requestHost: (request) => this.requestHost(live, request),
           getApprovalMode: () => live.approvalMode,
@@ -2264,7 +2270,7 @@ export class PineAgentRuntime {
                 }),
               ]),
         ];
-    live.availableToolNames = location.orchestrator
+    live.availableToolNames = live.orchestrator
       ? [...ASSISTANT_TOOL_NAMES]
       : [
           ...customTools.map((tool) => tool.name),
@@ -2292,7 +2298,7 @@ export class PineAgentRuntime {
       customTools,
       // The Assistant's registry holds its allowlist and nothing else, for
       // good: no tool to do work with can be activated later.
-      ...(location.orchestrator ? { tools: [...ASSISTANT_TOOL_NAMES] } : {}),
+      ...(live.orchestrator ? { tools: [...ASSISTANT_TOOL_NAMES] } : {}),
     });
     live.session = session;
     await session.bindExtensions({ mode: "rpc" });

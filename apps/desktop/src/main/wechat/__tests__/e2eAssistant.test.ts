@@ -6,7 +6,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ASSISTANT_PROJECT_ID } from "../../../shared/assistant";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "../../../shared/projects";
 import { type Harness, createHarness, sleep, waitFor } from "./e2eHarness";
 
 const harnesses: Harness[] = [];
@@ -81,7 +81,10 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     await sleep(100);
     await h.settle();
     expect(after(h, pushed)).toEqual([]);
-    await h.bridge.expectAssistantReply(assistant, ASSISTANT_PROJECT_ID);
+    await h.bridge.expectAssistantReply(assistant, {
+      sessionId: work,
+      projectId: h.project.id,
+    });
     h.running(assistant);
     h.finish(
       assistant,
@@ -140,7 +143,12 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     h.running(work);
     h.finish(work, "修好了");
     await h.settle();
-    // Not pushed, but `.u 9` still means the session that just reported.
+    // Not pushed, but once the Orchestrator relays it (Pine's core asks
+    // the bridge for its reply), `.u 9` means the session it reported on.
+    await h.bridge.expectAssistantReply(h.assistantSession(), {
+      sessionId: work,
+      projectId: h.project.id,
+    });
 
     const use = await h.say(".u 9");
     expect(use).toContain(".home");
@@ -174,7 +182,9 @@ describe("WeChat and the Assistant", { timeout: 30_000 }, () => {
     const [file] = call?.attachments ?? [];
     expect(file?.name).toBe("q3.csv");
     // Stored like any session's attachment, in the Assistant's own storage.
-    const root = h.repository.dataPaths(ASSISTANT_PROJECT_ID).attachmentsRoot;
+    const root = h.repository.dataPaths(
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+    ).attachmentsRoot;
     expect(path.relative(root, file?.path ?? "")).not.toMatch(/^\.\./);
     expect(await readFile(file?.path ?? "", "utf8")).toBe("季度数据");
     // Taken: the next message carries none.

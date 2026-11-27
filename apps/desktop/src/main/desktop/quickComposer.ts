@@ -8,6 +8,8 @@ import {
   systemPreferences,
 } from "electron";
 import { writeQuickComposerEnabled } from "../../agent/pineSettings";
+import { ASSISTANT_COMPOSER_TARGET } from "../../shared/assistant";
+import { isVirtualClient } from "../../shared/webControl";
 import {
   PROJECT_ATTACHMENTS_DIRECTORY,
   TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -86,9 +88,25 @@ export class DesktopQuickComposer {
       setPresenting: (window, presenting) =>
         setWindowAnimates(window, !presenting),
       ownerWindow: (projectId) => {
+        const { runtimes } = this.requireCore();
+        // The Assistant's message goes to the window running its conversation.
+        if (projectId === ASSISTANT_COMPOSER_TARGET) {
+          const live = runtimes
+            .liveSessionIdsOf(TEMPORARY_WORKSPACE_PROJECT_ID)
+            .find((id) => runtimes.summaryOfLiveSession(id)?.orchestrator);
+          const ownerId =
+            live === undefined
+              ? undefined
+              : runtimes
+                  .clientsOfSession(live)
+                  .find((id) => !isVirtualClient(id));
+          return (
+            (ownerId !== undefined && options.windowForClient(ownerId)) || null
+          );
+        }
         // Every window holds the temporary workspace; a new one takes it.
         if (isTemporaryWorkspace(projectId)) return null;
-        const ownerId = this.requireCore().runtimes.ownerOfProject(projectId);
+        const ownerId = runtimes.ownerOfProject(projectId);
         return (
           (ownerId !== undefined && options.windowForClient(ownerId)) || null
         );

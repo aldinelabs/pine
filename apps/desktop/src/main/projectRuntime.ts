@@ -6,7 +6,6 @@ import type {
   FilePreviewTarget,
 } from "../shared/projectFiles";
 import type { PiProvidersStatus } from "../shared/piProviders";
-import { isAssistantProject } from "../shared/assistant";
 import {
   isTemporaryWorkspace,
   PROJECT_MEMORY_DIRECTORY,
@@ -1029,6 +1028,7 @@ export class ProjectRuntimeRegistry {
     focus: boolean,
     parentSessionId?: string,
     liveContext = false,
+    orchestrator = false,
   ): Promise<PineSessionSummary> {
     const runtime = this.get(webContentsId, projectId);
     const creation = this.agentHost
@@ -1037,6 +1037,7 @@ export class ProjectRuntimeRegistry {
         approvalMode,
         ...(parentSessionId ? { parentSessionId } : {}),
         ...(liveContext ? { liveContext } : {}),
+        ...(orchestrator ? { orchestrator } : {}),
       })
       .then(({ session }) => {
         runtime.liveSessions.set(session.id, {
@@ -1119,6 +1120,8 @@ export class ProjectRuntimeRegistry {
             approvalMode,
             focus,
             parentSessionId,
+            false,
+            request.target.orchestrator === true,
           )
         : (
             await this.resume(
@@ -1985,10 +1988,6 @@ export class ProjectRuntimeRegistry {
       ...(isTemporaryWorkspace(runtime.project.id)
         ? { temporaryWorkspace: true }
         : { projectName: runtime.project.name }),
-      // The Assistant reaches no folder, not even its own empty one.
-      ...(isAssistantProject(runtime.project.id)
-        ? { orchestrator: true, folders: [] }
-        : {}),
       ...(tinyFishApiKey ? { tinyFishApiKey } : {}),
     };
   }

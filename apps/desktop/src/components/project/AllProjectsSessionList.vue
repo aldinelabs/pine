@@ -342,11 +342,15 @@ interface SessionRow {
   lastSubSession?: boolean;
 }
 
+/** A sub-session's parent in its project; the Orchestrator's are elsewhere. */
 function parentOfSession(
   projectId: string,
   sessionId: string,
 ): string | undefined {
-  return projectStore.projectById(projectId)?.sessionParents?.[sessionId];
+  const project = projectStore.projectById(projectId);
+  return project?.sessionParentProjects?.[sessionId]
+    ? undefined
+    : project?.sessionParents?.[sessionId];
 }
 
 /** Sub-sessions deleted together with the session. */

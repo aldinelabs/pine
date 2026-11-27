@@ -2,9 +2,13 @@ import type { PineApprovalMode } from "./agent";
 import type { PineSessionSummary } from "./sessions";
 
 /**
- * Pine's Assistant (internal name: orchestrator), the one conversation that
+ * Pine's Assistant (internal name: orchestrator), the conversation that
  * manages Pine instead of working in a project: it looks up, dispatches and
- * reports, and never does the work itself. See docs/orchestrator-proposal.md.
+ * reports, and never does the work itself. It is an ordinary session in No
+ * Project whose file carries the `pine.orchestrator` entry
+ * (shared/sessions.ts); the most recently updated one is the Orchestrator.
+ * The sessions it dispatches are its sub-sessions, in their own projects.
+ * See docs/orchestrator-proposal.md.
  */
 
 /** User-facing name, kept in one place until the product name is settled. */
@@ -27,34 +31,20 @@ export const ASSISTANT_DECISIONS = {
 } as const;
 
 /**
- * The Assistant lives in a hidden built-in project with fixed ids, so it
- * reuses project runtimes and session storage. Its data sits in the data
- * directory's `assistant/` folder, beside `projects/`, so project listings
- * never see it.
+ * The virtual client that holds No Project's runtime for the Assistant when
+ * no window does, as WeChat holds the projects it uses; see isVirtualClient.
  */
-export const ASSISTANT_PROJECT_ID =
-  "00000000-0000-4000-8000-000000000003" as const;
-export const ASSISTANT_FOLDER_ID =
-  "00000000-0000-4000-8000-000000000004" as const;
-/** The Assistant's root inside Pine's data directory. */
-export const ASSISTANT_DIRECTORY = "assistant" as const;
-/** Its working directory inside that root: always empty, shared with no one. */
-export const ASSISTANT_WORKSPACE_DIRECTORY = "workspace" as const;
-/** Which sessions the Assistant dispatched, and where each one runs. */
-export const ASSISTANT_DISPATCHES_FILE = "dispatches.json" as const;
-/** The Assistant's one conversation. */
-export const ASSISTANT_STATE_FILE = "state.json" as const;
-
-/** The virtual client that holds the Assistant's runtime; see isVirtualClient. */
 export const ASSISTANT_CLIENT_ID = -3;
+
+/**
+ * Where the floating composer sends to the Assistant, in place of a project
+ * id: its conversation is a session in No Project, not a project.
+ */
+export const ASSISTANT_COMPOSER_TARGET = "assistant" as const;
 
 /** By default the Assistant runs supervised by an AI reviewer. */
 export const ASSISTANT_APPROVAL_MODE =
   "auto-approve" satisfies PineApprovalMode;
-
-export function isAssistantProject(projectId: string | undefined): boolean {
-  return projectId === ASSISTANT_PROJECT_ID;
-}
 
 /** Where an Assistant turn came from: dispatches of a WeChat turn stay within WeChat's limits. */
 export type AssistantTurnSource = "wechat" | "desktop";
@@ -66,7 +56,7 @@ export const SETTINGS_READ_TOOL_NAME = "settings_read" as const;
 
 /** What a window needs to open the Assistant. */
 export interface AssistantState {
-  /** Its one conversation, once the user or WeChat has started it. */
+  /** Its conversation, once the user or WeChat has started it. */
   session?: PineSessionSummary;
 }
 

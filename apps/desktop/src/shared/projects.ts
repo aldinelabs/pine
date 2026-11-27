@@ -331,6 +331,11 @@ export interface PineProject {
   sessionGroups?: PineSessionGroup[];
   /** Sub-session id → the session that started it; one level deep. */
   sessionParents?: Record<string, string>;
+  /**
+   * Sub-session id → its parent's project, for a parent in another project:
+   * the Orchestrator, in No Project, dispatching work here.
+   */
+  sessionParentProjects?: Record<string, string>;
   updatedAt: string;
 }
 

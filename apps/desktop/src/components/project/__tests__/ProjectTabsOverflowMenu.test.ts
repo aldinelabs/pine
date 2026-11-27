@@ -2,7 +2,7 @@ import { DOMWrapper, flushPromises, mount } from "@vue/test-utils";
 import { createTestingPinia } from "@pinia/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAppI18n } from "@/app/i18n";
-import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
+import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import { useSessionStore } from "@/stores/session";
 import ProjectTabsOverflowMenu from "../ProjectTabsOverflowMenu.vue";
 
@@ -24,13 +24,14 @@ vi.mock("@/composables/useProjectFileChanges", () => ({
   useProjectFileChanges: () => ({ emitProjectFilesChanged: vi.fn() }),
 }));
 
-function mountMenu(projectId: string) {
+function mountMenu(projectId: string, orchestrator = false) {
   activeTab.value = {
     id: "t",
     kind: "session",
     state: "bound",
     projectId,
     sessionId: "s1",
+    ...(orchestrator ? { orchestrator: true } : {}),
   };
   const pinia = createTestingPinia({ createSpy: vi.fn });
   const sessions = useSessionStore(pinia);
@@ -74,7 +75,7 @@ describe("ProjectTabsOverflowMenu", () => {
   });
 
   it("offers Clear conversation, confirmed with Clear, in the Assistant's tab", async () => {
-    const wrapper = mountMenu(ASSISTANT_PROJECT_ID);
+    const wrapper = mountMenu(TEMPORARY_WORKSPACE_PROJECT_ID, true);
     expect(await openMenu(wrapper)).toEqual([
       "Export conversation",
       "Clear conversation",

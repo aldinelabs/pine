@@ -1,11 +1,4 @@
-import {
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -13,10 +6,6 @@ import {
   TEMPORARY_WORKSPACE_FOLDER_ID,
   TEMPORARY_WORKSPACE_PROJECT_ID,
 } from "../../shared/projects";
-import {
-  ASSISTANT_FOLDER_ID,
-  ASSISTANT_PROJECT_ID,
-} from "../../shared/assistant";
 import { ProjectRepository } from "../projects/projectRepository";
 
 const temporaryDirectories: string[] = [];
@@ -126,38 +115,31 @@ describe("ProjectRepository", () => {
     ).resolves.toMatchObject({ sessionGroups: groups });
   });
 
-  it("keeps the Assistant in its own empty folder, outside every project list", async () => {
+  it("records the project of a parent elsewhere, and forgets it with the link", async () => {
     const userData = await createTemporaryDirectory("pine-user-data-");
     const repository = new ProjectRepository(path.join(userData, "projects"));
+    const child = "22222222-2222-4222-8222-222222222222";
+    const parent = "11111111-1111-4111-8111-111111111111";
+    const parentProject = "33333333-3333-4333-8333-333333333333";
 
-    const assistant = await repository.get(ASSISTANT_PROJECT_ID);
-    const workspace = path.join(userData, "assistant", "workspace");
-
-    expect(assistant.folders).toEqual([
-      expect.objectContaining({
-        access: "read-only",
-        id: ASSISTANT_FOLDER_ID,
-        path: workspace,
-        isAvailable: true,
-      }),
-    ]);
-    expect(repository.dataPaths(ASSISTANT_PROJECT_ID).sessionsRoot).toBe(
-      path.join(userData, "assistant", "sessions"),
+    await repository.updateSessionParents(
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+      (parents) => ({ ...parents, [child]: parent }),
+      { [child]: parentProject },
     );
-    expect(await readdir(workspace)).toEqual([]);
-    expect(
-      (await repository.list()).map((project) => project.id),
-    ).not.toContain(ASSISTANT_PROJECT_ID);
     await expect(
-      repository.update(ASSISTANT_PROJECT_ID, {
-        defaultFolderId: ASSISTANT_FOLDER_ID,
-        folders: assistant.folders,
-        name: "Mine now",
-      }),
-    ).rejects.toThrow("The Assistant cannot be changed or deleted.");
-    await expect(repository.delete(ASSISTANT_PROJECT_ID)).rejects.toThrow(
-      "The Assistant cannot be changed or deleted.",
+      repository.get(TEMPORARY_WORKSPACE_PROJECT_ID),
+    ).resolves.toMatchObject({
+      sessionParents: { [child]: parent },
+      sessionParentProjects: { [child]: parentProject },
+    });
+
+    await repository.updateSessionParents(
+      TEMPORARY_WORKSPACE_PROJECT_ID,
+      () => ({}),
     );
+    const unlinked = await repository.get(TEMPORARY_WORKSPACE_PROJECT_ID);
+    expect(unlinked.sessionParentProjects).toBeUndefined();
   });
 
   it("rejects duplicate and nested project folders", async () => {

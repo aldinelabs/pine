@@ -86,13 +86,7 @@ export class DesktopAttention {
       this.backgroundReplies.forget(event.sessionId);
       return;
     }
-    const core = this.core();
     const observedRun = this.completionSignals.observe(event);
-    // The Orchestrator relays a session it dispatched; its reply is the signal.
-    const completedRun =
-      observedRun && core.assistant.relaysResultsOf(observedRun.sessionId)
-        ? undefined
-        : observedRun;
     const backgroundReply = this.backgroundReplies.observe(event, observedRun);
     // Told even with completion signals off: nothing else shows it.
     if (backgroundReply)
@@ -101,12 +95,8 @@ export class DesktopAttention {
         backgroundReply.sessionId,
         backgroundReplyNotificationBody(backgroundReply, isChineseLocale()),
       );
-    else if (completedRun && core.completionSignalMode !== "off")
-      this.signalCompletedRun(completedRun, ownerId);
-    if (completedRun && core.completionSignalMode === "notification-sound")
-      this.ownerWindow(ownerId)?.webContents.send(
-        COMPLETION_SOUND_EVENT_CHANNEL,
-      );
+    if (observedRun)
+      void this.signalCompletion(observedRun, ownerId, !backgroundReply);
     if (event.type === "approval-request") {
       const chinese = isChineseLocale();
       this.requestApprovalAttention(ownerId, event.sessionId, {
@@ -140,6 +130,28 @@ export class DesktopAttention {
       this.closeAttentionNotification(event.requestId);
       this.clearApprovalAttention();
     }
+  }
+
+  /**
+   * A finished run's completion signal, unless the Orchestrator relays the
+   * session's results: then its reply is the signal.
+   */
+  private async signalCompletion(
+    run: PineCompletedRun,
+    ownerId: number,
+    notify: boolean,
+  ): Promise<void> {
+    const core = this.core();
+    const relayed = await core.assistant
+      .relaysResultsOf(run.sessionId)
+      .catch(() => false);
+    if (relayed) return;
+    if (notify && core.completionSignalMode !== "off")
+      this.signalCompletedRun(run, ownerId);
+    if (core.completionSignalMode === "notification-sound")
+      this.ownerWindow(ownerId)?.webContents.send(
+        COMPLETION_SOUND_EVENT_CHANNEL,
+      );
   }
 
   closeAttentionNotifications(): void {

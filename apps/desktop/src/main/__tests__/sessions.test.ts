@@ -21,6 +21,7 @@ import {
   PINE_APPROVAL_DECISION_ENTRY,
   PINE_APPROVAL_MODE_ENTRY,
   PINE_LIVE_CONTEXT_ENTRY,
+  PINE_ORCHESTRATOR_ENTRY,
   PINE_STOPPED_TOOL_CALL_ENTRY,
   type PineTextMessage,
   replySuggestionFromBranch,
@@ -388,6 +389,44 @@ describe("ProjectSessionService", () => {
         expect.objectContaining({
           snippet:
             "Investigate SQLite 全文\u0001搜索\u0002 for previous sessions",
+        }),
+      ]);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("keeps the Orchestrator's conversations out of lists and search", async () => {
+    const rootPath = await createTemporaryProjectData();
+    const options = serviceOptions(rootPath);
+    await mkdir(options.cwd, { recursive: true });
+    const repository = createRepository(options.sessionsRoot);
+    const plain = await createSession(repository, options.cwd);
+    await appendMessage(plain, {
+      role: "user",
+      content: "Fix the homepage",
+      timestamp: Date.now(),
+    });
+    const orchestrator = await createSession(repository, options.cwd);
+    await appendCustomEntry(orchestrator, PINE_ORCHESTRATOR_ENTRY, {});
+    await appendMessage(orchestrator, {
+      role: "user",
+      content: "Fix the homepage in Blog",
+      timestamp: Date.now(),
+    });
+    const service = await ProjectSessionService.create(options);
+
+    try {
+      await expect(service.search("")).resolves.toEqual([
+        expect.objectContaining({ id: plain.metadata.id }),
+      ]);
+      await expect(service.search("homepage")).resolves.toEqual([
+        expect.objectContaining({ id: plain.metadata.id }),
+      ]);
+      await expect(service.orchestratorSessions()).resolves.toEqual([
+        expect.objectContaining({
+          id: orchestrator.metadata.id,
+          orchestrator: true,
         }),
       ]);
     } finally {

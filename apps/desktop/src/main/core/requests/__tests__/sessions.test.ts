@@ -159,7 +159,10 @@ function fixture({
     automations: {
       runSessions: vi.fn().mockResolvedValue(new Map([["run", {}]])),
     },
-    assistant: { dispatchedIds: vi.fn().mockResolvedValue(new Set()) },
+    assistant: {
+      conversationIds: vi.fn().mockResolvedValue(new Set()),
+      isConversation: vi.fn().mockResolvedValue(false),
+    },
     wechat: {
       originOf: vi.fn().mockReturnValue(origin),
       relayRefusal: relayRefusalCheck,
@@ -1006,13 +1009,21 @@ describe("session lists", () => {
     const handlers = new Map<string, (...args: unknown[]) => unknown>();
     const run = { automationId: "a", runId: "r" };
     const core = {
-      repository: { list: vi.fn().mockResolvedValue([]) },
+      repository: {
+        list: vi.fn().mockResolvedValue([]),
+        // Linked to the Orchestrator's conversation, a parent in No Project.
+        get: vi.fn().mockResolvedValue({
+          id: projectId,
+          sessionParents: { dispatched: "orchestrator", child: "plain" },
+          sessionParentProjects: { dispatched: "no-project" },
+        }),
+      },
       runtimes: {},
       automations: {
         runSessions: vi.fn().mockResolvedValue(new Map([["run", run]])),
       },
       assistant: {
-        dispatchedIds: vi.fn().mockResolvedValue(new Set(["dispatched"])),
+        conversationIds: vi.fn().mockResolvedValue(new Set(["orchestrator"])),
       },
       wechat: {
         originOf: vi.fn((id: string) =>
@@ -1034,7 +1045,7 @@ describe("session lists", () => {
       messageCount: 1,
     });
     listAllRecentSessions.mockResolvedValue(
-      ["started", "used", "run", "dispatched", "plain"].map(summary),
+      ["started", "used", "run", "dispatched", "child", "plain"].map(summary),
     );
     registerSessionRequests(core);
 
@@ -1048,6 +1059,7 @@ describe("session lists", () => {
       { ...summary("used"), origin: "wechat-used" },
       { ...summary("run"), automationRun: run, origin: "wechat-used" },
       { ...summary("dispatched"), fromAssistant: true },
+      summary("child"),
       summary("plain"),
     ]);
   });
@@ -1064,10 +1076,10 @@ describe("resuming a session", () => {
       messageCount: 1,
     };
     const core = {
+      repository: { get: vi.fn().mockResolvedValue({ id: projectId }) },
       runtimes: { resume: vi.fn().mockResolvedValue({ session: summary }) },
       automations: { runSessions: vi.fn().mockResolvedValue(new Map()) },
       wechat: { originOf: vi.fn().mockReturnValue(undefined) },
-      assistant: { dispatchedIds: vi.fn().mockResolvedValue(new Set()) },
       sessionActivity: vi.fn().mockReturnValue(activity),
       handle: (channel: string, handler: (...args: unknown[]) => unknown) =>
         handlers.set(channel, handler),

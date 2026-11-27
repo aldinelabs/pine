@@ -4,10 +4,7 @@ import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
 import { useAssistantStore } from "@/stores/assistant";
 import { useContentTabsStore } from "@/stores/contentTabs";
 
-/**
- * Opens the Assistant's one tab. Its project follows the usual rule: when
- * another window shows it, that window comes forward instead.
- */
+/** Opens the Assistant's one tab. */
 export function useAssistantEntry() {
   const { t } = useI18n();
   const assistant = useAssistantStore();

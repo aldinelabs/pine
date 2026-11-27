@@ -2,7 +2,6 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import { reactive, ref, watch } from "vue";
 import { readContentTabs, writeContentTabs } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
-import { ASSISTANT_PROJECT_ID, isAssistantProject } from "@/shared/assistant";
 import { isQuickComposerHandoffWindow } from "@/stores/quickComposerHandoff";
 import type { PineApprovalMode } from "@/shared/agent";
 import type { PineSessionSummary } from "@/shared/sessions";
@@ -56,6 +55,8 @@ export interface DraftSessionTab {
   /** Session state the first message sets up, e.g. pre-activated authoring
    * for "Create with Pine". */
   mutators?: PineSessionMutator[];
+  /** The Assistant's tab (shared/assistant.ts), in No Project. */
+  orchestrator?: true;
 }
 
 export interface CreatingSessionTab {
@@ -66,6 +67,7 @@ export interface CreatingSessionTab {
   state: "creating";
   /** Kept so a failed first message returns them to the draft. */
   mutators?: PineSessionMutator[];
+  orchestrator?: true;
 }
 
 export interface BoundSessionTab {
@@ -75,11 +77,19 @@ export interface BoundSessionTab {
   projectId: string;
   sessionId: string;
   state: "bound";
+  orchestrator?: true;
 }
 
 export type SessionContentTab =
   DraftSessionTab | CreatingSessionTab | BoundSessionTab;
 export type ProjectContentTab = FileContentTab | SessionContentTab;
+
+/** The Assistant's tab, in any state. */
+export function isOrchestratorTab(
+  tab: ProjectContentTab | null | undefined,
+): tab is SessionContentTab {
+  return tab?.kind === "session" && tab.orchestrator === true;
+}
 
 /**
  * A draft that is a new session: not the Assistant's tab, which is a draft
@@ -88,11 +98,7 @@ export type ProjectContentTab = FileContentTab | SessionContentTab;
 export function isNewSessionDraft(
   tab: ProjectContentTab | null | undefined,
 ): tab is DraftSessionTab {
-  return (
-    tab?.kind === "session" &&
-    tab.state === "draft" &&
-    !isAssistantProject(tab.projectId)
-  );
+  return tab?.kind === "session" && tab.state === "draft" && !tab.orchestrator;
 }
 
 /** A closed tab that can come back, with the slot it left. */
@@ -428,6 +434,13 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     return tab;
   }
 
+  function makeOrchestratorDraft(): DraftSessionTab {
+    return {
+      ...makeDraftTab(TEMPORARY_WORKSPACE_PROJECT_ID),
+      orchestrator: true,
+    };
+  }
+
   /**
    * Open a new-session tab. Default to the latest session activity in memory,
    * falling back to the last draft choice before history loads. Reusing a
@@ -490,9 +503,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
    * started meanwhile, as from WeChat.
    */
   function openAssistant(session?: PineSessionSummary): ProjectContentTab {
-    const existing = tabs.value.find(
-      (tab) => tab.kind === "session" && isAssistantProject(tab.projectId),
-    );
+    const existing = tabs.value.find(isOrchestratorTab);
     if (existing?.kind === "session") {
       keepTab(existing.id);
       if (existing.state === "draft" && session)
@@ -505,8 +516,8 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
         return bindSession(existing.id, session) ?? existing;
       return existing;
     }
-    if (session) return openSession(session, ASSISTANT_PROJECT_ID);
-    const tab = makeDraftTab(ASSISTANT_PROJECT_ID);
+    if (session) return openSession(session, TEMPORARY_WORKSPACE_PROJECT_ID);
+    const tab = makeOrchestratorDraft();
     tabs.value = [...tabs.value, tab];
     composerFocusTabId.value = tab.id;
     return tab;
@@ -568,6 +579,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       projectId: target.projectId,
       state: "creating",
       ...(target.mutators ? { mutators: target.mutators } : {}),
+      ...(target.orchestrator ? { orchestrator: true as const } : {}),
     };
     tabs.value = tabs.value.map((tab) =>
       tab.id === target.id ? creating : tab,
@@ -582,7 +594,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     }
     // A new session that failed joins the new-session draft; the
     // Assistant's own tab stays itself.
-    const existingDraft = isAssistantProject(target.projectId)
+    const existingDraft = target.orchestrator
       ? undefined
       : tabs.value.find(
           (tab): tab is DraftSessionTab =>
@@ -605,6 +617,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       projectId: target.projectId,
       state: "draft",
       ...(target.mutators ? { mutators: target.mutators } : {}),
+      ...(target.orchestrator ? { orchestrator: true as const } : {}),
     };
     tabs.value = tabs.value.map((tab) => (tab.id === target.id ? draft : tab));
     return draft.id;
@@ -641,6 +654,7 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       state: "bound",
       sessionId: session.id,
       ...(sessionLabel(session) ? { label: sessionLabel(session) } : {}),
+      ...(session.orchestrator ? { orchestrator: true as const } : {}),
     };
 
     if (current?.state === "draft") {
@@ -685,6 +699,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
       state: "bound",
       sessionId: session.id,
       ...(sessionLabel(session) ? { label: sessionLabel(session) } : {}),
+      ...(session.orchestrator || target.orchestrator
+        ? { orchestrator: true as const }
+        : {}),
     };
     tabs.value = tabs.value.map((tab) => (tab.id === tabId ? bound : tab));
     return bound;
@@ -794,10 +811,9 @@ export const useContentTabsStore = defineStore("content-tabs", () => {
     let assistantDraft: DraftSessionTab | undefined;
     tabs.value = tabs.value.flatMap((tab) => {
       if (!removedIds.has(tab.id)) return [tab];
-      if (tab.kind !== "session" || !isAssistantProject(tab.projectId))
-        return [];
+      if (!isOrchestratorTab(tab)) return [];
       if (assistantDraft) return [];
-      assistantDraft = makeDraftTab(ASSISTANT_PROJECT_ID);
+      assistantDraft = makeOrchestratorDraft();
       return [assistantDraft];
     });
     if (assistantDraft && activeWasRemoved) {

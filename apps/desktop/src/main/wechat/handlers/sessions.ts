@@ -5,7 +5,6 @@
 // client id.
 
 import type { PineApprovalMode } from "../../../shared/agent";
-import { isAssistantProject } from "../../../shared/assistant";
 import {
   isTemporaryWorkspace,
   TEMPORARY_WORKSPACE_PROJECT_ID,
@@ -704,7 +703,11 @@ export const sessionHandlers: CommandHandlers = {
     }
     const { sessionId, projectId } = target;
     // The Assistant's own conversation is `.home`, never a direct session.
-    if (isAssistantProject(projectId)) return home(ctx);
+    if (
+      ctx.core.assistant &&
+      (await ctx.core.assistant.sessionId()) === sessionId
+    )
+      return home(ctx);
     try {
       await ctx.sessions.hold(projectId);
     } catch {

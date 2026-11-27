@@ -18,8 +18,6 @@ interface Internals {
 /** A PineCore built without its constructor: only what routing a run touches. */
 function fixture() {
   const assistant = {
-    report: vi.fn(() => Promise.resolve()),
-    observe: vi.fn(),
     turnEnded: vi.fn(() => Promise.resolve()),
   };
   const core = Object.create(PineCore.prototype) as PineCore;
@@ -73,18 +71,6 @@ describe("a sub-session's stopped turn", () => {
 
     expect(notifyParentOf).toHaveBeenCalledExactlyOnceWith(
       core,
-      sessionId,
-      "finished",
-    );
-  });
-
-  it("reports the same end of the turn to the Assistant", () => {
-    const { assistant, internals } = fixture();
-
-    internals.routeAgentEvent(runState("running"));
-    internals.routeAgentEvent(runState("idle"));
-
-    expect(assistant.report).toHaveBeenCalledExactlyOnceWith(
       sessionId,
       "finished",
     );

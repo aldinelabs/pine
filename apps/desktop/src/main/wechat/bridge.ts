@@ -416,16 +416,17 @@ export class WeChatBridge implements WeChatBridgeApi {
   }
 
   /**
-   * A reminder set from WeChat woke the Assistant: its reply is pushed to
-   * WeChat. False when it would not reach WeChat now; nothing changes then.
+   * A session dispatched from WeChat woke the Assistant with its result: the
+   * reply is pushed to WeChat, and `.u 9` reaches the session it reports on.
+   * False when it would not reach WeChat now; nothing changes then.
    */
   async expectAssistantReply(
     sessionId: string,
-    projectId: string,
+    reported: { sessionId: string; projectId: string },
   ): Promise<boolean> {
     if (!this.canPushNow()) return false;
     try {
-      await this.parts?.sessions.expectAssistantReply(sessionId, projectId);
+      await this.parts?.sessions.expectAssistantReply(sessionId, reported);
       return true;
     } catch (error) {
       console.error(
@@ -434,12 +435,6 @@ export class WeChatBridge implements WeChatBridgeApi {
       );
       return false;
     }
-  }
-
-  sessionDispatched(sessionId: string, projectId: string): void {
-    this.guarded(() =>
-      this.parts?.sessions.sessionDispatched(sessionId, projectId),
-    );
   }
 
   originOf(sessionId: string): "wechat" | "wechat-used" | undefined {

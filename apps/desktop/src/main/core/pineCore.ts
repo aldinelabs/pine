@@ -88,10 +88,6 @@ import { agentHostProject, answerProjectOperation } from "./requests/projects";
 import { notifyParentOf, unlinkSession } from "./subSessions";
 import { AssistantService } from "./assistant";
 import {
-  ASSISTANT_PROJECT_ID,
-  isAssistantProject,
-} from "../../shared/assistant";
-import {
   answerSessionOperation,
   sessionLibrary,
   startBackgroundSession,
@@ -208,8 +204,6 @@ export class PineCore {
       .catch((error: unknown) =>
         console.error("Automations failed to start.", error),
       );
-    // The Assistant's reminders, including any that came due while Pine was off.
-    core.assistant.start();
     return core;
   }
 
@@ -431,7 +425,7 @@ export class PineCore {
               steer,
               ...(attachments ? { attachments } : {}),
             }),
-          sessionId: () => this.assistant.sessionId(),
+          sessionId: () => this.assistant.thread(),
         },
       },
       host: {
@@ -451,20 +445,23 @@ export class PineCore {
           : {}),
       },
     });
-    // A reminder set from WeChat answers there while WeChat can take it.
-    this.assistant.onWakeForWeChat = (thread) =>
-      this.wechat.expectAssistantReply(thread, ASSISTANT_PROJECT_ID);
+    // A result of work asked for in WeChat goes there while WeChat can take it.
+    this.assistant.onWakeForWeChat = (thread, reported) =>
+      this.wechat.expectAssistantReply(thread, reported);
     this.assistant.notify = (notification) =>
       host.notifyAssistant?.(notification);
     this.assistant.locale = () => host.locale?.() ?? "en-US";
     // Sessions the Assistant dispatches in a WeChat turn send their approval
-    // cards to WeChat; their results come back through the Orchestrator.
-    this.assistant.onDispatched = (dispatch, turn) => {
-      if (turn.source === "wechat")
-        this.tellWeChat((wechat) =>
-          wechat.sessionDispatched(dispatch.sessionId, dispatch.projectId),
-        );
-    };
+    // cards to WeChat, like any session a WeChat session starts; their
+    // results come back through the Orchestrator.
+    this.assistant.onDispatched = (dispatch) =>
+      this.tellWeChat((wechat) =>
+        wechat.sessionSpawned(
+          dispatch.parentSessionId,
+          dispatch.sessionId,
+          dispatch.projectId,
+        ),
+      );
     registerCoreRequests(this);
     this.agentHost.subscribe((event) => this.routeAgentEvent(event));
     // Ready before the first message, so no turn waits on the lookup.
@@ -562,11 +559,7 @@ export class PineCore {
   notifySessionsDeleted(sessionIds: string[]): void {
     if (!sessionIds.length) return;
     // Deleting the Assistant's conversation, like any session, ends it.
-    void this.assistant
-      .sessionsDeleted(sessionIds)
-      .catch((error: unknown) =>
-        console.error("Failed to end the Assistant's conversation.", error),
-      );
+    this.assistant.sessionsDeleted(sessionIds);
     this.host.sessionsDeleted?.(sessionIds);
     this.web.sessionsDeleted(sessionIds);
   }
@@ -720,11 +713,6 @@ export class PineCore {
     void notifyParentOf(this, sessionId, state).catch((error: unknown) =>
       console.error("Failed to tell a session about its sub-session.", error),
     );
-    void this.assistant
-      .report(sessionId, state)
-      .catch((error: unknown) =>
-        console.error("Failed to tell the Assistant about a session.", error),
-      );
   }
 
   /** What a session is doing now, as its relatives see it. */
@@ -1156,11 +1144,8 @@ export class PineCore {
             },
           };
         }
-        // The Assistant's hidden project is never one to list or move to.
         const projects = (await this.repository.list()).filter(
-          (project) =>
-            !isTemporaryWorkspace(project.id) &&
-            !isAssistantProject(project.id),
+          (project) => !isTemporaryWorkspace(project.id),
         );
         if (event.request.kind === "list-projects") {
           const currentId = this.runtimes.projectOfLiveSession(

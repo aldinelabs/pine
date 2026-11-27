@@ -1,5 +1,5 @@
 import { nextTick } from "vue";
-import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
+import { ASSISTANT_COMPOSER_TARGET } from "@/shared/assistant";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { describe, expect, it, vi } from "vitest";
@@ -452,7 +452,11 @@ describe("ProjectSessionComposer", () => {
 
   it("gives the Assistant the normal model and mode menus, without YOLO", async () => {
     const wrapper = mountComposer(
-      { assistant: true, projectId: ASSISTANT_PROJECT_ID, isActive: true },
+      {
+        assistant: true,
+        projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+        isActive: true,
+      },
       "high",
       "zh-CN",
     );
@@ -739,8 +743,8 @@ describe("ProjectSessionComposer", () => {
 
   it("offers the usual attachments in the Assistant and with it as the target", async () => {
     for (const props of [
-      { assistant: true, projectId: ASSISTANT_PROJECT_ID },
-      { projectId: ASSISTANT_PROJECT_ID, assistantTarget: true },
+      { assistant: true, projectId: TEMPORARY_WORKSPACE_PROJECT_ID },
+      { projectId: ASSISTANT_COMPOSER_TARGET, assistantTarget: true },
     ]) {
       const wrapper = mountComposer(props);
       await flushPromises();
@@ -941,6 +945,40 @@ describe("ProjectSessionComposer", () => {
     expect(wrapper.emitted("update:attachments")).toContainEqual([
       [savedAttachment],
     ]);
+  });
+
+  it("keeps a pasted image for the Assistant in No Project", async () => {
+    const wrapper = mountComposer({
+      projectId: ASSISTANT_COMPOSER_TARGET,
+      assistantTarget: true,
+    });
+    const attachment: PineAttachment = {
+      extension: "png",
+      kind: "file",
+      modifiedAt: "2026-09-02T12:02:00.000Z",
+      name: "image.png",
+      path: "/pine/projects/temporary/attachments/uuid.png",
+      size: 4,
+    };
+    const savePastedAttachment = vi.fn(() => Promise.resolve({ attachment }));
+    window.pine.savePastedAttachment = savePastedAttachment;
+    window.pine.getPathForFile = () => {
+      throw new Error("Clipboard file has no filesystem path.");
+    };
+    const pastedImage = {
+      name: "image.png",
+      type: "image/png",
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)),
+    } as unknown as File;
+
+    await wrapper
+      .get("textarea")
+      .trigger("paste", { clipboardData: { files: [pastedImage] } });
+    await flushPromises();
+
+    expect(savePastedAttachment).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: TEMPORARY_WORKSPACE_PROJECT_ID }),
+    );
   });
 
   it("reuses the inspect flow for pasted files with real paths", async () => {

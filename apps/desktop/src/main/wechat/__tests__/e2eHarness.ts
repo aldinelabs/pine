@@ -14,15 +14,15 @@ import type {
   PineAgentEvent,
   PineApprovalTrigger,
 } from "../../../shared/agent";
-import {
-  ASSISTANT_CLIENT_ID,
-  ASSISTANT_PROJECT_ID,
-} from "../../../shared/assistant";
+import { ASSISTANT_CLIENT_ID } from "../../../shared/assistant";
 import {
   serializeAttachmentMessage,
   type PineAttachment,
 } from "../../../shared/attachments";
-import type { PineProject } from "../../../shared/projects";
+import {
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "../../../shared/projects";
 import type { PineSessionSummary } from "../../../shared/sessions";
 import type {
   WeChatNotification,
@@ -341,11 +341,13 @@ export async function createHarness(
           steer,
           ...(attachments ? { attachments } : {}),
         });
-        if (!registry.isOpen(ASSISTANT_CLIENT_ID, ASSISTANT_PROJECT_ID))
+        if (
+          !registry.isOpen(ASSISTANT_CLIENT_ID, TEMPORARY_WORKSPACE_PROJECT_ID)
+        )
           await registry.share(
             ASSISTANT_CLIENT_ID,
-            await repository.open(ASSISTANT_PROJECT_ID),
-            repository.dataPaths(ASSISTANT_PROJECT_ID),
+            await repository.open(TEMPORARY_WORKSPACE_PROJECT_ID),
+            repository.dataPaths(TEMPORARY_WORKSPACE_PROJECT_ID),
           );
         const result = await registry.prompt(
           ASSISTANT_CLIENT_ID,
@@ -355,10 +357,14 @@ export async function createHarness(
             target: assistantSessionId
               ? {
                   kind: "session",
-                  projectId: ASSISTANT_PROJECT_ID,
+                  projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
                   sessionId: assistantSessionId,
                 }
-              : { kind: "new", projectId: ASSISTANT_PROJECT_ID },
+              : {
+                  kind: "new",
+                  projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+                  orchestrator: true,
+                },
             approvalMode: "auto-approve",
             ...(steer ? { streamingBehavior: "steer" as const } : {}),
           },
@@ -367,7 +373,7 @@ export async function createHarness(
         assistantSessionId = result.session.id;
         return {
           sessionId: assistantSessionId,
-          projectId: ASSISTANT_PROJECT_ID,
+          projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
         };
       },
     };
@@ -382,7 +388,12 @@ export async function createHarness(
       approvalMode: bridgeNow.status().settings.ceilingMode,
       locale: "zh-CN",
     });
-    bridgeNow.sessionDispatched(result.session.id, project.id);
+    if (assistantSessionId)
+      bridgeNow.sessionSpawned(
+        assistantSessionId,
+        result.session.id,
+        project.id,
+      );
     return result.session.id;
   };
 

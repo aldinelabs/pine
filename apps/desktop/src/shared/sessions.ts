@@ -439,6 +439,23 @@ export const PINE_SUB_SESSION_ENTRY = "pine.sub-session" as const;
  */
 export const PINE_LIVE_CONTEXT_ENTRY = "pine.live-context" as const;
 
+/**
+ * Marks a session file as a conversation of Pine's Orchestrator
+ * (shared/assistant.ts): an ordinary session in No Project with its own
+ * prompt and a fixed tool list that has no tool to do work with.
+ */
+export const PINE_ORCHESTRATOR_ENTRY = "pine.orchestrator" as const;
+
+/** Whether a session file is one of the Orchestrator's conversations. */
+export function isOrchestratorSession(
+  entries: readonly { type: string; customType?: string }[],
+): boolean {
+  return entries.some(
+    (entry) =>
+      entry.type === "custom" && entry.customType === PINE_ORCHESTRATOR_ENTRY,
+  );
+}
+
 /** Whether a session file was started for Live Context. */
 export function isLiveContextSession(
   entries: readonly { type: string; customType?: string }[],
@@ -723,8 +740,13 @@ export interface PineSessionSummary {
   automationRun?: AutomationRunSession;
   /** Started from WeChat, or sent a message from WeChat later. */
   origin?: "wechat" | "wechat-used";
-  /** Started by Pine's Assistant (shared/assistant.ts). */
+  /** Started by Pine's Orchestrator: its parent is the Orchestrator. */
   fromAssistant?: true;
+  /**
+   * One of the Orchestrator's conversations (shared/assistant.ts). Its
+   * sidebar entry opens it; it is no row in No Project's list.
+   */
+  orchestrator?: true;
   /**
    * Started for Live Context: until someone writes in it, its transcript
    * stays blank instead of showing the new-session welcome.

@@ -9,7 +9,6 @@ import {
   type PineSessionGroup,
   type UpdateProjectRequest,
 } from "@/shared/projects";
-import { isAssistantProject } from "@/shared/assistant";
 import { useContentTabsStore } from "./contentTabs";
 import { useSessionStore } from "./session";
 
@@ -22,11 +21,6 @@ export const useProjectStore = defineStore("project", () => {
   const contentTabsStore = useContentTabsStore();
   const sessionStore = useSessionStore();
   const projects = shallowRef<PineProject[]>([]);
-  /**
-   * The Assistant's hidden project, once a tab opened it. It is no project
-   * of the user's, so it stays out of `projects` and every list built on it.
-   */
-  const assistantProject = shallowRef<PineProject | null>(null);
   /** Projects whose runtime this window holds. */
   const openProjectIds = ref<ReadonlySet<string>>(new Set());
   /** The project the active tab belongs to (or a draft's send target). */
@@ -35,10 +29,13 @@ export const useProjectStore = defineStore("project", () => {
   const isSavingProject = ref(false);
   const pendingOpens = new Map<string, Promise<OpenProjectResult>>();
 
-  const activeProject = computed(() => projectById(currentProjectId.value));
+  const activeProject = computed(
+    () =>
+      projects.value.find((project) => project.id === currentProjectId.value) ??
+      null,
+  );
 
   function projectById(id: string | null | undefined): PineProject | null {
-    if (isAssistantProject(id ?? undefined)) return assistantProject.value;
     return projects.value.find((project) => project.id === id) ?? null;
   }
 
@@ -54,10 +51,6 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function upsertProject(project: PineProject): void {
-    if (isAssistantProject(project.id)) {
-      assistantProject.value = project;
-      return;
-    }
     projects.value = [
       project,
       ...projects.value.filter((candidate) => candidate.id !== project.id),
@@ -72,10 +65,6 @@ export const useProjectStore = defineStore("project", () => {
 
   /** Refresh a project in place, so opening one does not reorder menus. */
   function replaceProject(project: PineProject): void {
-    if (isAssistantProject(project.id)) {
-      assistantProject.value = project;
-      return;
-    }
     if (!projects.value.some((candidate) => candidate.id === project.id)) {
       upsertProject(project);
       return;
@@ -89,9 +78,7 @@ export const useProjectStore = defineStore("project", () => {
     if (isLoadingProjects.value) return;
     isLoadingProjects.value = true;
     try {
-      const loaded = (await window.pine.listProjects()).projects.filter(
-        (project) => !isAssistantProject(project.id),
-      );
+      const loaded = (await window.pine.listProjects()).projects;
       const kept = new Set(loaded.map((project) => project.id));
       const removed = projects.value.filter((project) => !kept.has(project.id));
       projects.value = loaded;
@@ -210,7 +197,6 @@ export const useProjectStore = defineStore("project", () => {
 
   return {
     activeProject,
-    assistantProject,
     closeProject,
     createProject,
     currentProjectId,

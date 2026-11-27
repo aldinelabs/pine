@@ -4,6 +4,7 @@ import {
   PINE_USER_TITLE_ENTRY,
   approvalModeFromEntries,
   isLiveContextSession,
+  isOrchestratorSession,
   sessionNoticeOf,
   titleSuggestionField,
   replySuggestionField,
@@ -64,7 +65,7 @@ const SEARCH_RESULT_LIMIT = 50;
 const SEARCH_INDEX_FILE = "session-search.sqlite";
 const SNIPPET_START = "\u0001";
 const SNIPPET_END = "\u0002";
-const SEARCH_INDEX_SCHEMA_VERSION = 2;
+const SEARCH_INDEX_SCHEMA_VERSION = 3;
 const SESSION_HEADER_CHUNK_BYTES = 4_096;
 const SESSION_HEADER_READ_CONCURRENCY = 64;
 const SESSION_PARSE_CACHE_LIMIT = 4;
@@ -220,6 +221,7 @@ interface SessionDocument extends PineSessionSummary {
 interface SessionSearchRow {
   created_at: string;
   message_count: number;
+  orchestrator: number;
   preview: string | null;
   session_id: string;
   snippet: string | null;
@@ -717,6 +719,7 @@ function rowToSearchResult(row: SessionSearchRow): SessionSearchResult {
     ...(row.title ? { name: row.title } : {}),
     ...(row.preview ? { preview: row.preview } : {}),
     ...(row.snippet ? { snippet: row.snippet } : {}),
+    ...(Number(row.orchestrator) ? { orchestrator: true as const } : {}),
   };
 }
 
@@ -757,6 +760,7 @@ export class ProjectSessionService {
         preview UNINDEXED,
         message_count UNINDEXED,
         source_mtime_ms UNINDEXED,
+        orchestrator UNINDEXED,
         tokenize = 'trigram'
       );
       PRAGMA user_version = ${SEARCH_INDEX_SCHEMA_VERSION};
@@ -1074,8 +1078,9 @@ export class ProjectSessionService {
       const rows = this.database
         .prepare(
           `SELECT session_id, created_at, updated_at, title, preview,
-                  message_count, NULL AS snippet
+                  message_count, orchestrator, NULL AS snippet
              FROM session_search
+            WHERE orchestrator = 0
             ORDER BY updated_at DESC
             LIMIT ?`,
         )
@@ -1089,7 +1094,7 @@ export class ProjectSessionService {
         ? (this.database
             .prepare(
               `SELECT session_id, created_at, updated_at, title, preview,
-                      message_count,
+                      message_count, orchestrator,
                       CASE WHEN match_at > 0
                         THEN CASE WHEN match_at > 25 THEN '…' ELSE '' END
                           || substr(body, max(1, match_at - 24), min(match_at - 1, 24))
@@ -1099,8 +1104,9 @@ export class ProjectSessionService {
                  FROM (
                    SELECT *, instr(lower(body), lower(?)) AS match_at
                      FROM session_search
-                    WHERE title LIKE '%' || ? || '%'
-                       OR body LIKE '%' || ? || '%'
+                    WHERE orchestrator = 0
+                      AND (title LIKE '%' || ? || '%'
+                       OR body LIKE '%' || ? || '%')
                  )
                 ORDER BY updated_at DESC
                 LIMIT ?`,
@@ -1118,10 +1124,10 @@ export class ProjectSessionService {
         : (this.database
             .prepare(
               `SELECT session_id, created_at, updated_at, title, preview,
-                      message_count,
+                      message_count, orchestrator,
                       snippet(session_search, 5, ?, ?, ' … ', 24) AS snippet
                  FROM session_search
-                WHERE session_search MATCH ?
+                WHERE session_search MATCH ? AND orchestrator = 0
                 ORDER BY bm25(session_search, 0, 0, 0, 0, 8, 1), updated_at DESC
                 LIMIT ?`,
             )
@@ -1132,6 +1138,24 @@ export class ProjectSessionService {
               SEARCH_RESULT_LIMIT,
             ) as unknown as SessionSearchRow[]);
 
+    return rows.map(rowToSearchResult);
+  }
+
+  /**
+   * The Assistant's conversations, newest first. Search and every list leave
+   * them out: the Assistant has an entry of its own.
+   */
+  async orchestratorSessions(): Promise<SessionSearchResult[]> {
+    await this.refreshIndex();
+    const rows = this.database
+      .prepare(
+        `SELECT session_id, created_at, updated_at, title, preview,
+                message_count, orchestrator, NULL AS snippet
+           FROM session_search
+          WHERE orchestrator = 1
+          ORDER BY updated_at DESC`,
+      )
+      .all() as unknown as SessionSearchRow[];
     return rows.map(rowToSearchResult);
   }
 
@@ -1218,8 +1242,8 @@ export class ProjectSessionService {
     const insertStatement = this.database.prepare(
       `INSERT INTO session_search(
         session_id, path, created_at, updated_at, title, body, preview,
-        message_count, source_mtime_ms
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        message_count, source_mtime_ms, orchestrator
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     this.database.exec("BEGIN IMMEDIATE");
@@ -1241,6 +1265,7 @@ export class ProjectSessionService {
           document.preview ?? null,
           document.messageCount,
           document.sourceMtimeMs,
+          document.orchestrator ? 1 : 0,
         );
       }
       this.database.exec("COMMIT");
@@ -1280,6 +1305,9 @@ export class ProjectSessionService {
       messageCount: entries.filter((entry) => entry.type === "message").length,
       hasUserMessage: hasUserMessage(entries),
       liveContext: isLiveContextSession(openedSession.getEntries()),
+      ...(isOrchestratorSession(openedSession.getEntries())
+        ? { orchestrator: true as const }
+        : {}),
       sourceMtimeMs: resolvedSourceMtimeMs,
       body: sessionBody(entries),
       ...(name ? { name } : {}),

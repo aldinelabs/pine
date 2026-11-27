@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CONTENT_TABS_STORAGE_KEY } from "@/lib/contentTabStorage";
 import { TEMPORARY_WORKSPACE_PROJECT_ID } from "@/shared/projects";
 import type { PineSessionSummary } from "@/shared/sessions";
-import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import { isNewSessionDraft, useContentTabsStore } from "../contentTabs";
 import { useSessionStore } from "../session";
 
@@ -834,7 +833,8 @@ describe("the Assistant's tab among drafts", () => {
     expect(cleared).toMatchObject({
       kind: "session",
       state: "draft",
-      projectId: ASSISTANT_PROJECT_ID,
+      projectId: TEMPORARY_WORKSPACE_PROJECT_ID,
+      orchestrator: true,
     });
     expect(cleared && isNewSessionDraft(cleared)).toBe(false);
     // In its place, and the next message starts a new conversation there.
@@ -850,9 +850,7 @@ describe("the Assistant's tab among drafts", () => {
     expect(
       store.tabs.filter(
         (tab) =>
-          tab.kind === "session" &&
-          tab.state === "draft" &&
-          tab.projectId === ASSISTANT_PROJECT_ID,
+          tab.kind === "session" && tab.state === "draft" && tab.orchestrator,
       ),
     ).toHaveLength(1);
     expect(store.tabs.some((tab) => tab.id === other.id)).toBe(true);

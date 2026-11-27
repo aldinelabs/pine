@@ -9,7 +9,7 @@ import {
   XIcon,
 } from "@lucide/vue";
 import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
-import { isAssistantProject } from "@/shared/assistant";
+import { ASSISTANT_COMPOSER_TARGET } from "@/shared/assistant";
 import { storeToRefs } from "pinia";
 import type { ComponentPublicInstance } from "vue";
 import {
@@ -49,6 +49,7 @@ import {
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
 import { useContentTabNavigation } from "@/composables/useContentTabNavigation";
+import { useAssistantEntry } from "@/composables/useAssistantEntry";
 import { cn } from "@/lib/utils";
 import { fileIcon } from "@/lib/fileIcon";
 import { fileTargetPath } from "@/lib/filePreviewTarget";
@@ -60,7 +61,7 @@ import { useAppearanceStore } from "@/stores/appearance";
 import { useAttentionFlashStore } from "@/stores/attentionFlash";
 import { DRAFT_WORKBENCH_KEY, useWorkbenchStore } from "@/stores/workbench";
 import type { ProjectContentTab } from "@/stores/contentTabs";
-import { useContentTabsStore } from "@/stores/contentTabs";
+import { isOrchestratorTab, useContentTabsStore } from "@/stores/contentTabs";
 import { useSessionStore } from "@/stores/session";
 import { onSessionEvent } from "@/client/sessionEvents";
 import { useProjectStore } from "@/stores/project";
@@ -85,16 +86,20 @@ const { activeSession } = storeToRefs(sessionStore);
 const windowCloseTabHandler = inject(WINDOW_TAB_CLOSE_HANDLER_KEY, null);
 
 // A floating composer message for a project this window holds opens in a
-// new draft here, which sends it once it shows.
+// new draft here, which sends it once it shows; one for the Assistant, in
+// its tab.
 const quickComposerHandoff = useQuickComposerHandoffStore();
+const { openAssistant } = useAssistantEntry();
 let stopQuickComposerDelivery: (() => void) | undefined;
 let stopQuickComposerReveal: (() => void) | undefined;
 onMounted(() => {
   stopQuickComposerDelivery = window.pine.onQuickComposerDelivered?.(
     (handoff) => {
-      void tabNavigation
-        .openNewDraft(handoff.projectId)
-        .then(() => quickComposerHandoff.deliver(handoff));
+      void (
+        handoff.projectId === ASSISTANT_COMPOSER_TARGET
+          ? openAssistant()
+          : tabNavigation.openNewDraft(handoff.projectId)
+      ).then(() => quickComposerHandoff.deliver(handoff));
     },
   );
   // The notification of an answer sent in the background shows its session.
@@ -594,8 +599,7 @@ onMounted(() => {
 
 function getTabLabel(tab: ProjectContentTab): string {
   // The Assistant's one tab always goes by its name.
-  if (tab.kind === "session" && isAssistantProject(tab.projectId))
-    return t("assistant.name");
+  if (isOrchestratorTab(tab)) return t("assistant.name");
   return "label" in tab && tab.label
     ? tab.label
     : t("project.contentTabs.newSession");
@@ -618,7 +622,7 @@ watch(
 
 function tabIcon(tab: ProjectContentTab) {
   if (tab.kind !== "session") return fileIcon(fileTargetPath(tab));
-  if (isAssistantProject(tab.projectId)) return OrchestratorIcon;
+  if (tab.orchestrator) return OrchestratorIcon;
   if (tab.state !== "bound") return MessageSquareTextIcon;
   // An automation run keeps its icon until the user replies to it.
   if (sessionStore.automationRunOf(tab.sessionId)) return WorkflowIcon;

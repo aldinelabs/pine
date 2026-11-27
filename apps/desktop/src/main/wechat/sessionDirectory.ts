@@ -20,13 +20,16 @@ import {
   UI_SUBMIT_ARTIFACT_TOOL_NAME,
 } from "../../shared/agent";
 import { artifactKey, type SessionArtifact } from "../../shared/artifacts";
-import { ASSISTANT_PROJECT_ID } from "../../shared/assistant";
 import {
   parseAttachmentMessage,
   serializeAttachmentMessage,
 } from "../../shared/attachments";
 import { MCP_AUTHORING_DYNAMIC_TOOL_NAMES } from "../../shared/mcp";
-import { isTemporaryWorkspace, type PineProject } from "../../shared/projects";
+import {
+  isTemporaryWorkspace,
+  TEMPORARY_WORKSPACE_PROJECT_ID,
+  type PineProject,
+} from "../../shared/projects";
 import type { PineContextUsage } from "../../shared/sessions";
 import { isVirtualClient } from "../../shared/webControl";
 import {
@@ -641,13 +644,6 @@ export class SessionDirectory {
         files,
         artifacts: runArtifacts,
       }).catch(() => undefined);
-    } else if (
-      wasRunning &&
-      !obs.aborted &&
-      this.trackedEntry(sessionId)?.origin === "dispatched"
-    ) {
-      // The Orchestrator relays it; `.u 9` still reaches the session it reports.
-      this.recordPush(sessionId, this.projectOfSession(sessionId, obs));
     }
     void this.releaseIdle().catch(() => undefined);
   }
@@ -659,16 +655,12 @@ export class SessionDirectory {
   }
 
   /**
-   * Results and progress: tracked, not a spawned child, and not one the
-   * Orchestrator dispatched, whose results it relays itself.
+   * Results and progress: tracked and not a spawned child, whose parent,
+   * the Orchestrator among them, reports on it.
    */
   private pushesResults(sessionId: string): boolean {
     const tracked = this.trackedEntry(sessionId);
-    return (
-      tracked !== undefined &&
-      tracked.origin !== "spawned" &&
-      tracked.origin !== "dispatched"
-    );
+    return tracked !== undefined && tracked.origin !== "spawned";
   }
 
   private checkProgress(sessionId: string, obs: Observed): void {
@@ -1068,6 +1060,14 @@ export class SessionDirectory {
   // -------------------------------------------------------------------------
   // Core hooks
 
+  /**
+   * A session WeChat started or tracks started another, as the Assistant
+   * does when it dispatches in a WeChat turn. The child carries WeChat's
+   * words, so it is held to WeChat's limits; a tracked parent's child is
+   * tracked too, so its approval cards reach WeChat, while its parent
+   * reports its results. Tracking applies at once: the child's first
+   * approval may already be waiting.
+   */
   sessionSpawned(
     parentSessionId: string,
     childSessionId: string,
@@ -1084,63 +1084,30 @@ export class SessionDirectory {
     const now = this.deps.now();
     const obs = this.touch(childSessionId);
     obs.projectId = projectId;
-    void this.deps.store
-      .update((draft) => {
-        if (!draft.origins.some((entry) => entry.sessionId === childSessionId))
-          addOrigin(draft.origins, {
-            sessionId: childSessionId,
-            projectId,
-            kind: "spawned",
-            atMs: now,
-          });
-        if (parentTracked)
-          addTracked(
-            draft.tracked,
-            childSessionId,
-            projectId,
-            "spawned",
-            now,
-            this.isBusy,
-          );
-      })
-      .catch(() => undefined);
-  }
-
-  /**
-   * The Assistant dispatched a session in a turn WeChat started. It carries
-   * WeChat's words, so it is held to WeChat's limits like a spawned session,
-   * and it is tracked so its approval cards reach WeChat. Its results do
-   * not: the Orchestrator relays them. Tracking applies at once: the
-   * session's first approval may already be waiting.
-   */
-  sessionDispatched(sessionId: string, projectId: string): void {
-    const obs = this.touch(sessionId);
-    obs.projectId = projectId;
-    if (obs.state === "running") obs.bridgeRun = true;
-    else obs.pendingPrompt = true;
-    const now = this.deps.now();
     this.deps.store.updateSoon((draft) => {
-      if (!draft.origins.some((entry) => entry.sessionId === sessionId))
+      if (!draft.origins.some((entry) => entry.sessionId === childSessionId))
         addOrigin(draft.origins, {
-          sessionId,
+          sessionId: childSessionId,
           projectId,
           kind: "spawned",
           atMs: now,
         });
-      addTracked(
-        draft.tracked,
-        sessionId,
-        projectId,
-        "dispatched",
-        now,
-        this.isBusy,
-      );
+      if (parentTracked)
+        addTracked(
+          draft.tracked,
+          childSessionId,
+          projectId,
+          "spawned",
+          now,
+          this.isBusy,
+        );
     });
     this.deps.core.notifyLibraryChanged("sessions");
     // A card opened before the session was tracked was not pushed.
-    for (const ask of this.asksOf(sessionId))
-      if (ask.deliveredAtMs === undefined)
-        void this.pushCard(ask.number).catch(() => undefined);
+    if (parentTracked)
+      for (const ask of this.asksOf(childSessionId))
+        if (ask.deliveredAtMs === undefined)
+          void this.pushCard(ask.number).catch(() => undefined);
   }
 
   /**
@@ -1972,7 +1939,7 @@ export class SessionDirectory {
     if (message === "") throw new Error("There is nothing to send.");
     const attachments = input.attachments
       ? await this.deps.attachments.take(
-          this.deps.core.repository.dataPaths(ASSISTANT_PROJECT_ID)
+          this.deps.core.repository.dataPaths(TEMPORARY_WORKSPACE_PROJECT_ID)
             .attachmentsRoot,
         )
       : [];
@@ -2014,24 +1981,26 @@ export class SessionDirectory {
   }
 
   /**
-   * A reminder the user set from WeChat woke the Assistant: its reply to
-   * that wake-up is pushed like its reply to a WeChat message, within the
-   * same reply budget.
+   * A session dispatched in a WeChat turn woke the Assistant with its result:
+   * the Assistant's reply is pushed like its reply to a WeChat message,
+   * within the same reply budget, and `.u 9` reaches the session it reports
+   * on, as if that session had pushed its result itself.
    */
   async expectAssistantReply(
     sessionId: string,
-    projectId: string,
+    reported: { sessionId: string; projectId: string },
   ): Promise<void> {
     const obs = this.touch(sessionId);
-    obs.projectId = projectId;
+    obs.projectId = TEMPORARY_WORKSPACE_PROJECT_ID;
     if (obs.state === "running") obs.bridgeRun = true;
     else obs.pendingPrompt = true;
+    this.recordPush(reported.sessionId, reported.projectId);
     const now = this.deps.now();
     await this.deps.store.update((draft) => {
       addTracked(
         draft.tracked,
         sessionId,
-        projectId,
+        TEMPORARY_WORKSPACE_PROJECT_ID,
         "assistant",
         now,
         this.isBusy,

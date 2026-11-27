@@ -179,8 +179,11 @@ export type Ask = ApprovalAsk | QuestionAsk | ConfirmAsk | HeldAsk;
 export interface TrackedSession {
   sessionId: string;
   projectId: string;
-  /** `dispatched`: the Assistant started it in a WeChat turn; `assistant`: the Assistant's own conversation. */
-  origin: "wechat" | "adopted" | "spawned" | "dispatched" | "assistant";
+  /**
+   * `spawned`: a tracked session started it, the Assistant included, in a
+   * WeChat turn; `assistant`: the Assistant's own conversation.
+   */
+  origin: "wechat" | "adopted" | "spawned" | "assistant";
   trackedAtMs: number;
   lastUsedAtMs: number;
 }

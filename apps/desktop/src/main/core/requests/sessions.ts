@@ -21,7 +21,6 @@ import {
   approvalModeWithin,
 } from "../../../shared/agent";
 import { isVirtualClient } from "../../../shared/webControl";
-import { isAssistantProject } from "../../../shared/assistant";
 import {
   LIST_BACKGROUND_TASKS_CHANNEL,
   READ_BACKGROUND_TASK_OUTPUT_CHANNEL,
@@ -67,6 +66,7 @@ import {
   deleteSessionWithChildren,
   isRelative,
   messageText,
+  localParentOf,
   parentOf,
   relativesOf,
 } from "../subSessions";
@@ -110,16 +110,26 @@ async function withAutomationRuns<
   T extends PineSessionSummary & { projectId?: string },
 >(core: PineCore, sessions: T[], projectId?: string): Promise<T[]> {
   const runs = new Map<string, Map<string, AutomationRunSession>>();
-  const dispatched = await core.assistant.dispatchedIds();
+  const parents = new Map<string, Record<string, string>>();
   for (const id of new Set(
     sessions.map((session) => session.projectId ?? projectId),
   )) {
-    if (id) runs.set(id, await core.automations.runSessions(id));
+    if (!id) continue;
+    runs.set(id, await core.automations.runSessions(id));
+    const project = await core.repository.get(id).catch(() => undefined);
+    if (project?.sessionParents) parents.set(id, project.sessionParents);
   }
+  const conversations = [...parents.values()].some(
+    (links) => Object.keys(links).length > 0,
+  )
+    ? await core.assistant.conversationIds()
+    : new Set<string>();
   return sessions.map((session) => {
-    const run = runs.get(session.projectId ?? projectId ?? "")?.get(session.id);
+    const sessionProjectId = session.projectId ?? projectId ?? "";
+    const run = runs.get(sessionProjectId)?.get(session.id);
     const origin = core.wechat.originOf(session.id);
-    const fromAssistant = dispatched.has(session.id);
+    const parent = parents.get(sessionProjectId)?.[session.id];
+    const fromAssistant = parent !== undefined && conversations.has(parent);
     if (!run && !origin && !fromAssistant) return session;
     return {
       ...session,
@@ -151,6 +161,8 @@ export interface BackgroundSessionInput {
   title?: string;
   /** Makes the new session a sub-session of this one. */
   parentSessionId?: string;
+  /** The parent's project, where it is not the new session's. */
+  parentProjectId?: string;
   /** The model it runs on, as if picked in its composer. */
   model?: PineModelSelection;
 }
@@ -197,10 +209,14 @@ export async function startBackgroundSession(
       )
       .catch(() => undefined);
   if (parentSessionId) {
-    await repository.updateSessionParents(project.id, (parents) => ({
-      ...parents,
-      [result.session.id]: parentSessionId,
-    }));
+    const { parentProjectId } = input;
+    await repository.updateSessionParents(
+      project.id,
+      (parents) => ({ ...parents, [result.session.id]: parentSessionId }),
+      parentProjectId && parentProjectId !== project.id
+        ? { [result.session.id]: parentProjectId }
+        : {},
+    );
     core.notifyLibraryChanged("projects");
   }
   core.notifyLibraryChanged("sessions", ownerId);
@@ -425,10 +441,12 @@ async function sessionTree(
   };
   const groups = project.sessionGroups ?? [];
   const filed = new Set(groups.flatMap((group) => group.sessionIds));
-  // A sub-session sits under its parent rather than in or outside folders.
-  const unfiled = sessions.filter(
-    (session) => !filed.has(session.id) && !parentOf(project, session.id),
-  );
+  // A sub-session sits under its parent rather than in or outside folders,
+  // while that parent is listed: the Orchestrator never is.
+  const unfiled = sessions.filter((session) => {
+    const parent = localParentOf(project, session.id);
+    return !filed.has(session.id) && !(parent && byId.has(parent));
+  });
   return {
     projectId: project.id,
     projectName: name,
@@ -570,7 +588,7 @@ export async function answerSessionOperation(
         groups = groups.filter((group) => group.id !== id);
       } else if (edit.op === "move") {
         const id = session(edit.sessionId);
-        if (parentOf(project, id))
+        if (localParentOf(project, id))
           throw new Error(
             `Session ${id} is a sub-session; it stays under the session that started it.`,
           );
@@ -845,7 +863,8 @@ export async function answerSessionOperation(
   const project = projects.find((candidate) => candidate.id === projectId);
   if (!project) throw new Error("That project does not exist.");
   const own = projects.find((candidate) => candidate.id === ownProjectId);
-  const callerParent = own && parentOf(own, requester.sessionId);
+  // A session the Orchestrator dispatched starts its own top-level siblings.
+  const callerParent = own && localParentOf(own, requester.sessionId);
   if (parsed.relation === "child" && callerParent)
     throw new Error(
       "This session is a sub-session, and sub-sessions go one level deep. Start a sibling instead.",
@@ -1071,7 +1090,7 @@ export function registerSessionRequests(core: PineCore): void {
       const parsed = PromptSessionRequestSchema.parse(request);
       // The Assistant has one conversation, its own mode and model, and no
       // authoring: whatever a window sends it lands in that conversation.
-      if (isAssistantProject(parsed.target.projectId))
+      if (await core.assistant.isPromptFor(parsed.target))
         return core.assistant.prompt(context.clientId, {
           locale: parsed.locale,
           message: parsed.message,
@@ -1166,7 +1185,7 @@ export function registerSessionRequests(core: PineCore): void {
       // The Assistant's mode caps what it dispatches, so it is never YOLO.
       if (
         approvalMode === "YOLO" &&
-        isAssistantProject(runtimes.projectOfLiveSession(sessionId)?.id)
+        runtimes.summaryOfLiveSession(sessionId)?.orchestrator
       )
         throw new Error("The Assistant does not run in YOLO.");
       return runtimes.setApprovalMode(

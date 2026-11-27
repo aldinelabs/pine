@@ -51,7 +51,7 @@ import { useSessionExport } from "@/composables/useSessionExport";
 import { fileTargetPath, operateFileTarget } from "@/lib/filePreviewTarget";
 import type { ProjectFileOperation } from "@/shared/projectFiles";
 import type { PineSessionSummary } from "@/shared/sessions";
-import { isAssistantProject } from "@/shared/assistant";
+import { isOrchestratorTab } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useSessionStore } from "@/stores/session";
 
@@ -73,11 +73,7 @@ const isActiveSession = computed(() => activeTab.value?.kind === "session");
  * The Assistant's tab is always named Assistant, so it has no Rename; its
  * Delete reads as Clear conversation, since the tab stays for the next one.
  */
-const isAssistantTab = computed(
-  () =>
-    activeTab.value?.kind === "session" &&
-    isAssistantProject(activeTab.value.projectId),
-);
+const isAssistantTab = computed(() => isOrchestratorTab(activeTab.value));
 const activeSessionTab = computed(() =>
   activeTab.value?.kind === "session" && activeTab.value.state === "bound"
     ? activeTab.value

@@ -113,10 +113,11 @@ async function assistantLocation(port: number) {
   );
   const location = {
     agentDir: path.join(root, "agent"),
-    cwd: path.join(root, "assistant", "workspace"),
+    // A new session in No Project, flagged as the Orchestrator's.
+    cwd: path.join(root, "no-project", "workspace"),
     folders: [],
-    sessionsRoot: path.join(root, "assistant", "sessions"),
-    projectName: "Assistant",
+    sessionsRoot: path.join(root, "no-project", "sessions"),
+    temporaryWorkspace: true,
     orchestrator: true,
   };
   await mkdir(location.agentDir, { recursive: true });
@@ -220,6 +221,36 @@ describe("the Assistant's conversation", () => {
     // Memory is on by default: the ordinary guide follows its own prompt.
     expect(system).toContain(MEMORY_SYSTEM_PROMPT);
     expect(system).not.toContain("privileged_bash");
+  });
+
+  it("stays the Orchestrator's when reopened, by the flag in its file", async () => {
+    const provider = await mockProvider([{ text: "OK." }, { text: "OK." }]);
+    const location = await assistantLocation(provider.port);
+    const first = testRuntime();
+    const created = await first.createSession(location);
+    expect(created.session.orchestrator).toBe(true);
+    const session = liveSession(first, created.session.id);
+    await session.prompt("你好");
+    const file = (
+      session as unknown as {
+        sessionManager: { getSessionFile(): string | undefined };
+      }
+    ).sessionManager.getSessionFile();
+    if (!file) throw new Error("The session was not saved.");
+    await first.dispose();
+
+    // Opened like any No Project session, without the create-time flag.
+    const second = testRuntime();
+    const reopened = await second.openSession(
+      { ...location, orchestrator: false },
+      file,
+    );
+    expect(reopened.session.orchestrator).toBe(true);
+    const again = liveSession(second, reopened.session.id);
+    await again.prompt("还在吗");
+    expect(
+      provider.requests[1]?.tools?.map((tool) => tool.function.name),
+    ).toEqual([...ASSISTANT_TOOL_NAMES]);
   });
 
   it("keeps the prompt and tools fixed while desktop and WeChat messages mix", async () => {

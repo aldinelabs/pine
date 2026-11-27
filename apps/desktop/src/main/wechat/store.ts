@@ -90,7 +90,7 @@ const pendingAttachmentSchema = z.object({
 const trackedSchema = z.object({
   sessionId: z.string(),
   projectId: z.string(),
-  origin: z.enum(["wechat", "adopted", "spawned", "dispatched", "assistant"]),
+  origin: z.enum(["wechat", "adopted", "spawned", "assistant"]),
   trackedAtMs: z.number(),
   lastUsedAtMs: z.number(),
 });

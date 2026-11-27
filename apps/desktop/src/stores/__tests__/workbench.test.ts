@@ -8,8 +8,6 @@ import {
   useWorkbenchStore,
 } from "../workbench";
 import { useSessionStore } from "../session";
-import { useProjectStore } from "../project";
-import { ASSISTANT_PROJECT_ID } from "@/shared/assistant";
 import type { PineSessionSummary } from "@/shared/sessions";
 
 beforeEach(() => {
@@ -385,31 +383,4 @@ it("restores a tab's own column when it reopens from no tabs", () => {
   // Later switches between session tabs are not held closed.
   store.setFrontSession("session-b");
   expect(store.activeLayout.open).toBe(true);
-});
-
-it("closes the Assistant's column with its last card, as in any session", () => {
-  useProjectStore().setCurrentProject(ASSISTANT_PROJECT_ID);
-  const store = useWorkbenchStore();
-  store.showPanel("top", "tasks");
-  store.closeCard(store.activeLayout.bottom ?? "preview");
-  expect(store.activeLayout).toMatchObject({
-    open: true,
-    top: "tasks",
-    bottom: null,
-  });
-
-  store.closeCard("tasks");
-
-  expect(store.activeLayout.open).toBe(false);
-});
-
-it("offers the Assistant the same cards as any session", () => {
-  useProjectStore().setCurrentProject(ASSISTANT_PROJECT_ID);
-  const store = useWorkbenchStore();
-  store.showPanel("top", "files");
-  store.showPanel("bottom", "artifacts");
-  expect(store.activeLayout).toMatchObject({
-    top: "files",
-    bottom: "artifacts",
-  });
 });

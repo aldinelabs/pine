@@ -1,6 +1,7 @@
 import {
   approvalModeFromEntries,
   isLiveContextSession,
+  isOrchestratorSession,
   titleSuggestionField,
   replySuggestionField,
 } from "../../shared/sessions";
@@ -124,7 +125,10 @@ export interface LiveAgentSession {
   toolOrder: string[];
   /** Set for a read-only side chat forked from another conversation. */
   sideChat?: { parentSessionId: string; persistent: boolean };
-  /** The Assistant's conversation: a fixed prompt and tool list (shared/assistant.ts). */
+  /**
+   * The session file marks it as the Assistant's conversation: a fixed
+   * prompt and tool list (shared/assistant.ts).
+   */
   orchestrator?: true;
   /** Set for an unattended automation run; its envelope replaces the tool list. */
   automation?: AgentAutomationRun;
@@ -192,6 +196,7 @@ export function sessionSummary(session: AgentSession): PineSessionSummary {
     updatedAt: sessionActivityAt(entries, Date.parse(createdAt), Date.now()),
     messageCount,
     ...(isLiveContextSession(entries) ? { liveContext: true } : {}),
+    ...(isOrchestratorSession(entries) ? { orchestrator: true as const } : {}),
     ...(session.model
       ? {
           modelSelection: {

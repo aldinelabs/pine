@@ -116,8 +116,9 @@ export interface AgentSessionLocation {
   /** Pine's built-in temporary workspace ("No Project"). */
   temporaryWorkspace?: boolean;
   /**
-   * The Assistant's conversation (shared/assistant.ts): its own system
-   * prompt and a fixed tool list that has no tool to do work with.
+   * A new session started as a conversation of the Assistant
+   * (shared/assistant.ts). The worker records it in the session file, which
+   * is what gives a reopened session its own prompt and fixed tool list.
    */
   orchestrator?: boolean;
   /** The user-facing name of the session's project, for the agent's context. */

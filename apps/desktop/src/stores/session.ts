@@ -1130,6 +1130,8 @@ export const useSessionStore = defineStore("session", () => {
     const index = recent.findIndex((candidate) => candidate.id === session.id);
     const previous = index >= 0 ? recent[index] : undefined;
     const nextSession = mergeSessionSummary(session, previous);
+    // The Assistant's conversation has its own sidebar entry, in no list.
+    if (session.orchestrator) return nextSession;
     // A repeated summary leaves the list, and everything rendering it, alone.
     if (
       previous &&
@@ -1334,12 +1336,17 @@ export const useSessionStore = defineStore("session", () => {
    */
   async function prompt(
     message: string,
-    target: { projectId: string; sessionId?: string },
+    target: {
+      projectId: string;
+      sessionId?: string;
+      /** A new message for the Assistant, whose conversation it starts. */
+      orchestrator?: true;
+    },
     approvalMode?: PineApprovalMode,
     streamingBehavior?: "follow-up" | "steer",
     mutators?: readonly PineSessionMutator[],
   ): Promise<PineSessionSummary> {
-    const { projectId, sessionId } = target;
+    const { projectId, sessionId, orchestrator } = target;
     if (sessionId && isCostLimitReached(sessionId)) {
       throw new Error(
         localeMessages[currentAppLocale()].project.composer.contextUsage
@@ -1357,7 +1364,11 @@ export const useSessionStore = defineStore("session", () => {
         message,
         target: sessionId
           ? { kind: "session", projectId, sessionId }
-          : { kind: "new", projectId },
+          : {
+              kind: "new",
+              projectId,
+              ...(orchestrator ? { orchestrator } : {}),
+            },
         ...(approvalMode ? { approvalMode } : {}),
         ...(streamingBehavior ? { streamingBehavior } : {}),
         // Store state is reactive, and Electron cannot clone a proxy across IPC.

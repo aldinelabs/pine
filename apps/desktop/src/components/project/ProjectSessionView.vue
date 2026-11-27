@@ -9,7 +9,7 @@ import { FilesIcon, MessageCircleIcon } from "@lucide/vue";
 import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { assistantViewKey } from "@/components/assistant/context";
 import { useAssistantEntry } from "@/composables/useAssistantEntry";
-import { isAssistantProject } from "@/shared/assistant";
+import { ASSISTANT_COMPOSER_TARGET } from "@/shared/assistant";
 import { useEventListener } from "@vueuse/core";
 import {
   computed,
@@ -58,7 +58,7 @@ import { useOpenSubmittedArtifact } from "@/composables/useOpenSubmittedArtifact
 import { usePhoneLayout } from "@/composables/usePhoneLayout";
 import { useToolActivityExpansion } from "@/composables/useToolActivityExpansion";
 import { useSteeringMessageTransition } from "@/composables/useSteeringMessageTransition";
-import { useContentTabsStore } from "@/stores/contentTabs";
+import { isOrchestratorTab, useContentTabsStore } from "@/stores/contentTabs";
 import { useProjectStore } from "@/stores/project";
 import { useQuickComposerHandoffStore } from "@/stores/quickComposerHandoff";
 import { useSessionStore, type PineTranscriptMessage } from "@/stores/session";
@@ -98,14 +98,18 @@ const props = defineProps<{
  * The Assistant's conversation: it dispatches rather than works, so it has
  * no files, attachments, mode or model of its own to choose here.
  */
-const isAssistant = computed(() => isAssistantProject(props.projectId));
-provide(assistantViewKey, isAssistantProject(props.projectId));
+const contentTabsStore = useContentTabsStore();
+const isAssistant = computed(() =>
+  isOrchestratorTab(
+    contentTabsStore.tabs.find((tab) => tab.id === props.tabId),
+  ),
+);
+provide(assistantViewKey, isAssistant.value);
 const { openAssistant } = useAssistantEntry();
 const automationsStore = useAutomationsStore();
 const automationApprovals = computed(() =>
   automationsStore.approvalsFor(props.sessionId),
 );
-const contentTabsStore = useContentTabsStore();
 const projectStore = useProjectStore();
 const openForDraft = useDraftProjectOpener();
 const tabNavigation = useContentTabNavigation();
@@ -611,7 +615,11 @@ function submit(
           )
         : sessionStore.prompt(
             message,
-            { projectId, sessionId },
+            {
+              projectId,
+              sessionId,
+              ...(isAssistant.value ? { orchestrator: true as const } : {}),
+            },
             approvalMode.value,
           );
     })
@@ -674,15 +682,24 @@ const quickComposerHandoff = useQuickComposerHandoffStore();
 const handoffContext = ref<PineAttachment[]>([]);
 watch(
   () =>
-    isActive.value && !props.sessionId && quickComposerHandoff.pending !== null,
+    isActive.value &&
+    (!props.sessionId || isAssistant.value) &&
+    quickComposerHandoff.pending !== null,
   async (ready) => {
     if (!ready) return;
+    const forAssistant =
+      quickComposerHandoff.pending?.projectId === ASSISTANT_COMPOSER_TARGET;
+    // A message for the Assistant goes to its tab, a project's to a draft.
+    if (forAssistant !== isAssistant.value) {
+      if (forAssistant) void openAssistant();
+      return;
+    }
     const handoff = quickComposerHandoff.take();
     if (!handoff) return;
     // The view waits behind a spinner while its tab's project is not open
     // here, so open it before the draft moves there. The floating
     // composer's choice is not remembered for later drafts.
-    if (await openForDraft(handoff.projectId)) {
+    if (!forAssistant && (await openForDraft(handoff.projectId))) {
       contentTabsStore.setDraftProject(props.tabId, handoff.projectId);
       await nextTick();
     }

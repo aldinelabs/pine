@@ -548,7 +548,12 @@ export interface PromptSessionRequest {
   locale?: "en-US" | "zh-CN";
   message: string;
   target:
-    | { kind: "new"; projectId: string }
+    | {
+        kind: "new";
+        projectId: string;
+        /** Start the Orchestrator's conversation, in No Project. */
+        orchestrator?: true;
+      }
     | {
         kind: "session";
         projectId: string;

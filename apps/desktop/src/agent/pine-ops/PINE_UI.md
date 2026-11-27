@@ -156,8 +156,8 @@ window
 
 Top menu:
 
-- Orchestrator: opens the Orchestrator's tab (see Orchestrator tab). It belongs to no
-  project and stays above every project. Its row shows a small spinner while
+- Orchestrator: opens the Orchestrator's tab (see Orchestrator tab). It stays
+  above every project. Its row shows a small spinner while
   the Orchestrator works and a breathing amber dot while its conversation waits
   for the user's approval or answer. Right-clicking it offers Export and
   Clear conversation (as the tab's More actions menu).
@@ -725,12 +725,13 @@ From top to bottom:
 
 #### Orchestrator tab
 
-The Orchestrator is one lasting conversation that belongs to no project: the user
-says what they need, it hands the work to a session in the right project and
-reports back. It never does the work itself. There is only one Orchestrator
-conversation; every message sent to the Orchestrator, from the sidebar entry, the
-quick composer or WeChat, goes into it. If another window already shows it,
-that window comes forward instead.
+The Orchestrator is one lasting conversation: the user says what they need, it
+hands the work to a session in the right project and reports back. It never
+does the work itself. It is kept in No Project but listed nowhere: No
+Project's session list, history and search never show it; only its sidebar
+entry opens it. There is only one Orchestrator conversation; every message
+sent to the Orchestrator, from the sidebar entry, the quick composer or
+WeChat, goes into it.
 
 It is an ordinary session tab, pinned to the sidebar entry, with these
 differences:
@@ -753,8 +754,9 @@ differences:
 - The tab's More actions menu (and the sidebar entry's right-click menu) has
   Export and Clear conversation; it has no Rename. Clear conversation asks
   first ("Clear the Orchestrator's conversation?", confirmed with Clear): the
-  messages are cleared, sessions it dispatched stay where they are but no
-  longer report here, and its notes in Memory are kept. The tab stays open on the empty Orchestrator, and the next message starts
+  messages are cleared, sessions it dispatched stay where they are as
+  ordinary sessions that no longer report here or show "From Orchestrator",
+  and its notes in Memory are kept. The tab stays open on the empty Orchestrator, and the next message starts
   a new conversation.
 - When a dispatched session finishes a turn, fails or is stopped, the
   Orchestrator replies on its own and tells the user what came of it, where
@@ -764,9 +766,9 @@ differences:
   completion sound or notification of their own; the user hears their
   results only from the Orchestrator. A session waiting for approval shows
   its own approval card and notification instead.
-- It remembers like any session: its notes (such as what the user calls a
-  project) are the This project notes of the Memory manager opened from its
-  tab, and it reads the All projects notes too.
+- It remembers like any No Project session: its notes (such as what the
+  user calls a project) are No Project's notes, the This project notes of the
+  Memory manager opened from its tab, and it reads the All projects notes too.
 - The conversation reads like a chat: the Orchestrator's replies sit in
   grey bubbles on the left, and the user's messages sit in dark (light, in
   dark mode) bubbles on the right. Its thinking, tool calls and dispatch

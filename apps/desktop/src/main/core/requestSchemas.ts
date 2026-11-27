@@ -246,7 +246,11 @@ export const PromptSessionRequestSchema = z.object({
   locale: z.enum(["en-US", "zh-CN"]).default("en-US"),
   message: z.string().trim().min(1).max(100_000),
   target: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("new"), projectId: z.uuid() }),
+    z.object({
+      kind: z.literal("new"),
+      projectId: z.uuid(),
+      orchestrator: z.literal(true).optional(),
+    }),
     z.object({
       kind: z.literal("session"),
       projectId: z.uuid(),
