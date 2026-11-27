@@ -342,7 +342,6 @@ const background = new DesktopBackground({
     relayRemote: core?.remote.status().enabled ?? false,
     wechatBound: core?.wechat.status().bound ?? false,
     keepAwake: remoteKeepAwake.enabled,
-    ...(core ? { assistant: core.assistant.trayStatus() } : {}),
     users: knownUsers.map((user) => ({
       id: user.id,
       name: user.name,

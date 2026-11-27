@@ -1868,7 +1868,6 @@ export default {
         minutes: "{minutes}m {seconds}s",
         seconds: "{value}s",
       },
-      watchNotice: "Reminder: {label}",
       sessionNotice: {
         finished: "Sub-session {name} finished",
         failed: "Sub-session {name} failed",
@@ -2898,7 +2897,7 @@ export default {
       action: "Clear conversation",
       title: "Clear the Orchestrator's conversation?",
       description:
-        "Its messages are cleared, and your next message starts a new conversation. Sessions it dispatched stay where they are but no longer report here. Its reminders are removed. Its notes in Memory are kept.",
+        "Its messages are cleared, and your next message starts a new conversation. Sessions it dispatched stay where they are but no longer report here. Its notes in Memory are kept.",
       confirm: "Clear",
     },
     source: {

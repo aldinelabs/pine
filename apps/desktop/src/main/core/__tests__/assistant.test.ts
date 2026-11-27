@@ -117,9 +117,6 @@ async function fixture() {
       }),
     ),
     deleteSession: vi.fn(() => Promise.resolve(true)),
-    contextUsageOf: vi.fn<(id: string) => { cost: number } | undefined>(
-      () => undefined,
-    ),
     hasPendingApproval: vi.fn(() => true),
   };
   const automations = {
@@ -297,21 +294,6 @@ describe("the Assistant's dispatches", () => {
       /No attachment att_0000000000000000 in this conversation/,
     );
     expect(startBackgroundSession).not.toHaveBeenCalled();
-  });
-
-  it("counts its dispatched sessions' work for the tray", async () => {
-    const { core, service } = await fixture();
-    expect(service.trayStatus()).toEqual({ running: 0, awaitingApproval: 0 });
-
-    await service.answer(
-      { sessionId: ASSISTANT_SESSION, ownerId: ASSISTANT_CLIENT_ID },
-      dispatch,
-    );
-    expect(service.trayStatus()).toEqual({ running: 1, awaitingApproval: 0 });
-    (
-      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
-    ).sessionActivity.mockReturnValue("awaiting-approval");
-    expect(service.trayStatus()).toEqual({ running: 0, awaitingApproval: 1 });
   });
 
   it("reports each turn of a dispatched session back to the Assistant", async () => {
@@ -777,150 +759,6 @@ async function started() {
   ]);
   return context;
 }
-
-describe("cost reminders", () => {
-  it("points out a dispatched session past the threshold once per multiple", async () => {
-    const { service, agentHost, runtimes } = await fixture();
-    await service.answer(ASSISTANT, dispatch);
-    runtimes.contextUsageOf.mockImplementation((id: string) =>
-      id === DISPATCHED ? { cost: 6 } : undefined,
-    );
-
-    await service.report(DISPATCHED, "finished");
-    await service.report(DISPATCHED, "finished");
-    runtimes.contextUsageOf.mockImplementation((id: string) =>
-      id === DISPATCHED ? { cost: 10.5 } : undefined,
-    );
-    await service.report(DISPATCHED, "finished");
-
-    const contents = agentHost.notifySession.mock.calls.map(
-      (call) => (call as unknown as [string, unknown, string])[2],
-    );
-    expect(contents[0]).toContain(
-      "<cost-reminder>This session has cost about US$6.00",
-    );
-    expect(contents[1]).not.toContain("<cost-reminder>");
-    expect(contents[2]).toContain("US$11");
-  });
-
-  it("points out the Assistant's own cost once, past the reminder", async () => {
-    const { service, agentHost, runtimes } = await fixture();
-    await service.answer(ASSISTANT, dispatch);
-    runtimes.contextUsageOf.mockImplementation((id: string) =>
-      id === ASSISTANT_SESSION ? { cost: 4 } : { cost: 1 },
-    );
-    await service.report(DISPATCHED, "finished");
-    runtimes.contextUsageOf.mockImplementation((id: string) =>
-      id === ASSISTANT_SESSION ? { cost: 7 } : { cost: 1 },
-    );
-    await service.report(DISPATCHED, "finished");
-    await service.report(DISPATCHED, "finished");
-
-    const contents = agentHost.notifySession.mock.calls.map(
-      (call) => (call as unknown as [string, unknown, string])[2],
-    );
-    expect(contents[0]).not.toContain("<cost-reminder>");
-    expect(contents[1]).toContain(
-      "Your own conversation with the user has cost",
-    );
-    expect(contents[2]).not.toContain("<cost-reminder>");
-  });
-});
-
-describe("watches", () => {
-  it("wakes the Assistant when a watched session finishes", async () => {
-    const { service, agentHost } = await started();
-    const created = await service.answer(ASSISTANT, {
-      op: "watch-create",
-      label: "改样式跑完告诉我",
-      trigger: { kind: "session", projectId: BLOG, sessionId: ELSEWHERE },
-    });
-    if (created.op !== "watch-create") throw new Error(created.op);
-    expect(created.watch.sessionTitle).toBe("修首页");
-
-    await service.report(ELSEWHERE, "finished");
-
-    expect(agentHost.notifySession).toHaveBeenCalledExactlyOnceWith(
-      ASSISTANT_SESSION,
-      { watchId: created.watch.id, label: "改样式跑完告诉我" },
-      expect.stringContaining("<status>finished</status>"),
-      { triggerTurn: true },
-    );
-    const listed = await service.answer(ASSISTANT, { op: "watch-list" });
-    expect(listed).toEqual({ op: "watch-list", watches: [] });
-  });
-
-  it("refuses to watch a session that is not working", async () => {
-    const { service, core } = await started();
-    (
-      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
-    ).sessionActivity.mockReturnValue("idle");
-    await expect(
-      service.answer(ASSISTANT, {
-        op: "watch-create",
-        label: "跑完告诉我",
-        trigger: { kind: "session", projectId: BLOG, sessionId: ELSEWHERE },
-      }),
-    ).rejects.toThrow(/not working on anything now/);
-  });
-
-  it("answers a WeChat reminder in WeChat, or on the desktop when WeChat cannot take it", async () => {
-    const { service, core } = await started();
-    (
-      core as unknown as { sessionActivity: ReturnType<typeof vi.fn> }
-    ).sessionActivity.mockReturnValue("idle");
-    await service.send("每天 18 点给我简报", {
-      locale: "zh-CN",
-      source: "wechat",
-    });
-    const notify = vi.fn();
-    service.notify = notify;
-    service.onWakeForWeChat = vi.fn(() => Promise.resolve(true));
-    vi.useFakeTimers({ now: new Date("2026-11-24T09:59:00.000Z") });
-    try {
-      await service.answer(ASSISTANT, {
-        op: "watch-create",
-        label: "每日简报",
-        trigger: {
-          kind: "schedule",
-          rrule: "FREQ=DAILY;BYHOUR=10;BYMINUTE=0",
-          timezone: "UTC",
-        },
-      });
-      vi.setSystemTime(new Date("2026-11-24T10:00:01.000Z"));
-      await service.watches.tick();
-      expect(service.onWakeForWeChat).toHaveBeenCalledWith(ASSISTANT_SESSION);
-      await service.turnEnded(ASSISTANT_SESSION, "idle");
-      expect(notify).not.toHaveBeenCalled();
-
-      // The next day WeChat's reply budget is spent.
-      service.onWakeForWeChat = vi.fn(() => Promise.resolve(false));
-      vi.setSystemTime(new Date("2026-11-25T10:00:01.000Z"));
-      await service.watches.tick();
-      await service.turnEnded(ASSISTANT_SESSION, "idle");
-      expect(notify).toHaveBeenCalledExactlyOnceWith({
-        title: "Orchestrator",
-        body: "首页已修好。",
-      });
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("forgets its reminders when its conversation is deleted", async () => {
-    const { service } = await started();
-    await service.answer(ASSISTANT, {
-      op: "watch-create",
-      label: "提醒我",
-      trigger: {
-        kind: "at",
-        at: new Date(Date.now() + 86_400_000).toISOString(),
-      },
-    });
-    await service.sessionsDeleted([ASSISTANT_SESSION]);
-    await expect(service.watches.list()).resolves.toEqual([]);
-  });
-});
 
 describe("approvals the Assistant can list", () => {
   it("lists cards as they come and go, never its own", async () => {

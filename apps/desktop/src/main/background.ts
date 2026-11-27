@@ -13,8 +13,6 @@ export interface TrayState extends QuitBlockers {
   keepAwake: boolean;
   /** Pine's users; the menu lists them only when there are several. */
   users?: { id: string; name: string; current: boolean }[];
-  /** Sessions the Assistant dispatched that work or wait for approval. */
-  assistant?: { running: number; awaitingApproval: number };
 }
 
 export type TrayAction =
@@ -136,14 +134,6 @@ export function trayMenu(state: TrayState, chinese: boolean): TrayMenuEntry[] {
     action: "manage-remote",
     label: chinese ? "管理更多设置…" : "Manage more settings…",
   });
-  const assistant = state.assistant;
-  if (assistant && (assistant.running > 0 || assistant.awaitingApproval > 0))
-    entries.push({
-      type: "status",
-      label: chinese
-        ? `指挥中心：${assistant.running} 个任务运行中，${assistant.awaitingApproval} 个待审批`
-        : `Orchestrator: ${assistant.running} running, ${assistant.awaitingApproval} awaiting approval`,
-    });
   if (state.runningSessions > 0)
     entries.push({
       type: "status",

@@ -355,9 +355,6 @@ describe("the Assistant's conversation", () => {
       (tool) => tool.function.name,
     );
     for (const name of [
-      "watch",
-      "watch_list",
-      "watch_cancel",
       "approvals_list",
       "settings_read",
       "automation_list",

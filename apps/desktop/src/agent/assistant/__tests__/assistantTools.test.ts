@@ -125,9 +125,6 @@ describe("the Assistant's tools", () => {
       "ui_session_stop",
       "ui_session_rename",
       "approvals_list",
-      "watch",
-      "watch_list",
-      "watch_cancel",
       "automation_list",
       "automation_get",
       "automation_set_enabled",
@@ -407,63 +404,6 @@ describe("automations", () => {
     });
     expect(ctx.requestApproval).not.toHaveBeenCalled();
     expect(JSON.stringify(result.content)).toContain("It is not on.");
-  });
-});
-
-describe("watch", () => {
-  it("takes exactly one of at, schedule or sessionId", async () => {
-    const ctx = context();
-    await expect(
-      run("watch", ctx, {
-        label: "看周报",
-        at: "2026-11-25T09:00:00+08:00",
-        schedule: "FREQ=DAILY",
-      }),
-    ).rejects.toThrow(/exactly one/);
-    await expect(run("watch", ctx, { label: "看周报" })).rejects.toThrow(
-      /exactly one/,
-    );
-    expect(ctx.requestHost).not.toHaveBeenCalled();
-  });
-
-  it("asks main for a recurring briefing", async () => {
-    const ctx = context(
-      assistantHost({
-        "watch-create": (operation) => ({
-          watch: {
-            id: "w-1",
-            label: "每日简报",
-            trigger: {
-              kind: "schedule",
-              rrule: "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
-              timezone: "Asia/Shanghai",
-            },
-            source: "wechat",
-            createdAt: "2026-11-24T00:00:00.000Z",
-            nextAt: "2026-11-24T10:00:00.000Z",
-            operation,
-          },
-        }),
-      }),
-    );
-    const result = await run("watch", ctx, {
-      label: "每日简报",
-      schedule: "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
-      timezone: "Asia/Shanghai",
-    });
-    expect(ctx.requestHost).toHaveBeenCalledWith({
-      kind: "assistant",
-      operation: {
-        op: "watch-create",
-        label: "每日简报",
-        trigger: {
-          kind: "schedule",
-          rrule: "FREQ=DAILY;BYHOUR=18;BYMINUTE=0",
-          timezone: "Asia/Shanghai",
-        },
-      },
-    });
-    expect(JSON.stringify(result.content)).toContain("w-1");
   });
 });
 

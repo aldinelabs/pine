@@ -1906,7 +1906,6 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
-      watchNotice: "Rappel : {label}",
       sessionNotice: {
         finished: "Sous-session {name} terminée",
         failed: "Échec de la sous-session {name}",
@@ -2973,7 +2972,7 @@ export default {
       action: "Effacer la conversation",
       title: "Effacer la conversation du Chef d’orchestre ?",
       description:
-        "Ses messages sont effacés, et votre prochain message commence une nouvelle conversation. Les sessions qu'il a confiées restent en place mais ne font plus de rapport ici. Ses rappels sont supprimés. Ses notes dans « Mémoire » sont conservées.",
+        "Ses messages sont effacés, et votre prochain message commence une nouvelle conversation. Les sessions qu'il a confiées restent en place mais ne font plus de rapport ici. Ses notes dans « Mémoire » sont conservées.",
       confirm: "Effacer",
     },
     source: {

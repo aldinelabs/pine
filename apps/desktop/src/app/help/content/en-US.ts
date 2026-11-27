@@ -413,7 +413,6 @@ export default {
           "Orchestrator, at the top of the sidebar, is one lasting conversation that belongs to no project. Tell it what you need and it finds the right project, starts a session there with the work, and reports back here. It only dispatches and reports; sessions in your projects do the work.",
           "You can also send to the Orchestrator from the quick composer. Messages that arrive from WeChat are marked From WeChat.",
           "Attach files, images or folders as in any session. The Orchestrator doesn't open them: it sees their names, types and sizes, and hands them to the session it starts, which works with them. Files you send from WeChat go along too.",
-          "Ask the Orchestrator to tell you when a session finishes, to remind you at a time, or to brief you every day. When the time comes a Reminder marker appears and the Orchestrator answers, in WeChat if you asked from WeChat, otherwise with a desktop notification.",
           "It can also list your automations, turn one off or run one now, list, create and rename projects, read your settings and tell you what is waiting for your approval.",
         ],
         points: [
@@ -421,10 +420,9 @@ export default {
           "Sessions the Orchestrator dispatched carry a From Orchestrator mark in their project's session list and on their tabs. Dispatched by the Orchestrator, at the top of such a session, takes you back to the Orchestrator.",
           "A dispatched session tells the Orchestrator when it finishes a turn or waits for approval. You still decide approvals on the usual approval card; the Orchestrator can't answer them for you.",
           "The Orchestrator is an ordinary pinned session: pick its model and permission mode from the menus under the message box (YOLO aside), and they stay with the conversation. Sessions it dispatches never run in a looser mode. Its notes are on the Orchestrator tab of the Memory manager.",
-          'Ask "what reminders do I have?" to see them, or ask it to cancel one. To start over, choose Clear conversation in the tab\'s More actions (or right-click Orchestrator in the sidebar). Its messages and reminders are cleared, sessions it dispatched stay but no longer report back, its notes in Memory are kept, and your next message starts a new conversation.',
+          "To start over, choose Clear conversation in the tab's More actions (or right-click Orchestrator in the sidebar). Its messages are cleared, sessions it dispatched stay but no longer report back, its notes in Memory are kept, and your next message starts a new conversation.",
           "Before it sends to, stops or renames a session it didn't dispatch, or runs an automation, it asks you on an approval card.",
           "Turning automations on, deleting projects, changing settings and answering approvals stay with you; the Orchestrator tells you where to do them.",
-          "When a dispatched session or the Orchestrator's own conversation costs more than US$5, its report says so, again at each further multiple.",
         ],
         note: {
           tone: "tip",

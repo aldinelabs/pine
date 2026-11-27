@@ -116,10 +116,6 @@ function appendBlock(lines: string[], block: PineContentBlock): void {
     );
     return;
   }
-  if (block.type === "watchNotice") {
-    lines.push(`> Reminder: ${block.notice.label}`);
-    return;
-  }
   if (block.type === "stopped") {
     lines.push("> Stopped");
     return;

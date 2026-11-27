@@ -759,7 +759,6 @@ export class PineCore {
     this.remote.stop();
     await this.wechat.stop().catch(() => undefined);
     await this.automations.stop().catch(() => undefined);
-    this.assistant.stop();
     const stopped = Promise.allSettled([
       this.agentHost.dispose(),
       this.stopWeb(),
@@ -780,7 +779,6 @@ export class PineCore {
     this.remote.stop();
     this.tellWeChat((wechat) => wechat.dispose());
     void this.automations.stop();
-    this.assistant.stop();
     void this.stopWeb();
     this.projectFileWatchers?.dispose();
     this.filePreviewWatchers.dispose();

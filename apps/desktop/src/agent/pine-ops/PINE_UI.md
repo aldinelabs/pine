@@ -754,8 +754,7 @@ differences:
   Export and Clear conversation; it has no Rename. Clear conversation asks
   first ("Clear the Orchestrator's conversation?", confirmed with Clear): the
   messages are cleared, sessions it dispatched stay where they are but no
-  longer report here, its reminders are removed, and its notes in Memory are
-  kept. The tab stays open on the empty Orchestrator, and the next message starts
+  longer report here, and its notes in Memory are kept. The tab stays open on the empty Orchestrator, and the next message starts
   a new conversation.
 - When a dispatched session finishes a turn, fails or is stopped, the
   Orchestrator replies on its own and tells the user what came of it, where
@@ -782,13 +781,6 @@ differences:
   the user can answer it. The Orchestrator asks this way before it sends to,
   stops or renames a session it did not dispatch, and before it runs an
   automation now.
-- A reminder the user asked for ("tell me when X finishes", "remind me at
-  9 tomorrow", "brief me every day at 18:00") shows as a bell marker
-  "Reminder: …" when it goes off, and the Orchestrator then answers. A reminder
-  set from WeChat is answered in WeChat; when WeChat cannot take another
-  reply, or the reminder was set on the desktop, the answer also shows as a
-  desktop notification titled "Orchestrator". Reminders are listed and
-  cancelled by asking the Orchestrator; clearing the conversation removes them.
 - Besides dispatching, the Orchestrator can on request list automations, turn
   one off or run one now (only when its permission mode and, from
   WeChat, WeChat's limit allow Autonomous Work), list, create (in a folder
@@ -797,8 +789,6 @@ differences:
   delete projects, change settings or answer approvals: for those it points
   the user to the place on the computer (for example More › Automations, or
   `.auto <name> on` in WeChat).
-- When a session it dispatched, or its own conversation, has cost more than
-  US$5, the Orchestrator says so in its report, again at each further multiple.
 - After compaction the earlier conversation stays readable above the
   compaction marker, as in any session.
 
@@ -1443,9 +1433,8 @@ the user opens themselves do not pulse.
   "Sub-sessions" (one page: splitting work into sub-sessions, where they
   appear in the sidebar, notices to the parent, limits),
   "Orchestrator" (one page: handing work to the Orchestrator, dispatch cards,
-  "From Orchestrator" marks, approvals, its model and mode; reminders and
-  briefings, what else it can manage, what stays with the user, cost
-  reminders),
+  "From Orchestrator" marks, approvals, its model and mode, what else it can
+  manage, what stays with the user),
   "Workbench" (the workbench and its panels; Artifacts with folders,
   versions and dragging files out),
   "Work style and Aldine methodology" (one page: work style, communication
@@ -1525,9 +1514,7 @@ for Browser access, Remote Control via Aldine and
 connected), a "WeChat: scan again needed" line when WeChat's login has to be
 renewed, a "Keep computer awake for remote control" checkbox (the same
 setting as in Settings › Remote control), "Manage more settings…" (opens
-Pine Settings › Remote control), while sessions the Orchestrator dispatched are
-working a line such as "Orchestrator: 2 running, 1 awaiting approval", a count of
-running sessions while any run,
+Pine Settings › Remote control), a count of running sessions while any run,
 and Quit Pine. Quitting from the menu is the way to stop automations, Remote Control and WeChat remote.
 
 ## Keyboard shortcuts

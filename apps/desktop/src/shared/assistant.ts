@@ -62,23 +62,8 @@ export type AssistantTurnSource = "wechat" | "desktop";
 export const PINE_OVERVIEW_TOOL_NAME = "pine_overview" as const;
 export const DISPATCH_TASK_TOOL_NAME = "dispatch_task" as const;
 export const SESSION_DIGEST_TOOL_NAME = "session_digest" as const;
-export const WATCH_TOOL_NAME = "watch" as const;
-export const WATCH_LIST_TOOL_NAME = "watch_list" as const;
-export const WATCH_CANCEL_TOOL_NAME = "watch_cancel" as const;
 export const APPROVALS_LIST_TOOL_NAME = "approvals_list" as const;
 export const SETTINGS_READ_TOOL_NAME = "settings_read" as const;
-
-/** The Assistant's reminders, watches and briefings. */
-export const ASSISTANT_WATCHES_FILE = "watches.json" as const;
-/** Watches kept at once; more are refused. */
-export const ASSISTANT_WATCHES_MAX = 30;
-
-/**
- * In US dollars: a dispatched session, or the Assistant's own conversation,
- * that costs more than this is pointed out in its next report, again at each
- * further multiple. Only a reminder, never a limit.
- */
-export const ASSISTANT_COST_REMINDER_USD = 5;
 
 /** What a window needs to open the Assistant. */
 export interface AssistantState {
@@ -167,35 +152,6 @@ export interface AssistantDigest {
   lastRequest?: string;
 }
 
-/**
- * When a watch wakes the Assistant: once at an instant, on an automation-style
- * schedule (an RRULE in a time zone), or when a session ends its turn.
- */
-export type AssistantWatchTrigger =
-  | { kind: "at"; at: string }
-  | { kind: "schedule"; rrule: string; timezone: string }
-  | { kind: "session"; projectId: string; sessionId: string };
-
-/**
- * A reminder, watch or briefing the user asked for. It only wakes the
- * Assistant, which then reports; it never does any work itself.
- */
-export interface AssistantWatch {
-  id: string;
-  /** What the user asked to be told, in their words. */
-  label: string;
-  trigger: AssistantWatchTrigger;
-  /** Where the user asked, so the Assistant answers there. */
-  source: AssistantTurnSource;
-  createdAt: string;
-  /** The next time it wakes the Assistant, for `at` and `schedule`. */
-  nextAt?: string;
-  lastFiredAt?: string;
-  /** The watched session's title and project, for `session`. */
-  sessionTitle?: string;
-  projectName?: string;
-}
-
 /** An approval card or question waiting for the user, as the Assistant lists it. */
 export interface AssistantPendingApproval {
   kind: "approval" | "question" | "automation";
@@ -267,16 +223,6 @@ export type AssistantHostOperation =
       attachmentIds?: string[];
     }
   | { op: "digest"; projectId: string; sessionId: string }
-  | {
-      op: "watch-create";
-      label: string;
-      trigger:
-        | { kind: "at"; at: string }
-        | { kind: "schedule"; rrule: string; timezone?: string }
-        | { kind: "session"; projectId: string; sessionId: string };
-    }
-  | { op: "watch-list" }
-  | { op: "watch-cancel"; watchId: string }
   | { op: "approvals" }
   | { op: "settings" }
   | { op: "projects" }
@@ -327,9 +273,6 @@ export type AssistantHostResult =
       attachments?: number;
     }
   | { op: "digest"; digest: AssistantDigest }
-  | { op: "watch-create"; watch: AssistantWatch }
-  | { op: "watch-list"; watches: AssistantWatch[] }
-  | { op: "watch-cancel"; cancelled: boolean; label?: string }
   | { op: "approvals"; approvals: AssistantPendingApproval[] }
   | { op: "settings"; settings: AssistantSettingFact[] }
   | { op: "projects"; projects: AssistantProjectFact[] }

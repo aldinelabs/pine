@@ -1781,7 +1781,6 @@ export default {
         minutes: "{minutes} 分 {seconds} 秒",
         seconds: "{value} 秒",
       },
-      watchNotice: "提醒：{label}",
       sessionNotice: {
         finished: "子會話 {name} 已完成",
         failed: "子會話 {name} 失敗了",
@@ -2801,7 +2800,7 @@ export default {
       action: "清空對話",
       title: "清空指揮中心的對話？",
       description:
-        "對話中的訊息將被清空，下一則訊息會開始新的對話。它派出的工作階段保留在原處，但不再向這裡回報。它設定的提醒會被移除。它在「記憶」中的筆記會保留。",
+        "對話中的訊息將被清空，下一則訊息會開始新的對話。它派出的工作階段保留在原處，但不再向這裡回報。它在「記憶」中的筆記會保留。",
       confirm: "清空",
     },
     source: {

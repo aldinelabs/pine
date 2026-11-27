@@ -1903,7 +1903,6 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
-      watchNotice: "Recordatorio: {label}",
       sessionNotice: {
         finished: "Subsesión {name} terminada",
         failed: "La subsesión {name} falló",
@@ -2958,7 +2957,7 @@ export default {
       action: "Borrar conversación",
       title: "¿Borrar la conversación del Director?",
       description:
-        "Sus mensajes se borran y tu próximo mensaje empieza una conversación nueva. Las sesiones que encargó se quedan donde están, pero ya no informan aquí. Sus recordatorios se eliminan. Sus notas en «Memoria» se conservan.",
+        "Sus mensajes se borran y tu próximo mensaje empieza una conversación nueva. Las sesiones que encargó se quedan donde están, pero ya no informan aquí. Sus notas en «Memoria» se conservan.",
       confirm: "Borrar",
     },
     source: {

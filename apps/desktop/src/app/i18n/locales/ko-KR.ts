@@ -1855,7 +1855,6 @@ export default {
         minutes: "{minutes}분 {seconds}초",
         seconds: "{value}초",
       },
-      watchNotice: "알림: {label}",
       sessionNotice: {
         finished: "하위 세션 {name} 완료됨",
         failed: "하위 세션 {name} 실패함",
@@ -2892,7 +2891,7 @@ export default {
       action: "대화 지우기",
       title: "지휘자의 대화를 지울까요?",
       description:
-        "메시지가 지워지고, 다음 메시지부터 새 대화가 시작됩니다. 지휘자가 맡긴 세션은 그대로 남지만 더 이상 여기로 보고하지 않습니다. 설정한 알림은 삭제됩니다. ‘메모리’의 메모는 유지됩니다.",
+        "메시지가 지워지고, 다음 메시지부터 새 대화가 시작됩니다. 지휘자가 맡긴 세션은 그대로 남지만 더 이상 여기로 보고하지 않습니다. ‘메모리’의 메모는 유지됩니다.",
       confirm: "지우기",
     },
     source: {

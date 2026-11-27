@@ -1913,7 +1913,6 @@ export default {
         minutes: "{minutes} min {seconds} s",
         seconds: "{value} s",
       },
-      watchNotice: "Erinnerung: {label}",
       sessionNotice: {
         finished: "Untersitzung {name} abgeschlossen",
         failed: "Untersitzung {name} fehlgeschlagen",
@@ -2973,7 +2972,7 @@ export default {
       action: "Unterhaltung leeren",
       title: "Unterhaltung des Dirigenten leeren?",
       description:
-        "Die Nachrichten werden gelöscht, und deine nächste Nachricht beginnt eine neue Unterhaltung. Sitzungen, die er übergeben hat, bleiben bestehen, berichten aber nicht mehr hierher. Seine Erinnerungen werden entfernt. Seine Notizen unter „Gedächtnis“ bleiben erhalten.",
+        "Die Nachrichten werden gelöscht, und deine nächste Nachricht beginnt eine neue Unterhaltung. Sitzungen, die er übergeben hat, bleiben bestehen, berichten aber nicht mehr hierher. Seine Notizen unter „Gedächtnis“ bleiben erhalten.",
       confirm: "Leeren",
     },
     source: {

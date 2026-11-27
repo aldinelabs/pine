@@ -40,7 +40,6 @@ import type {
 import type {
   PineContextUsage,
   PineSessionNotice,
-  PineWatchNotice,
   PineSessionSummary,
   SessionRenamer,
   TitleSuggestionReply,
@@ -314,7 +313,7 @@ export type AgentWorkerRequest =
       /** Tells a session about one of its sub-sessions, waking it if idle. */
       type: "session:notify";
       sessionId: string;
-      notice: PineSessionNotice | PineWatchNotice;
+      notice: PineSessionNotice;
       /** What the model reads: the sub-session's state and last reply. */
       content: string;
       /** False: add the notice without waking an idle session. */
