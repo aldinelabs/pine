@@ -764,7 +764,9 @@ differences:
   completion sound or notification of their own; the user hears their
   results only from the Orchestrator. A session waiting for approval shows
   its own approval card and notification instead.
-- Its notes show as the "Orchestrator" tab of the Memory manager.
+- It remembers like any session: its notes (such as what the user calls a
+  project) are the This project notes of the Memory manager opened from its
+  tab, and it reads the All projects notes too.
 - The conversation reads like a chat: the Orchestrator's replies sit in
   grey bubbles on the left, and the user's messages sit in dark (light, in
   dark mode) bubbles on the right. Its thinking, tool calls and dispatch
@@ -1380,9 +1382,8 @@ the user opens themselves do not pulse.
   "MCP servers" guide): servers for this project or all projects; add, edit,
   enable, remove, refresh status; Manage with Pine.
 - Memory manager ("How memory works" beside the title opens the "Memory"
-  guide): the saved notes in tabs, This project, Orchestrator (the Orchestrator's
-  own notes) and All projects; opened from the Orchestrator's tab it shows only
-  Orchestrator and All projects; each note with its name, one-line summary, an Unverified badge
+  guide): the saved notes in tabs, This project and All projects; each note
+  with its name, one-line summary, an Unverified badge
   when Pine has not confirmed it, and an Edit button. Edit opens Edit memory
   with Summary, Details and a Verified switch, plus Delete, which asks first.
   Refresh memories reloads the list. It works whether or not Remember across

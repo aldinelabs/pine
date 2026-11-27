@@ -44,10 +44,6 @@ import {
   MEMORY_SAVE_TOOL_NAME,
 } from "../../shared/memory";
 import { sessionSearchQuery } from "../../shared/sessions";
-import {
-  createAssistantMemoryToolDefinitions,
-  type AssistantMemoryOptions,
-} from "./memory";
 import { createDatetimeToolDefinition } from "../datetimeTool";
 import type {
   AgentHostRequest,
@@ -124,8 +120,11 @@ export interface AssistantToolContext {
   requestHost(request: AgentHostRequest): Promise<AgentHostResponse>;
   getApprovalMode(): PineApprovalMode;
   getLocale(): "en-US" | "zh-CN";
-  /** Its notes; the memory tools are listed without it and refuse every call. */
-  memory?: AssistantMemoryOptions;
+  /**
+   * The ordinary memory tools (agent/memory/tools.ts), the same three as in
+   * any session; without them the tool list would not match the allowlist.
+   */
+  memoryTools: readonly ToolDefinition[];
   /**
    * Asks the user on an approval card, whatever the Assistant's mode: no
    * reviewer and never the model decides. Without it every action that
@@ -853,7 +852,7 @@ export function createAssistantToolDefinitions(
     ...projectTools,
     settingsTool,
     createDatetimeToolDefinition(),
-    ...createAssistantMemoryToolDefinitions(context.memory),
+    ...context.memoryTools,
     createSubmitSessionSummaryToolDefinition(),
   ] as ToolDefinition[];
   // The allowlist and the registry must name the same tools in one order.

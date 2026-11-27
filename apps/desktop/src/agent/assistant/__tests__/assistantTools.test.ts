@@ -8,6 +8,8 @@ import type {
   AgentHostResponse,
   GateDecision,
 } from "../../protocol";
+import { createMemoryToolDefinitions } from "../../memory/tools";
+import type { PineMemoryRepository } from "../../memory/repository";
 import {
   ASSISTANT_BLOCKED_TOOL_REASON,
   ASSISTANT_TOOL_NAMES,
@@ -49,6 +51,14 @@ function context(
     requestApproval,
     getApprovalMode: () => "auto-approve" as const,
     getLocale: () => "zh-CN" as const,
+    memoryTools: createMemoryToolDefinitions({
+      afterExternalContent: () => false,
+      getApprovalMode: () => "auto-approve",
+      getGate: () => null,
+      isEnabled: () => true,
+      repository: {} as PineMemoryRepository,
+      sessionId: () => "orchestrator",
+    }),
   };
 }
 

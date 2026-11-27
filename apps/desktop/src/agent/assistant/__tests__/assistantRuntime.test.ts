@@ -9,6 +9,7 @@ import type { PineAgentEvent } from "../../../shared/agent";
 import { PineAgentRuntime } from "../../runtime";
 import { ASSISTANT_SYSTEM_PROMPT, markWeChatMessage } from "../prompt";
 import { ASSISTANT_TOOL_NAMES } from "../tools";
+import { MEMORY_SYSTEM_PROMPT } from "../../memory/prompt";
 import { serializeAttachmentMessage } from "../../../shared/attachments";
 import { assistantAttachmentId } from "../../../shared/assistant";
 
@@ -216,6 +217,8 @@ describe("the Assistant's conversation", () => {
       request?.messages.find((message) => message.role === "system")?.content,
     );
     expect(system.startsWith(ASSISTANT_SYSTEM_PROMPT)).toBe(true);
+    // Memory is on by default: the ordinary guide follows its own prompt.
+    expect(system).toContain(MEMORY_SYSTEM_PROMPT);
     expect(system).not.toContain("privileged_bash");
   });
 

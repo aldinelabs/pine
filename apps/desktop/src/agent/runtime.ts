@@ -153,7 +153,6 @@ import {
   createAssistantToolGuardExtension,
 } from "./assistant/tools";
 import { ASSISTANT_SYSTEM_PROMPT } from "./assistant/prompt";
-import { assistantMemoryNotice } from "./assistant/memory";
 import { assistantContextMessages } from "./assistant/attachments";
 import { ForegroundPromoter } from "./foreground-promotion";
 import { createModelToolDefinitions, listUsableModels } from "./modelTools";
@@ -2191,12 +2190,14 @@ export class PineAgentRuntime {
               trigger: "pre-execution",
               ...input,
             }),
-          // Its project notes are the Assistant's own (assistant/memory).
-          memory: {
+          memoryTools: createMemoryToolDefinitions({
             repository: memoryRepository,
+            getApprovalMode: () => live.approvalMode,
+            getGate: () => live.gate,
             isEnabled: () => live.memoryEnabled,
+            afterExternalContent: () => this.turnReadExternalContent(live),
             sessionId: () => live.session.sessionId,
-          },
+          }),
         })
       : [
           ...pineTools,
@@ -2402,9 +2403,7 @@ export class PineAgentRuntime {
                 ).trim(),
                 ...(memoryEnabled
                   ? {
-                      memory: assistantMemoryNotice(
-                        await memoryRepository.list(),
-                      ),
+                      memory: memoryNotice(await memoryRepository.list()),
                     }
                   : {}),
               });
@@ -2421,7 +2420,11 @@ export class PineAgentRuntime {
           isEnabled: () => live.contextCompactionRoute === "model",
         }),
       ],
-      systemPromptOverride: () => ASSISTANT_SYSTEM_PROMPT,
+      // The ordinary memory guide, as of when the session opened.
+      systemPromptOverride: () =>
+        live.memoryEnabled
+          ? `${ASSISTANT_SYSTEM_PROMPT}\n\n${MEMORY_SYSTEM_PROMPT}`
+          : ASSISTANT_SYSTEM_PROMPT,
     });
   }
 
