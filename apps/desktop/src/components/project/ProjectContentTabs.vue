@@ -7,7 +7,6 @@ import {
   PlusIcon,
   WorkflowIcon,
   XIcon,
-  MessageSquareShareIcon,
 } from "@lucide/vue";
 import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { isAssistantProject } from "@/shared/assistant";
@@ -624,8 +623,7 @@ function tabIcon(tab: ProjectContentTab) {
   // An automation run keeps its icon until the user replies to it.
   if (sessionStore.automationRunOf(tab.sessionId)) return WorkflowIcon;
   // Dispatched by the Assistant, like the sidebar's "From Assistant".
-  if (sessionStore.isFromAssistant(tab.sessionId))
-    return MessageSquareShareIcon;
+  if (sessionStore.isFromAssistant(tab.sessionId)) return OrchestratorIcon;
   // A sub-session, started by another session to work for it.
   return projectStore.projectById(tab.projectId)?.sessionParents?.[
     tab.sessionId

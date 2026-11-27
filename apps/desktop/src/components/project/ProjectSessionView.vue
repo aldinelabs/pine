@@ -5,11 +5,8 @@ import {
   dragContainsAttachments,
   useAttachmentDrop,
 } from "@/composables/useAttachmentDrop";
-import {
-  FilesIcon,
-  MessageCircleIcon,
-  MessageSquareShareIcon,
-} from "@lucide/vue";
+import { FilesIcon, MessageCircleIcon } from "@lucide/vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { assistantViewKey } from "@/components/assistant/context";
 import { useAssistantEntry } from "@/composables/useAssistantEntry";
 import { isAssistantProject } from "@/shared/assistant";
@@ -958,7 +955,7 @@ async function handleDrop(event: DragEvent): Promise<void> {
                 class="mx-auto flex cursor-pointer items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
                 @click="openAssistant"
               >
-                <MessageSquareShareIcon class="size-3.5" aria-hidden="true" />
+                <OrchestratorIcon class="size-3.5" aria-hidden="true" />
                 {{ t("sessions.dispatchedByAssistant") }}
               </button>
               <p

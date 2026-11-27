@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  ChevronRightIcon,
-  MessageCircleIcon,
-  MessageSquareShareIcon,
-  WorkflowIcon,
-} from "@lucide/vue";
+import { ChevronRightIcon, MessageCircleIcon, WorkflowIcon } from "@lucide/vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { DURATION_MS, EASE_OUT_EXPO } from "@/lib/motion";
@@ -14,6 +9,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import SessionContextMenu from "@/components/sessions/SessionContextMenu.vue";
+import OrchestratorIcon from "@/components/assistant/OrchestratorIcon.vue";
 import { SESSION_TREE_ROW_CLASS } from "@/components/project/sessionTreeRow";
 import SessionStatusIndicator from "@/components/project/SessionStatusIndicator.vue";
 import { useSessionStore } from "@/stores/session";
@@ -216,7 +212,7 @@ const emit = defineEmits<{
           :aria-label="t('sessions.fromAssistant')"
           :title="t('sessions.fromAssistant')"
         >
-          <MessageSquareShareIcon class="size-4" aria-hidden="true" />
+          <OrchestratorIcon class="size-4" aria-hidden="true" />
         </span>
         <span
           v-else-if="weChatLabel"

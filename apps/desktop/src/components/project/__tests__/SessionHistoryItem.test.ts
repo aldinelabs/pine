@@ -142,9 +142,9 @@ describe("SessionHistoryItem", () => {
     const marker = (item: typeof session) =>
       mountItem(item).find('[data-slot="session-assistant-origin"]');
     expect(marker(session).exists()).toBe(false);
-    expect(
-      marker({ ...session, fromAssistant: true }).attributes("title"),
-    ).toBe("From Orchestrator");
+    const marked = marker({ ...session, fromAssistant: true });
+    expect(marked.attributes("title")).toBe("From Orchestrator");
+    expect(marked.find('[data-icon="orchestrator"]').exists()).toBe(true);
   });
 
   it("puts what waits on the user first in the indent column", async () => {

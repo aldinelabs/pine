@@ -190,7 +190,7 @@ Session list, one collapsible group per project:
   icon and, when idle, the time it started. A session started from WeChat
   shows a chat-bubble icon ("From WeChat"); one WeChat later sent a message to
   shows the same icon labelled "Used from WeChat". A session the Orchestrator
-  dispatched shows a forwarded-message icon ("From Orchestrator"). A session with sub-sessions shows
+  dispatched shows the Orchestrator's network icon ("From Orchestrator"). A session with sub-sessions shows
   a chevron at the end of its row ("Show sub-sessions ({count})" / "Hide
   sub-sessions ({count})") that expands or collapses them (clicking the row of the
   session already open, or the Right and Left arrow keys while the row has
@@ -244,7 +244,7 @@ Tab bar ("Open content"):
   workflow icon until the user replies to it. A sub-session's tab (one another
   session started) shows two speech bubbles instead of the single bubble of
   other session tabs. The Orchestrator's tab is titled "Orchestrator" with a
-  network icon (one node branching to others); a session the Orchestrator dispatched shows a forwarded-message
+  network icon (one node branching to others); a session the Orchestrator dispatched shows the same network
   icon.
 - Switch computer: shown only when Pine is opened in a browser through Remote
   Control and at least one computer is paired; returns to the list of
@@ -794,7 +794,7 @@ differences:
 - After compaction the earlier conversation stays readable above the
   compaction marker, as in any session.
 
-A session the Orchestrator dispatched shows "Dispatched by the Orchestrator" at the
+A session the Orchestrator dispatched shows "Dispatched by the Orchestrator", with its network icon, at the
 top of its transcript; clicking it opens the Orchestrator's tab.
 
 #### File tab
