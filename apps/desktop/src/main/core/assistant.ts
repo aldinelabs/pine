@@ -12,9 +12,7 @@ import { z } from "zod";
 import {
   APPROVAL_MODE_ORDER,
   approvalModeWithin,
-  type PineAgentEvent,
   type PineApprovalMode,
-  type PineApprovalTrigger,
   type PromptSessionRequest,
   type PromptSessionResult,
 } from "../../shared/agent";
@@ -36,7 +34,6 @@ import {
   type AssistantAutomationDetail,
   type AssistantAutomationFact,
   type AssistantDigest,
-  type AssistantPendingApproval,
   type AssistantSessionFact,
   type AssistantSettingFact,
   type AssistantHostOperation,
@@ -141,7 +138,6 @@ const OperationSchema = z.discriminatedUnion("op", [
     projectId: z.uuid(),
     sessionId: z.uuid(),
   }),
-  z.object({ op: z.literal("approvals") }),
   z.object({ op: z.literal("settings") }),
   z.object({ op: z.literal("projects") }),
   z.object({ op: z.literal("automations"), projectId: z.uuid().optional() }),
@@ -296,26 +292,6 @@ function automationFact(
   };
 }
 
-/** Triggers that WeChat only approves with "Allow approving high-risk actions". */
-const HIGH_RISK_TRIGGERS: ReadonlySet<PineApprovalTrigger> = new Set([
-  "privileged-execution",
-  "destructive-pattern",
-]);
-
-/** An approval card or question seen on its way to the user. */
-interface PendingCard {
-  requestId: string;
-  kind: "approval" | "question";
-  sessionId: string;
-  what: string;
-  trigger?: PineApprovalTrigger;
-  subject?: string;
-  since: string;
-}
-
-/** Cards remembered at once; the oldest drop out beyond this. */
-const PENDING_CARDS_MAX = 100;
-
 /** A wake-up of the Assistant whose reply still has to reach the user. */
 interface PendingWake {
   thread: string;
@@ -378,8 +354,6 @@ export class AssistantService {
   notify?: (notification: { title: string; body: string }) => void;
   /** The interface language, for notifications. */
   locale: () => "en-US" | "zh-CN" = () => "en-US";
-  /** Approval cards and questions waiting for the user, as seen go by. */
-  private readonly cards = new Map<string, PendingCard>();
   /** Wake-ups whose reply has yet to reach the user. */
   private wakes: PendingWake[] = [];
 
@@ -806,8 +780,6 @@ export class AssistantService {
     }
 
     switch (parsed.op) {
-      case "approvals":
-        return { op: "approvals", approvals: this.pendingApprovals() };
       case "settings":
         return { op: "settings", settings: await this.settingFacts() };
       case "projects":
@@ -1100,113 +1072,6 @@ export class AssistantService {
       }
     }
     this.notifyDesktop(reply ?? desktop.map((wake) => wake.label).join(" · "));
-  }
-
-  /** Sees each session event, to know which approvals wait for the user. */
-  observe(event: PineAgentEvent): void {
-    if (event.type === "approval-request") {
-      if (
-        isAssistantProject(
-          this.core.runtimes.projectOfLiveSession(event.sessionId)?.id,
-        )
-      )
-        return;
-      const input = event.input;
-      const subject =
-        input && typeof input === "object" && !Array.isArray(input)
-          ? (input as Record<string, unknown>).subject
-          : undefined;
-      this.remember({
-        requestId: event.requestId,
-        kind: "approval",
-        sessionId: event.sessionId,
-        what: event.toolName,
-        trigger: event.trigger,
-        ...(typeof subject === "string" && subject
-          ? { subject: truncate(subject, 200) }
-          : {}),
-        since: new Date().toISOString(),
-      });
-    } else if (event.type === "questionnaire-request") {
-      if (
-        isAssistantProject(
-          this.core.runtimes.projectOfLiveSession(event.sessionId)?.id,
-        )
-      )
-        return;
-      this.remember({
-        requestId: event.requestId,
-        kind: "question",
-        sessionId: event.sessionId,
-        what: "question",
-        since: new Date().toISOString(),
-      });
-    } else if (
-      event.type === "approval-decided" ||
-      event.type === "questionnaire-decided"
-    )
-      this.cards.delete(event.requestId);
-    else if (
-      event.type === "run-state" &&
-      (event.state === "idle" || event.state === "failed")
-    ) {
-      for (const [requestId, card] of this.cards)
-        if (card.sessionId === event.sessionId) this.cards.delete(requestId);
-    }
-  }
-
-  private remember(card: PendingCard): void {
-    this.cards.set(card.requestId, card);
-    if (this.cards.size > PENDING_CARDS_MAX) {
-      const oldest = this.cards.keys().next().value;
-      if (oldest !== undefined) this.cards.delete(oldest);
-    }
-  }
-
-  /** Approvals and questions waiting for the user right now, across Pine. */
-  private pendingApprovals(): AssistantPendingApproval[] {
-    const { runtimes, wechat, automations } = this.core;
-    const allowHighRisk = wechat.status().settings.allowHighRiskApprovals;
-    const result: AssistantPendingApproval[] = [];
-    for (const card of this.cards.values()) {
-      if (
-        card.kind === "approval" &&
-        !runtimes.hasPendingApproval(card.sessionId)
-      )
-        continue;
-      const project = runtimes.projectOfLiveSession(card.sessionId);
-      if (!project) continue;
-      const title = runtimes.summaryOfLiveSession(card.sessionId)?.name;
-      const number = wechat.cardNumberOf(card.requestId);
-      result.push({
-        kind: card.kind,
-        projectId: project.id,
-        projectName: this.projectName(project),
-        sessionId: card.sessionId,
-        ...(title ? { sessionTitle: title } : {}),
-        what: card.what,
-        ...(card.subject ? { subject: card.subject } : {}),
-        since: card.since,
-        ...(number !== undefined ? { wechatCard: number } : {}),
-        ...(card.trigger &&
-        HIGH_RISK_TRIGGERS.has(card.trigger) &&
-        !allowHighRisk
-          ? { localOnly: true as const }
-          : {}),
-      });
-    }
-    for (const request of automations.pendingApprovals())
-      result.push({
-        kind: "automation",
-        projectId: request.projectId,
-        projectName: request.projectName,
-        ...(request.sessionId ? { sessionId: request.sessionId } : {}),
-        what: `${request.kind} automation “${request.facts.name}”`,
-        since: request.createdAt,
-        // Automation approvals are local only on every remote surface.
-        localOnly: true,
-      });
-    return result;
   }
 
   /** The settings the Assistant may read; it can change none of them. */

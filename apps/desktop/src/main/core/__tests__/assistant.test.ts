@@ -132,7 +132,6 @@ async function fixture() {
       paused: false,
       settings: { allowHighRiskApprovals: false },
     })),
-    cardNumberOf: vi.fn((): number | undefined => undefined),
   };
   const agentHost = {
     notifySession: vi.fn(() => Promise.resolve({ delivered: true })),
@@ -759,67 +758,6 @@ async function started() {
   ]);
   return context;
 }
-
-describe("approvals the Assistant can list", () => {
-  it("lists cards as they come and go, never its own", async () => {
-    const { service, wechat, automations } = await fixture();
-    wechat.cardNumberOf.mockReturnValue(12);
-    automations.pendingApprovals.mockReturnValue([
-      {
-        requestId: "auto-1",
-        projectId: BLOG,
-        projectName: "Blog",
-        kind: "enable",
-        automationId: "a-1",
-        facts: { name: "日报" },
-        warnings: [],
-        createdAt: "2026-11-24T00:00:00.000Z",
-      },
-    ]);
-    const request = (sessionId: string, requestId: string) =>
-      ({
-        type: "approval-request",
-        sessionId,
-        requestId,
-        toolCallId: "c",
-        toolName: "bash",
-        trigger: "destructive-pattern",
-        input: { subject: "rm -rf build" },
-      }) as const;
-    service.observe(request(ELSEWHERE, "r-1"));
-    service.observe(request(ASSISTANT_SESSION, "r-own"));
-
-    const listed = await service.answer(ASSISTANT, { op: "approvals" });
-    expect(listed).toEqual({
-      op: "approvals",
-      approvals: [
-        expect.objectContaining({
-          kind: "approval",
-          projectName: "Blog",
-          sessionId: ELSEWHERE,
-          what: "bash",
-          subject: "rm -rf build",
-          wechatCard: 12,
-          localOnly: true,
-        }),
-        expect.objectContaining({ kind: "automation", localOnly: true }),
-      ],
-    });
-
-    service.observe({
-      type: "approval-decided",
-      sessionId: ELSEWHERE,
-      requestId: "r-1",
-      toolCallId: "c",
-      verdict: "approved",
-      decidedBy: "user",
-    });
-    automations.pendingApprovals.mockReturnValue([]);
-    await expect(
-      service.answer(ASSISTANT, { op: "approvals" }),
-    ).resolves.toEqual({ op: "approvals", approvals: [] });
-  });
-});
 
 describe("automations from the Assistant", () => {
   const daily = {

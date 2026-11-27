@@ -62,7 +62,6 @@ export type AssistantTurnSource = "wechat" | "desktop";
 export const PINE_OVERVIEW_TOOL_NAME = "pine_overview" as const;
 export const DISPATCH_TASK_TOOL_NAME = "dispatch_task" as const;
 export const SESSION_DIGEST_TOOL_NAME = "session_digest" as const;
-export const APPROVALS_LIST_TOOL_NAME = "approvals_list" as const;
 export const SETTINGS_READ_TOOL_NAME = "settings_read" as const;
 
 /** What a window needs to open the Assistant. */
@@ -152,24 +151,6 @@ export interface AssistantDigest {
   lastRequest?: string;
 }
 
-/** An approval card or question waiting for the user, as the Assistant lists it. */
-export interface AssistantPendingApproval {
-  kind: "approval" | "question" | "automation";
-  projectId: string;
-  projectName: string;
-  sessionId?: string;
-  sessionTitle?: string;
-  /** The tool or request it is about, such as bash or "enable automation". */
-  what: string;
-  /** Pine's one-line subject of the card, when it has one. */
-  subject?: string;
-  since: string;
-  /** Its number in WeChat, when WeChat shows it as a card. */
-  wechatCard?: number;
-  /** Only the computer can decide it. */
-  localOnly?: true;
-}
-
 /** A setting the Assistant may read, never change. */
 export interface AssistantSettingFact {
   /** Where the user finds it, such as "Settings › General › Language". */
@@ -223,7 +204,6 @@ export type AssistantHostOperation =
       attachmentIds?: string[];
     }
   | { op: "digest"; projectId: string; sessionId: string }
-  | { op: "approvals" }
   | { op: "settings" }
   | { op: "projects" }
   | { op: "automations"; projectId?: string }
@@ -273,7 +253,6 @@ export type AssistantHostResult =
       attachments?: number;
     }
   | { op: "digest"; digest: AssistantDigest }
-  | { op: "approvals"; approvals: AssistantPendingApproval[] }
   | { op: "settings"; settings: AssistantSettingFact[] }
   | { op: "projects"; projects: AssistantProjectFact[] }
   | { op: "automations"; automations: AssistantAutomationFact[] }

@@ -124,7 +124,6 @@ describe("the Assistant's tools", () => {
       "ui_session_send",
       "ui_session_stop",
       "ui_session_rename",
-      "approvals_list",
       "automation_list",
       "automation_get",
       "automation_set_enabled",
@@ -433,33 +432,5 @@ describe("projects", () => {
           guidelines: definition.promptGuidelines,
         }),
       ).not.toContain("ui_project_delete");
-  });
-});
-
-describe("approvals_list", () => {
-  it("lists cards read only, with their WeChat numbers", async () => {
-    const ctx = context(
-      assistantHost({
-        approvals: () => ({
-          approvals: [
-            {
-              kind: "approval",
-              projectId: BLOG,
-              projectName: "Blog",
-              sessionId: SESSION,
-              sessionTitle: "修首页",
-              what: "bash",
-              subject: "rm -rf build",
-              since: "2026-11-24T00:00:00.000Z",
-              wechatCard: 12,
-            },
-          ],
-        }),
-      }),
-    );
-    const result = await run("approvals_list", ctx, {});
-    const body = JSON.stringify(result.content);
-    expect(body).toContain("WeChat card 12");
-    expect(body).toContain("Only the user decides");
   });
 });

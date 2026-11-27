@@ -404,11 +404,6 @@ export class WeChatBridge implements WeChatBridgeApi {
     this.guarded(() => this.parts?.sessions.automationsChanged());
   }
 
-  /** The number WeChat shows an approval or question card under, if it does. */
-  cardNumberOf(requestId: string): number | undefined {
-    return this.parts?.asks.byRequest(requestId)?.number;
-  }
-
   /**
    * Whether a push would reach WeChat now: bound, not paused, and with
    * enough of the reply budget left for a result (P2). Without it a

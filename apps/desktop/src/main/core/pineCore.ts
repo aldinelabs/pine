@@ -842,7 +842,6 @@ export class PineCore {
     this.trackSessionWork(agentEvent);
     this.host.observeAgentEvent?.(agentEvent, ownerId);
     this.tellWeChat((wechat) => wechat.observeAgentEvent(agentEvent, ownerId));
-    this.assistant.observe(agentEvent);
     if (agentEvent.type === "present-file") {
       void this.forwardPresentedFile(agentEvent, ownerId);
       return;
